@@ -1,0 +1,6130 @@
+{
+  "h1Cache": {
+    "4": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.008753,
+      "closePrice": 0.008695,
+      "step": 0.0003,
+      "decimals": 8,
+      "upperPrice": 0.008753,
+      "lowerPrice": 0.008695
+    },
+    "42": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.0298,
+      "closePrice": 0.0298,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.0298,
+      "lowerPrice": 0.0298
+    },
+    "BTC": {
+      "monthStart": 1782864000000,
+      "openPrice": 58605.4,
+      "closePrice": 58548.7,
+      "step": 3000,
+      "decimals": 2,
+      "upperPrice": 58605.4,
+      "lowerPrice": 58548.7
+    },
+    "ETH": {
+      "monthStart": 1782864000000,
+      "openPrice": 1571.48,
+      "closePrice": 1574.35,
+      "step": 300,
+      "decimals": 2,
+      "upperPrice": 1574.35,
+      "lowerPrice": 1571.48
+    },
+    "BCH": {
+      "monthStart": 1782864000000,
+      "openPrice": 199.89,
+      "closePrice": 200.23,
+      "step": 30,
+      "decimals": 2,
+      "upperPrice": 200.23,
+      "lowerPrice": 199.89
+    },
+    "XRP": {
+      "monthStart": 1782864000000,
+      "openPrice": 1.0396,
+      "closePrice": 1.0368,
+      "step": 0.3,
+      "decimals": 4,
+      "upperPrice": 1.0396,
+      "lowerPrice": 1.0368
+    },
+    "LTC": {
+      "monthStart": 1782864000000,
+      "openPrice": 41.91,
+      "closePrice": 41.84,
+      "step": 3,
+      "decimals": 3,
+      "upperPrice": 41.91,
+      "lowerPrice": 41.84
+    },
+    "TRX": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.31502,
+      "closePrice": 0.31431,
+      "step": 0.03,
+      "decimals": 4,
+      "upperPrice": 0.31502,
+      "lowerPrice": 0.31431
+    },
+    "ETC": {
+      "monthStart": 1782864000000,
+      "openPrice": 6.886,
+      "closePrice": 6.862,
+      "step": 0.3,
+      "decimals": 4,
+      "upperPrice": 6.886,
+      "lowerPrice": 6.862
+    },
+    "LINK": {
+      "monthStart": 1782864000000,
+      "openPrice": 7.197,
+      "closePrice": 7.197,
+      "step": 0.3,
+      "decimals": 4,
+      "upperPrice": 7.197,
+      "lowerPrice": 7.197
+    },
+    "XLM": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.18903,
+      "closePrice": 0.19491,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.19491,
+      "lowerPrice": 0.18903
+    },
+    "ADA": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.1442,
+      "closePrice": 0.1443,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.1443,
+      "lowerPrice": 0.1442
+    },
+    "DASH": {
+      "monthStart": 1782864000000,
+      "openPrice": 32.51,
+      "closePrice": 32.31,
+      "step": 3,
+      "decimals": 3,
+      "upperPrice": 32.51,
+      "lowerPrice": 32.31
+    },
+    "ZEC": {
+      "monthStart": 1782864000000,
+      "openPrice": 399.16,
+      "closePrice": 394.61,
+      "step": 30,
+      "decimals": 2,
+      "upperPrice": 399.16,
+      "lowerPrice": 394.61
+    },
+    "XTZ": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.2023,
+      "closePrice": 0.2016,
+      "step": 0.03,
+      "decimals": 4,
+      "upperPrice": 0.2023,
+      "lowerPrice": 0.2016
+    },
+    "BNB": {
+      "monthStart": 1782864000000,
+      "openPrice": 546.84,
+      "closePrice": 548.18,
+      "step": 30,
+      "decimals": 2,
+      "upperPrice": 548.18,
+      "lowerPrice": 546.84
+    },
+    "ATOM": {
+      "monthStart": 1782864000000,
+      "openPrice": 1.512,
+      "closePrice": 1.511,
+      "step": 0.3,
+      "decimals": 4,
+      "upperPrice": 1.512,
+      "lowerPrice": 1.511
+    },
+    "IOTA": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.03518,
+      "closePrice": 0.0349,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.03518,
+      "lowerPrice": 0.0349
+    },
+    "BAT": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.0779,
+      "closePrice": 0.0782,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.0782,
+      "lowerPrice": 0.0779
+    },
+    "NEO": {
+      "monthStart": 1782864000000,
+      "openPrice": 1.88,
+      "closePrice": 1.879,
+      "step": 0.3,
+      "decimals": 4,
+      "upperPrice": 1.88,
+      "lowerPrice": 1.879
+    },
+    "IOST": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.000696,
+      "closePrice": 0.000695,
+      "step": 0.00003,
+      "decimals": 8,
+      "upperPrice": 0.000696,
+      "lowerPrice": 0.000695
+    },
+    "ALGO": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.0828,
+      "closePrice": 0.0826,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.0828,
+      "lowerPrice": 0.0826
+    },
+    "ZIL": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.002859,
+      "closePrice": 0.002854,
+      "step": 0.0003,
+      "decimals": 8,
+      "upperPrice": 0.002859,
+      "lowerPrice": 0.002854
+    },
+    "COMP": {
+      "monthStart": 1782864000000,
+      "openPrice": 15.18,
+      "closePrice": 15.17,
+      "step": 3,
+      "decimals": 3,
+      "upperPrice": 15.18,
+      "lowerPrice": 15.17
+    },
+    "OMG": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.291,
+      "closePrice": 0.291,
+      "step": 0.03,
+      "decimals": 4,
+      "upperPrice": 0.291,
+      "lowerPrice": 0.291
+    },
+    "DOGE": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.07204,
+      "closePrice": 0.07176,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.07204,
+      "lowerPrice": 0.07176
+    },
+    "SXP": {
+      "monthStart": 1782864000000,
+      "failed": true,
+      "reason": "Status 400"
+    },
+    "KAVA": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.04171,
+      "closePrice": 0.04154,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.04171,
+      "lowerPrice": 0.04154
+    },
+    "RLC": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.2834,
+      "closePrice": 0.2821,
+      "step": 0.03,
+      "decimals": 4,
+      "upperPrice": 0.2834,
+      "lowerPrice": 0.2821
+    },
+    "WAVES": {
+      "monthStart": 1782864000000,
+      "openPrice": 1.3355,
+      "closePrice": 1.3355,
+      "step": 0.3,
+      "decimals": 4,
+      "upperPrice": 1.3355,
+      "lowerPrice": 1.3355
+    },
+    "MKR": {
+      "monthStart": 1782864000000,
+      "openPrice": 1650.1,
+      "closePrice": 1650.1,
+      "step": 300,
+      "decimals": 2,
+      "upperPrice": 1650.1,
+      "lowerPrice": 1650.1
+    },
+    "SNX": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.212,
+      "closePrice": 0.2108,
+      "step": 0.03,
+      "decimals": 4,
+      "upperPrice": 0.212,
+      "lowerPrice": 0.2108
+    },
+    "DOT": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.822,
+      "closePrice": 0.821,
+      "step": 0.03,
+      "decimals": 4,
+      "upperPrice": 0.822,
+      "lowerPrice": 0.821
+    },
+    "DEFI": {
+      "monthStart": 1782864000000,
+      "openPrice": 930,
+      "closePrice": 930,
+      "step": 30,
+      "decimals": 2,
+      "upperPrice": 930,
+      "lowerPrice": 930
+    },
+    "BAL": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.829,
+      "closePrice": 0.829,
+      "step": 0.03,
+      "decimals": 4,
+      "upperPrice": 0.829,
+      "lowerPrice": 0.829
+    },
+    "TRB": {
+      "monthStart": 1782864000000,
+      "openPrice": 13.351,
+      "closePrice": 13.321,
+      "step": 3,
+      "decimals": 3,
+      "upperPrice": 13.351,
+      "lowerPrice": 13.321
+    },
+    "RUNE": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.3784,
+      "closePrice": 0.3777,
+      "step": 0.03,
+      "decimals": 4,
+      "upperPrice": 0.3784,
+      "lowerPrice": 0.3777
+    },
+    "ICX": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.02384,
+      "closePrice": 0.02383,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.02384,
+      "lowerPrice": 0.02383
+    },
+    "AVAX": {
+      "monthStart": 1782864000000,
+      "openPrice": 6.534,
+      "closePrice": 6.537,
+      "step": 0.3,
+      "decimals": 4,
+      "upperPrice": 6.537,
+      "lowerPrice": 6.534
+    },
+    "FTM": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.7702,
+      "closePrice": 0.7702,
+      "step": 0.03,
+      "decimals": 4,
+      "upperPrice": 0.7702,
+      "lowerPrice": 0.7702
+    },
+    "ENJ": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.02793,
+      "closePrice": 0.02792,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.02793,
+      "lowerPrice": 0.02792
+    },
+    "FLM": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.0082,
+      "closePrice": 0.0082,
+      "step": 0.0003,
+      "decimals": 8,
+      "upperPrice": 0.0082,
+      "lowerPrice": 0.0082
+    },
+    "REN": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.048,
+      "closePrice": 0.048,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.048,
+      "lowerPrice": 0.048
+    },
+    "NEAR": {
+      "monthStart": 1782864000000,
+      "openPrice": 1.783,
+      "closePrice": 1.775,
+      "step": 0.3,
+      "decimals": 4,
+      "upperPrice": 1.783,
+      "lowerPrice": 1.775
+    },
+    "LRC": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.02369,
+      "closePrice": 0.02369,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.02369,
+      "lowerPrice": 0.02369
+    },
+    "OCEAN": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.707,
+      "closePrice": 0.707,
+      "step": 0.03,
+      "decimals": 4,
+      "upperPrice": 0.707,
+      "lowerPrice": 0.707
+    },
+    "BEL": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.10329,
+      "closePrice": 0.10317,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.10329,
+      "lowerPrice": 0.10317
+    },
+    "CTK": {
+      "monthStart": 1782864000000,
+      "failed": true,
+      "reason": "Status 418"
+    },
+    "ALPHA": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.02027,
+      "closePrice": 0.02027,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.02027,
+      "lowerPrice": 0.02027
+    },
+    "ZEN": {
+      "monthStart": 1782864000000,
+      "openPrice": 4.014,
+      "closePrice": 4.013,
+      "step": 0.3,
+      "decimals": 4,
+      "upperPrice": 4.014,
+      "lowerPrice": 4.013
+    },
+    "SKL": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.003454,
+      "closePrice": 0.003438,
+      "step": 0.0003,
+      "decimals": 8,
+      "upperPrice": 0.003454,
+      "lowerPrice": 0.003438
+    },
+    "BNT": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.2461,
+      "closePrice": 0.2462,
+      "step": 0.03,
+      "decimals": 4,
+      "upperPrice": 0.2462,
+      "lowerPrice": 0.2461
+    },
+    "UNFI": {
+      "monthStart": 1782864000000,
+      "openPrice": 1.73,
+      "closePrice": 1.73,
+      "step": 0.3,
+      "decimals": 4,
+      "upperPrice": 1.73,
+      "lowerPrice": 1.73
+    },
+    "ANKR": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.003335,
+      "closePrice": 0.003326,
+      "step": 0.0003,
+      "decimals": 8,
+      "upperPrice": 0.003335,
+      "lowerPrice": 0.003326
+    },
+    "REEF": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.00088,
+      "closePrice": 0.00088,
+      "step": 0.00003,
+      "decimals": 8,
+      "upperPrice": 0.00088,
+      "lowerPrice": 0.00088
+    },
+    "RVN": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.003691,
+      "closePrice": 0.003677,
+      "step": 0.0003,
+      "decimals": 8,
+      "upperPrice": 0.003691,
+      "lowerPrice": 0.003677
+    },
+    "SFP": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.2179,
+      "closePrice": 0.218,
+      "step": 0.03,
+      "decimals": 4,
+      "upperPrice": 0.218,
+      "lowerPrice": 0.2179
+    },
+    "XEM": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.0338,
+      "closePrice": 0.0338,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.0338,
+      "lowerPrice": 0.0338
+    },
+    "BTCST": {
+      "monthStart": 1782864000000,
+      "failed": true,
+      "reason": "Status 400"
+    },
+    "COTI": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.00799,
+      "closePrice": 0.00797,
+      "step": 0.0003,
+      "decimals": 8,
+      "upperPrice": 0.00799,
+      "lowerPrice": 0.00797
+    },
+    "HBAR": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.06948,
+      "closePrice": 0.06969,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.06969,
+      "lowerPrice": 0.06948
+    },
+    "LINA": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.000742,
+      "closePrice": 0.000742,
+      "step": 0.00003,
+      "decimals": 8,
+      "upperPrice": 0.000742,
+      "lowerPrice": 0.000742
+    },
+    "STMX": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.00388,
+      "closePrice": 0.00388,
+      "step": 0.0003,
+      "decimals": 8,
+      "upperPrice": 0.00388,
+      "lowerPrice": 0.00388
+    },
+    "DENT": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.0001186,
+      "closePrice": 0.0001186,
+      "step": 0.00003,
+      "decimals": 8,
+      "upperPrice": 0.0001186,
+      "lowerPrice": 0.0001186
+    },
+    "CELR": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.001822,
+      "closePrice": 0.001818,
+      "step": 0.00003,
+      "decimals": 8,
+      "upperPrice": 0.001822,
+      "lowerPrice": 0.001818
+    },
+    "MTL": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.2212,
+      "closePrice": 0.221,
+      "step": 0.03,
+      "decimals": 4,
+      "upperPrice": 0.2212,
+      "lowerPrice": 0.221
+    },
+    "NKN": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.00554,
+      "closePrice": 0.00554,
+      "step": 0.0003,
+      "decimals": 8,
+      "upperPrice": 0.00554,
+      "lowerPrice": 0.00554
+    },
+    "DGB": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.01922,
+      "closePrice": 0.01922,
+      "step": 0.0003,
+      "decimals": 6,
+      "upperPrice": 0.01922,
+      "lowerPrice": 0.01922
+    },
+    "1000SHIB": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.0042,
+      "closePrice": 0.0042,
+      "step": 0.0003,
+      "decimals": 8,
+      "upperPrice": 0.0042,
+      "lowerPrice": 0.0042
+    },
+    "BAKE": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.0249,
+      "closePrice": 0.0249,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.0249,
+      "lowerPrice": 0.0249
+    },
+    "BTCDOM": {
+      "monthStart": 1782864000000,
+      "openPrice": 5565,
+      "closePrice": 5556.7,
+      "step": 300,
+      "decimals": 2,
+      "upperPrice": 5565,
+      "lowerPrice": 5556.7
+    },
+    "IOTX": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.002678,
+      "closePrice": 0.002672,
+      "step": 0.0003,
+      "decimals": 8,
+      "upperPrice": 0.002678,
+      "lowerPrice": 0.002672
+    },
+    "ATA": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.00428,
+      "closePrice": 0.00428,
+      "step": 0.0003,
+      "decimals": 8,
+      "upperPrice": 0.00428,
+      "lowerPrice": 0.00428
+    },
+    "1000XEC": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.004925,
+      "closePrice": 0.0049,
+      "step": 0.0003,
+      "decimals": 8,
+      "upperPrice": 0.004925,
+      "lowerPrice": 0.0049
+    },
+    "GALA": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.002233,
+      "closePrice": 0.002236,
+      "step": 0.0003,
+      "decimals": 8,
+      "upperPrice": 0.002236,
+      "lowerPrice": 0.002233
+    },
+    "AR": {
+      "monthStart": 1782864000000,
+      "openPrice": 1.994,
+      "closePrice": 2.018,
+      "step": 0.3,
+      "decimals": 4,
+      "upperPrice": 2.018,
+      "lowerPrice": 1.994
+    },
+    "KLAY": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.1247,
+      "closePrice": 0.1247,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.1247,
+      "lowerPrice": 0.1247
+    },
+    "CTSI": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.02156,
+      "closePrice": 0.02156,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.02156,
+      "lowerPrice": 0.02156
+    },
+    "LPT": {
+      "monthStart": 1782864000000,
+      "openPrice": 1.51,
+      "closePrice": 1.511,
+      "step": 0.3,
+      "decimals": 4,
+      "upperPrice": 1.511,
+      "lowerPrice": 1.51
+    },
+    "ENS": {
+      "monthStart": 1782864000000,
+      "openPrice": 4.071,
+      "closePrice": 4.067,
+      "step": 0.3,
+      "decimals": 4,
+      "upperPrice": 4.071,
+      "lowerPrice": 4.067
+    },
+    "DUSK": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.07449,
+      "closePrice": 0.07466,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.07466,
+      "lowerPrice": 0.07449
+    },
+    "FLOW": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.02693,
+      "closePrice": 0.02679,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.02693,
+      "lowerPrice": 0.02679
+    },
+    "API3": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.2144,
+      "closePrice": 0.2133,
+      "step": 0.03,
+      "decimals": 4,
+      "upperPrice": 0.2144,
+      "lowerPrice": 0.2133
+    },
+    "JASMY": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.004248,
+      "closePrice": 0.004234,
+      "step": 0.0003,
+      "decimals": 8,
+      "upperPrice": 0.004248,
+      "lowerPrice": 0.004234
+    },
+    "DAR": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.1425,
+      "closePrice": 0.1425,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.1425,
+      "lowerPrice": 0.1425
+    },
+    "XMR": {
+      "monthStart": 1782864000000,
+      "openPrice": 303.91,
+      "closePrice": 303.51,
+      "step": 30,
+      "decimals": 2,
+      "upperPrice": 303.91,
+      "lowerPrice": 303.51
+    },
+    "INJ": {
+      "monthStart": 1782864000000,
+      "openPrice": 4.549,
+      "closePrice": 4.556,
+      "step": 0.3,
+      "decimals": 4,
+      "upperPrice": 4.556,
+      "lowerPrice": 4.549
+    },
+    "SPELL": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.0000889,
+      "closePrice": 0.0000885,
+      "step": 0.00003,
+      "decimals": 8,
+      "upperPrice": 0.0000889,
+      "lowerPrice": 0.0000885
+    },
+    "1000LUNC": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.05943,
+      "closePrice": 0.05917,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.05943,
+      "lowerPrice": 0.05917
+    },
+    "CVX": {
+      "monthStart": 1782864000000,
+      "openPrice": 1.058,
+      "closePrice": 1.057,
+      "step": 0.3,
+      "decimals": 4,
+      "upperPrice": 1.058,
+      "lowerPrice": 1.057
+    },
+    "QNT": {
+      "monthStart": 1782864000000,
+      "openPrice": 64.75,
+      "closePrice": 64.67,
+      "step": 3,
+      "decimals": 3,
+      "upperPrice": 64.75,
+      "lowerPrice": 64.67
+    },
+    "FXS": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.6483,
+      "closePrice": 0.6483,
+      "step": 0.03,
+      "decimals": 4,
+      "upperPrice": 0.6483,
+      "lowerPrice": 0.6483
+    },
+    "HOOK": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.0132,
+      "closePrice": 0.0132,
+      "step": 0.0003,
+      "decimals": 6,
+      "upperPrice": 0.0132,
+      "lowerPrice": 0.0132
+    },
+    "MAGIC": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.0406,
+      "closePrice": 0.04033,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.0406,
+      "lowerPrice": 0.04033
+    },
+    "T": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.003312,
+      "closePrice": 0.0033,
+      "step": 0.0003,
+      "decimals": 8,
+      "upperPrice": 0.003312,
+      "lowerPrice": 0.0033
+    },
+    "HIGH": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.0478,
+      "closePrice": 0.0478,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.0478,
+      "lowerPrice": 0.0478
+    },
+    "ASTR": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.004829,
+      "closePrice": 0.004814,
+      "step": 0.0003,
+      "decimals": 8,
+      "upperPrice": 0.004829,
+      "lowerPrice": 0.004814
+    },
+    "PHB": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.0554,
+      "closePrice": 0.0554,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.0554,
+      "lowerPrice": 0.0554
+    },
+    "AGIX": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.7009,
+      "closePrice": 0.7009,
+      "step": 0.03,
+      "decimals": 4,
+      "upperPrice": 0.7009,
+      "lowerPrice": 0.7009
+    },
+    "CFX": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.04261,
+      "closePrice": 0.04274,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.04274,
+      "lowerPrice": 0.04261
+    },
+    "ACH": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.004227,
+      "closePrice": 0.004216,
+      "step": 0.0003,
+      "decimals": 8,
+      "upperPrice": 0.004227,
+      "lowerPrice": 0.004216
+    },
+    "SSV": {
+      "monthStart": 1782864000000,
+      "openPrice": 1.976,
+      "closePrice": 1.965,
+      "step": 0.3,
+      "decimals": 4,
+      "upperPrice": 1.976,
+      "lowerPrice": 1.965
+    },
+    "PERP": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.0781,
+      "closePrice": 0.0781,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.0781,
+      "lowerPrice": 0.0781
+    },
+    "LQTY": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.1778,
+      "closePrice": 0.177,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.1778,
+      "lowerPrice": 0.177
+    },
+    "ID": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.03468,
+      "closePrice": 0.03398,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.03468,
+      "lowerPrice": 0.03398
+    },
+    "JOE": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.02766,
+      "closePrice": 0.02758,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.02766,
+      "lowerPrice": 0.02758
+    },
+    "AMB": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.001188,
+      "closePrice": 0.001188,
+      "step": 0.00003,
+      "decimals": 8,
+      "upperPrice": 0.001188,
+      "lowerPrice": 0.001188
+    },
+    "LEVER": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.0001125,
+      "closePrice": 0.0001125,
+      "step": 0.00003,
+      "decimals": 8,
+      "upperPrice": 0.0001125,
+      "lowerPrice": 0.0001125
+    },
+    "TRU": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.005252,
+      "closePrice": 0.005252,
+      "step": 0.0003,
+      "decimals": 8,
+      "upperPrice": 0.005252,
+      "lowerPrice": 0.005252
+    },
+    "RDNT": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.005899,
+      "closePrice": 0.005899,
+      "step": 0.0003,
+      "decimals": 8,
+      "upperPrice": 0.005899,
+      "lowerPrice": 0.005899
+    },
+    "XVS": {
+      "monthStart": 1782864000000,
+      "openPrice": 2.437,
+      "closePrice": 2.427,
+      "step": 0.3,
+      "decimals": 4,
+      "upperPrice": 2.437,
+      "lowerPrice": 2.427
+    },
+    "EDU": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.02958,
+      "closePrice": 0.02929,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.02958,
+      "lowerPrice": 0.02929
+    },
+    "IDEX": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.0561,
+      "closePrice": 0.0561,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.0561,
+      "lowerPrice": 0.0561
+    },
+    "1000FLOKI": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.02152,
+      "closePrice": 0.02152,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.02152,
+      "lowerPrice": 0.02152
+    },
+    "RAD": {
+      "monthStart": 1782864000000,
+      "openPrice": 1.6874,
+      "closePrice": 1.6874,
+      "step": 0.3,
+      "decimals": 4,
+      "upperPrice": 1.6874,
+      "lowerPrice": 1.6874
+    },
+    "UMA": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.3758,
+      "closePrice": 0.375,
+      "step": 0.03,
+      "decimals": 4,
+      "upperPrice": 0.3758,
+      "lowerPrice": 0.375
+    },
+    "KEY": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.0025177,
+      "closePrice": 0.0025177,
+      "step": 0.0003,
+      "decimals": 8,
+      "upperPrice": 0.0025177,
+      "lowerPrice": 0.0025177
+    },
+    "COMBO": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.0695,
+      "closePrice": 0.0695,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.0695,
+      "lowerPrice": 0.0695
+    },
+    "MDT": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.06331,
+      "closePrice": 0.06331,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.06331,
+      "lowerPrice": 0.06331
+    },
+    "XVG": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.002095,
+      "closePrice": 0.00208,
+      "step": 0.0003,
+      "decimals": 8,
+      "upperPrice": 0.002095,
+      "lowerPrice": 0.00208
+    },
+    "WLD": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.4067,
+      "closePrice": 0.4054,
+      "step": 0.03,
+      "decimals": 4,
+      "upperPrice": 0.4067,
+      "lowerPrice": 0.4054
+    },
+    "PENDLE": {
+      "monthStart": 1782864000000,
+      "openPrice": 1.3168,
+      "closePrice": 1.3078,
+      "step": 0.3,
+      "decimals": 4,
+      "upperPrice": 1.3168,
+      "lowerPrice": 1.3078
+    },
+    "YGG": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.02166,
+      "closePrice": 0.02156,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.02166,
+      "lowerPrice": 0.02156
+    },
+    "OXT": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.01089,
+      "closePrice": 0.01089,
+      "step": 0.0003,
+      "decimals": 6,
+      "upperPrice": 0.01089,
+      "lowerPrice": 0.01089
+    },
+    "SEI": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.04743,
+      "closePrice": 0.04729,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.04743,
+      "lowerPrice": 0.04729
+    },
+    "CYBER": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.3339,
+      "closePrice": 0.3339,
+      "step": 0.03,
+      "decimals": 4,
+      "upperPrice": 0.3339,
+      "lowerPrice": 0.3339
+    },
+    "HIFI": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.0939,
+      "closePrice": 0.0939,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.0939,
+      "lowerPrice": 0.0939
+    },
+    "ARK": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.1048,
+      "closePrice": 0.104,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.1048,
+      "lowerPrice": 0.104
+    },
+    "GLMR": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.2592,
+      "closePrice": 0.2592,
+      "step": 0.03,
+      "decimals": 4,
+      "upperPrice": 0.2592,
+      "lowerPrice": 0.2592
+    },
+    "STRAX": {
+      "monthStart": 1782864000000,
+      "openPrice": 1.4174,
+      "closePrice": 1.4174,
+      "step": 0.3,
+      "decimals": 4,
+      "upperPrice": 1.4174,
+      "lowerPrice": 1.4174
+    },
+    "LOOM": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.08112,
+      "closePrice": 0.08112,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.08112,
+      "lowerPrice": 0.08112
+    },
+    "BIGTIME": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.00706,
+      "closePrice": 0.00705,
+      "step": 0.0003,
+      "decimals": 8,
+      "upperPrice": 0.00706,
+      "lowerPrice": 0.00705
+    },
+    "BOND": {
+      "monthStart": 1782864000000,
+      "openPrice": 1.069,
+      "closePrice": 1.069,
+      "step": 0.3,
+      "decimals": 4,
+      "upperPrice": 1.069,
+      "lowerPrice": 1.069
+    },
+    "ORBS": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.035157,
+      "closePrice": 0.035157,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.035157,
+      "lowerPrice": 0.035157
+    },
+    "STPT": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.05306,
+      "closePrice": 0.05306,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.05306,
+      "lowerPrice": 0.05306
+    },
+    "WAXP": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.004241,
+      "closePrice": 0.004158,
+      "step": 0.0003,
+      "decimals": 8,
+      "upperPrice": 0.004241,
+      "lowerPrice": 0.004158
+    },
+    "BSV": {
+      "monthStart": 1782864000000,
+      "openPrice": 12.79,
+      "closePrice": 13.08,
+      "step": 3,
+      "decimals": 3,
+      "upperPrice": 13.08,
+      "lowerPrice": 12.79
+    },
+    "POLYX": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.03503,
+      "closePrice": 0.03472,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.03503,
+      "lowerPrice": 0.03472
+    },
+    "GAS": {
+      "monthStart": 1782864000000,
+      "openPrice": 1.046,
+      "closePrice": 1.032,
+      "step": 0.3,
+      "decimals": 4,
+      "upperPrice": 1.046,
+      "lowerPrice": 1.032
+    },
+    "POWR": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.04495,
+      "closePrice": 0.04393,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.04495,
+      "lowerPrice": 0.04393
+    },
+    "SNT": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.03666,
+      "closePrice": 0.03666,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.03666,
+      "lowerPrice": 0.03666
+    },
+    "CAKE": {
+      "monthStart": 1782864000000,
+      "openPrice": 1.3099,
+      "closePrice": 1.3083,
+      "step": 0.3,
+      "decimals": 4,
+      "upperPrice": 1.3099,
+      "lowerPrice": 1.3083
+    },
+    "TOKEN": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.003817,
+      "closePrice": 0.003817,
+      "step": 0.0003,
+      "decimals": 8,
+      "upperPrice": 0.003817,
+      "lowerPrice": 0.003817
+    },
+    "ORDI": {
+      "monthStart": 1782864000000,
+      "openPrice": 3.641,
+      "closePrice": 3.682,
+      "step": 0.3,
+      "decimals": 4,
+      "upperPrice": 3.682,
+      "lowerPrice": 3.641
+    },
+    "STEEM": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.03957,
+      "closePrice": 0.03912,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.03957,
+      "lowerPrice": 0.03912
+    },
+    "BADGER": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.8358,
+      "closePrice": 0.8358,
+      "step": 0.03,
+      "decimals": 4,
+      "upperPrice": 0.8358,
+      "lowerPrice": 0.8358
+    },
+    "NTRN": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.00522,
+      "closePrice": 0.00522,
+      "step": 0.0003,
+      "decimals": 8,
+      "upperPrice": 0.00522,
+      "lowerPrice": 0.00522
+    },
+    "KAS": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.02924,
+      "closePrice": 0.02989,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.02989,
+      "lowerPrice": 0.02924
+    },
+    "1000BONK": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.004109,
+      "closePrice": 0.004103,
+      "step": 0.0003,
+      "decimals": 8,
+      "upperPrice": 0.004109,
+      "lowerPrice": 0.004103
+    },
+    "PYTH": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.03744,
+      "closePrice": 0.03802,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.03802,
+      "lowerPrice": 0.03744
+    },
+    "SUPER": {
+      "monthStart": 1782864000000,
+      "failed": true,
+      "reason": "Status 418"
+    },
+    "USTC": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.005427,
+      "closePrice": 0.00539,
+      "step": 0.0003,
+      "decimals": 8,
+      "upperPrice": 0.005427,
+      "lowerPrice": 0.00539
+    },
+    "ONG": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.04658,
+      "closePrice": 0.04741,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.04741,
+      "lowerPrice": 0.04658
+    },
+    "ETHW": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.2202,
+      "closePrice": 0.2187,
+      "step": 0.03,
+      "decimals": 4,
+      "upperPrice": 0.2202,
+      "lowerPrice": 0.2187
+    },
+    "JTO": {
+      "monthStart": 1782864000000,
+      "failed": true,
+      "reason": "Status 418"
+    },
+    "1000SATS": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.00000968,
+      "closePrice": 0.00000966,
+      "step": 0.00003,
+      "decimals": 8,
+      "upperPrice": 0.00000968,
+      "lowerPrice": 0.00000966
+    },
+    "AUCTION": {
+      "monthStart": 1782864000000,
+      "openPrice": 3.152,
+      "closePrice": 3.138,
+      "step": 0.3,
+      "decimals": 4,
+      "upperPrice": 3.152,
+      "lowerPrice": 3.138
+    },
+    "1000RATS": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.02864,
+      "closePrice": 0.02861,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.02864,
+      "lowerPrice": 0.02861
+    },
+    "ACE": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.07206,
+      "closePrice": 0.07187,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.07206,
+      "lowerPrice": 0.07187
+    },
+    "MOVR": {
+      "monthStart": 1782864000000,
+      "openPrice": 1.155,
+      "closePrice": 1.154,
+      "step": 0.3,
+      "decimals": 4,
+      "upperPrice": 1.155,
+      "lowerPrice": 1.154
+    },
+    "TWT": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.3578,
+      "closePrice": 0.3577,
+      "step": 0.03,
+      "decimals": 4,
+      "upperPrice": 0.3578,
+      "lowerPrice": 0.3577
+    },
+    "NFP": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.004693,
+      "closePrice": 0.004859,
+      "step": 0.0003,
+      "decimals": 8,
+      "upperPrice": 0.004859,
+      "lowerPrice": 0.004693
+    },
+    "AI": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.01716,
+      "closePrice": 0.01716,
+      "step": 0.0003,
+      "decimals": 6,
+      "upperPrice": 0.01716,
+      "lowerPrice": 0.01716
+    },
+    "XAI": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.006909,
+      "closePrice": 0.006885,
+      "step": 0.0003,
+      "decimals": 8,
+      "upperPrice": 0.006909,
+      "lowerPrice": 0.006885
+    },
+    "WIF": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.1656,
+      "closePrice": 0.1648,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.1656,
+      "lowerPrice": 0.1648
+    },
+    "MANTA": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.06602,
+      "closePrice": 0.06506,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.06602,
+      "lowerPrice": 0.06506
+    },
+    "ONDO": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.3083,
+      "closePrice": 0.3095,
+      "step": 0.03,
+      "decimals": 4,
+      "upperPrice": 0.3095,
+      "lowerPrice": 0.3083
+    },
+    "LSK": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.0832,
+      "closePrice": 0.0828,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.0832,
+      "lowerPrice": 0.0828
+    },
+    "ALT": {
+      "monthStart": 1782864000000,
+      "failed": true,
+      "reason": "Status 418"
+    },
+    "JUP": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.2116,
+      "closePrice": 0.2101,
+      "step": 0.03,
+      "decimals": 4,
+      "upperPrice": 0.2116,
+      "lowerPrice": 0.2101
+    },
+    "ZETA": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.03409,
+      "closePrice": 0.03408,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.03409,
+      "lowerPrice": 0.03408
+    },
+    "RONIN": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.05467,
+      "closePrice": 0.05458,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.05467,
+      "lowerPrice": 0.05458
+    },
+    "DYM": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.01479,
+      "closePrice": 0.01467,
+      "step": 0.0003,
+      "decimals": 6,
+      "upperPrice": 0.01479,
+      "lowerPrice": 0.01467
+    },
+    "OM": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.06773,
+      "closePrice": 0.06773,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.06773,
+      "lowerPrice": 0.06773
+    },
+    "PIXEL": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.004553,
+      "closePrice": 0.004542,
+      "step": 0.0003,
+      "decimals": 8,
+      "upperPrice": 0.004553,
+      "lowerPrice": 0.004542
+    },
+    "STRK": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.02912,
+      "closePrice": 0.02902,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.02912,
+      "lowerPrice": 0.02902
+    },
+    "MAVIA": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.03157,
+      "closePrice": 0.03209,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.03209,
+      "lowerPrice": 0.03157
+    },
+    "GLM": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.10586,
+      "closePrice": 0.10446,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.10586,
+      "lowerPrice": 0.10446
+    },
+    "PORTAL": {
+      "monthStart": 1782864000000,
+      "failed": true,
+      "reason": "Status 418"
+    },
+    "TON": {
+      "monthStart": 1782864000000,
+      "openPrice": 1.5901,
+      "closePrice": 1.5901,
+      "step": 0.3,
+      "decimals": 4,
+      "upperPrice": 1.5901,
+      "lowerPrice": 1.5901
+    },
+    "AXL": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.04012,
+      "closePrice": 0.04029,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.04029,
+      "lowerPrice": 0.04012
+    },
+    "MYRO": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.01001,
+      "closePrice": 0.01001,
+      "step": 0.0003,
+      "decimals": 6,
+      "upperPrice": 0.01001,
+      "lowerPrice": 0.01001
+    },
+    "METIS": {
+      "monthStart": 1782864000000,
+      "openPrice": 2.628,
+      "closePrice": 2.625,
+      "step": 0.3,
+      "decimals": 4,
+      "upperPrice": 2.628,
+      "lowerPrice": 2.625
+    },
+    "AEVO": {
+      "monthStart": 1782864000000,
+      "failed": true,
+      "reason": "Status 418"
+    },
+    "VANRY": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.002952,
+      "closePrice": 0.002944,
+      "step": 0.0003,
+      "decimals": 8,
+      "upperPrice": 0.002952,
+      "lowerPrice": 0.002944
+    },
+    "BOME": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.0004091,
+      "closePrice": 0.0004091,
+      "step": 0.00003,
+      "decimals": 8,
+      "upperPrice": 0.0004091,
+      "lowerPrice": 0.0004091
+    },
+    "ETHFI": {
+      "monthStart": 1782864000000,
+      "failed": true,
+      "reason": "Status 418"
+    },
+    "ENA": {
+      "monthStart": 1782864000000,
+      "failed": true,
+      "reason": "Status 418"
+    },
+    "W": {
+      "monthStart": 1782864000000,
+      "failed": true,
+      "reason": "Status 418"
+    },
+    "TNSR": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.03371,
+      "closePrice": 0.03367,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.03371,
+      "lowerPrice": 0.03367
+    },
+    "SAGA": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.01257,
+      "closePrice": 0.01258,
+      "step": 0.0003,
+      "decimals": 6,
+      "upperPrice": 0.01258,
+      "lowerPrice": 0.01257
+    },
+    "TAO": {
+      "monthStart": 1782864000000,
+      "openPrice": 201.99,
+      "closePrice": 201.46,
+      "step": 30,
+      "decimals": 2,
+      "upperPrice": 201.99,
+      "lowerPrice": 201.46
+    },
+    "OMNI": {
+      "monthStart": 1782864000000,
+      "openPrice": 4.274,
+      "closePrice": 4.274,
+      "step": 0.3,
+      "decimals": 4,
+      "upperPrice": 4.274,
+      "lowerPrice": 4.274
+    },
+    "REZ": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.003002,
+      "closePrice": 0.002977,
+      "step": 0.0003,
+      "decimals": 8,
+      "upperPrice": 0.003002,
+      "lowerPrice": 0.002977
+    },
+    "BB": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.01888,
+      "closePrice": 0.01888,
+      "step": 0.0003,
+      "decimals": 6,
+      "upperPrice": 0.01888,
+      "lowerPrice": 0.01888
+    },
+    "NOT": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.000375,
+      "closePrice": 0.000374,
+      "step": 0.00003,
+      "decimals": 8,
+      "upperPrice": 0.000375,
+      "lowerPrice": 0.000374
+    },
+    "TURBO": {
+      "monthStart": 1782864000000,
+      "failed": true,
+      "reason": "Status 418"
+    },
+    "IO": {
+      "monthStart": 1782864000000,
+      "failed": true,
+      "reason": "Status 418"
+    },
+    "ZK": {
+      "monthStart": 1782864000000,
+      "failed": true,
+      "reason": "Status 418"
+    },
+    "MEW": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.0003615,
+      "closePrice": 0.0003596,
+      "step": 0.00003,
+      "decimals": 8,
+      "upperPrice": 0.0003615,
+      "lowerPrice": 0.0003596
+    },
+    "LISTA": {
+      "monthStart": 1782864000000,
+      "failed": true,
+      "reason": "Status 418"
+    },
+    "ZRO": {
+      "monthStart": 1782864000000,
+      "failed": true,
+      "reason": "Status 418"
+    },
+    "RENDER": {
+      "monthStart": 1782864000000,
+      "openPrice": 1.509,
+      "closePrice": 1.497,
+      "step": 0.3,
+      "decimals": 4,
+      "upperPrice": 1.509,
+      "lowerPrice": 1.497
+    },
+    "BANANA": {
+      "monthStart": 1782864000000,
+      "failed": true,
+      "reason": "Status 418"
+    },
+    "RARE": {
+      "monthStart": 1782864000000,
+      "failed": true,
+      "reason": "Status 418"
+    },
+    "G": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.003217,
+      "closePrice": 0.003172,
+      "step": 0.0003,
+      "decimals": 8,
+      "upperPrice": 0.003217,
+      "lowerPrice": 0.003172
+    },
+    "SYN": {
+      "monthStart": 1782864000000,
+      "failed": true,
+      "reason": "Status 418"
+    },
+    "SYS": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.00405,
+      "closePrice": 0.00405,
+      "step": 0.0003,
+      "decimals": 8,
+      "upperPrice": 0.00405,
+      "lowerPrice": 0.00405
+    },
+    "VOXEL": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.02157,
+      "closePrice": 0.02157,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.02157,
+      "lowerPrice": 0.02157
+    },
+    "BRETT": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.004976,
+      "closePrice": 0.004969,
+      "step": 0.0003,
+      "decimals": 8,
+      "upperPrice": 0.004976,
+      "lowerPrice": 0.004969
+    },
+    "ALPACA": {
+      "monthStart": 1782864000000,
+      "openPrice": 1.19,
+      "closePrice": 1.19,
+      "step": 0.3,
+      "decimals": 4,
+      "upperPrice": 1.19,
+      "lowerPrice": 1.19
+    },
+    "POPCAT": {
+      "monthStart": 1782864000000,
+      "failed": true,
+      "reason": "Status 418"
+    },
+    "SUN": {
+      "monthStart": 1782864000000,
+      "failed": true,
+      "reason": "Status 418"
+    },
+    "VIDT": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.00293,
+      "closePrice": 0.00293,
+      "step": 0.0003,
+      "decimals": 8,
+      "upperPrice": 0.00293,
+      "lowerPrice": 0.00293
+    },
+    "NULS": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.0313,
+      "closePrice": 0.0313,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.0313,
+      "lowerPrice": 0.0313
+    },
+    "DOGS": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.00003747,
+      "closePrice": 0.00003745,
+      "step": 0.00003,
+      "decimals": 8,
+      "upperPrice": 0.00003747,
+      "lowerPrice": 0.00003745
+    },
+    "MBOX": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.0051,
+      "closePrice": 0.0051,
+      "step": 0.0003,
+      "decimals": 8,
+      "upperPrice": 0.0051,
+      "lowerPrice": 0.0051
+    },
+    "CHESS": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.01865,
+      "closePrice": 0.01865,
+      "step": 0.0003,
+      "decimals": 6,
+      "upperPrice": 0.01865,
+      "lowerPrice": 0.01865
+    },
+    "FLUX": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.0431,
+      "closePrice": 0.0429,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.0431,
+      "lowerPrice": 0.0429
+    },
+    "BSW": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.0122,
+      "closePrice": 0.0122,
+      "step": 0.0003,
+      "decimals": 6,
+      "upperPrice": 0.0122,
+      "lowerPrice": 0.0122
+    },
+    "QUICK": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.01285,
+      "closePrice": 0.01285,
+      "step": 0.0003,
+      "decimals": 6,
+      "upperPrice": 0.01285,
+      "lowerPrice": 0.01285
+    },
+    "NEIROETH": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.00863,
+      "closePrice": 0.00863,
+      "step": 0.0003,
+      "decimals": 8,
+      "upperPrice": 0.00863,
+      "lowerPrice": 0.00863
+    },
+    "RPL": {
+      "monthStart": 1782864000000,
+      "failed": true,
+      "reason": "Status 418"
+    },
+    "AERGO": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.0226,
+      "closePrice": 0.02241,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.0226,
+      "lowerPrice": 0.02241
+    },
+    "POL": {
+      "monthStart": 1782864000000,
+      "failed": true,
+      "reason": "Status 418"
+    },
+    "UXLINK": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.0729,
+      "closePrice": 0.0729,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.0729,
+      "lowerPrice": 0.0729
+    },
+    "NEIRO": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.00006131,
+      "closePrice": 0.00006127,
+      "step": 0.00003,
+      "decimals": 8,
+      "upperPrice": 0.00006131,
+      "lowerPrice": 0.00006127
+    },
+    "1MBABYDOGE": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.0002854,
+      "closePrice": 0.0002852,
+      "step": 0.00003,
+      "decimals": 8,
+      "upperPrice": 0.0002854,
+      "lowerPrice": 0.0002852
+    },
+    "KDA": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.02476,
+      "closePrice": 0.02476,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.02476,
+      "lowerPrice": 0.02476
+    },
+    "FIDA": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.02031,
+      "closePrice": 0.02016,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.02031,
+      "lowerPrice": 0.02016
+    },
+    "FIO": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.002699,
+      "closePrice": 0.002699,
+      "step": 0.0003,
+      "decimals": 8,
+      "upperPrice": 0.002699,
+      "lowerPrice": 0.002699
+    },
+    "CATI": {
+      "monthStart": 1782864000000,
+      "failed": true,
+      "reason": "Status 418"
+    },
+    "GHST": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.0834,
+      "closePrice": 0.0834,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.0834,
+      "lowerPrice": 0.0834
+    },
+    "LOKA": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.11323,
+      "closePrice": 0.11323,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.11323,
+      "lowerPrice": 0.11323
+    },
+    "HMSTR": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.0001885,
+      "closePrice": 0.0001884,
+      "step": 0.00003,
+      "decimals": 8,
+      "upperPrice": 0.0001885,
+      "lowerPrice": 0.0001884
+    },
+    "REI": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.00564,
+      "closePrice": 0.00564,
+      "step": 0.0003,
+      "decimals": 8,
+      "upperPrice": 0.00564,
+      "lowerPrice": 0.00564
+    },
+    "COS": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.000485,
+      "closePrice": 0.000485,
+      "step": 0.00003,
+      "decimals": 8,
+      "upperPrice": 0.000485,
+      "lowerPrice": 0.000485
+    },
+    "EIGEN": {
+      "monthStart": 1782864000000,
+      "failed": true,
+      "reason": "Status 418"
+    },
+    "DIA": {
+      "monthStart": 1782864000000,
+      "failed": true,
+      "reason": "Status 418"
+    },
+    "1000CAT": {
+      "monthStart": 1782864000000,
+      "failed": true,
+      "reason": "Status 418"
+    },
+    "SCR": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.02685,
+      "closePrice": 0.02666,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.02685,
+      "lowerPrice": 0.02666
+    },
+    "GOAT": {
+      "monthStart": 1782864000000,
+      "failed": true,
+      "reason": "Status 418"
+    },
+    "MOODENG": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.03966,
+      "closePrice": 0.03946,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.03966,
+      "lowerPrice": 0.03946
+    },
+    "SAFE": {
+      "monthStart": 1782864000000,
+      "failed": true,
+      "reason": "Status 418"
+    },
+    "SANTOS": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.5347,
+      "closePrice": 0.5332,
+      "step": 0.03,
+      "decimals": 4,
+      "upperPrice": 0.5347,
+      "lowerPrice": 0.5332
+    },
+    "TROY": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.000187,
+      "closePrice": 0.000187,
+      "step": 0.00003,
+      "decimals": 8,
+      "upperPrice": 0.000187,
+      "lowerPrice": 0.000187
+    },
+    "PONKE": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.03807,
+      "closePrice": 0.03807,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.03807,
+      "lowerPrice": 0.03807
+    },
+    "CETUS": {
+      "monthStart": 1782864000000,
+      "failed": true,
+      "reason": "Status 418"
+    },
+    "COW": {
+      "monthStart": 1782864000000,
+      "failed": true,
+      "reason": "Status 418"
+    },
+    "1000000MOG": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.1035,
+      "closePrice": 0.1033,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.1035,
+      "lowerPrice": 0.1033
+    },
+    "GRASS": {
+      "monthStart": 1782864000000,
+      "failed": true,
+      "reason": "Status 418"
+    },
+    "DRIFT": {
+      "monthStart": 1782864000000,
+      "failed": true,
+      "reason": "Status 418"
+    },
+    "SWELL": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.00252,
+      "closePrice": 0.00252,
+      "step": 0.0003,
+      "decimals": 8,
+      "upperPrice": 0.00252,
+      "lowerPrice": 0.00252
+    },
+    "PNUT": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.0411,
+      "closePrice": 0.04086,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.0411,
+      "lowerPrice": 0.04086
+    },
+    "ACT": {
+      "monthStart": 1782864000000,
+      "failed": true,
+      "reason": "Status 418"
+    },
+    "HIPPO": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.0001965,
+      "closePrice": 0.0001965,
+      "step": 0.00003,
+      "decimals": 8,
+      "upperPrice": 0.0001965,
+      "lowerPrice": 0.0001965
+    },
+    "1000X": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.02555,
+      "closePrice": 0.02555,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.02555,
+      "lowerPrice": 0.02555
+    },
+    "DEGEN": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.0006713,
+      "closePrice": 0.0006713,
+      "step": 0.00003,
+      "decimals": 8,
+      "upperPrice": 0.0006713,
+      "lowerPrice": 0.0006713
+    },
+    "BAN": {
+      "monthStart": 1782864000000,
+      "failed": true,
+      "reason": "Status 418"
+    },
+    "AKT": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.5963,
+      "closePrice": 0.5963,
+      "step": 0.03,
+      "decimals": 4,
+      "upperPrice": 0.5963,
+      "lowerPrice": 0.5963
+    },
+    "SLERF": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.07059,
+      "closePrice": 0.07059,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.07059,
+      "lowerPrice": 0.07059
+    },
+    "SCRT": {
+      "monthStart": 1782864000000,
+      "failed": true,
+      "reason": "Status 418"
+    },
+    "1000WHY": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.0000034,
+      "closePrice": 0.0000034,
+      "step": 0.00003,
+      "decimals": 8,
+      "upperPrice": 0.0000034,
+      "lowerPrice": 0.0000034
+    },
+    "1000CHEEMS": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.000469,
+      "closePrice": 0.0004694,
+      "step": 0.00003,
+      "decimals": 8,
+      "upperPrice": 0.0004694,
+      "lowerPrice": 0.000469
+    },
+    "THE": {
+      "monthStart": 1782864000000,
+      "failed": true,
+      "reason": "Status 418"
+    },
+    "MORPHO": {
+      "monthStart": 1782864000000,
+      "openPrice": 1.8966,
+      "closePrice": 1.9036,
+      "step": 0.3,
+      "decimals": 4,
+      "upperPrice": 1.9036,
+      "lowerPrice": 1.8966
+    },
+    "CHILLGUY": {
+      "monthStart": 1782864000000,
+      "failed": true,
+      "reason": "Status 418"
+    },
+    "KAIA": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.03487,
+      "closePrice": 0.03466,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.03487,
+      "lowerPrice": 0.03466
+    },
+    "AERO": {
+      "monthStart": 1782864000000,
+      "failed": true,
+      "reason": "Status 418"
+    },
+    "ACX": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.04195,
+      "closePrice": 0.04194,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.04195,
+      "lowerPrice": 0.04194
+    },
+    "ORCA": {
+      "monthStart": 1782864000000,
+      "openPrice": 1.17,
+      "closePrice": 1.165,
+      "step": 0.3,
+      "decimals": 4,
+      "upperPrice": 1.17,
+      "lowerPrice": 1.165
+    },
+    "MOVE": {
+      "monthStart": 1782864000000,
+      "failed": true,
+      "reason": "Status 418"
+    },
+    "RAYSOL": {
+      "monthStart": 1782864000000,
+      "failed": true,
+      "reason": "Status 418"
+    },
+    "VIRTUAL": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.5252,
+      "closePrice": 0.5254,
+      "step": 0.03,
+      "decimals": 4,
+      "upperPrice": 0.5254,
+      "lowerPrice": 0.5252
+    },
+    "SPX": {
+      "monthStart": 1782864000000,
+      "failed": true,
+      "reason": "Status 418"
+    },
+    "KOMA": {
+      "monthStart": 1782864000000,
+      "failed": true,
+      "reason": "Status 418"
+    },
+    "ME": {
+      "monthStart": 1782864000000,
+      "failed": true,
+      "reason": "Status 418"
+    },
+    "ABCCC": {
+      "monthStart": 1782864000000,
+      "failed": true,
+      "reason": "Status 400"
+    },
+    "AVA": {
+      "monthStart": 1782864000000,
+      "failed": true,
+      "reason": "Status 418"
+    },
+    "DEGO": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.1466,
+      "closePrice": 0.1466,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.1466,
+      "lowerPrice": 0.1466
+    },
+    "VELODROME": {
+      "monthStart": 1782864000000,
+      "failed": true,
+      "reason": "Status 418"
+    },
+    "MOCA": {
+      "monthStart": 1782864000000,
+      "failed": true,
+      "reason": "Status 418"
+    },
+    "VANA": {
+      "monthStart": 1782864000000,
+      "openPrice": 1.082,
+      "closePrice": 1.08,
+      "step": 0.3,
+      "decimals": 4,
+      "upperPrice": 1.082,
+      "lowerPrice": 1.08
+    },
+    "PENGU": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.006008,
+      "closePrice": 0.006028,
+      "step": 0.0003,
+      "decimals": 8,
+      "upperPrice": 0.006028,
+      "lowerPrice": 0.006008
+    },
+    "LUMIA": {
+      "monthStart": 1782864000000,
+      "failed": true,
+      "reason": "Status 418"
+    },
+    "USUAL": {
+      "monthStart": 1782864000000,
+      "failed": true,
+      "reason": "Status 418"
+    },
+    "KMNO": {
+      "monthStart": 1782864000000,
+      "failed": true,
+      "reason": "Status 418"
+    },
+    "CGPT": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.01834,
+      "closePrice": 0.01821,
+      "step": 0.0003,
+      "decimals": 6,
+      "upperPrice": 0.01834,
+      "lowerPrice": 0.01821
+    },
+    "AIXBT": {
+      "monthStart": 1782864000000,
+      "failed": true,
+      "reason": "Status 418"
+    },
+    "FARTCOIN": {
+      "monthStart": 1782864000000,
+      "failed": true,
+      "reason": "Status 418"
+    },
+    "HIVE": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.04809,
+      "closePrice": 0.04753,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.04809,
+      "lowerPrice": 0.04753
+    },
+    "DEXE": {
+      "monthStart": 1782864000000,
+      "failed": true,
+      "reason": "Status 418"
+    },
+    "PHA": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.0268,
+      "closePrice": 0.02666,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.0268,
+      "lowerPrice": 0.02666
+    },
+    "DF": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.00423,
+      "closePrice": 0.00423,
+      "step": 0.0003,
+      "decimals": 8,
+      "upperPrice": 0.00423,
+      "lowerPrice": 0.00423
+    },
+    "GRIFFAIN": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.008526,
+      "closePrice": 0.008482,
+      "step": 0.0003,
+      "decimals": 8,
+      "upperPrice": 0.008526,
+      "lowerPrice": 0.008482
+    },
+    "AI16Z": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.06168,
+      "closePrice": 0.06168,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.06168,
+      "lowerPrice": 0.06168
+    },
+    "ZEREBRO": {
+      "monthStart": 1782864000000,
+      "failed": true,
+      "reason": "Status 418"
+    },
+    "BIO": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.03005,
+      "closePrice": 0.03044,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.03044,
+      "lowerPrice": 0.03005
+    },
+    "COOKIE": {
+      "monthStart": 1782864000000,
+      "failed": true,
+      "reason": "Status 418"
+    },
+    "ALCH": {
+      "monthStart": 1782864000000,
+      "failed": true,
+      "reason": "Status 418"
+    },
+    "SWARMS": {
+      "monthStart": 1782864000000,
+      "failed": true,
+      "reason": "Status 418"
+    },
+    "SONIC": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.02395,
+      "closePrice": 0.02379,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.02395,
+      "lowerPrice": 0.02379
+    },
+    "D": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.005192,
+      "closePrice": 0.005192,
+      "step": 0.0003,
+      "decimals": 8,
+      "upperPrice": 0.005192,
+      "lowerPrice": 0.005192
+    },
+    "PROM": {
+      "monthStart": 1782864000000,
+      "openPrice": 1.099,
+      "closePrice": 1.099,
+      "step": 0.3,
+      "decimals": 4,
+      "upperPrice": 1.099,
+      "lowerPrice": 1.099
+    },
+    "S": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.0227,
+      "closePrice": 0.02254,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.0227,
+      "lowerPrice": 0.02254
+    },
+    "SOLV": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.002807,
+      "closePrice": 0.0028,
+      "step": 0.0003,
+      "decimals": 8,
+      "upperPrice": 0.002807,
+      "lowerPrice": 0.0028
+    },
+    "ARC": {
+      "monthStart": 1782864000000,
+      "failed": true,
+      "reason": "Status 418"
+    },
+    "AVAAI": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.005051,
+      "closePrice": 0.005011,
+      "step": 0.0003,
+      "decimals": 8,
+      "upperPrice": 0.005051,
+      "lowerPrice": 0.005011
+    },
+    "TRUMP": {
+      "monthStart": 1782864000000,
+      "openPrice": 1.657,
+      "closePrice": 1.667,
+      "step": 0.3,
+      "decimals": 4,
+      "upperPrice": 1.667,
+      "lowerPrice": 1.657
+    },
+    "MELANIA": {
+      "monthStart": 1782864000000,
+      "failed": true,
+      "reason": "Status 418"
+    },
+    "VTHO": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.0003511,
+      "closePrice": 0.0003493,
+      "step": 0.00003,
+      "decimals": 8,
+      "upperPrice": 0.0003511,
+      "lowerPrice": 0.0003493
+    },
+    "ANIME": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.002629,
+      "closePrice": 0.002629,
+      "step": 0.0003,
+      "decimals": 8,
+      "upperPrice": 0.002629,
+      "lowerPrice": 0.002629
+    },
+    "PIPPIN": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.01709,
+      "closePrice": 0.01716,
+      "step": 0.0003,
+      "decimals": 6,
+      "upperPrice": 0.01716,
+      "lowerPrice": 0.01709
+    },
+    "VINE": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.01575,
+      "closePrice": 0.01575,
+      "step": 0.0003,
+      "decimals": 6,
+      "upperPrice": 0.01575,
+      "lowerPrice": 0.01575
+    },
+    "VVV": {
+      "monthStart": 1782864000000,
+      "openPrice": 12.237,
+      "closePrice": 12.335,
+      "step": 3,
+      "decimals": 3,
+      "upperPrice": 12.335,
+      "lowerPrice": 12.237
+    },
+    "BERA": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.2022,
+      "closePrice": 0.2025,
+      "step": 0.03,
+      "decimals": 4,
+      "upperPrice": 0.2025,
+      "lowerPrice": 0.2022
+    },
+    "TST": {
+      "monthStart": 1782864000000,
+      "failed": true,
+      "reason": "Status 418"
+    },
+    "LAYER": {
+      "monthStart": 1782864000000,
+      "failed": true,
+      "reason": "Status 418"
+    },
+    "HEI": {
+      "monthStart": 1782864000000,
+      "failed": true,
+      "reason": "Status 418"
+    },
+    "B3": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.0002605,
+      "closePrice": 0.0002605,
+      "step": 0.00003,
+      "decimals": 8,
+      "upperPrice": 0.0002605,
+      "lowerPrice": 0.0002605
+    },
+    "IP": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.3105,
+      "closePrice": 0.3105,
+      "step": 0.03,
+      "decimals": 4,
+      "upperPrice": 0.3105,
+      "lowerPrice": 0.3105
+    },
+    "GPS": {
+      "monthStart": 1782864000000,
+      "failed": true,
+      "reason": "Status 418"
+    },
+    "SHELL": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.02091,
+      "closePrice": 0.02089,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.02091,
+      "lowerPrice": 0.02089
+    },
+    "KAITO": {
+      "monthStart": 1782864000000,
+      "failed": true,
+      "reason": "Status 418"
+    },
+    "RED": {
+      "monthStart": 1782864000000,
+      "failed": true,
+      "reason": "Status 418"
+    },
+    "VIC": {
+      "monthStart": 1782864000000,
+      "failed": true,
+      "reason": "Status 418"
+    },
+    "EPIC": {
+      "monthStart": 1782864000000,
+      "failed": true,
+      "reason": "Status 418"
+    },
+    "BMT": {
+      "monthStart": 1782864000000,
+      "failed": true,
+      "reason": "Status 418"
+    },
+    "MUBARAK": {
+      "monthStart": 1782864000000,
+      "failed": true,
+      "reason": "Status 418"
+    },
+    "FORM": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.205,
+      "closePrice": 0.2089,
+      "step": 0.03,
+      "decimals": 4,
+      "upperPrice": 0.2089,
+      "lowerPrice": 0.205
+    },
+    "TUT": {
+      "monthStart": 1782864000000,
+      "failed": true,
+      "reason": "Status 418"
+    },
+    "BID": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.01407,
+      "closePrice": 0.01407,
+      "step": 0.0003,
+      "decimals": 6,
+      "upperPrice": 0.01407,
+      "lowerPrice": 0.01407
+    },
+    "BROCCOLI714": {
+      "monthStart": 1782864000000,
+      "failed": true,
+      "reason": "Status 418"
+    },
+    "BROCCOLIF3B": {
+      "monthStart": 1782864000000,
+      "failed": true,
+      "reason": "Status 418"
+    },
+    "BANANAS31": {
+      "monthStart": 1782864000000,
+      "failed": true,
+      "reason": "Status 418"
+    },
+    "SIREN": {
+      "monthStart": 1782864000000,
+      "failed": true,
+      "reason": "Status 418"
+    },
+    "BNX": {
+      "monthStart": 1782864000000,
+      "openPrice": 2,
+      "closePrice": 2,
+      "step": 0.3,
+      "decimals": 4,
+      "upperPrice": 2,
+      "lowerPrice": 2
+    },
+    "BR": {
+      "monthStart": 1782864000000,
+      "failed": true,
+      "reason": "Status 418"
+    },
+    "PLUME": {
+      "monthStart": 1782864000000,
+      "failed": true,
+      "reason": "Status 418"
+    },
+    "JELLYJELLY": {
+      "monthStart": 1782864000000,
+      "failed": true,
+      "reason": "Status 418"
+    },
+    "PAXG": {
+      "monthStart": 1782864000000,
+      "openPrice": 4002.11,
+      "closePrice": 3993.05,
+      "step": 300,
+      "decimals": 2,
+      "upperPrice": 4002.11,
+      "lowerPrice": 3993.05
+    },
+    "WAL": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.03037,
+      "closePrice": 0.03032,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.03037,
+      "lowerPrice": 0.03032
+    },
+    "FUN": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.000514,
+      "closePrice": 0.000514,
+      "step": 0.00003,
+      "decimals": 8,
+      "upperPrice": 0.000514,
+      "lowerPrice": 0.000514
+    },
+    "MLN": {
+      "monthStart": 1782864000000,
+      "openPrice": 2.272,
+      "closePrice": 2.272,
+      "step": 0.3,
+      "decimals": 4,
+      "upperPrice": 2.272,
+      "lowerPrice": 2.272
+    },
+    "ATH": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.004137,
+      "closePrice": 0.004136,
+      "step": 0.0003,
+      "decimals": 8,
+      "upperPrice": 0.004137,
+      "lowerPrice": 0.004136
+    },
+    "BABY": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.01331,
+      "closePrice": 0.01329,
+      "step": 0.0003,
+      "decimals": 6,
+      "upperPrice": 0.01331,
+      "lowerPrice": 0.01329
+    },
+    "FORTH": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.406,
+      "closePrice": 0.406,
+      "step": 0.03,
+      "decimals": 4,
+      "upperPrice": 0.406,
+      "lowerPrice": 0.406
+    },
+    "PROMPT": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.02152,
+      "closePrice": 0.02143,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.02152,
+      "lowerPrice": 0.02143
+    },
+    "XCN": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.00495,
+      "closePrice": 0.00495,
+      "step": 0.0003,
+      "decimals": 8,
+      "upperPrice": 0.00495,
+      "lowerPrice": 0.00495
+    },
+    "PUMP": {
+      "monthStart": 1782864000000,
+      "failed": true,
+      "reason": "Status 418"
+    },
+    "STO": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.04589,
+      "closePrice": 0.04573,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.04589,
+      "lowerPrice": 0.04573
+    },
+    "FHE": {
+      "monthStart": 1782864000000,
+      "failed": true,
+      "reason": "Status 418"
+    },
+    "KERNEL": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.03843,
+      "closePrice": 0.0379,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.03843,
+      "lowerPrice": 0.0379
+    },
+    "INIT": {
+      "monthStart": 1782864000000,
+      "failed": true,
+      "reason": "Status 418"
+    },
+    "BANK": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.03639,
+      "closePrice": 0.03585,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.03639,
+      "lowerPrice": 0.03585
+    },
+    "EPT": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.00167,
+      "closePrice": 0.00167,
+      "step": 0.00003,
+      "decimals": 8,
+      "upperPrice": 0.00167,
+      "lowerPrice": 0.00167
+    },
+    "DEEP": {
+      "monthStart": 1782864000000,
+      "failed": true,
+      "reason": "Status 418"
+    },
+    "HYPER": {
+      "monthStart": 1782864000000,
+      "failed": true,
+      "reason": "Status 418"
+    },
+    "MEMEFI": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.002201,
+      "closePrice": 0.002201,
+      "step": 0.0003,
+      "decimals": 8,
+      "upperPrice": 0.002201,
+      "lowerPrice": 0.002201
+    },
+    "FIS": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.02681,
+      "closePrice": 0.02681,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.02681,
+      "lowerPrice": 0.02681
+    },
+    "JST": {
+      "monthStart": 1782864000000,
+      "failed": true,
+      "reason": "Status 418"
+    },
+    "SIGN": {
+      "monthStart": 1782864000000,
+      "failed": true,
+      "reason": "Status 418"
+    },
+    "WCT": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.04151,
+      "closePrice": 0.04126,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.04151,
+      "lowerPrice": 0.04126
+    },
+    "GUN": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.004039,
+      "closePrice": 0.004069,
+      "step": 0.0003,
+      "decimals": 8,
+      "upperPrice": 0.004069,
+      "lowerPrice": 0.004039
+    },
+    "PARTI": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.04656,
+      "closePrice": 0.0465,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.04656,
+      "lowerPrice": 0.0465
+    },
+    "NIL": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.03343,
+      "closePrice": 0.03331,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.03343,
+      "lowerPrice": 0.03331
+    },
+    "PUNDIX": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.0815,
+      "closePrice": 0.0806,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.0815,
+      "lowerPrice": 0.0806
+    },
+    "AIOT": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.05475,
+      "closePrice": 0.05409,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.05475,
+      "lowerPrice": 0.05409
+    },
+    "DOLO": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.02215,
+      "closePrice": 0.02213,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.02215,
+      "lowerPrice": 0.02213
+    },
+    "HAEDAL": {
+      "monthStart": 1782864000000,
+      "failed": true,
+      "reason": "Status 418"
+    },
+    "SXT": {
+      "monthStart": 1782864000000,
+      "failed": true,
+      "reason": "Status 418"
+    },
+    "ALPINE": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.3039,
+      "closePrice": 0.3034,
+      "step": 0.03,
+      "decimals": 4,
+      "upperPrice": 0.3039,
+      "lowerPrice": 0.3034
+    },
+    "ASR": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.841,
+      "closePrice": 0.84,
+      "step": 0.03,
+      "decimals": 4,
+      "upperPrice": 0.841,
+      "lowerPrice": 0.84
+    },
+    "B2": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.5334,
+      "closePrice": 0.5329,
+      "step": 0.03,
+      "decimals": 4,
+      "upperPrice": 0.5334,
+      "lowerPrice": 0.5329
+    },
+    "MILK": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.01008,
+      "closePrice": 0.01008,
+      "step": 0.0003,
+      "decimals": 6,
+      "upperPrice": 0.01008,
+      "lowerPrice": 0.01008
+    },
+    "SYRUP": {
+      "monthStart": 1782864000000,
+      "failed": true,
+      "reason": "Status 418"
+    },
+    "OBOL": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.0332,
+      "closePrice": 0.0332,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.0332,
+      "lowerPrice": 0.0332
+    },
+    "DOOD": {
+      "monthStart": 1782864000000,
+      "failed": true,
+      "reason": "Status 418"
+    },
+    "OG": {
+      "monthStart": 1782864000000,
+      "openPrice": 2.4,
+      "closePrice": 2.398,
+      "step": 0.3,
+      "decimals": 4,
+      "upperPrice": 2.4,
+      "lowerPrice": 2.398
+    },
+    "ZKJ": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.01673,
+      "closePrice": 0.01673,
+      "step": 0.0003,
+      "decimals": 6,
+      "upperPrice": 0.01673,
+      "lowerPrice": 0.01673
+    },
+    "SKYAI": {
+      "monthStart": 1782864000000,
+      "failed": true,
+      "reason": "Status 418"
+    },
+    "NXPC": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.2648,
+      "closePrice": 0.2641,
+      "step": 0.03,
+      "decimals": 4,
+      "upperPrice": 0.2648,
+      "lowerPrice": 0.2641
+    },
+    "AGT": {
+      "monthStart": 1782864000000,
+      "failed": true,
+      "reason": "Status 418"
+    },
+    "B": {
+      "monthStart": 1782864000000,
+      "failed": true,
+      "reason": "Status 418"
+    },
+    "A": {
+      "monthStart": 1782864000000,
+      "failed": true,
+      "reason": "Status 418"
+    },
+    "SOPH": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.004713,
+      "closePrice": 0.004701,
+      "step": 0.0003,
+      "decimals": 8,
+      "upperPrice": 0.004713,
+      "lowerPrice": 0.004701
+    },
+    "MERL": {
+      "monthStart": 1782864000000,
+      "failed": true,
+      "reason": "Status 418"
+    },
+    "HYPE": {
+      "monthStart": 1782864000000,
+      "failed": true,
+      "reason": "Status 418"
+    },
+    "TAIKO": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.0789,
+      "closePrice": 0.0825,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.0825,
+      "lowerPrice": 0.0789
+    },
+    "SQD": {
+      "monthStart": 1782864000000,
+      "failed": true,
+      "reason": "Status 418"
+    },
+    "PUMPBTC": {
+      "monthStart": 1782864000000,
+      "failed": true,
+      "reason": "Status 418"
+    },
+    "MYX": {
+      "monthStart": 1782864000000,
+      "failed": true,
+      "reason": "Status 418"
+    },
+    "F": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.003293,
+      "closePrice": 0.003274,
+      "step": 0.0003,
+      "decimals": 8,
+      "upperPrice": 0.003293,
+      "lowerPrice": 0.003274
+    },
+    "NEWT": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.04735,
+      "closePrice": 0.04707,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.04735,
+      "lowerPrice": 0.04707
+    },
+    "DMC": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.000702,
+      "closePrice": 0.000702,
+      "step": 0.00003,
+      "decimals": 8,
+      "upperPrice": 0.000702,
+      "lowerPrice": 0.000702
+    },
+    "H": {
+      "monthStart": 1782864000000,
+      "failed": true,
+      "reason": "Status 418"
+    },
+    "OL": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.00763,
+      "closePrice": 0.00763,
+      "step": 0.0003,
+      "decimals": 8,
+      "upperPrice": 0.00763,
+      "lowerPrice": 0.00763
+    },
+    "SAHARA": {
+      "monthStart": 1782864000000,
+      "failed": true,
+      "reason": "Status 418"
+    },
+    "ICNT": {
+      "monthStart": 1782864000000,
+      "failed": true,
+      "reason": "Status 418"
+    },
+    "BULLA": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.005946,
+      "closePrice": 0.006001,
+      "step": 0.0003,
+      "decimals": 8,
+      "upperPrice": 0.006001,
+      "lowerPrice": 0.005946
+    },
+    "IDOL": {
+      "monthStart": 1782864000000,
+      "failed": true,
+      "reason": "Status 418"
+    },
+    "M": {
+      "monthStart": 1782864000000,
+      "failed": true,
+      "reason": "Status 418"
+    },
+    "TANSSI": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.01138,
+      "closePrice": 0.01138,
+      "step": 0.0003,
+      "decimals": 6,
+      "upperPrice": 0.01138,
+      "lowerPrice": 0.01138
+    },
+    "CROSS": {
+      "monthStart": 1782864000000,
+      "failed": true,
+      "reason": "Status 418"
+    },
+    "AIN": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.07228,
+      "closePrice": 0.07258,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.07258,
+      "lowerPrice": 0.07228
+    },
+    "C": {
+      "monthStart": 1782864000000,
+      "failed": true,
+      "reason": "Status 418"
+    },
+    "VELVET": {
+      "monthStart": 1782864000000,
+      "failed": true,
+      "reason": "Status 418"
+    },
+    "TAC": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.062472,
+      "closePrice": 0.062344,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.062472,
+      "lowerPrice": 0.062344
+    },
+    "ERA": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.0786,
+      "closePrice": 0.0785,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.0786,
+      "lowerPrice": 0.0785
+    },
+    "TA": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.0719,
+      "closePrice": 0.07203,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.07203,
+      "lowerPrice": 0.0719
+    },
+    "SLP": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.0004509,
+      "closePrice": 0.0004489,
+      "step": 0.00003,
+      "decimals": 8,
+      "upperPrice": 0.0004509,
+      "lowerPrice": 0.0004489
+    },
+    "ZORA": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.006675,
+      "closePrice": 0.006607,
+      "step": 0.0003,
+      "decimals": 8,
+      "upperPrice": 0.006675,
+      "lowerPrice": 0.006607
+    },
+    "TAG": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.000983,
+      "closePrice": 0.00099,
+      "step": 0.00003,
+      "decimals": 8,
+      "upperPrice": 0.00099,
+      "lowerPrice": 0.000983
+    },
+    "ZRC": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.003115,
+      "closePrice": 0.003115,
+      "step": 0.0003,
+      "decimals": 8,
+      "upperPrice": 0.003115,
+      "lowerPrice": 0.003115
+    },
+    "ESPORTS": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.02782,
+      "closePrice": 0.02802,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.02802,
+      "lowerPrice": 0.02782
+    },
+    "TREE": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.04047,
+      "closePrice": 0.0404,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.04047,
+      "lowerPrice": 0.0404
+    },
+    "A2Z": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.0011629,
+      "closePrice": 0.0011629,
+      "step": 0.00003,
+      "decimals": 8,
+      "upperPrice": 0.0011629,
+      "lowerPrice": 0.0011629
+    },
+    "PLAY": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.03128,
+      "closePrice": 0.03168,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.03168,
+      "lowerPrice": 0.03128
+    },
+    "NAORIS": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.03847,
+      "closePrice": 0.03838,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.03847,
+      "lowerPrice": 0.03838
+    },
+    "TOWNS": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.002058,
+      "closePrice": 0.001958,
+      "step": 0.0003,
+      "decimals": 8,
+      "upperPrice": 0.002058,
+      "lowerPrice": 0.001958
+    },
+    "PROVE": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.1881,
+      "closePrice": 0.1882,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.1882,
+      "lowerPrice": 0.1881
+    },
+    "ALL": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.4658,
+      "closePrice": 0.4653,
+      "step": 0.03,
+      "decimals": 4,
+      "upperPrice": 0.4658,
+      "lowerPrice": 0.4653
+    },
+    "IN": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.07005,
+      "closePrice": 0.06452,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.07005,
+      "lowerPrice": 0.06452
+    },
+    "YALA": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.01443,
+      "closePrice": 0.01443,
+      "step": 0.0003,
+      "decimals": 6,
+      "upperPrice": 0.01443,
+      "lowerPrice": 0.01443
+    },
+    "CARV": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.03475,
+      "closePrice": 0.03462,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.03475,
+      "lowerPrice": 0.03462
+    },
+    "AIO": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.09341,
+      "closePrice": 0.09291,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.09341,
+      "lowerPrice": 0.09291
+    },
+    "XNY": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.00677,
+      "closePrice": 0.005813,
+      "step": 0.0003,
+      "decimals": 8,
+      "upperPrice": 0.00677,
+      "lowerPrice": 0.005813
+    },
+    "USELESS": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.07712,
+      "closePrice": 0.07812,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.07812,
+      "lowerPrice": 0.07712
+    },
+    "DAM": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.02726,
+      "closePrice": 0.02726,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.02726,
+      "lowerPrice": 0.02726
+    },
+    "SAPIEN": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.07125,
+      "closePrice": 0.0713,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.0713,
+      "lowerPrice": 0.07125
+    },
+    "CUDIS": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.02006,
+      "closePrice": 0.02006,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.02006,
+      "lowerPrice": 0.02006
+    },
+    "AWE": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.05142,
+      "closePrice": 0.0512,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.05142,
+      "lowerPrice": 0.0512
+    },
+    "SOON": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.1641,
+      "closePrice": 0.1638,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.1641,
+      "lowerPrice": 0.1638
+    },
+    "HUMA": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.022287,
+      "closePrice": 0.022303,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.022303,
+      "lowerPrice": 0.022287
+    },
+    "LA": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.0598,
+      "closePrice": 0.06002,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.06002,
+      "lowerPrice": 0.0598
+    },
+    "RESOLV": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.01898,
+      "closePrice": 0.01926,
+      "step": 0.0003,
+      "decimals": 6,
+      "upperPrice": 0.01926,
+      "lowerPrice": 0.01898
+    },
+    "SPK": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.01753,
+      "closePrice": 0.01734,
+      "step": 0.0003,
+      "decimals": 6,
+      "upperPrice": 0.01753,
+      "lowerPrice": 0.01734
+    },
+    "XPL": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.08652,
+      "closePrice": 0.08659,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.08659,
+      "lowerPrice": 0.08652
+    },
+    "WLFI": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.05779,
+      "closePrice": 0.05795,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.05795,
+      "lowerPrice": 0.05779
+    },
+    "SOMI": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.0943,
+      "closePrice": 0.0943,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.0943,
+      "lowerPrice": 0.0943
+    },
+    "BAS": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.044688,
+      "closePrice": 0.045325,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.045325,
+      "lowerPrice": 0.044688
+    },
+    "BTR": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.01965,
+      "closePrice": 0.01945,
+      "step": 0.0003,
+      "decimals": 6,
+      "upperPrice": 0.01965,
+      "lowerPrice": 0.01945
+    },
+    "MITO": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.02385,
+      "closePrice": 0.02382,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.02385,
+      "lowerPrice": 0.02382
+    },
+    "HEMI": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.00427,
+      "closePrice": 0.004243,
+      "step": 0.0003,
+      "decimals": 8,
+      "upperPrice": 0.00427,
+      "lowerPrice": 0.004243
+    },
+    "LINEA": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.002276,
+      "closePrice": 0.002276,
+      "step": 0.0003,
+      "decimals": 8,
+      "upperPrice": 0.002276,
+      "lowerPrice": 0.002276
+    },
+    "Q": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.017069,
+      "closePrice": 0.017364,
+      "step": 0.0003,
+      "decimals": 6,
+      "upperPrice": 0.017364,
+      "lowerPrice": 0.017069
+    },
+    "PTB": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.0004756,
+      "closePrice": 0.0004743,
+      "step": 0.00003,
+      "decimals": 8,
+      "upperPrice": 0.0004756,
+      "lowerPrice": 0.0004743
+    },
+    "ARIA": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.02686,
+      "closePrice": 0.02745,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.02745,
+      "lowerPrice": 0.02686
+    },
+    "TAKE": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.0157,
+      "closePrice": 0.0156,
+      "step": 0.0003,
+      "decimals": 6,
+      "upperPrice": 0.0157,
+      "lowerPrice": 0.0156
+    },
+    "BDXN": {
+      "monthStart": 1782864000000,
+      "failed": true,
+      "reason": "Status 400"
+    },
+    "PUFFER": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.02723,
+      "closePrice": 0.02723,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.02723,
+      "lowerPrice": 0.02723
+    },
+    "PORT3": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.01182,
+      "closePrice": 0.01182,
+      "step": 0.0003,
+      "decimals": 6,
+      "upperPrice": 0.01182,
+      "lowerPrice": 0.01182
+    },
+    "1000000BOB": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.0158,
+      "closePrice": 0.01568,
+      "step": 0.0003,
+      "decimals": 6,
+      "upperPrice": 0.0158,
+      "lowerPrice": 0.01568
+    },
+    "SKATE": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.00503,
+      "closePrice": 0.00503,
+      "step": 0.0003,
+      "decimals": 8,
+      "upperPrice": 0.00503,
+      "lowerPrice": 0.00503
+    },
+    "HOME": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.01754,
+      "closePrice": 0.01716,
+      "step": 0.0003,
+      "decimals": 6,
+      "upperPrice": 0.01754,
+      "lowerPrice": 0.01716
+    },
+    "FLOCK": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.03184,
+      "closePrice": 0.03179,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.03184,
+      "lowerPrice": 0.03179
+    },
+    "SKY": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.05225,
+      "closePrice": 0.05216,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.05225,
+      "lowerPrice": 0.05216
+    },
+    "AVNT": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.0891,
+      "closePrice": 0.0886,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.0891,
+      "lowerPrice": 0.0886
+    },
+    "HOLO": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.0656,
+      "closePrice": 0.06474,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.0656,
+      "lowerPrice": 0.06474
+    },
+    "XPIN": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.001444,
+      "closePrice": 0.001375,
+      "step": 0.00003,
+      "decimals": 8,
+      "upperPrice": 0.001444,
+      "lowerPrice": 0.001375
+    },
+    "UB": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.09564,
+      "closePrice": 0.09363,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.09564,
+      "lowerPrice": 0.09363
+    },
+    "ZKC": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.04221,
+      "closePrice": 0.04202,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.04221,
+      "lowerPrice": 0.04202
+    },
+    "TOSHI": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.0001117,
+      "closePrice": 0.0001114,
+      "step": 0.00003,
+      "decimals": 8,
+      "upperPrice": 0.0001117,
+      "lowerPrice": 0.0001114
+    },
+    "STBL": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.02486,
+      "closePrice": 0.02478,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.02486,
+      "lowerPrice": 0.02478
+    },
+    "0G": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.2023,
+      "closePrice": 0.2033,
+      "step": 0.03,
+      "decimals": 4,
+      "upperPrice": 0.2033,
+      "lowerPrice": 0.2023
+    },
+    "BARD": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.1287,
+      "closePrice": 0.1288,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.1288,
+      "lowerPrice": 0.1287
+    },
+    "ASTER": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.6229,
+      "closePrice": 0.6255,
+      "step": 0.03,
+      "decimals": 4,
+      "upperPrice": 0.6255,
+      "lowerPrice": 0.6229
+    },
+    "TRADOOR": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.4148,
+      "closePrice": 0.4101,
+      "step": 0.03,
+      "decimals": 4,
+      "upperPrice": 0.4148,
+      "lowerPrice": 0.4101
+    },
+    "BLESS": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.00755,
+      "closePrice": 0.007344,
+      "step": 0.0003,
+      "decimals": 8,
+      "upperPrice": 0.00755,
+      "lowerPrice": 0.007344
+    },
+    "FLUID": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.825,
+      "closePrice": 0.853,
+      "step": 0.03,
+      "decimals": 4,
+      "upperPrice": 0.853,
+      "lowerPrice": 0.825
+    },
+    "COAI": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.2652,
+      "closePrice": 0.2665,
+      "step": 0.03,
+      "decimals": 4,
+      "upperPrice": 0.2665,
+      "lowerPrice": 0.2652
+    },
+    "HANA": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.03787,
+      "closePrice": 0.03795,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.03795,
+      "lowerPrice": 0.03787
+    },
+    "MIRA": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.04078,
+      "closePrice": 0.04081,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.04081,
+      "lowerPrice": 0.04078
+    },
+    "AKE": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.0003827,
+      "closePrice": 0.0003843,
+      "step": 0.00003,
+      "decimals": 8,
+      "upperPrice": 0.0003843,
+      "lowerPrice": 0.0003827
+    },
+    "ORDER": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.03316,
+      "closePrice": 0.03285,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.03316,
+      "lowerPrice": 0.03285
+    },
+    "LIGHT": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.118,
+      "closePrice": 0.1178,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.118,
+      "lowerPrice": 0.1178
+    },
+    "XAN": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.010462,
+      "closePrice": 0.010349,
+      "step": 0.0003,
+      "decimals": 6,
+      "upperPrice": 0.010462,
+      "lowerPrice": 0.010349
+    },
+    "FF": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.06859,
+      "closePrice": 0.06933,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.06933,
+      "lowerPrice": 0.06859
+    },
+    "VFY": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.01297,
+      "closePrice": 0.01297,
+      "step": 0.0003,
+      "decimals": 6,
+      "upperPrice": 0.01297,
+      "lowerPrice": 0.01297
+    },
+    "EDEN": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.0438,
+      "closePrice": 0.04356,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.0438,
+      "lowerPrice": 0.04356
+    },
+    "TRUTH": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.016831,
+      "closePrice": 0.016859,
+      "step": 0.0003,
+      "decimals": 6,
+      "upperPrice": 0.016859,
+      "lowerPrice": 0.016831
+    },
+    "NOM": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.001338,
+      "closePrice": 0.001336,
+      "step": 0.00003,
+      "decimals": 8,
+      "upperPrice": 0.001338,
+      "lowerPrice": 0.001336
+    },
+    "2Z": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.06092,
+      "closePrice": 0.06089,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.06092,
+      "lowerPrice": 0.06089
+    },
+    "LYN": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.03458,
+      "closePrice": 0.03503,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.03503,
+      "lowerPrice": 0.03458
+    },
+    "EVAA": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.8502,
+      "closePrice": 0.8456,
+      "step": 0.03,
+      "decimals": 4,
+      "upperPrice": 0.8502,
+      "lowerPrice": 0.8456
+    },
+    "KGEN": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.1961,
+      "closePrice": 0.1984,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.1984,
+      "lowerPrice": 0.1961
+    },
+    "GIGGLE": {
+      "monthStart": 1782864000000,
+      "openPrice": 24.1,
+      "closePrice": 24.09,
+      "step": 3,
+      "decimals": 3,
+      "upperPrice": 24.1,
+      "lowerPrice": 24.09
+    },
+    "MON": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.01832,
+      "closePrice": 0.01835,
+      "step": 0.0003,
+      "decimals": 6,
+      "upperPrice": 0.01835,
+      "lowerPrice": 0.01832
+    },
+    "YB": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.0672,
+      "closePrice": 0.0669,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.0672,
+      "lowerPrice": 0.0669
+    },
+    "MET": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.1616,
+      "closePrice": 0.1601,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.1616,
+      "lowerPrice": 0.1601
+    },
+    "EUL": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.982,
+      "closePrice": 0.9786,
+      "step": 0.03,
+      "decimals": 4,
+      "upperPrice": 0.982,
+      "lowerPrice": 0.9786
+    },
+    "ENSO": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.6209,
+      "closePrice": 0.624,
+      "step": 0.03,
+      "decimals": 4,
+      "upperPrice": 0.624,
+      "lowerPrice": 0.6209
+    },
+    "CLO": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.15797,
+      "closePrice": 0.15721,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.15797,
+      "lowerPrice": 0.15721
+    },
+    "测试测试": {
+      "monthStart": 1782864000000,
+      "failed": true,
+      "reason": "Status 400"
+    },
+    "RECALL": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.02977,
+      "closePrice": 0.02957,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.02977,
+      "lowerPrice": 0.02957
+    },
+    "ZBT": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.1211,
+      "closePrice": 0.12261,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.12261,
+      "lowerPrice": 0.1211
+    },
+    "RVV": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.000507,
+      "closePrice": 0.000507,
+      "step": 0.00003,
+      "decimals": 8,
+      "upperPrice": 0.000507,
+      "lowerPrice": 0.000507
+    },
+    "LAB": {
+      "monthStart": 1782864000000,
+      "openPrice": 13.094,
+      "closePrice": 13.055,
+      "step": 3,
+      "decimals": 3,
+      "upperPrice": 13.094,
+      "lowerPrice": 13.055
+    },
+    "RIVER": {
+      "monthStart": 1782864000000,
+      "openPrice": 3.794,
+      "closePrice": 3.771,
+      "step": 0.3,
+      "decimals": 4,
+      "upperPrice": 3.794,
+      "lowerPrice": 3.771
+    },
+    "币安人生": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.6708,
+      "closePrice": 0.6218,
+      "step": 0.03,
+      "decimals": 4,
+      "upperPrice": 0.6708,
+      "lowerPrice": 0.6218
+    },
+    "BLUAI": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.01313,
+      "closePrice": 0.013109,
+      "step": 0.0003,
+      "decimals": 6,
+      "upperPrice": 0.01313,
+      "lowerPrice": 0.013109
+    },
+    "TURTLE": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.03259,
+      "closePrice": 0.03255,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.03259,
+      "lowerPrice": 0.03255
+    },
+    "APR": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.2266,
+      "closePrice": 0.2283,
+      "step": 0.03,
+      "decimals": 4,
+      "upperPrice": 0.2283,
+      "lowerPrice": 0.2266
+    },
+    "ON": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.07881,
+      "closePrice": 0.07784,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.07881,
+      "lowerPrice": 0.07784
+    },
+    "COMMON": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.00111,
+      "closePrice": 0.00111,
+      "step": 0.00003,
+      "decimals": 8,
+      "upperPrice": 0.00111,
+      "lowerPrice": 0.00111
+    },
+    "KITE": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.10858,
+      "closePrice": 0.1086,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.1086,
+      "lowerPrice": 0.10858
+    },
+    "AT": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.1402,
+      "closePrice": 0.1394,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.1402,
+      "lowerPrice": 0.1394
+    },
+    "CC": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.1412,
+      "closePrice": 0.14105,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.1412,
+      "lowerPrice": 0.14105
+    },
+    "MMT": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.1642,
+      "closePrice": 0.168,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.168,
+      "lowerPrice": 0.1642
+    },
+    "TRUST": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.05172,
+      "closePrice": 0.05024,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.05172,
+      "lowerPrice": 0.05024
+    },
+    "UAI": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.3175,
+      "closePrice": 0.3122,
+      "step": 0.03,
+      "decimals": 4,
+      "upperPrice": 0.3175,
+      "lowerPrice": 0.3122
+    },
+    "FOLKS": {
+      "monthStart": 1782864000000,
+      "openPrice": 1.92,
+      "closePrice": 1.866,
+      "step": 0.3,
+      "decimals": 4,
+      "upperPrice": 1.92,
+      "lowerPrice": 1.866
+    },
+    "STABLE": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.03852,
+      "closePrice": 0.03843,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.03852,
+      "lowerPrice": 0.03843
+    },
+    "JCT": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.004509,
+      "closePrice": 0.004585,
+      "step": 0.0003,
+      "decimals": 8,
+      "upperPrice": 0.004585,
+      "lowerPrice": 0.004509
+    },
+    "ALLO": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.25161,
+      "closePrice": 0.2568,
+      "step": 0.03,
+      "decimals": 4,
+      "upperPrice": 0.2568,
+      "lowerPrice": 0.25161
+    },
+    "CLANKER": {
+      "monthStart": 1782864000000,
+      "openPrice": 14.98,
+      "closePrice": 14.9,
+      "step": 3,
+      "decimals": 3,
+      "upperPrice": 14.98,
+      "lowerPrice": 14.9
+    },
+    "BEAT": {
+      "monthStart": 1782864000000,
+      "openPrice": 2.909,
+      "closePrice": 2.99,
+      "step": 0.3,
+      "decimals": 4,
+      "upperPrice": 2.99,
+      "lowerPrice": 2.909
+    },
+    "PIEVERSE": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.7226,
+      "closePrice": 0.7248,
+      "step": 0.03,
+      "decimals": 4,
+      "upperPrice": 0.7248,
+      "lowerPrice": 0.7226
+    },
+    "SENT": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.01284,
+      "closePrice": 0.01274,
+      "step": 0.0003,
+      "decimals": 6,
+      "upperPrice": 0.01284,
+      "lowerPrice": 0.01274
+    },
+    "GAIB": {
+      "monthStart": 1782864000000,
+      "failed": true,
+      "reason": "Status 400"
+    },
+    "BOB": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.005666,
+      "closePrice": 0.005666,
+      "step": 0.0003,
+      "decimals": 8,
+      "upperPrice": 0.005666,
+      "lowerPrice": 0.005666
+    },
+    "POWER": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.07854,
+      "closePrice": 0.07944,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.07944,
+      "lowerPrice": 0.07854
+    },
+    "WET": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.05919,
+      "closePrice": 0.06004,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.06004,
+      "lowerPrice": 0.05919
+    },
+    "NIGHT": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.03098,
+      "closePrice": 0.03091,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.03098,
+      "lowerPrice": 0.03091
+    },
+    "XAU": {
+      "monthStart": 1782864000000,
+      "openPrice": 4007.73,
+      "closePrice": 3999.93,
+      "step": 300,
+      "decimals": 2,
+      "upperPrice": 4007.73,
+      "lowerPrice": 3999.93
+    },
+    "US": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.011481,
+      "closePrice": 0.011455,
+      "step": 0.0003,
+      "decimals": 6,
+      "upperPrice": 0.011481,
+      "lowerPrice": 0.011455
+    },
+    "CYS": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.3656,
+      "closePrice": 0.3701,
+      "step": 0.03,
+      "decimals": 4,
+      "upperPrice": 0.3701,
+      "lowerPrice": 0.3656
+    },
+    "RAVE": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.3207,
+      "closePrice": 0.3219,
+      "step": 0.03,
+      "decimals": 4,
+      "upperPrice": 0.3219,
+      "lowerPrice": 0.3207
+    },
+    "ZKP": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.04442,
+      "closePrice": 0.04411,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.04442,
+      "lowerPrice": 0.04411
+    },
+    "GUA": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.1828,
+      "closePrice": 0.184,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.184,
+      "lowerPrice": 0.1828
+    },
+    "IR": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.02189,
+      "closePrice": 0.02189,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.02189,
+      "lowerPrice": 0.02189
+    },
+    "BMNR": {
+      "monthStart": 1782864000000,
+      "openPrice": 13.29,
+      "closePrice": 13.34,
+      "step": 3,
+      "decimals": 3,
+      "upperPrice": 13.34,
+      "lowerPrice": 13.29
+    },
+    "BREV": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.06934,
+      "closePrice": 0.0689,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.06934,
+      "lowerPrice": 0.0689
+    },
+    "COLLECT": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.03912,
+      "closePrice": 0.03882,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.03912,
+      "lowerPrice": 0.03882
+    },
+    "MAGMA": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.42704,
+      "closePrice": 0.43315,
+      "step": 0.03,
+      "decimals": 4,
+      "upperPrice": 0.43315,
+      "lowerPrice": 0.42704
+    },
+    "XAG": {
+      "monthStart": 1782864000000,
+      "openPrice": 58.45,
+      "closePrice": 58.54,
+      "step": 3,
+      "decimals": 3,
+      "upperPrice": 58.54,
+      "lowerPrice": 58.45
+    },
+    "ZAMA": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.03335,
+      "closePrice": 0.03314,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.03335,
+      "lowerPrice": 0.03314
+    },
+    "FOGO": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.00914,
+      "closePrice": 0.00911,
+      "step": 0.0003,
+      "decimals": 8,
+      "upperPrice": 0.00914,
+      "lowerPrice": 0.00911
+    },
+    "FRAX": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.2291,
+      "closePrice": 0.2275,
+      "step": 0.03,
+      "decimals": 4,
+      "upperPrice": 0.2291,
+      "lowerPrice": 0.2275
+    },
+    "SPORTFUN": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.02216,
+      "closePrice": 0.02216,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.02216,
+      "lowerPrice": 0.02216
+    },
+    "AIA": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.05127,
+      "closePrice": 0.05172,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.05172,
+      "lowerPrice": 0.05127
+    },
+    "ACU": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.07913,
+      "closePrice": 0.07874,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.07913,
+      "lowerPrice": 0.07874
+    },
+    "我踏马来了": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.00749,
+      "closePrice": 0.007559,
+      "step": 0.0003,
+      "decimals": 8,
+      "upperPrice": 0.007559,
+      "lowerPrice": 0.00749
+    },
+    "ELSA": {
+      "monthStart": 1782864000000,
+      "failed": true,
+      "reason": "Status 418"
+    },
+    "SKR": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.008807,
+      "closePrice": 0.008619,
+      "step": 0.0003,
+      "decimals": 8,
+      "upperPrice": 0.008807,
+      "lowerPrice": 0.008619
+    },
+    "SPACE": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.005967,
+      "closePrice": 0.005914,
+      "step": 0.0003,
+      "decimals": 8,
+      "upperPrice": 0.005967,
+      "lowerPrice": 0.005914
+    },
+    "FIGHT": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.003478,
+      "closePrice": 0.003476,
+      "step": 0.0003,
+      "decimals": 8,
+      "upperPrice": 0.003478,
+      "lowerPrice": 0.003476
+    },
+    "TSLA": {
+      "monthStart": 1782864000000,
+      "openPrice": 416.1,
+      "closePrice": 416.45,
+      "step": 30,
+      "decimals": 2,
+      "upperPrice": 416.45,
+      "lowerPrice": 416.1
+    },
+    "BIRB": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.05455,
+      "closePrice": 0.05437,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.05455,
+      "lowerPrice": 0.05437
+    },
+    "GWEI": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.126,
+      "closePrice": 0.1221,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.126,
+      "lowerPrice": 0.1221
+    },
+    "XPD": {
+      "monthStart": 1782864000000,
+      "openPrice": 1210.53,
+      "closePrice": 1207.96,
+      "step": 300,
+      "decimals": 2,
+      "upperPrice": 1210.53,
+      "lowerPrice": 1207.96
+    },
+    "XPT": {
+      "monthStart": 1782864000000,
+      "openPrice": 1552.19,
+      "closePrice": 1551.95,
+      "step": 300,
+      "decimals": 2,
+      "upperPrice": 1552.19,
+      "lowerPrice": 1551.95
+    },
+    "MEGA": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.04529,
+      "closePrice": 0.04528,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.04529,
+      "lowerPrice": 0.04528
+    },
+    "INX": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.008066,
+      "closePrice": 0.008112,
+      "step": 0.0003,
+      "decimals": 8,
+      "upperPrice": 0.008112,
+      "lowerPrice": 0.008066
+    },
+    "HOOD": {
+      "monthStart": 1782864000000,
+      "openPrice": 100.42,
+      "closePrice": 100.41,
+      "step": 30,
+      "decimals": 2,
+      "upperPrice": 100.42,
+      "lowerPrice": 100.41
+    },
+    "INTC": {
+      "monthStart": 1782864000000,
+      "openPrice": 139.51,
+      "closePrice": 138.83,
+      "step": 30,
+      "decimals": 2,
+      "upperPrice": 139.51,
+      "lowerPrice": 138.83
+    },
+    "CRCL": {
+      "monthStart": 1782864000000,
+      "openPrice": 63.14,
+      "closePrice": 63.11,
+      "step": 3,
+      "decimals": 3,
+      "upperPrice": 63.14,
+      "lowerPrice": 63.11
+    },
+    "AMZN": {
+      "monthStart": 1782864000000,
+      "openPrice": 239.47,
+      "closePrice": 239.31,
+      "step": 30,
+      "decimals": 2,
+      "upperPrice": 239.47,
+      "lowerPrice": 239.31
+    },
+    "MSTR": {
+      "monthStart": 1782864000000,
+      "openPrice": 86.36,
+      "closePrice": 86.39,
+      "step": 3,
+      "decimals": 3,
+      "upperPrice": 86.39,
+      "lowerPrice": 86.36
+    },
+    "COIN": {
+      "monthStart": 1782864000000,
+      "openPrice": 145.61,
+      "closePrice": 145.92,
+      "step": 30,
+      "decimals": 2,
+      "upperPrice": 145.92,
+      "lowerPrice": 145.61
+    },
+    "PLTR": {
+      "monthStart": 1782864000000,
+      "openPrice": 117.4,
+      "closePrice": 117.44,
+      "step": 30,
+      "decimals": 2,
+      "upperPrice": 117.44,
+      "lowerPrice": 117.4
+    },
+    "TRIA": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.02079,
+      "closePrice": 0.0202,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.02079,
+      "lowerPrice": 0.0202
+    },
+    "ESP": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.06679,
+      "closePrice": 0.06598,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.06679,
+      "lowerPrice": 0.06598
+    },
+    "AZTEC": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.01287,
+      "closePrice": 0.01281,
+      "step": 0.0003,
+      "decimals": 6,
+      "upperPrice": 0.01287,
+      "lowerPrice": 0.01281
+    },
+    "ROBO": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.01707,
+      "closePrice": 0.01713,
+      "step": 0.0003,
+      "decimals": 6,
+      "upperPrice": 0.01713,
+      "lowerPrice": 0.01707
+    },
+    "KAT": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.004861,
+      "closePrice": 0.004827,
+      "step": 0.0003,
+      "decimals": 8,
+      "upperPrice": 0.004861,
+      "lowerPrice": 0.004827
+    },
+    "MANTRA": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.006534,
+      "closePrice": 0.006505,
+      "step": 0.0003,
+      "decimals": 8,
+      "upperPrice": 0.006534,
+      "lowerPrice": 0.006505
+    },
+    "COPPER": {
+      "monthStart": 1782864000000,
+      "openPrice": 6.247,
+      "closePrice": 6.23,
+      "step": 0.3,
+      "decimals": 4,
+      "upperPrice": 6.247,
+      "lowerPrice": 6.23
+    },
+    "龙虾": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.012232,
+      "closePrice": 0.012014,
+      "step": 0.0003,
+      "decimals": 6,
+      "upperPrice": 0.012232,
+      "lowerPrice": 0.012014
+    },
+    "EWJ": {
+      "monthStart": 1782864000000,
+      "openPrice": 93.8,
+      "closePrice": 93.56,
+      "step": 3,
+      "decimals": 3,
+      "upperPrice": 93.8,
+      "lowerPrice": 93.56
+    },
+    "EDGE": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.2847,
+      "closePrice": 0.2736,
+      "step": 0.03,
+      "decimals": 4,
+      "upperPrice": 0.2847,
+      "lowerPrice": 0.2736
+    },
+    "PAYP": {
+      "monthStart": 1782864000000,
+      "openPrice": 14.54,
+      "closePrice": 14.53,
+      "step": 3,
+      "decimals": 3,
+      "upperPrice": 14.54,
+      "lowerPrice": 14.53
+    },
+    "BSB": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.23212,
+      "closePrice": 0.23122,
+      "step": 0.03,
+      "decimals": 4,
+      "upperPrice": 0.23212,
+      "lowerPrice": 0.23122
+    },
+    "META": {
+      "monthStart": 1782864000000,
+      "openPrice": 562.45,
+      "closePrice": 563.95,
+      "step": 30,
+      "decimals": 2,
+      "upperPrice": 563.95,
+      "lowerPrice": 562.45
+    },
+    "GOOGLE": {
+      "monthStart": 1782864000000,
+      "failed": true,
+      "reason": "Status 400"
+    },
+    "NVDA": {
+      "monthStart": 1782864000000,
+      "openPrice": 199.54,
+      "closePrice": 199.24,
+      "step": 30,
+      "decimals": 2,
+      "upperPrice": 199.54,
+      "lowerPrice": 199.24
+    },
+    "GOOGL": {
+      "monthStart": 1782864000000,
+      "openPrice": 357.46,
+      "closePrice": 357.77,
+      "step": 30,
+      "decimals": 2,
+      "upperPrice": 357.77,
+      "lowerPrice": 357.46
+    },
+    "FAKEKR000660": {
+      "monthStart": 1782864000000,
+      "failed": true,
+      "reason": "Status 400"
+    },
+    "SPACEF": {
+      "monthStart": 1782864000000,
+      "failed": true,
+      "reason": "Status 400"
+    },
+    "SPACEFA": {
+      "monthStart": 1782864000000,
+      "failed": true,
+      "reason": "Status 400"
+    },
+    "QNTX": {
+      "monthStart": 1782864000000,
+      "openPrice": 82.19,
+      "closePrice": 82.1,
+      "step": 3,
+      "decimals": 3,
+      "upperPrice": 82.19,
+      "lowerPrice": 82.1
+    },
+    "OPENAI": {
+      "monthStart": 1782864000000,
+      "openPrice": 1324.9,
+      "closePrice": 1326.6,
+      "step": 300,
+      "decimals": 2,
+      "upperPrice": 1326.6,
+      "lowerPrice": 1324.9
+    },
+    "SPCX": {
+      "monthStart": 1782864000000,
+      "openPrice": 172.14,
+      "closePrice": 171.06,
+      "step": 30,
+      "decimals": 2,
+      "upperPrice": 172.14,
+      "lowerPrice": 171.06
+    },
+    "SPY": {
+      "monthStart": 1782864000000,
+      "openPrice": 746.49,
+      "closePrice": 746.75,
+      "step": 30,
+      "decimals": 2,
+      "upperPrice": 746.75,
+      "lowerPrice": 746.49
+    },
+    "QQQ": {
+      "monthStart": 1782864000000,
+      "openPrice": 736.21,
+      "closePrice": 735.99,
+      "step": 30,
+      "decimals": 2,
+      "upperPrice": 736.21,
+      "lowerPrice": 735.99
+    },
+    "MVLL": {
+      "monthStart": 1782864000000,
+      "openPrice": 57.28,
+      "closePrice": 56.9,
+      "step": 3,
+      "decimals": 3,
+      "upperPrice": 57.28,
+      "lowerPrice": 56.9
+    },
+    "DIS": {
+      "monthStart": 1782864000000,
+      "openPrice": 96.44,
+      "closePrice": 96.48,
+      "step": 3,
+      "decimals": 3,
+      "upperPrice": 96.48,
+      "lowerPrice": 96.44
+    },
+    "KORU": {
+      "monthStart": 1782864000000,
+      "openPrice": 772.85,
+      "closePrice": 697.86,
+      "step": 30,
+      "decimals": 2,
+      "upperPrice": 772.85,
+      "lowerPrice": 697.86
+    },
+    "ONT": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.04216,
+      "closePrice": 0.04208,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.04216,
+      "lowerPrice": 0.04208
+    },
+    "VET": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.00437,
+      "closePrice": 0.00438,
+      "step": 0.0003,
+      "decimals": 8,
+      "upperPrice": 0.00438,
+      "lowerPrice": 0.00437
+    },
+    "QTUM": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.672,
+      "closePrice": 0.664,
+      "step": 0.03,
+      "decimals": 4,
+      "upperPrice": 0.672,
+      "lowerPrice": 0.664
+    },
+    "THETA": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.1272,
+      "closePrice": 0.1262,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.1272,
+      "lowerPrice": 0.1262
+    },
+    "KNC": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.1058,
+      "closePrice": 0.1064,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.1064,
+      "lowerPrice": 0.1058
+    },
+    "ZRX": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.0774,
+      "closePrice": 0.0774,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.0774,
+      "lowerPrice": 0.0774
+    },
+    "BAND": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.139,
+      "closePrice": 0.1386,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.139,
+      "lowerPrice": 0.1386
+    },
+    "YFI": {
+      "monthStart": 1782864000000,
+      "openPrice": 1621,
+      "closePrice": 1614,
+      "step": 300,
+      "decimals": 2,
+      "upperPrice": 1621,
+      "lowerPrice": 1614
+    },
+    "CRV": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.1844,
+      "closePrice": 0.1845,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.1845,
+      "lowerPrice": 0.1844
+    },
+    "SUSHI": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.1488,
+      "closePrice": 0.1482,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.1488,
+      "lowerPrice": 0.1482
+    },
+    "EGLD": {
+      "monthStart": 1782864000000,
+      "openPrice": 2.524,
+      "closePrice": 2.519,
+      "step": 0.3,
+      "decimals": 4,
+      "upperPrice": 2.524,
+      "lowerPrice": 2.519
+    },
+    "SOL": {
+      "monthStart": 1782864000000,
+      "openPrice": 73.62,
+      "closePrice": 73.61,
+      "step": 3,
+      "decimals": 3,
+      "upperPrice": 73.62,
+      "lowerPrice": 73.61
+    },
+    "STORJ": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.0709,
+      "closePrice": 0.0707,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.0709,
+      "lowerPrice": 0.0707
+    },
+    "UNI": {
+      "monthStart": 1782864000000,
+      "openPrice": 2.776,
+      "closePrice": 2.797,
+      "step": 0.3,
+      "decimals": 4,
+      "upperPrice": 2.797,
+      "lowerPrice": 2.776
+    },
+    "KSM": {
+      "monthStart": 1782864000000,
+      "openPrice": 2.974,
+      "closePrice": 2.973,
+      "step": 0.3,
+      "decimals": 4,
+      "upperPrice": 2.974,
+      "lowerPrice": 2.973
+    },
+    "AAVE": {
+      "monthStart": 1782864000000,
+      "openPrice": 85.09,
+      "closePrice": 86.11,
+      "step": 3,
+      "decimals": 3,
+      "upperPrice": 86.11,
+      "lowerPrice": 85.09
+    },
+    "FIL": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.718,
+      "closePrice": 0.72,
+      "step": 0.03,
+      "decimals": 4,
+      "upperPrice": 0.72,
+      "lowerPrice": 0.718
+    },
+    "RSR": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.001068,
+      "closePrice": 0.001067,
+      "step": 0.00003,
+      "decimals": 8,
+      "upperPrice": 0.001068,
+      "lowerPrice": 0.001067
+    },
+    "AXS": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.963,
+      "closePrice": 0.967,
+      "step": 0.03,
+      "decimals": 4,
+      "upperPrice": 0.967,
+      "lowerPrice": 0.963
+    },
+    "GRT": {
+      "monthStart": 1782864000000,
+      "failed": true,
+      "reason": "Status 418"
+    },
+    "1INCH": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.0656,
+      "closePrice": 0.0657,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.0657,
+      "lowerPrice": 0.0656
+    },
+    "CHZ": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.01785,
+      "closePrice": 0.01785,
+      "step": 0.0003,
+      "decimals": 6,
+      "upperPrice": 0.01785,
+      "lowerPrice": 0.01785
+    },
+    "SAND": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.04651,
+      "closePrice": 0.04646,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.04651,
+      "lowerPrice": 0.04646
+    },
+    "LIT": {
+      "monthStart": 1782864000000,
+      "openPrice": 1.8487,
+      "closePrice": 1.8076,
+      "step": 0.3,
+      "decimals": 4,
+      "upperPrice": 1.8487,
+      "lowerPrice": 1.8076
+    },
+    "CHR": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.01423,
+      "closePrice": 0.01417,
+      "step": 0.0003,
+      "decimals": 6,
+      "upperPrice": 0.01423,
+      "lowerPrice": 0.01417
+    },
+    "MANA": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.0622,
+      "closePrice": 0.0624,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.0624,
+      "lowerPrice": 0.0622
+    },
+    "ALICE": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.1153,
+      "closePrice": 0.1141,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.1153,
+      "lowerPrice": 0.1141
+    },
+    "ONE": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.001155,
+      "closePrice": 0.001153,
+      "step": 0.00003,
+      "decimals": 8,
+      "upperPrice": 0.001155,
+      "lowerPrice": 0.001153
+    },
+    "HOT": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.0002907,
+      "closePrice": 0.0002901,
+      "step": 0.00003,
+      "decimals": 8,
+      "upperPrice": 0.0002907,
+      "lowerPrice": 0.0002901
+    },
+    "OGN": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.01453,
+      "closePrice": 0.01446,
+      "step": 0.0003,
+      "decimals": 6,
+      "upperPrice": 0.01453,
+      "lowerPrice": 0.01446
+    },
+    "GTC": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.06613,
+      "closePrice": 0.06585,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.06613,
+      "lowerPrice": 0.06585
+    },
+    "MASK": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.3762,
+      "closePrice": 0.3763,
+      "step": 0.03,
+      "decimals": 4,
+      "upperPrice": 0.3763,
+      "lowerPrice": 0.3762
+    },
+    "C98": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.01209,
+      "closePrice": 0.01211,
+      "step": 0.0003,
+      "decimals": 6,
+      "upperPrice": 0.01211,
+      "lowerPrice": 0.01209
+    },
+    "DYDX": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.1798,
+      "closePrice": 0.1794,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.1798,
+      "lowerPrice": 0.1794
+    },
+    "CELO": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.0585,
+      "closePrice": 0.059,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.059,
+      "lowerPrice": 0.0585
+    },
+    "ARPA": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.00767,
+      "closePrice": 0.00768,
+      "step": 0.0003,
+      "decimals": 8,
+      "upperPrice": 0.00768,
+      "lowerPrice": 0.00767
+    },
+    "PEOPLE": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.004968,
+      "closePrice": 0.004964,
+      "step": 0.0003,
+      "decimals": 8,
+      "upperPrice": 0.004968,
+      "lowerPrice": 0.004964
+    },
+    "ROSE": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.005558,
+      "closePrice": 0.005532,
+      "step": 0.0003,
+      "decimals": 8,
+      "upperPrice": 0.005558,
+      "lowerPrice": 0.005532
+    },
+    "IMX": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.1139,
+      "closePrice": 0.1147,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.1147,
+      "lowerPrice": 0.1139
+    },
+    "GMT": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.00732,
+      "closePrice": 0.0073,
+      "step": 0.0003,
+      "decimals": 8,
+      "upperPrice": 0.00732,
+      "lowerPrice": 0.0073
+    },
+    "APE": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.1454,
+      "closePrice": 0.1483,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.1483,
+      "lowerPrice": 0.1454
+    },
+    "WOO": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.01063,
+      "closePrice": 0.01061,
+      "step": 0.0003,
+      "decimals": 6,
+      "upperPrice": 0.01063,
+      "lowerPrice": 0.01061
+    },
+    "OP": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.0964,
+      "closePrice": 0.0963,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.0964,
+      "lowerPrice": 0.0963
+    },
+    "STG": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.1668,
+      "closePrice": 0.1719,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.1719,
+      "lowerPrice": 0.1668
+    },
+    "LUNA2": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.04611,
+      "closePrice": 0.04595,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.04611,
+      "lowerPrice": 0.04595
+    },
+    "LDO": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.2398,
+      "closePrice": 0.2399,
+      "step": 0.03,
+      "decimals": 4,
+      "upperPrice": 0.2399,
+      "lowerPrice": 0.2398
+    },
+    "APT": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.5714,
+      "closePrice": 0.5713,
+      "step": 0.03,
+      "decimals": 4,
+      "upperPrice": 0.5714,
+      "lowerPrice": 0.5713
+    },
+    "MINA": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.03774,
+      "closePrice": 0.03801,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.03801,
+      "lowerPrice": 0.03774
+    },
+    "FET": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.1717,
+      "closePrice": 0.1718,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.1718,
+      "lowerPrice": 0.1717
+    },
+    "GMX": {
+      "monthStart": 1782864000000,
+      "openPrice": 5.292,
+      "closePrice": 5.319,
+      "step": 0.3,
+      "decimals": 4,
+      "upperPrice": 5.319,
+      "lowerPrice": 5.292
+    },
+    "STX": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.161,
+      "closePrice": 0.1609,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.161,
+      "lowerPrice": 0.1609
+    },
+    "CKB": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.00087,
+      "closePrice": 0.000866,
+      "step": 0.00003,
+      "decimals": 8,
+      "upperPrice": 0.00087,
+      "lowerPrice": 0.000866
+    },
+    "USDC": {
+      "monthStart": 1782864000000,
+      "failed": true,
+      "reason": "Status 418"
+    },
+    "ARB": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.07606,
+      "closePrice": 0.07624,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.07624,
+      "lowerPrice": 0.07606
+    },
+    "HFT": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.00787,
+      "closePrice": 0.00767,
+      "step": 0.0003,
+      "decimals": 8,
+      "upperPrice": 0.00787,
+      "lowerPrice": 0.00767
+    },
+    "BLUR": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.0142,
+      "closePrice": 0.01422,
+      "step": 0.0003,
+      "decimals": 6,
+      "upperPrice": 0.01422,
+      "lowerPrice": 0.0142
+    },
+    "1000PEPE": {
+      "monthStart": 1782864000000,
+      "failed": true,
+      "reason": "Status 418"
+    },
+    "SUI": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.6903,
+      "closePrice": 0.6904,
+      "step": 0.03,
+      "decimals": 4,
+      "upperPrice": 0.6904,
+      "lowerPrice": 0.6903
+    },
+    "NMR": {
+      "monthStart": 1782864000000,
+      "openPrice": 8.882,
+      "closePrice": 8.827,
+      "step": 0.3,
+      "decimals": 4,
+      "upperPrice": 8.882,
+      "lowerPrice": 8.827
+    },
+    "MAV": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.0092,
+      "closePrice": 0.00916,
+      "step": 0.0003,
+      "decimals": 8,
+      "upperPrice": 0.0092,
+      "lowerPrice": 0.00916
+    },
+    "ARKM": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.1098,
+      "closePrice": 0.1086,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.1098,
+      "lowerPrice": 0.1086
+    },
+    "AGLD": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.185,
+      "closePrice": 0.1798,
+      "step": 0.003,
+      "decimals": 5,
+      "upperPrice": 0.185,
+      "lowerPrice": 0.1798
+    },
+    "DODOX": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.019771,
+      "closePrice": 0.019801,
+      "step": 0.0003,
+      "decimals": 6,
+      "upperPrice": 0.019801,
+      "lowerPrice": 0.019771
+    },
+    "BICO": {
+      "monthStart": 1782864000000,
+      "openPrice": 0.01606,
+      "closePrice": 0.01578,
+      "step": 0.0003,
+      "decimals": 6,
+      "upperPrice": 0.01606,
+      "lowerPrice": 0.01578
+    }
+  },
+  "stepSizes": {
+    "BTCUSDT": 0.0001,
+    "ETHUSDT": 0.001,
+    "BCHUSDT": 0.001,
+    "XRPUSDT": 0.1,
+    "EOSUSDT": 0.1,
+    "LTCUSDT": 0.001,
+    "TRXUSDT": 1,
+    "ETCUSDT": 0.01,
+    "LINKUSDT": 0.01,
+    "XLMUSDT": 1,
+    "ADAUSDT": 1,
+    "DASHUSDT": 0.001,
+    "ZECUSDT": 0.001,
+    "XTZUSDT": 0.1,
+    "BNBUSDT": 0.01,
+    "ATOMUSDT": 0.01,
+    "ONTUSDT": 0.1,
+    "IOTAUSDT": 0.1,
+    "BATUSDT": 0.1,
+    "VETUSDT": 1,
+    "NEOUSDT": 0.01,
+    "QTUMUSDT": 0.1,
+    "IOSTUSDT": 1,
+    "THETAUSDT": 0.1,
+    "ALGOUSDT": 0.1,
+    "ZILUSDT": 1,
+    "KNCUSDT": 1,
+    "ZRXUSDT": 0.1,
+    "COMPUSDT": 0.001,
+    "OMGUSDT": 0.1,
+    "DOGEUSDT": 1,
+    "SXPUSDT": 0.1,
+    "KAVAUSDT": 0.1,
+    "BANDUSDT": 0.1,
+    "RLCUSDT": 0.1,
+    "WAVESUSDT": 0.1,
+    "MKRUSDT": 0.001,
+    "SNXUSDT": 0.1,
+    "DOTUSDT": 0.1,
+    "DEFIUSDT": 0.001,
+    "YFIUSDT": 0.001,
+    "BALUSDT": 0.1,
+    "CRVUSDT": 0.1,
+    "TRBUSDT": 0.1,
+    "RUNEUSDT": 1,
+    "SUSHIUSDT": 1,
+    "EGLDUSDT": 0.1,
+    "SOLUSDT": 0.01,
+    "ICXUSDT": 1,
+    "STORJUSDT": 1,
+    "UNIUSDT": 1,
+    "AVAXUSDT": 1,
+    "FTMUSDT": 1,
+    "ENJUSDT": 1,
+    "FLMUSDT": 1,
+    "TOMOUSDT": 1,
+    "RENUSDT": 1,
+    "KSMUSDT": 0.1,
+    "NEARUSDT": 1,
+    "AAVEUSDT": 0.1,
+    "FILUSDT": 0.1,
+    "RSRUSDT": 1,
+    "LRCUSDT": 1,
+    "OCEANUSDT": 1,
+    "BELUSDT": 1,
+    "CTKUSDT": 1,
+    "AXSUSDT": 1,
+    "ALPHAUSDT": 1,
+    "ZENUSDT": 0.1,
+    "SKLUSDT": 1,
+    "GRTUSDT": 1,
+    "BNTUSDT": 1,
+    "1INCHUSDT": 1,
+    "UNFIUSDT": 0.1,
+    "CHZUSDT": 1,
+    "SANDUSDT": 1,
+    "ANKRUSDT": 1,
+    "LITUSDT": 0.1,
+    "REEFUSDT": 1,
+    "RVNUSDT": 1,
+    "SFPUSDT": 1,
+    "XEMUSDT": 1,
+    "BTCSTUSDT": 0.1,
+    "COTIUSDT": 1,
+    "CHRUSDT": 1,
+    "MANAUSDT": 1,
+    "ALICEUSDT": 0.1,
+    "HBARUSDT": 1,
+    "ONEUSDT": 1,
+    "LINAUSDT": 1,
+    "STMXUSDT": 1,
+    "DENTUSDT": 1,
+    "CELRUSDT": 1,
+    "HOTUSDT": 1,
+    "MTLUSDT": 1,
+    "OGNUSDT": 1,
+    "NKNUSDT": 1,
+    "DGBUSDT": 1,
+    "1000SHIBUSDT": 1,
+    "BAKEUSDT": 1,
+    "GTCUSDT": 0.1,
+    "BTCDOMUSDT": 0.001,
+    "MASKUSDT": 1,
+    "IOTXUSDT": 1,
+    "AUDIOUSDT": 1,
+    "C98USDT": 1,
+    "ATAUSDT": 1,
+    "DYDXUSDT": 0.1,
+    "1000XECUSDT": 1,
+    "GALAUSDT": 1,
+    "CELOUSDT": 0.1,
+    "ARUSDT": 0.1,
+    "KLAYUSDT": 0.1,
+    "ARPAUSDT": 1,
+    "CTSIUSDT": 1,
+    "LPTUSDT": 0.1,
+    "ENSUSDT": 0.1,
+    "PEOPLEUSDT": 1,
+    "ANTUSDT": 0.1,
+    "ROSEUSDT": 1,
+    "DUSKUSDT": 1,
+    "FLOWUSDT": 0.1,
+    "IMXUSDT": 1,
+    "API3USDT": 0.1,
+    "GMTUSDT": 1,
+    "APEUSDT": 1,
+    "WOOUSDT": 1,
+    "JASMYUSDT": 1,
+    "DARUSDT": 0.1,
+    "OPUSDT": 0.1,
+    "XMRUSDT": 0.001,
+    "INJUSDT": 0.1,
+    "STGUSDT": 1,
+    "SPELLUSDT": 1,
+    "1000LUNCUSDT": 1,
+    "LUNA2USDT": 1,
+    "LDOUSDT": 1,
+    "CVXUSDT": 1,
+    "FOOTBALLUSDT": 0.01,
+    "APTUSDT": 0.1,
+    "QNTUSDT": 0.1,
+    "BLUEBIRDUSDT": 0.1,
+    "FXSUSDT": 0.1,
+    "HOOKUSDT": 0.1,
+    "MAGICUSDT": 0.1,
+    "TUSDT": 1,
+    "HIGHUSDT": 0.1,
+    "MINAUSDT": 1,
+    "ASTRUSDT": 1,
+    "PHBUSDT": 1,
+    "AGIXUSDT": 1,
+    "FETUSDT": 1,
+    "GMXUSDT": 0.01,
+    "CFXUSDT": 1,
+    "STXUSDT": 1,
+    "ACHUSDT": 1,
+    "SSVUSDT": 0.01,
+    "CKBUSDT": 1,
+    "PERPUSDT": 0.1,
+    "LQTYUSDT": 0.1,
+    "USDCUSDT": 1,
+    "ARBUSDT": 0.1,
+    "IDUSDT": 1,
+    "JOEUSDT": 1,
+    "AMBUSDT": 1,
+    "LEVERUSDT": 1,
+    "TRUUSDT": 1,
+    "RDNTUSDT": 1,
+    "ETHBTC": 0.01,
+    "HFTUSDT": 1,
+    "XVSUSDT": 0.1,
+    "BLURUSDT": 1,
+    "EDUUSDT": 1,
+    "IDEXUSDT": 1,
+    "1000PEPEUSDT": 1,
+    "1000FLOKIUSDT": 1,
+    "RADUSDT": 1,
+    "UMAUSDT": 1,
+    "KEYUSDT": 1,
+    "COMBOUSDT": 0.1,
+    "SUIUSDT": 0.1,
+    "NMRUSDT": 0.1,
+    "MAVUSDT": 1,
+    "MDTUSDT": 1,
+    "XVGUSDT": 1,
+    "WLDUSDT": 1,
+    "PENDLEUSDT": 1,
+    "ARKMUSDT": 1,
+    "AGLDUSDT": 1,
+    "YGGUSDT": 1,
+    "DODOXUSDT": 1,
+    "OXTUSDT": 1,
+    "SEIUSDT": 1,
+    "CYBERUSDT": 0.1,
+    "HIFIUSDT": 1,
+    "ARKUSDT": 3,
+    "GLMRUSDT": 1,
+    "BICOUSDT": 1,
+    "STRAXUSDT": 1,
+    "LOOMUSDT": 1,
+    "BIGTIMEUSDT": 1,
+    "BONDUSDT": 0.1,
+    "ORBSUSDT": 1,
+    "STPTUSDT": 1,
+    "WAXPUSDT": 1,
+    "BSVUSDT": 0.1,
+    "RIFUSDT": 1,
+    "POLYXUSDT": 1,
+    "GASUSDT": 0.1,
+    "POWRUSDT": 1,
+    "TIAUSDT": 1,
+    "SNTUSDT": 1,
+    "CAKEUSDT": 1,
+    "MEMEUSDT": 1,
+    "TOKENUSDT": 1,
+    "ORDIUSDT": 0.1,
+    "STEEMUSDT": 1,
+    "BADGERUSDT": 1,
+    "ILVUSDT": 0.1,
+    "NTRNUSDT": 1,
+    "MBLUSDT": 1,
+    "KASUSDT": 1,
+    "BEAMXUSDT": 1,
+    "1000BONKUSDT": 1,
+    "PYTHUSDT": 1,
+    "SUPERUSDT": 1,
+    "USTCUSDT": 1,
+    "ONGUSDT": 1,
+    "ETHWUSDT": 1,
+    "JTOUSDT": 1,
+    "1000SATSUSDT": 1,
+    "AUCTIONUSDT": 0.01,
+    "1000RATSUSDT": 1,
+    "ACEUSDT": 1,
+    "MOVRUSDT": 0.01,
+    "TWTUSDT": 0.1,
+    "NFPUSDT": 0.1,
+    "BTCUSDC": 0.001,
+    "ETHUSDC": 0.001,
+    "BNBUSDC": 0.01,
+    "XRPUSDC": 0.1,
+    "SOLUSDC": 0.01,
+    "AIUSDT": 1,
+    "XAIUSDT": 1,
+    "DOGEUSDC": 1,
+    "WIFUSDT": 0.1,
+    "MANTAUSDT": 0.1,
+    "ONDOUSDT": 1,
+    "LSKUSDT": 1,
+    "ALTUSDT": 1,
+    "JUPUSDT": 1,
+    "ZETAUSDT": 1,
+    "RONINUSDT": 0.1,
+    "SUIUSDC": 0.1,
+    "DYMUSDT": 0.1,
+    "OMUSDT": 0.1,
+    "LINKUSDC": 0.01,
+    "PIXELUSDT": 1,
+    "ORDIUSDC": 0.1,
+    "STRKUSDT": 0.1,
+    "MAVIAUSDT": 1,
+    "GLMUSDT": 1,
+    "PORTALUSDT": 0.1,
+    "TONUSDT": 0.1,
+    "AXLUSDT": 0.1,
+    "MYROUSDT": 1,
+    "1000PEPEUSDC": 1,
+    "METISUSDT": 0.01,
+    "AEVOUSDT": 0.1,
+    "WLDUSDC": 0.1,
+    "VANRYUSDT": 1,
+    "BOMEUSDT": 1,
+    "AVAXUSDC": 0.01,
+    "1000SHIBUSDC": 1,
+    "ETHFIUSDT": 0.1,
+    "ENAUSDT": 1,
+    "BCHUSDC": 0.001,
+    "WIFUSDC": 0.1,
+    "WUSDT": 0.1,
+    "TNSRUSDT": 0.1,
+    "SAGAUSDT": 0.1,
+    "NEARUSDC": 1,
+    "LTCUSDC": 0.001,
+    "TAOUSDT": 0.001,
+    "ARBUSDC": 0.1,
+    "NEOUSDC": 0.01,
+    "FILUSDC": 0.1,
+    "OMNIUSDT": 0.01,
+    "BOMEUSDC": 1,
+    "TIAUSDC": 1,
+    "REZUSDT": 1,
+    "ETHFIUSDC": 0.1,
+    "ENAUSDC": 1,
+    "1000BONKUSDC": 1,
+    "BBUSDT": 1,
+    "NOTUSDT": 1,
+    "TURBOUSDT": 1,
+    "IOUSDT": 0.1,
+    "ZKUSDT": 1,
+    "MEWUSDT": 1,
+    "LISTAUSDT": 1,
+    "ZROUSDT": 0.1,
+    "CRVUSDC": 0.1,
+    "RENDERUSDT": 0.1,
+    "BANANAUSDT": 0.1,
+    "RAREUSDT": 1,
+    "GUSDT": 1,
+    "SYNUSDT": 1,
+    "SYSUSDT": 1,
+    "VOXELUSDT": 1,
+    "BRETTUSDT": 1,
+    "ALPACAUSDT": 1,
+    "POPCATUSDT": 1,
+    "SUNUSDT": 1,
+    "VIDTUSDT": 1,
+    "NULSUSDT": 1,
+    "DOGSUSDT": 1,
+    "MBOXUSDT": 1,
+    "CHESSUSDT": 1,
+    "FLUXUSDT": 1,
+    "BSWUSDT": 1,
+    "QUICKUSDT": 1,
+    "NEIROETHUSDT": 1,
+    "RPLUSDT": 0.1,
+    "AERGOUSDT": 1,
+    "POLUSDT": 1,
+    "UXLINKUSDT": 1,
+    "NEIROUSDT": 1,
+    "1MBABYDOGEUSDT": 1,
+    "KDAUSDT": 1,
+    "FIDAUSDT": 1,
+    "FIOUSDT": 1,
+    "CATIUSDT": 1,
+    "GHSTUSDT": 1,
+    "LOKAUSDT": 1,
+    "HMSTRUSDT": 1,
+    "REIUSDT": 1,
+    "COSUSDT": 1,
+    "EIGENUSDT": 0.1,
+    "DIAUSDT": 1,
+    "1000CATUSDT": 1,
+    "SCRUSDT": 1,
+    "GOATUSDT": 1,
+    "MOODENGUSDT": 1,
+    "SAFEUSDT": 1,
+    "SANTOSUSDT": 0.1,
+    "TROYUSDT": 1,
+    "PONKEUSDT": 1,
+    "CETUSUSDT": 1,
+    "COWUSDT": 1,
+    "1000000MOGUSDT": 0.1,
+    "GRASSUSDT": 0.1,
+    "DRIFTUSDT": 1,
+    "SWELLUSDT": 1,
+    "PNUTUSDT": 1,
+    "ACTUSDT": 1,
+    "HIPPOUSDT": 1,
+    "1000XUSDT": 1,
+    "DEGENUSDT": 1,
+    "BANUSDT": 1,
+    "AKTUSDT": 0.1,
+    "SLERFUSDT": 1,
+    "SCRTUSDT": 1,
+    "1000WHYUSDT": 1,
+    "1000CHEEMSUSDT": 1,
+    "THEUSDT": 0.1,
+    "MORPHOUSDT": 0.1,
+    "CHILLGUYUSDT": 1,
+    "KAIAUSDT": 1,
+    "AEROUSDT": 0.1,
+    "ACXUSDT": 0.1,
+    "ORCAUSDT": 0.1,
+    "MOVEUSDT": 1,
+    "RAYSOLUSDT": 0.1,
+    "VIRTUALUSDT": 0.1,
+    "SPXUSDT": 1,
+    "KOMAUSDT": 1,
+    "MEUSDT": 0.1,
+    "ABCCCUSDT": 1,
+    "AVAUSDT": 0.1,
+    "DEGOUSDT": 0.1,
+    "VELODROMEUSDT": 1,
+    "MOCAUSDT": 1,
+    "VANAUSDT": 0.01,
+    "PENGUUSDT": 1,
+    "LUMIAUSDT": 0.1,
+    "USUALUSDT": 1,
+    "KMNOUSDT": 1,
+    "CGPTUSDT": 1,
+    "AIXBTUSDT": 1,
+    "FARTCOINUSDT": 0.1,
+    "HIVEUSDT": 1,
+    "ETHUSDT_250627": 0.001,
+    "DEXEUSDT": 0.01,
+    "BTCUSDT_250627": 0.001,
+    "PHAUSDT": 1,
+    "DFUSDT": 1,
+    "GRIFFAINUSDT": 1,
+    "AI16ZUSDT": 0.1,
+    "ZEREBROUSDT": 1,
+    "BIOUSDT": 1,
+    "COOKIEUSDT": 1,
+    "ALCHUSDT": 1,
+    "SWARMSUSDT": 1,
+    "SONICUSDT": 0.1,
+    "DUSDT": 1,
+    "PROMUSDT": 0.1,
+    "SUSDT": 1,
+    "SOLVUSDT": 1,
+    "ARCUSDT": 1,
+    "AVAAIUSDT": 1,
+    "TRUMPUSDT": 0.01,
+    "MELANIAUSDT": 0.01,
+    "VTHOUSDT": 1,
+    "ANIMEUSDT": 1,
+    "PIPPINUSDT": 1,
+    "VINEUSDT": 1,
+    "VVVUSDT": 0.01,
+    "BERAUSDT": 0.1,
+    "TSTUSDT": 1,
+    "LAYERUSDT": 0.1,
+    "HEIUSDT": 0.1,
+    "B3USDT": 1,
+    "IPUSDT": 0.1,
+    "GPSUSDT": 1,
+    "SHELLUSDT": 1,
+    "KAITOUSDT": 0.1,
+    "KAITOUSDC": 0.1,
+    "HBARUSDC": 1,
+    "PNUTUSDC": 1,
+    "ADAUSDC": 0.1,
+    "TRUMPUSDC": 0.01,
+    "IPUSDC": 0.1,
+    "REDUSDT": 1,
+    "VICUSDT": 1,
+    "EPICUSDT": 0.1,
+    "BMTUSDT": 1,
+    "MUBARAKUSDT": 1,
+    "FORMUSDT": 0.1,
+    "TUTUSDT": 0.1,
+    "BIDUSDT": 0.1,
+    "BROCCOLI714USDT": 1,
+    "BROCCOLIF3BUSDT": 1,
+    "BANANAS31USDT": 1,
+    "SIRENUSDT": 1,
+    "BTCUSDT_250926": 0.001,
+    "BNXUSDT": 0.1,
+    "ETHUSDT_250926": 0.001,
+    "BRUSDT": 1,
+    "PLUMEUSDT": 1,
+    "JELLYJELLYUSDT": 1,
+    "PAXGUSDT": 0.001,
+    "WALUSDT": 1,
+    "FUNUSDT": 1,
+    "MLNUSDT": 0.01,
+    "ATHUSDT": 1,
+    "BABYUSDT": 1,
+    "FORTHUSDT": 0.1,
+    "PROMPTUSDT": 1,
+    "XCNUSDT": 1,
+    "PUMPUSDT": 1,
+    "STOUSDT": 1,
+    "FHEUSDT": 1,
+    "KERNELUSDT": 1,
+    "INITUSDT": 1,
+    "BANKUSDT": 1,
+    "EPTUSDT": 1,
+    "DEEPUSDT": 1,
+    "HYPERUSDT": 1,
+    "MEMEFIUSDT": 1,
+    "FISUSDT": 1,
+    "JSTUSDT": 1,
+    "SIGNUSDT": 1,
+    "WCTUSDT": 1,
+    "GUNUSDT": 1,
+    "PARTIUSDT": 1,
+    "NILUSDT": 0.1,
+    "PUNDIXUSDT": 1,
+    "AIOTUSDT": 1,
+    "DOLOUSDT": 1,
+    "HAEDALUSDT": 1,
+    "SXTUSDT": 1,
+    "ALPINEUSDT": 0.1,
+    "ASRUSDT": 0.1,
+    "B2USDT": 1,
+    "MILKUSDT": 1,
+    "SYRUPUSDT": 1,
+    "OBOLUSDT": 0.1,
+    "DOODUSDT": 1,
+    "OGUSDT": 0.01,
+    "ZKJUSDT": 0.1,
+    "SKYAIUSDT": 1,
+    "NXPCUSDT": 1,
+    "AGTUSDT": 1,
+    "BUSDT": 1,
+    "AUSDT": 1,
+    "SOPHUSDT": 1,
+    "MERLUSDT": 1,
+    "HYPEUSDT": 0.01,
+    "TAIKOUSDT": 1,
+    "SQDUSDT": 1,
+    "PUMPBTCUSDT": 1,
+    "AAVEUSDC": 0.1,
+    "UNIUSDC": 1,
+    "MYXUSDT": 1,
+    "FUSDT": 1,
+    "NEWTUSDT": 1,
+    "DMCUSDT": 1,
+    "ETHUSDT_251226": 0.001,
+    "BTCUSDT_251226": 0.001,
+    "HUSDT": 1,
+    "OLUSDT": 1,
+    "SAHARAUSDT": 1,
+    "ICNTUSDT": 1,
+    "IDOL": 1,
+    "BULLAUSDT": 1,
+    "IDOLUSDT": 1,
+    "MUSDT": 1,
+    "TANSSIUSDT": 1,
+    "CROSSUSDT": 1,
+    "AINUSDT": 1,
+    "CUSDT": 1,
+    "VELVETUSDT": 1,
+    "TACUSDT": 1,
+    "ERAUSDT": 1,
+    "TAUSDT": 1,
+    "PENGUUSDC": 1,
+    "SLPUSDT": 1,
+    "ZORAUSDT": 1,
+    "TAGUSDT": 1,
+    "ZRCUSDT": 1,
+    "ESPORTSUSDT": 1,
+    "TREEUSDT": 1,
+    "A2ZUSDT": 1,
+    "PLAYUSDT": 1,
+    "NAORISUSDT": 1,
+    "TOWNSUSDT": 1,
+    "PROVEUSDT": 0.1,
+    "ALLUSDT": 1,
+    "INUSDT": 1,
+    "YALAUSDT": 1,
+    "CARVUSDT": 1,
+    "AIOUSDT": 1,
+    "XNYUSDT": 1,
+    "USELESSUSDT": 1,
+    "DAMUSDT": 1,
+    "SAPIENUSDT": 1,
+    "CUDISUSDT": 1,
+    "AWEUSDT": 1,
+    "SOONUSDT": 1,
+    "HUMAUSDT": 1,
+    "LAUSDT": 0.1,
+    "RESOLVUSDT": 1,
+    "SPKUSDT": 1,
+    "XPLUSDT": 1,
+    "WLFIUSDT": 1,
+    "BIOUSDC": 1,
+    "SOMIUSDT": 1,
+    "BASUSDT": 0.1,
+    "BTRUSDT": 1,
+    "MITOUSDT": 1,
+    "HEMIUSDT": 1,
+    "LINEAUSDT": 1,
+    "QUSDT": 1,
+    "PTBUSDT": 1,
+    "ARIAUSDT": 1,
+    "TAKEUSDT": 1,
+    "BDXNUSDT": 1,
+    "PUFFERUSDT": 1,
+    "PORT3USDT": 1,
+    "1000000BOBUSDT": 1,
+    "SKATEUSDT": 1,
+    "HOMEUSDT": 1,
+    "WLFIUSDC": 1,
+    "FLOCKUSDT": 1,
+    "SKYUSDT": 1,
+    "AVNTUSDT": 1,
+    "HOLOUSDT": 1,
+    "XPINUSDT": 1,
+    "UBUSDT": 1,
+    "ZKCUSDT": 1,
+    "TOSHIUSDT": 1,
+    "STBLUSDT": 1,
+    "0GUSDT": 1,
+    "BARDUSDT": 1,
+    "ASTERUSDT": 1,
+    "TRADOORUSDT": 1,
+    "BLESSUSDT": 1,
+    "FLUIDUSDT": 0.1,
+    "BTCUSDT_260327": 0.001,
+    "ETHUSDT_260327": 0.001,
+    "COAIUSDT": 1,
+    "HANAUSDT": 1,
+    "MIRAUSDT": 1,
+    "AKEUSDT": 1,
+    "ORDERUSDT": 1,
+    "LIGHTUSDT": 1,
+    "XANUSDT": 1,
+    "FFUSDT": 1,
+    "VFYUSDT": 1,
+    "EDENUSDT": 1,
+    "TRUTHUSDT": 1,
+    "NOMUSDT": 1,
+    "2ZUSDT": 1,
+    "LYNUSDT": 1,
+    "EVAAUSDT": 0.1,
+    "KGENUSDT": 1,
+    "4USDT": 1,
+    "GIGGLEUSDT": 0.01,
+    "MONUSDT": 1,
+    "YBUSDT": 1,
+    "METUSDT": 1,
+    "EULUSDT": 0.1,
+    "ENSOUSDT": 0.1,
+    "CLOUSDT": 1,
+    "测试测试USDT": 1,
+    "RECALLUSDT": 1,
+    "ZBTUSDT": 1,
+    "RVVUSDT": 1,
+    "LABUSDT": 0.1,
+    "RIVERUSDT": 0.1,
+    "币安人生USDT": 1,
+    "BLUAIUSDT": 1,
+    "TURTLEUSDT": 1,
+    "APRUSDT": 1,
+    "ONUSDT": 1,
+    "42USDT": 1,
+    "COMMONUSDT": 1,
+    "KITEUSDT": 1,
+    "ATUSDT": 1,
+    "CCUSDT": 1,
+    "MMTUSDT": 1,
+    "TRUSTUSDT": 1,
+    "UAIUSDT": 1,
+    "FOLKSUSDT": 0.1,
+    "STABLEUSDT": 1,
+    "JCTUSDT": 1,
+    "ALLOUSDT": 1,
+    "CLANKERUSDT": 0.01,
+    "BEATUSDT": 1,
+    "PIEVERSEUSDT": 1,
+    "SENTUSDT": 1,
+    "ZECUSDC": 0.001,
+    "GAIBUSDT": 1,
+    "BOBUSDT": 1,
+    "POWERUSDT": 1,
+    "WETUSDT": 1,
+    "NIGHTUSDT": 1,
+    "XAUUSDT": 0.001,
+    "USUSDT": 1,
+    "CYSUSDT": 1,
+    "RAVEUSDT": 1,
+    "ZKPUSDT": 1,
+    "GUAUSDT": 1,
+    "IRUSDT": 1,
+    "BMNRUSDT": 0.01,
+    "ETHUSDT_260626": 0.001,
+    "BTCUSDT_260626": 0.001,
+    "BREVUSDT": 1,
+    "COLLECTUSDT": 1,
+    "MAGMAUSDT": 1,
+    "XAGUSDT": 0.001,
+    "ZAMAUSDT": 1,
+    "FOGOUSDT": 1,
+    "FRAXUSDT": 1,
+    "SPORTFUNUSDT": 1,
+    "AIAUSDT": 1,
+    "ACUUSDT": 1,
+    "我踏马来了USDT": 1,
+    "ELSAUSDT": 1,
+    "SKRUSDT": 1,
+    "SPACEUSDT": 1,
+    "FIGHTUSDT": 1,
+    "TSLAUSDT": 0.01,
+    "BIRBUSDT": 1,
+    "GWEIUSDT": 1,
+    "XPDUSDT": 0.001,
+    "XPTUSDT": 0.001,
+    "MEGAUSDT": 1,
+    "INXUSDT": 1,
+    "HOODUSDT": 0.01,
+    "INTCUSDT": 0.01,
+    "CRCLUSDT": 0.01,
+    "AMZNUSDT": 0.01,
+    "MSTRUSDT": 0.01,
+    "COINUSDT": 0.01,
+    "PLTRUSDT": 0.01,
+    "TRIAUSDT": 1,
+    "ESPUSDT": 1,
+    "AZTECUSDT": 1,
+    "ROBOUSDT": 1,
+    "KATUSDT": 1,
+    "MANTRAUSDT": 1,
+    "COPPERUSDT": 0.01,
+    "龙虾USDT": 1,
+    "EWJUSDT": 0.01,
+    "EDGEUSDT": 1,
+    "ETHUSDT_260925": 0.001,
+    "BTCUSDT_260925": 0.001,
+    "PAYPUSDT": 0.01,
+    "BSBUSDT": 1,
+    "METAUSDT": 0.01,
+    "GOOGLEUSDT": 0.01,
+    "NVDAUSDT": 0.01,
+    "GOOGLUSDT": 0.01,
+    "BTCUSD1": 0.0001,
+    "FAKEKR000660USDT": 0.000001,
+    "SPACEFUSDT": 0.01,
+    "SPACEFAUSDT": 0.01,
+    "QNTXUSDT": 0.01,
+    "OPENAIUSDT": 0.01,
+    "SPCXUSDT": 1,
+    "BSBUSDT_260618": 1,
+    "BSBUSDT_260625": 1,
+    "SPYUSDT": 0.01,
+    "QQQUSDT": 0.01,
+    "MVLLUSDT": 0.01,
+    "DISUSDT": 0.01,
+    "BTCUSDT_261225": 0.001,
+    "ETHUSDT_261225": 0.001,
+    "BTCU": 0.0001,
+    "ETHU": 0.001,
+    "ETHUSD1": 0.001,
+    "KORUUSDT": 0.01
+  }
+}

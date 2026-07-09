@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(Invoke-WebRequest -Uri \"https://fapi.binance.com/fapi/v1/ping\" -TimeoutSec 10 -UseBasicParsing 2>&1)",
+      "PowerShell(Invoke-WebRequest -Uri \"https://api.binance.com/api/v3/ping\" -TimeoutSec 10 -UseBasicParsing 2>&1)",
+      "PowerShell(Invoke-WebRequest -Uri \"https://google.com\" -TimeoutSec 10 -UseBasicParsing 2>&1)",
+      "PowerShell(New-Item -ItemType Directory -Force \"c:\\\\Users\\\\nttuan1.vcbs\\\\Documents\\\\project-nodejs\\\\pp369\\\\src\\\\trader\")"
+    ]
+  }
+}
