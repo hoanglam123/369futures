@@ -61,6 +61,8 @@ async function startAutoTrade(coins) {
   const orderType = (process.env.ORDER_TYPE || 'LIMIT').toUpperCase();
   const notional = amount * leverage;
 
+  const activeSymbols = new Set();
+
   if (!apiKey || !secret) {
     throw new Error('Thiếu BINANCE_API_KEY hoặc BINANCE_SECRET trong .env');
   }
@@ -100,6 +102,21 @@ async function startAutoTrade(coins) {
   async function scan() {
     // 1. Cập nhật lại giá REST của toàn bộ coin để kiểm tra xem có coin nào mới đi vào mốc gần phản ứng không
     await updatePricesRest();
+
+    // Đồng bộ danh sách coin có vị thế hoặc lệnh chờ để tối ưu checkTrailingSL
+    try {
+      const currentPos = await client.getOpenPositions();
+      const currentOrders = await client.getOpenOrders();
+      activeSymbols.clear();
+      for (const p of currentPos) {
+        activeSymbols.add(p.symbol.replace('USDT', ''));
+      }
+      for (const o of currentOrders) {
+        activeSymbols.add(o.symbol.replace('USDT', ''));
+      }
+    } catch (e) {
+      log.warn(`[AutoTrade] Lỗi đồng bộ activeSymbols: ${e.message}`);
+    }
 
     const levelCache = getLevelCache();
     const nearby = getNearbySymbols(coins, levelCache, 0.01);
@@ -194,6 +211,7 @@ async function startAutoTrade(coins) {
           order = await client.placeLimit(sym, side, qty, sig.targetLevel, dec);
         }
 
+        activeSymbols.add(sym); // Thêm vào danh sách active để check SL/TP ngay lập tức
         _markFired(sig);
         logSignal369(sig);
 
@@ -259,7 +277,7 @@ async function startAutoTrade(coins) {
 
   // Luồng 2: Kiểm tra vị thế đang mở và dịch chuyển Stop Loss (Mỗi 2s)
   const trailingSlTimer = setInterval(() => {
-    checkTrailingSL(client, leverage, leverageInfo).catch(err => {
+    checkTrailingSL(client, leverage, leverageInfo, activeSymbols).catch(err => {
       log.warn(`[AutoTrade] Lỗi luồng Trailing SL: ${err.message}`);
     });
   }, TRAILING_SL_INTERVAL_MS);
@@ -300,10 +318,15 @@ async function markSymbolFailed(sym, reason) {
   }
 }
 
-async function checkTrailingSL(client, defaultLeverage, leverageInfo) {
+async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymbols) {
   try {
+    if (!activeSymbols || activeSymbols.size === 0) return;
+
     const positions = await client.getOpenPositions();
     if (!positions.length) return;
+
+    // Lấy tất cả lệnh chờ trên sàn một lần duy nhất để tối ưu API call
+    const allOpenOrders = await client.getOpenOrders();
 
     for (const p of positions) {
       const sym = p.symbol.replace('USDT', '');
@@ -323,8 +346,8 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo) {
         ? ((markPrice - entryPrice) / entryPrice) * leverageVal * 100
         : ((entryPrice - markPrice) / entryPrice) * leverageVal * 100;
 
-      // Lấy danh sách lệnh open để xem có TP/SL trên sàn không
-      const openOrders = await client.getOpenOrders(sym);
+      // Lọc ra các lệnh chờ của symbol hiện tại từ danh sách đã lấy
+      const openOrders = allOpenOrders.filter(o => o.symbol === `${sym}USDT`);
       const realSlOrders = openOrders.filter(o => o.type === 'STOP_MARKET');
       const realTpOrders = openOrders.filter(o => o.type === 'TAKE_PROFIT_MARKET');
 

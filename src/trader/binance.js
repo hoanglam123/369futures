@@ -290,10 +290,14 @@ function createClient(apiKey, secret) {
     },
 
     /**
-     * Lấy danh sách lệnh đang chờ khớp của 1 symbol.
+     * Lấy danh sách lệnh đang chờ khớp của 1 symbol (hoặc toàn bộ nếu không truyền symbol).
      */
     getOpenOrders(symbol) {
-      return _get('/fapi/v1/openOrders', { symbol: `${symbol}USDT` }, apiKey, secret);
+      const params = {};
+      if (symbol) {
+        params.symbol = `${symbol}USDT`;
+      }
+      return _get('/fapi/v1/openOrders', params, apiKey, secret);
     },
 
     /**
