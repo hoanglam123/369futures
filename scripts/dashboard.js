@@ -977,14 +977,11 @@ async function bootstrap() {
   if (fs.existsSync(filePath)) {
     try {
       const data = JSON.parse(fs.readFileSync(filePath, 'utf8'));
-      const useH4 = !!(data.h4Cache && Object.keys(data.h4Cache).length > 0);
-      const cacheToUse = useH4 ? (data.h4Cache || {}) : (data.h1Cache || {});
+      const cacheToUse = data.h4Cache || {};
       
       const filteredCache = {};
       for (const [sym, e] of Object.entries(cacheToUse)) {
-        const isValid = useH4
-          ? (e.yearStart === YEAR_START_MS && !e.failed)
-          : (!e.failed);
+        const isValid = e.yearStart === YEAR_START_MS && !e.failed;
         if (isValid) {
           filteredCache[sym] = e;
         }
@@ -997,12 +994,11 @@ async function bootstrap() {
         .filter(([, e]) => isGridWidthValid(e))
         .map(([sym]) => sym);
       
-      const cacheName = useH4 ? 'h4Cache' : 'h1Cache';
       if (excluded.length > 0) {
-        log.system(`[Dashboard] Dùng ${cacheName}. Bỏ qua ${excluded.length} coin grid ngoài ${GRID_MIN_PCT}-${GRID_MAX_PCT}%: ` +
+        log.system(`[Dashboard] Dùng h4Cache. Bỏ qua ${excluded.length} coin grid ngoài ${GRID_MIN_PCT}-${GRID_MAX_PCT}%: ` +
           excluded.map(([sym, e]) => `${sym}(${((e.step / e.openPrice) * 100).toFixed(1)}%)`).join(', '));
       } else {
-        log.system(`[Dashboard] Dùng ${cacheName}. Quét ${coins.length} coin hợp lệ.`);
+        log.system(`[Dashboard] Dùng h4Cache. Quét ${coins.length} coin hợp lệ.`);
       }
     } catch (err) {
       log.warn(`[Dashboard] Lỗi đọc danh sách coin từ step_sizes.json: ${err.message}`);

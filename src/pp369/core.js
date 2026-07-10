@@ -63,20 +63,14 @@ function isGridWidthValid(h1Entry) {
 
 // ─── In-memory cache ──────────────────────────────────────────────────────────
 
-// H1 cache (legacy monthly): { symbol: { monthStart, openPrice, closePrice, step, decimals, upperPrice, lowerPrice } }
-const _h1Cache = {};
-
 // H4 reference cache (yearly): { symbol: { yearStart, openPrice, closePrice, step, decimals, upperPrice, lowerPrice } }
 const _h4RefCache = {};
 
-// H4 historical candle cache: { symbol: { yearStart, candles: [], cursor } } — toàn bộ H4 đã đóng từ đầu năm
-const _h4HistCache = {};
+// H1 historical candle cache: { symbol: { yearStart, candles: [], cursor } } — toàn bộ H1 đã đóng từ đầu năm
+const _h1HistCache = {};
 
-// M1 current H4 period cache: { symbol: { h4Start, candles: [], cursor } } — reset mỗi khi H4 mới mở
+// M1 current H1 period cache: { symbol: { h1Start, candles: [], cursor } } — reset mỗi khi H1 mới mở
 const _m1CurrCache = {};
-
-// 1m candle cache (legacy monthly): { symbol: { monthStart, candles: [...], cursor: openTime } }
-const _m1Cache = {};
 
 // Level cache: { symbol: { longEntry, shortEntry } } — dùng cho WebSocket proximity filter
 const _levelCache = {};
@@ -303,14 +297,10 @@ async function fetchM1Incremental(symbol) {
   return cache.candles;
 }
 
-// Nến H1 đầu tháng = nến bắt đầu lúc 00:00:00 UTC (múi giờ Binance mặc định).
-// Binance dùng UTC cho tất cả klines API — "tháng mới" bắt đầu đúng 00:00 UTC ngày 1.
-// June 1 00:00 UTC = 07:00 VN → đây là nến trader thấy trên chart Binance khi bắt đầu tháng mới.
-
 // ─── H4 Yearly Hybrid Functions ──────────────────────────────────────────────
 
 /**
- * Lấy nến H4 đầu tiên của năm 2026 làm mốc gốc (thay H1 đầu tháng).
+ * Lấy nến H4 đầu tiên của năm 2026 làm mốc gốc.
  * Cache in-memory + file (h4Cache section trong step_sizes.json).
  */
 async function fetchH4Reference(symbol) {
@@ -392,27 +382,27 @@ async function fetchH4Reference(symbol) {
 }
 
 /**
- * Lấy toàn bộ nến H4 đã đóng từ đầu năm 2026 đến H4 hiện tại (incremental).
- * Chỉ gọi API khi có H4 mới đóng (mỗi 4 giờ), cache lại memory.
+ * Lấy toàn bộ nến H1 đã đóng từ đầu năm 2026 đến H1 hiện tại (incremental).
+ * Chỉ gọi API khi có H1 mới đóng (mỗi giờ), cache lại memory.
  */
-async function fetchH4Historical(symbol) {
-  const H4_MS = 4 * 60 * 60 * 1000;
-  const currentH4Start = floorToH4(Date.now());
-  let cache = _h4HistCache[symbol];
+async function fetchH1Historical(symbol) {
+  const H1_MS = 60 * 60 * 1000;
+  const currentH1Start = floorToH1(Date.now());
+  let cache = _h1HistCache[symbol];
 
   if (!cache || cache.yearStart !== YEAR_START_MS) {
     cache = { yearStart: YEAR_START_MS, candles: [], cursor: YEAR_START_MS };
-    _h4HistCache[symbol] = cache;
+    _h1HistCache[symbol] = cache;
   }
 
-  if (cache.cursor >= currentH4Start) return cache.candles; // Không có H4 mới nào
+  if (cache.cursor >= currentH1Start) return cache.candles; // Không có H1 mới nào
 
   let cursor = cache.cursor;
-  while (cursor < currentH4Start) {
-    const batch = await fetchBinanceKlines(symbol, '4h', cursor, 1500);
+  while (cursor < currentH1Start) {
+    const batch = await fetchBinanceKlines(symbol, '1h', cursor, 1500);
     if (!batch.length) break;
 
-    const closed = batch.filter(c => c.openTime < currentH4Start);
+    const closed = batch.filter(c => c.openTime < currentH1Start);
     if (cache.candles.length > 0) {
       const lastTime = cache.candles[cache.candles.length - 1].openTime;
       cache.candles.push(...closed.filter(c => c.openTime > lastTime));
@@ -421,26 +411,26 @@ async function fetchH4Historical(symbol) {
     }
 
     if (batch.length < 1500 || closed.length < batch.length) break;
-    cursor = batch[batch.length - 1].openTime + H4_MS;
+    cursor = batch[batch.length - 1].openTime + H1_MS;
   }
 
   if (cache.candles.length > 0) {
-    cache.cursor = cache.candles[cache.candles.length - 1].openTime + H4_MS;
+    cache.cursor = cache.candles[cache.candles.length - 1].openTime + H1_MS;
   }
 
   return cache.candles;
 }
 
 /**
- * Lấy nến M1 từ đầu H4 hiện tại đến bây giờ (incremental, reset khi H4 mới mở).
- * Tối đa 240 nến M1 / 4 giờ — 1 API call duy nhất mỗi H4.
+ * Lấy nến M1 từ đầu H1 hiện tại đến bây giờ (incremental, reset khi H1 mới mở).
+ * Tối đa 60 nến M1 / giờ — 1 API call duy nhất mỗi H1.
  */
 async function fetchM1Current(symbol) {
-  const currentH4Start = floorToH4(Date.now());
+  const currentH1Start = floorToH1(Date.now());
   let cache = _m1CurrCache[symbol];
 
-  if (!cache || cache.h4Start !== currentH4Start) {
-    cache = { h4Start: currentH4Start, candles: [], cursor: currentH4Start };
+  if (!cache || cache.h1Start !== currentH1Start) {
+    cache = { h1Start: currentH1Start, candles: [], cursor: currentH1Start };
     _m1CurrCache[symbol] = cache;
   }
 
@@ -476,13 +466,12 @@ async function fetchM1Current(symbol) {
 }
 
 /**
- * Kết hợp H4 lịch sử (đầu năm → H4 đang mở) + M1 hiện tại (H4 đang mở → bây giờ).
- * Dùng cho analyzeRoundtrips thay thế fetchM1Incremental.
+ * Kết hợp H1 lịch sử (đầu năm → H1 đang mở) + M1 hiện tại (H1 đang mở → bây giờ).
  */
 async function fetchHybridCandles(symbol) {
-  const h4Candles = await fetchH4Historical(symbol);
+  const h1Candles = await fetchH1Historical(symbol);
   const m1Candles = await fetchM1Current(symbol);
-  return [...h4Candles, ...m1Candles];
+  return [...h1Candles, ...m1Candles];
 }
 
 function monthStartMs() {
@@ -497,10 +486,10 @@ function monthLabel() {
   return `${y}-${m}`;
 }
 
-// Làm tròn timestamp xuống boundary H4 gần nhất (00:00, 04:00, 08:00, ... UTC)
-function floorToH4(tsMs) {
-  const H4_MS = 4 * 60 * 60 * 1000;
-  return Math.floor(tsMs / H4_MS) * H4_MS;
+// Làm tròn timestamp xuống boundary H1 gần nhất
+function floorToH1(tsMs) {
+  const H1_MS = 60 * 60 * 1000;
+  return Math.floor(tsMs / H1_MS) * H1_MS;
 }
 
 function yearLabel() {
@@ -617,7 +606,7 @@ async function get369Signal(symbol, currentPrice = null) {
       }
     }
 
-    // Hybrid: H4 lịch sử (đầu năm → H4 hiện tại) + M1 (H4 đang mở → bây giờ)
+    // Hybrid: H1 lịch sử (đầu năm → H1 hiện tại) + M1 (H1 đang mở → bây giờ)
     const hybridCandles = await fetchHybridCandles(symbol);
 
     if (!hybridCandles.length) {
@@ -732,18 +721,18 @@ async function get369Signal(symbol, currentPrice = null) {
   } catch (err) {
     const status = err?.response?.status;
     if (status === 400) {
-      // 400: symbol không hợp lệ → đánh dấu vào h4Cache để không gọi lại
+      // 400: symbol không hợp lệ → đánh dấu vào h1Cache để không gọi lại
       const entry = { yearStart: YEAR_START_MS, failed: true, reason: `Status ${status}` };
-      _h4RefCache[symbol] = entry;
+      _h1RefCache[symbol] = entry;
       try {
         let data = {};
         if (fs.existsSync(FILE_PATH)) data = JSON.parse(fs.readFileSync(FILE_PATH, 'utf8'));
-        if (!data.h4Cache) data.h4Cache = {};
-        data.h4Cache[symbol] = entry;
+        if (!data.h1Cache) data.h1Cache = {};
+        data.h1Cache[symbol] = entry;
         fs.writeFileSync(FILE_PATH, JSON.stringify(data, null, 2), 'utf8');
-        log.warn(`[369] Đánh dấu lỗi ${status} cho ${symbol} vào h4Cache.`);
+        log.warn(`[369] Đánh dấu lỗi ${status} cho ${symbol} vào h1Cache.`);
       } catch (e) {
-        log.warn(`[369] Lỗi ghi h4Cache cho ${symbol}: ${e.message}`);
+        log.warn(`[369] Lỗi ghi h1Cache cho ${symbol}: ${e.message}`);
       }
     }
     // 418: IP bị ban tạm thời — KHÔNG ghi file, throw để dừng init
@@ -849,19 +838,14 @@ function getLevelCache() {
       const content = fs.readFileSync(FILE_PATH, 'utf8');
       const data = JSON.parse(content);
 
-      // Ưu tiên h4Cache (năm 2026), fallback h1Cache (legacy tháng)
-      const useH4 = !!(data.h4Cache && Object.keys(data.h4Cache).length > 0);
-      const refCache = useH4 ? (data.h4Cache || {}) : (data.h1Cache || {});
+      const refCache = data.h4Cache || {};
 
       for (const [symbol, entry] of Object.entries(refCache)) {
-        const isValid = useH4
-          ? (entry.yearStart === YEAR_START_MS && !entry.failed)
-          : (entry.monthStart === monthStartMs() && !entry.failed);
+        const isValid = entry.yearStart === YEAR_START_MS && !entry.failed;
 
         if (!isValid) continue;
 
-        if (useH4) _h4RefCache[symbol] = entry;
-        else _h1Cache[symbol] = entry;
+        _h4RefCache[symbol] = entry;
 
         const { upperPrice, lowerPrice, step, decimals } = entry;
         const price = entry.closePrice;
@@ -884,43 +868,8 @@ function getLevelCache() {
   return _levelCache;
 }
 
-async function initH1Cache(symbols) {
-  const startMs = monthStartMs();
-  const missing = [];
-
-  if (fs.existsSync(FILE_PATH)) {
-    try {
-      const content = fs.readFileSync(FILE_PATH, 'utf8');
-      const data = JSON.parse(content);
-      const h1Cache = data.h1Cache || {};
-      for (const sym of symbols) {
-        if (!h1Cache[sym] || h1Cache[sym].monthStart !== startMs) {
-          missing.push(sym);
-        }
-      }
-    } catch (_) {
-      missing.push(...symbols);
-    }
-  } else {
-    missing.push(...symbols);
-  }
-
-  if (missing.length === 0) return;
-  log.system(`[369] initH1Cache: ${missing.length} coin chưa có nến H1 đầu tháng.`);
-  for (let i = 0; i < missing.length; i++) {
-    const sym = missing[i];
-    try { await fetchH1Cached(sym); } catch (e) {
-      log.warn(`[369] Lỗi init H1 cho ${sym}: ${e.message}`);
-      if (e.message === 'IP_BANNED_418') { log.error('[369] Bị ban 418, dừng initH1Cache.'); break; }
-    }
-    await new Promise(r => setTimeout(r, 150));
-  }
-  log.system(`[369] Hoàn tất initH1Cache.`);
-}
-
 /**
  * Nạp nến H4 đầu năm 2026 cho danh sách symbols vào cache.
- * Dùng thay initH1Cache khi chạy theo phương pháp H4 yearly.
  * Delay 200ms/coin để tránh 418 ban.
  */
 async function initH4Cache(symbols) {
@@ -961,7 +910,7 @@ async function initH4Cache(symbols) {
         break;
       }
     }
-    // 200ms delay — đủ để tránh 418 (10 req/2s = 5 req/s, an toàn)
+    // 200ms delay — đủ để tránh 418
     await new Promise(r => setTimeout(r, 200));
   }
   log.system(`[369] Hoàn tất initH4Cache.`);
@@ -970,6 +919,6 @@ async function initH4Cache(symbols) {
 module.exports = {
   get369Signal, get369SignalsForCoins, score369Method, format369ForPrompt,
   getLevelCache, PROXIMITY_PCT, getDecimals, getStep,
-  initH1Cache, initH4Cache, YEAR_START_MS,
+  initH4Cache, YEAR_START_MS,
   getGridStepPct, isGridWidthValid, GRID_MIN_PCT, GRID_MAX_PCT,
 };
