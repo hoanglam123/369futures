@@ -9,7 +9,7 @@ const axios = require('axios');
 const { log } = require('./_logger');
 
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || '8974388983:AAGTEgJNmAegGPmWUgvd3Lpvtbefv-yn6pg';
-const CHAT_ID   = process.env.TELEGRAM_CHAT_ID   || '1663202780';
+const CHAT_ID = process.env.TELEGRAM_CHAT_ID || '1663202780';
 
 const API_URL = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`;
 

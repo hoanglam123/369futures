@@ -82,9 +82,9 @@ function format369Alert(signals) {
       lines.push('🤖 <b>Binance Futures Grid Bot Config:</b>');
       lines.push(`  • Direction: <b>${gridConfig.direction}</b>`);
       lines.push(`  • Price Range: <code>${fmt369Price(gridConfig.lowerPrice)}</code> - <code>${fmt369Price(gridConfig.upperPrice)}</code>`);
-      lines.push(`  • Grids: <code>${gridConfig.grids}</code> (Khuyên dùng: 20-50)`);
-      lines.push(`  • Leverage: <code>${gridConfig.leverage}</code> (An toàn: 2x-5x)`);
-      lines.push(`  • Stop Loss: <code>${fmt369Price(gridConfig.stopLoss)}</code> (ngoài khoảng giá mốc xa nhất)`);
+      // lines.push(`  • Grids: <code>${gridConfig.grids}</code> (Khuyên dùng: 20-50)`);
+      // lines.push(`  • Leverage: <code>${gridConfig.leverage}</code> (An toàn: 2x-5x)`);
+      // lines.push(`  • Stop Loss: <code>${fmt369Price(gridConfig.stopLoss)}</code> (ngoài khoảng giá mốc xa nhất)`);
     }
 
     lines.push('');

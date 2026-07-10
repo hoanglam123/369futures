@@ -25,7 +25,7 @@ const FILE_PATH = path.join(process.cwd(), 'data', 'step_sizes.json');
 // ─── Cấu hình ─────────────────────────────────────────────────────────────────
 
 const LEVELS_RANGE = 6;     // Tạo ±6 tầng mốc quanh giá gốc
-const TOUCH_TOLERANCE = 0.003; // 0.3% dung sai để tính "đã chạm mốc"
+const TOUCH_TOLERANCE = 0; // 0% dung sai để tính "đã chạm mốc" (phải chạm hoặc vượt mốc)
 const NEAR_LEVEL_PCT = 0.003; // 0.3% = "giá đang tiếp cận mốc — đủ gần để alert / đặt lệnh"
 const PROXIMITY_PCT = 0.02;  // 2% = ngưỡng lọc WebSocket — chỉ scan coin đang gần mốc
 // Quy tắc 3 lần: lần 1 = strong (+2), lần 2 = medium (+1), lần 3+ = weak (+1)
