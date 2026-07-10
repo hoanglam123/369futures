@@ -26,16 +26,56 @@ const FILE_PATH = path.join(process.cwd(), 'data', 'step_sizes.json');
 
 const LEVELS_RANGE = 6;     // Tạo ±6 tầng mốc quanh giá gốc
 const TOUCH_TOLERANCE = 0.003; // 0.3% dung sai để tính "đã chạm mốc"
-const NEAR_LEVEL_PCT = 0.001; // 0.1% = "giá đang tiếp cận mốc — đủ gần để alert"
+const NEAR_LEVEL_PCT = 0.003; // 0.3% = "giá đang tiếp cận mốc — đủ gần để alert / đặt lệnh"
 const PROXIMITY_PCT = 0.02;  // 2% = ngưỡng lọc WebSocket — chỉ scan coin đang gần mốc
 // Quy tắc 3 lần: lần 1 = strong (+2), lần 2 = medium (+1), lần 3+ = weak (+1)
 
+// Mốc gốc H4: nến H4 đầu tiên của năm 2026 (01/01/2026 00:00:00 UTC = 07:00 VN)
+const YEAR_START_MS = Date.UTC(2026, 0, 1);
+
+// ─── Lọc coin theo độ rộng grid ──────────────────────────────────────────────
+// Grid quá hẹp (< 3%): coin cực đắt — khoảng giá biến động quá nhỏ so với step
+// Grid quá rộng (> 20%): coin rẻ tiền (1000x...) — biến động quá lớn, rủi ro cao
+// Ngưỡng 3–20% bao gồm BTC/ETH (≈3%), SOL (≈4%), các altcoin tầm trung (5–15%)
+const GRID_MIN_PCT = 3;   // 3% — bao gồm cả coin đắt tiền/thị phần lớn (BTC, ETH, SOL...)
+const GRID_MAX_PCT = 20;  // 20%
+
+/**
+ * Tính khoảng cách % giữa 2 mốc cùng loại (tren→tren hoặc duoi→duoi).
+ * = step / openPrice × 100
+ * @param {{ step: number, openPrice: number }} h1Entry - Entry từ h1Cache
+ * @returns {number} Khoảng cách % (ví dụ 3.09 cho BTC)
+ */
+function getGridStepPct(h1Entry) {
+  if (!h1Entry || !h1Entry.step || !h1Entry.openPrice) return 0;
+  return (h1Entry.step / h1Entry.openPrice) * 100;
+}
+
+/**
+ * Kiểm tra coin có nằm trong ngưỡng grid cho phép không (GRID_MIN_PCT – GRID_MAX_PCT).
+ * @param {{ step: number, openPrice: number }} h1Entry
+ * @returns {boolean}
+ */
+function isGridWidthValid(h1Entry) {
+  const pct = getGridStepPct(h1Entry);
+  return pct >= GRID_MIN_PCT && pct <= GRID_MAX_PCT;
+}
+
 // ─── In-memory cache ──────────────────────────────────────────────────────────
 
-// H1 cache: { symbol: { monthStart, openPrice, closePrice, step, decimals, upperPrice, lowerPrice } }
+// H1 cache (legacy monthly): { symbol: { monthStart, openPrice, closePrice, step, decimals, upperPrice, lowerPrice } }
 const _h1Cache = {};
 
-// 1m candle cache: { symbol: { monthStart, candles: [...], cursor: openTime } }
+// H4 reference cache (yearly): { symbol: { yearStart, openPrice, closePrice, step, decimals, upperPrice, lowerPrice } }
+const _h4RefCache = {};
+
+// H4 historical candle cache: { symbol: { yearStart, candles: [], cursor } } — toàn bộ H4 đã đóng từ đầu năm
+const _h4HistCache = {};
+
+// M1 current H4 period cache: { symbol: { h4Start, candles: [], cursor } } — reset mỗi khi H4 mới mở
+const _m1CurrCache = {};
+
+// 1m candle cache (legacy monthly): { symbol: { monthStart, candles: [...], cursor: openTime } }
 const _m1Cache = {};
 
 // Level cache: { symbol: { longEntry, shortEntry } } — dùng cho WebSocket proximity filter
@@ -267,6 +307,184 @@ async function fetchM1Incremental(symbol) {
 // Binance dùng UTC cho tất cả klines API — "tháng mới" bắt đầu đúng 00:00 UTC ngày 1.
 // June 1 00:00 UTC = 07:00 VN → đây là nến trader thấy trên chart Binance khi bắt đầu tháng mới.
 
+// ─── H4 Yearly Hybrid Functions ──────────────────────────────────────────────
+
+/**
+ * Lấy nến H4 đầu tiên của năm 2026 làm mốc gốc (thay H1 đầu tháng).
+ * Cache in-memory + file (h4Cache section trong step_sizes.json).
+ */
+async function fetchH4Reference(symbol) {
+  const cached = _h4RefCache[symbol];
+  if (cached) return cached.failed ? null : cached;
+
+  if (fs.existsSync(FILE_PATH)) {
+    try {
+      const content = fs.readFileSync(FILE_PATH, 'utf8');
+      const data = JSON.parse(content);
+      const fc = (data.h4Cache ?? {})[symbol];
+      if (fc?.yearStart === YEAR_START_MS) {
+        _h4RefCache[symbol] = fc;
+        return fc.failed ? null : fc;
+      }
+    } catch (err) {
+      log.warn(`[369] Lỗi đọc h4Cache từ file: ${err.message}`);
+    }
+  }
+
+  let candles;
+  try {
+    candles = await fetchBinanceKlines(symbol, '4h', YEAR_START_MS, 2);
+  } catch (err) {
+    const status = err?.response?.status;
+    if (status === 400) {
+      const entry = { yearStart: YEAR_START_MS, failed: true, reason: `Status ${status}` };
+      _h4RefCache[symbol] = entry;
+      try {
+        let data = {};
+        if (fs.existsSync(FILE_PATH)) data = JSON.parse(fs.readFileSync(FILE_PATH, 'utf8'));
+        if (!data.h4Cache) data.h4Cache = {};
+        data.h4Cache[symbol] = entry;
+        fs.writeFileSync(FILE_PATH, JSON.stringify(data, null, 2), 'utf8');
+      } catch (e) { log.warn(`[369] Lỗi ghi h4Cache: ${e.message}`); }
+    } else if (status === 418) {
+      throw new Error('IP_BANNED_418');
+    }
+    return null;
+  }
+
+  if (!candles?.length || candles[0].openTime !== YEAR_START_MS) {
+    const entry = {
+      yearStart: YEAR_START_MS,
+      failed: true,
+      reason: !candles?.length ? 'Không trả về nến H4' : `Nến đầu tiên (${new Date(candles[0].openTime).toISOString()}) không trùng ngày 01/01/2026`
+    };
+    _h4RefCache[symbol] = entry;
+    try {
+      let data = {};
+      if (fs.existsSync(FILE_PATH)) data = JSON.parse(fs.readFileSync(FILE_PATH, 'utf8'));
+      if (!data.h4Cache) data.h4Cache = {};
+      data.h4Cache[symbol] = entry;
+      fs.writeFileSync(FILE_PATH, JSON.stringify(data, null, 2), 'utf8');
+      log.system(`[369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho ${symbol}.`);
+    } catch (e) { log.warn(`[369] Lỗi ghi h4Cache: ${e.message}`); }
+    return null;
+  }
+
+  const first = candles[0];
+  const openPrice  = first.open;
+  const closePrice = first.close;
+  const step       = getStep(openPrice);
+  const decimals   = getDecimals(openPrice);
+  const upperPrice = Math.max(openPrice, closePrice);
+  const lowerPrice = Math.min(openPrice, closePrice);
+
+  const entry = { yearStart: YEAR_START_MS, openPrice, closePrice, step, decimals, upperPrice, lowerPrice };
+  _h4RefCache[symbol] = entry;
+  try {
+    let data = {};
+    if (fs.existsSync(FILE_PATH)) data = JSON.parse(fs.readFileSync(FILE_PATH, 'utf8'));
+    if (!data.h4Cache) data.h4Cache = {};
+    data.h4Cache[symbol] = entry;
+    fs.writeFileSync(FILE_PATH, JSON.stringify(data, null, 2), 'utf8');
+  } catch (e) { log.warn(`[369] Lỗi ghi h4Cache: ${e.message}`); }
+
+  return entry;
+}
+
+/**
+ * Lấy toàn bộ nến H4 đã đóng từ đầu năm 2026 đến H4 hiện tại (incremental).
+ * Chỉ gọi API khi có H4 mới đóng (mỗi 4 giờ), cache lại memory.
+ */
+async function fetchH4Historical(symbol) {
+  const H4_MS = 4 * 60 * 60 * 1000;
+  const currentH4Start = floorToH4(Date.now());
+  let cache = _h4HistCache[symbol];
+
+  if (!cache || cache.yearStart !== YEAR_START_MS) {
+    cache = { yearStart: YEAR_START_MS, candles: [], cursor: YEAR_START_MS };
+    _h4HistCache[symbol] = cache;
+  }
+
+  if (cache.cursor >= currentH4Start) return cache.candles; // Không có H4 mới nào
+
+  let cursor = cache.cursor;
+  while (cursor < currentH4Start) {
+    const batch = await fetchBinanceKlines(symbol, '4h', cursor, 1500);
+    if (!batch.length) break;
+
+    const closed = batch.filter(c => c.openTime < currentH4Start);
+    if (cache.candles.length > 0) {
+      const lastTime = cache.candles[cache.candles.length - 1].openTime;
+      cache.candles.push(...closed.filter(c => c.openTime > lastTime));
+    } else {
+      cache.candles.push(...closed);
+    }
+
+    if (batch.length < 1500 || closed.length < batch.length) break;
+    cursor = batch[batch.length - 1].openTime + H4_MS;
+  }
+
+  if (cache.candles.length > 0) {
+    cache.cursor = cache.candles[cache.candles.length - 1].openTime + H4_MS;
+  }
+
+  return cache.candles;
+}
+
+/**
+ * Lấy nến M1 từ đầu H4 hiện tại đến bây giờ (incremental, reset khi H4 mới mở).
+ * Tối đa 240 nến M1 / 4 giờ — 1 API call duy nhất mỗi H4.
+ */
+async function fetchM1Current(symbol) {
+  const currentH4Start = floorToH4(Date.now());
+  let cache = _m1CurrCache[symbol];
+
+  if (!cache || cache.h4Start !== currentH4Start) {
+    cache = { h4Start: currentH4Start, candles: [], cursor: currentH4Start };
+    _m1CurrCache[symbol] = cache;
+  }
+
+  const fetched = [];
+  let cursor = cache.cursor;
+  while (true) {
+    const batch = await fetchBinanceKlines(symbol, '1m', cursor, 1500);
+    if (!batch.length) break;
+    fetched.push(...batch);
+    if (batch.length < 1500) break;
+    cursor = batch[batch.length - 1].openTime + 60_000;
+  }
+
+  if (fetched.length > 0) {
+    if (cache.candles.length > 0) {
+      const lastTime = cache.candles[cache.candles.length - 1].openTime;
+      const overlapIdx = fetched.findIndex(c => c.openTime > lastTime);
+      if (overlapIdx > 0) {
+        cache.candles[cache.candles.length - 1] = fetched[0];
+        cache.candles.push(...fetched.slice(overlapIdx));
+      } else if (overlapIdx === 0) {
+        cache.candles.push(...fetched);
+      } else {
+        cache.candles[cache.candles.length - 1] = fetched[fetched.length - 1];
+      }
+    } else {
+      cache.candles.push(...fetched);
+    }
+    cache.cursor = cache.candles[cache.candles.length - 1].openTime;
+  }
+
+  return cache.candles;
+}
+
+/**
+ * Kết hợp H4 lịch sử (đầu năm → H4 đang mở) + M1 hiện tại (H4 đang mở → bây giờ).
+ * Dùng cho analyzeRoundtrips thay thế fetchM1Incremental.
+ */
+async function fetchHybridCandles(symbol) {
+  const h4Candles = await fetchH4Historical(symbol);
+  const m1Candles = await fetchM1Current(symbol);
+  return [...h4Candles, ...m1Candles];
+}
+
 function monthStartMs() {
   const now = new Date();
   return Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1);
@@ -277,6 +495,16 @@ function monthLabel() {
   const y = now.getUTCFullYear();
   const m = String(now.getUTCMonth() + 1).padStart(2, '0');
   return `${y}-${m}`;
+}
+
+// Làm tròn timestamp xuống boundary H4 gần nhất (00:00, 04:00, 08:00, ... UTC)
+function floorToH4(tsMs) {
+  const H4_MS = 4 * 60 * 60 * 1000;
+  return Math.floor(tsMs / H4_MS) * H4_MS;
+}
+
+function yearLabel() {
+  return String(new Date().getUTCFullYear());
 }
 
 // ─── Đếm số lần bouncing hợp lệ giữa 2 mốc ─────────────────────────────────
@@ -341,82 +569,95 @@ function analyzeRoundtrips(candles, lowerLevel, upperLevel) {
  * @param {number|null} currentPrice - Giá hiện tại (null = dùng nến gần nhất)
  */
 async function get369Signal(symbol, currentPrice = null) {
-  const month = monthLabel();
+  const month = yearLabel(); // Dùng nhãn năm 2026 thay vì tháng
 
   try {
-    const h1 = await fetchH1Cached(symbol);
+    // Lấy nến H4 đầu năm 2026 làm mốc gốc (thay H1 đầu tháng)
+    const h1 = await fetchH4Reference(symbol);
     if (!h1) {
-      return { signal: 'NONE', symbol, month, reason: 'Không lấy được nến H1 tháng này' };
+      return { signal: 'NONE', symbol, month, reason: 'Không lấy được nến H4 đầu năm 2026' };
     }
 
     const { openPrice, closePrice, step, decimals, upperPrice, lowerPrice } = h1;
 
-    // Fast pre-check: Nếu có currentPrice, kiểm tra xem có đang sát mốc hay không trước khi gọi API nến 1m cực kỳ tốn kém
+    // Fast pre-check: Nếu có currentPrice, kiểm tra xem có đang sát mốc hay không
+    // trước khi gọi fetchHybridCandles (tốn API)
     if (currentPrice !== null) {
-      const effectiveStep = getStep(currentPrice);
-      const effectiveDecimals = getDecimals(currentPrice);
       const distTicks = Math.ceil(Math.max(
         Math.abs(upperPrice - currentPrice),
         Math.abs(lowerPrice - currentPrice),
-      ) / effectiveStep);
+      ) / step);
       const levelsRange = Math.max(LEVELS_RANGE, distTicks + 5);
-      const grid = buildLevelGrid(upperPrice, lowerPrice, effectiveStep, effectiveDecimals, levelsRange);
+      const grid = buildLevelGrid(upperPrice, lowerPrice, step, decimals, levelsRange);
 
       const longEntry = grid.filter(l => l.type === 'tren' && l.value < currentPrice).pop();
       const shortEntry = grid.find(l => l.type === 'duoi' && l.value > currentPrice);
 
       if (longEntry && shortEntry) {
+        const currentGridPct = ((shortEntry.value - longEntry.value) / longEntry.value) * 100;
+        if (currentGridPct < GRID_MIN_PCT || currentGridPct > GRID_MAX_PCT) {
+          _levelCache[symbol] = { longEntry: longEntry.value, shortEntry: shortEntry.value, step: step };
+          return {
+            signal: 'NONE', symbol, month, openPrice, closePrice, step: step,
+            reason: `Khoảng cách giữa 2 mốc gần nhất (${currentGridPct.toFixed(2)}%) không đạt yêu cầu ${GRID_MIN_PCT}-${GRID_MAX_PCT}%`
+          };
+        }
+
         const nearTol = currentPrice * NEAR_LEVEL_PCT;
         const nearLong = (currentPrice - longEntry.value) <= nearTol;
         const nearShort = (shortEntry.value - currentPrice) <= nearTol;
 
         if (!nearLong && !nearShort) {
-          _levelCache[symbol] = { longEntry: longEntry.value, shortEntry: shortEntry.value, step: effectiveStep };
+          _levelCache[symbol] = { longEntry: longEntry.value, shortEntry: shortEntry.value, step: step };
           return {
-            signal: 'NONE', symbol, month, openPrice, closePrice, step: effectiveStep,
+            signal: 'NONE', symbol, month, openPrice, closePrice, step: step,
             reason: `Giá ${currentPrice} đang ở xa các mốc (không chạm)`
           };
         }
       }
     }
 
-    const m1Candles = await fetchM1Incremental(symbol);
+    // Hybrid: H4 lịch sử (đầu năm → H4 hiện tại) + M1 (H4 đang mở → bây giờ)
+    const hybridCandles = await fetchHybridCandles(symbol);
 
-    if (!m1Candles.length) {
-      return { signal: 'NONE', symbol, month, reason: 'Không lấy được nến 1m tháng này' };
+    if (!hybridCandles.length) {
+      return { signal: 'NONE', symbol, month, reason: 'Không lấy được nến phân tích (H4+M1)' };
     }
 
-    const price = currentPrice ?? m1Candles[m1Candles.length - 1].close;
-
-    // Dùng step từ GIÁ HIỆN TẠI thay vì H1 open — đảm bảo khoảng cách mốc phù hợp
-    // khi coin đã tăng/giảm mạnh so với đầu tháng (VD: coin 10x → step tăng 10x theo)
-    const effectiveStep = getStep(price);
-    const effectiveDecimals = getDecimals(price);
+    const price = currentPrice ?? hybridCandles[hybridCandles.length - 1].close;
 
     const distTicks = Math.ceil(Math.max(
       Math.abs(upperPrice - price),
       Math.abs(lowerPrice - price),
-    ) / effectiveStep);
+    ) / step);
     const levelsRange = Math.max(LEVELS_RANGE, distTicks + 5);
 
-    const grid = buildLevelGrid(upperPrice, lowerPrice, effectiveStep, effectiveDecimals, levelsRange);
+    const grid = buildLevelGrid(upperPrice, lowerPrice, step, decimals, levelsRange);
 
     const longEntry = grid.filter(l => l.type === 'tren' && l.value < price).pop();
     const shortEntry = grid.find(l => l.type === 'duoi' && l.value > price);
 
     if (!longEntry || !shortEntry) {
       return {
-        signal: 'NONE', symbol, month, openPrice, closePrice, step: effectiveStep,
+        signal: 'NONE', symbol, month, openPrice, closePrice, step: step,
         reason: `Giá ${price} nằm ngoài vùng lưới mốc`
       };
     }
 
-    _levelCache[symbol] = { longEntry: longEntry.value, shortEntry: shortEntry.value, step: effectiveStep };
+    _levelCache[symbol] = { longEntry: longEntry.value, shortEntry: shortEntry.value, step: step };
 
     const pairLow = longEntry.value;
     const pairHigh = shortEntry.value;
+    const currentGridPct = ((pairHigh - pairLow) / pairLow) * 100;
 
-    const done = m1Candles.slice(0, -1);
+    if (currentGridPct < GRID_MIN_PCT || currentGridPct > GRID_MAX_PCT) {
+      return {
+        signal: 'NONE', symbol, month, openPrice, closePrice, step: step,
+        reason: `Khoảng cách giữa 2 mốc gần nhất (${currentGridPct.toFixed(2)}%) không đạt yêu cầu ${GRID_MIN_PCT}-${GRID_MAX_PCT}%`
+      };
+    }
+
+    const done = hybridCandles.slice(0, -1); // bỏ nến M1 đang hình thành (nến cuối)
 
     const { lowerCount, upperCount, lastSide } =
       analyzeRoundtrips(done, pairLow, pairHigh);
@@ -472,7 +713,7 @@ async function get369Signal(symbol, currentPrice = null) {
       currentPrice: price,
       openPrice,
       closePrice,
-      step: effectiveStep,
+      step: step,
       month,
       reason,
       debugInfo: {
@@ -484,30 +725,29 @@ async function get369Signal(symbol, currentPrice = null) {
         totalCandles: done.length,
       },
       nearLevels: grid
-        .filter(l => Math.abs(l.value - price) < effectiveStep * 5.5)
+        .filter(l => Math.abs(l.value - price) < step * 5.5)
         .map(l => ({ value: l.value, type: l.type, tier: l.tier })),
     };
 
   } catch (err) {
     const status = err?.response?.status;
-    if (status === 400 || status === 418) {
-      const startMs = monthStartMs();
-      const entry = { monthStart: startMs, failed: true, reason: `Status ${status}` };
-      _h1Cache[symbol] = entry;
+    if (status === 400) {
+      // 400: symbol không hợp lệ → đánh dấu vào h4Cache để không gọi lại
+      const entry = { yearStart: YEAR_START_MS, failed: true, reason: `Status ${status}` };
+      _h4RefCache[symbol] = entry;
       try {
         let data = {};
-        if (fs.existsSync(FILE_PATH)) {
-          const content = fs.readFileSync(FILE_PATH, 'utf8');
-          data = JSON.parse(content);
-        }
-        if (!data.h1Cache) data.h1Cache = {};
-        data.h1Cache[symbol] = entry;
+        if (fs.existsSync(FILE_PATH)) data = JSON.parse(fs.readFileSync(FILE_PATH, 'utf8'));
+        if (!data.h4Cache) data.h4Cache = {};
+        data.h4Cache[symbol] = entry;
         fs.writeFileSync(FILE_PATH, JSON.stringify(data, null, 2), 'utf8');
-        log.warn(`[369] Đã đánh dấu lỗi ${status} cho ${symbol} vào step_sizes.json, sẽ không gọi lại nữa.`);
+        log.warn(`[369] Đánh dấu lỗi ${status} cho ${symbol} vào h4Cache.`);
       } catch (e) {
-        log.warn(`[369] Lỗi ghi file h1Cache cho ${symbol}: ${e.message}`);
+        log.warn(`[369] Lỗi ghi h4Cache cho ${symbol}: ${e.message}`);
       }
     }
+    // 418: IP bị ban tạm thời — KHÔNG ghi file, throw để dừng init
+    if (status === 418) throw new Error('IP_BANNED_418');
     const is429 = status === 429;
     log.warn(`[369] ${symbol}: ${is429 ? 'rate limit Binance klines (429) — đã retry 3 lần, bỏ qua lần này' : `lỗi fetch klines — ${err.message}`}`);
     return { signal: 'NONE', symbol, month, reason: `Lỗi: ${err.message}` };
@@ -608,32 +848,33 @@ function getLevelCache() {
     try {
       const content = fs.readFileSync(FILE_PATH, 'utf8');
       const data = JSON.parse(content);
-      const h1Cache = data.h1Cache || {};
-      const startMs = monthStartMs();
 
-      for (const [symbol, h1] of Object.entries(h1Cache)) {
-        if (h1.monthStart === startMs && !h1.failed) {
-          _h1Cache[symbol] = h1;
-          const { openPrice, closePrice, step, decimals, upperPrice, lowerPrice } = h1;
-          const price = closePrice;
-          const effectiveStep = getStep(price);
-          const effectiveDecimals = getDecimals(price);
-          const distTicks = Math.ceil(Math.max(
-            Math.abs(upperPrice - price),
-            Math.abs(lowerPrice - price),
-          ) / effectiveStep);
-          const levelsRange = Math.max(LEVELS_RANGE, distTicks + 5);
-          const grid = buildLevelGrid(upperPrice, lowerPrice, effectiveStep, effectiveDecimals, levelsRange);
+      // Ưu tiên h4Cache (năm 2026), fallback h1Cache (legacy tháng)
+      const useH4 = !!(data.h4Cache && Object.keys(data.h4Cache).length > 0);
+      const refCache = useH4 ? (data.h4Cache || {}) : (data.h1Cache || {});
 
-          const longEntry = grid.filter(l => l.type === 'tren' && l.value < price).pop();
-          const shortEntry = grid.find(l => l.type === 'duoi' && l.value > price);
-          if (longEntry && shortEntry) {
-            _levelCache[symbol] = {
-              longEntry: longEntry.value,
-              shortEntry: shortEntry.value,
-              step: effectiveStep
-            };
-          }
+      for (const [symbol, entry] of Object.entries(refCache)) {
+        const isValid = useH4
+          ? (entry.yearStart === YEAR_START_MS && !entry.failed)
+          : (entry.monthStart === monthStartMs() && !entry.failed);
+
+        if (!isValid) continue;
+
+        if (useH4) _h4RefCache[symbol] = entry;
+        else _h1Cache[symbol] = entry;
+
+        const { upperPrice, lowerPrice, step, decimals } = entry;
+        const price = entry.closePrice;
+        const distTicks = Math.ceil(Math.max(
+          Math.abs(upperPrice - price),
+          Math.abs(lowerPrice - price),
+        ) / step);
+        const levelsRange = Math.max(LEVELS_RANGE, distTicks + 5);
+        const grid = buildLevelGrid(upperPrice, lowerPrice, step, decimals, levelsRange);
+        const longEntry  = grid.filter(l => l.type === 'tren' && l.value < price).pop();
+        const shortEntry = grid.find(l => l.type === 'duoi' && l.value > price);
+        if (longEntry && shortEntry) {
+          _levelCache[symbol] = { longEntry: longEntry.value, shortEntry: shortEntry.value, step: step };
         }
       }
     } catch (err) {
@@ -665,27 +906,70 @@ async function initH1Cache(symbols) {
   }
 
   if (missing.length === 0) return;
+  log.system(`[369] initH1Cache: ${missing.length} coin chưa có nến H1 đầu tháng.`);
+  for (let i = 0; i < missing.length; i++) {
+    const sym = missing[i];
+    try { await fetchH1Cached(sym); } catch (e) {
+      log.warn(`[369] Lỗi init H1 cho ${sym}: ${e.message}`);
+      if (e.message === 'IP_BANNED_418') { log.error('[369] Bị ban 418, dừng initH1Cache.'); break; }
+    }
+    await new Promise(r => setTimeout(r, 150));
+  }
+  log.system(`[369] Hoàn tất initH1Cache.`);
+}
 
-  log.system(`[369] Khởi động: Phát hiện ${missing.length} coin chưa có nến H1 đầu tháng. Tiến hành lấy nến...`);
+/**
+ * Nạp nến H4 đầu năm 2026 cho danh sách symbols vào cache.
+ * Dùng thay initH1Cache khi chạy theo phương pháp H4 yearly.
+ * Delay 200ms/coin để tránh 418 ban.
+ */
+async function initH4Cache(symbols) {
+  const missing = [];
+
+  if (fs.existsSync(FILE_PATH)) {
+    try {
+      const content = fs.readFileSync(FILE_PATH, 'utf8');
+      const data = JSON.parse(content);
+      const h4Cache = data.h4Cache || {};
+      for (const sym of symbols) {
+        if (!h4Cache[sym] || h4Cache[sym].yearStart !== YEAR_START_MS) {
+          missing.push(sym);
+        }
+      }
+    } catch (_) {
+      missing.push(...symbols);
+    }
+  } else {
+    missing.push(...symbols);
+  }
+
+  if (missing.length === 0) {
+    log.system(`[369] initH4Cache: Tất cả ${symbols.length} coin đã có nến H4 đầu năm.`);
+    return;
+  }
+
+  log.system(`[369] initH4Cache: Cần nạp H4 cho ${missing.length}/${symbols.length} coin (delay 200ms/coin)...`);
 
   for (let i = 0; i < missing.length; i++) {
     const sym = missing[i];
     try {
-      await fetchH1Cached(sym);
+      await fetchH4Reference(sym);
     } catch (e) {
-      log.warn(`[369] Lỗi init H1 cho ${sym}: ${e.message}`);
+      log.warn(`[369] Lỗi init H4 cho ${sym}: ${e.message}`);
       if (e.message === 'IP_BANNED_418') {
-        log.error('[369] Phát hiện lỗi 418 (Bị ban IP tạm thời từ Binance). Dừng nạp nến H1 ngay lập tức để tránh làm hỏng file cache.');
+        log.error('[369] Bị ban IP 418 — dừng initH4Cache ngay.');
         break;
       }
     }
-    // Delay 150ms để tránh rate limit (418 ban)
-    await new Promise(r => setTimeout(r, 150));
+    // 200ms delay — đủ để tránh 418 (10 req/2s = 5 req/s, an toàn)
+    await new Promise(r => setTimeout(r, 200));
   }
-  log.system(`[369] Hoàn tất nạp nến H1 đầu tháng cho tất cả các coin.`);
+  log.system(`[369] Hoàn tất initH4Cache.`);
 }
 
 module.exports = {
   get369Signal, get369SignalsForCoins, score369Method, format369ForPrompt,
-  getLevelCache, PROXIMITY_PCT, getDecimals, getStep, initH1Cache,
+  getLevelCache, PROXIMITY_PCT, getDecimals, getStep,
+  initH1Cache, initH4Cache, YEAR_START_MS,
+  getGridStepPct, isGridWidthValid, GRID_MIN_PCT, GRID_MAX_PCT,
 };

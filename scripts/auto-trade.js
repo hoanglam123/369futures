@@ -5,7 +5,8 @@ require('dotenv').config();
 const fs = require('fs');
 const path = require('path');
 const { startAutoTrade } = require('../src/trader/autoTrade');
-const { initH1Cache } = require('../src/pp369');
+const { loadLeverageBrackets } = require('../src/trader/binance');
+const { initH4Cache, isGridWidthValid, GRID_MIN_PCT, GRID_MAX_PCT, YEAR_START_MS } = require('../src/pp369');
 const { notifyBotStart } = require('../src/pp369/telegram');
 
 async function main() {
@@ -22,15 +23,27 @@ async function main() {
         .filter(sym => sym.endsWith('USDT') && !sym.includes('_'))
         .map(sym => sym.replace('USDT', ''));
       
-      // Gọi initH1Cache để kiểm tra và chỉ lấy nến H1 cho các mã chưa có cache
-      await initH1Cache(allSymbols);
+      // Gọi initH4Cache để kiểm tra và chỉ lấy nến H4 đầu năm 2026 cho mã chưa có cache
+      await initH4Cache(allSymbols);
       
-      // Đọc lại tệp sau khi đã lấy nến H1 xong
+      // Đọc lại tệp sau khi đã lấy nến H4 xong
       const updatedData = JSON.parse(fs.readFileSync(filePath, 'utf8'));
-      const updatedH1Cache = updatedData.h1Cache || {};
+      const updatedH4Cache = updatedData.h4Cache || {};
       
-      // Các chức năng tiếp theo CHỈ sử dụng mã đã cache H1 thành công (không bị failed)
-      coins = Object.keys(updatedH1Cache).filter(sym => !updatedH1Cache[sym].failed);
+      // Chỉ dùng mã đã cache H4 thành công (yearStart đúng, không bị failed)
+      // và có độ rộng grid nằm trong khoảng cho phép
+      const allValid = Object.entries(updatedH4Cache)
+        .filter(([, e]) => e.yearStart === YEAR_START_MS && !e.failed && isGridWidthValid(e))
+        .map(([sym]) => sym);
+      
+      const filtered = Object.entries(updatedH4Cache)
+        .filter(([, e]) => e.yearStart === YEAR_START_MS && !e.failed && !isGridWidthValid(e));
+      
+      if (filtered.length > 0) {
+        console.info(`[AutoTrade] Bỏ qua ${filtered.length} coin có grid ngoài khoảng ${GRID_MIN_PCT}–${GRID_MAX_PCT}%:`,
+          filtered.map(([sym, e]) => `${sym}(${((e.step / e.openPrice) * 100).toFixed(1)}%)`).join(', '));
+      }
+      coins = allValid;
       
     } catch (err) {
       console.warn('[AutoTrade] Lỗi đọc/ghi danh sách coin từ step_sizes.json:', err.message);
@@ -46,6 +59,15 @@ async function main() {
 
   // Gửi thông báo Telegram khi bot khởi động
   await notifyBotStart(coins.length);
+
+  // Lấy max leverage cho từng coin từ Binance Futures và lưu vào cache
+  const apiKey = process.env.BINANCE_API_KEY;
+  const secret = process.env.BINANCE_SECRET;
+  if (apiKey && secret) {
+    await loadLeverageBrackets(coins, apiKey, secret);
+  } else {
+    console.warn('[AutoTrade] Thiếu BINANCE_API_KEY / BINANCE_SECRET — bỏ qua lấy leverage brackets.');
+  }
 
   // Khởi chạy bot tự động giao dịch
   await startAutoTrade(coins);

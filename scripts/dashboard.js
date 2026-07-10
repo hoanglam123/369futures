@@ -11,9 +11,13 @@ const {
   getNearbySymbols,
   getGridBotConfig,
   fmt369Price,
-  initH1Cache,
+  initH4Cache,
+  YEAR_START_MS,
   updatePricesRest,
   syncWebSocketSubscriptions,
+  isGridWidthValid,
+  GRID_MIN_PCT,
+  GRID_MAX_PCT,
 } = require('../src/pp369');
 const { log } = require('../src/pp369/_logger');
 
@@ -36,7 +40,7 @@ async function runScan() {
   try {
     await updatePricesRest();
     const levelCache = getLevelCache();
-    const nearby = getNearbySymbols(coins, levelCache, 0.005);
+    const nearby = getNearbySymbols(coins, levelCache, 0.01);
     
     // Sync WS subscriptions for real-time tracking
     syncWebSocketSubscriptions(nearby);
@@ -973,8 +977,33 @@ async function bootstrap() {
   if (fs.existsSync(filePath)) {
     try {
       const data = JSON.parse(fs.readFileSync(filePath, 'utf8'));
-      const h1Cache = data.h1Cache || {};
-      coins = Object.keys(h1Cache).filter(sym => !h1Cache[sym].failed);
+      const useH4 = !!(data.h4Cache && Object.keys(data.h4Cache).length > 0);
+      const cacheToUse = useH4 ? (data.h4Cache || {}) : (data.h1Cache || {});
+      
+      const filteredCache = {};
+      for (const [sym, e] of Object.entries(cacheToUse)) {
+        const isValid = useH4
+          ? (e.yearStart === YEAR_START_MS && !e.failed)
+          : (!e.failed);
+        if (isValid) {
+          filteredCache[sym] = e;
+        }
+      }
+
+      const excluded = Object.entries(filteredCache)
+        .filter(([, e]) => !isGridWidthValid(e));
+      
+      coins = Object.entries(filteredCache)
+        .filter(([, e]) => isGridWidthValid(e))
+        .map(([sym]) => sym);
+      
+      const cacheName = useH4 ? 'h4Cache' : 'h1Cache';
+      if (excluded.length > 0) {
+        log.system(`[Dashboard] Dùng ${cacheName}. Bỏ qua ${excluded.length} coin grid ngoài ${GRID_MIN_PCT}-${GRID_MAX_PCT}%: ` +
+          excluded.map(([sym, e]) => `${sym}(${((e.step / e.openPrice) * 100).toFixed(1)}%)`).join(', '));
+      } else {
+        log.system(`[Dashboard] Dùng ${cacheName}. Quét ${coins.length} coin hợp lệ.`);
+      }
     } catch (err) {
       log.warn(`[Dashboard] Lỗi đọc danh sách coin từ step_sizes.json: ${err.message}`);
     }
@@ -990,7 +1019,7 @@ async function bootstrap() {
   // Lấy giá REST lần đầu để xác định các coin gần mốc
   await updatePricesRest();
   const initialLevelCache = getLevelCache();
-  const initialNearby = getNearbySymbols(coins, initialLevelCache, 0.005);
+  const initialNearby = getNearbySymbols(coins, initialLevelCache, 0.01);
 
   // Khởi động WebSocket stream và đăng ký chỉ các mã đang gần mốc
   start369Stream(initialNearby);

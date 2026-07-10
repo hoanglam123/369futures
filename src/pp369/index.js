@@ -35,9 +35,15 @@ module.exports = {
   format369ForPrompt:    core.format369ForPrompt,
   getLevelCache:         core.getLevelCache,
   initH1Cache:           core.initH1Cache,
+  initH4Cache:           core.initH4Cache,
+  YEAR_START_MS:         core.YEAR_START_MS,
   PROXIMITY_PCT:         core.PROXIMITY_PCT,
   getDecimals:           core.getDecimals,
   getStep:               core.getStep,
+  getGridStepPct:        core.getGridStepPct,
+  isGridWidthValid:      core.isGridWidthValid,
+  GRID_MIN_PCT:          core.GRID_MIN_PCT,
+  GRID_MAX_PCT:          core.GRID_MAX_PCT,
 
   // ── WebSocket stream ─────────────────────────────────────────────────────
   start369Stream:   stream.start369Stream,

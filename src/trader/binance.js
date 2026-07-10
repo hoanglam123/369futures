@@ -48,6 +48,16 @@ async function _get(path, params, apiKey, secret) {
   return res.data;
 }
 
+async function _delete(path, params, apiKey, secret) {
+  const body = _buildBody(params);
+  const sig = _sign(body, secret);
+  const res = await axios.delete(`${BASE}${path}?${body}&signature=${sig}`, {
+    headers: _authHeaders(apiKey),
+    timeout: 10000,
+  });
+  return res.data;
+}
+
 // ─── Exchange info (không cần auth) ──────────────────────────────────────────
 
 async function loadStepSizes() {
@@ -55,8 +65,8 @@ async function loadStepSizes() {
     try {
       const content = fs.readFileSync(FILE_PATH, 'utf8');
       const data = JSON.parse(content);
-      if (data.stepSizes) {
-        log.system(`[Binance] Loaded step sizes from existing file: ${Object.keys(data.stepSizes).length} symbols`);
+      if (data.stepSizes && data.tickSizes) {
+        log.system(`[Binance] Loaded step and tick sizes from existing file: ${Object.keys(data.stepSizes).length} symbols`);
         return;
       }
     } catch (err) {
@@ -66,9 +76,13 @@ async function loadStepSizes() {
 
   const res = await axios.get(`${BASE}/fapi/v1/exchangeInfo`, { timeout: 15000 });
   const stepSizes = {};
+  const tickSizes = {};
   for (const s of res.data.symbols) {
     const lot = s.filters.find(f => f.filterType === 'LOT_SIZE');
     if (lot) stepSizes[s.symbol] = parseFloat(lot.stepSize);
+
+    const priceFilter = s.filters.find(f => f.filterType === 'PRICE_FILTER');
+    if (priceFilter) tickSizes[s.symbol] = parseFloat(priceFilter.tickSize);
   }
   const dir = path.dirname(FILE_PATH);
   if (!fs.existsSync(dir)) {
@@ -88,8 +102,67 @@ async function loadStepSizes() {
   }
 
   data.stepSizes = stepSizes;
+  data.tickSizes = tickSizes;
   fs.writeFileSync(FILE_PATH, JSON.stringify(data, null, 2), 'utf8');
-  log.system(`[Binance] Loaded and saved step sizes to file: ${Object.keys(stepSizes).length} symbols`);
+  log.system(`[Binance] Loaded and saved step/tick sizes to file: ${Object.keys(stepSizes).length} symbols`);
+}
+
+// ─── Leverage brackets (cần auth) ────────────────────────────────────────────
+
+/**
+ * Lấy max leverage cho danh sách symbols từ /fapi/v1/leverageBracket.
+ * Chỉ lấy 1 lần cho tất cả symbols rồi lọc — tránh gọi API nhiều lần.
+ *
+ * Kết quả lưu vào step_sizes.json dạng:
+ *   "leverageInfo": { "BTC": 125, "ETH": 75, "SOL": 50, ... }
+ *
+ * @param {string[]} symbols - Danh sách coin (không có USDT), ví dụ ['BTC', 'ETH']
+ * @param {string}   apiKey
+ * @param {string}   secret
+ */
+async function loadLeverageBrackets(symbols, apiKey, secret) {
+  log.system(`[Binance] Đang lấy leverage brackets cho ${symbols.length} coin...`);
+
+  let allBrackets;
+  try {
+    // Gọi 1 lần không có symbol param → trả về tất cả symbols
+    allBrackets = await _get('/fapi/v1/leverageBracket', {}, apiKey, secret);
+  } catch (err) {
+    log.warn(`[Binance] Lỗi lấy leverage brackets: ${err.message}`);
+    return {};
+  }
+
+  // Build lookup: symbol → maxLeverage (bracket[0] luôn là bracket nhỏ nhất = max leverage)
+  const lookup = {};
+  for (const item of allBrackets) {
+    const sym = item.symbol?.replace('USDT', '');
+    if (sym && item.brackets?.length > 0) {
+      lookup[sym] = item.brackets[0].initialLeverage;
+    }
+  }
+
+  // Chỉ giữ các symbol trong danh sách đã lọc
+  const leverageInfo = {};
+  for (const sym of symbols) {
+    if (lookup[sym] != null) {
+      leverageInfo[sym] = lookup[sym];
+    }
+  }
+
+  // Lưu vào step_sizes.json
+  try {
+    let data = {};
+    if (fs.existsSync(FILE_PATH)) {
+      data = JSON.parse(fs.readFileSync(FILE_PATH, 'utf8'));
+    }
+    data.leverageInfo = leverageInfo;
+    fs.writeFileSync(FILE_PATH, JSON.stringify(data, null, 2), 'utf8');
+    log.system(`[Binance] Đã lưu leverage cho ${Object.keys(leverageInfo).length} coin vào step_sizes.json`);
+  } catch (err) {
+    log.warn(`[Binance] Lỗi ghi leverageInfo vào file: ${err.message}`);
+  }
+
+  return leverageInfo;
 }
 
 // ─── Quantity helper ──────────────────────────────────────────────────────────
@@ -132,12 +205,31 @@ function createClient(apiKey, secret) {
      * @param {number} decimals - Số decimal của price trên Binance
      */
     placeLimit(symbol, side, qty, price, decimals) {
+      let tickSize = null;
+      try {
+        if (fs.existsSync(FILE_PATH)) {
+          const content = fs.readFileSync(FILE_PATH, 'utf8');
+          const data = JSON.parse(content);
+          const tickSizes = data.tickSizes ?? {};
+          tickSize = tickSizes[`${symbol}USDT`] ?? null;
+        }
+      } catch (_) {}
+
+      let finalPriceStr;
+      if (tickSize) {
+        const roundedPrice = Math.round(price / tickSize) * tickSize;
+        const dec = Math.max(0, Math.round(-Math.log10(tickSize)));
+        finalPriceStr = roundedPrice.toFixed(dec);
+      } else {
+        finalPriceStr = price.toFixed(decimals);
+      }
+
       return _post('/fapi/v1/order', {
         symbol: `${symbol}USDT`,
         side,
         type: 'LIMIT',
         quantity: qty,
-        price: price.toFixed(decimals),
+        price: finalPriceStr,
         timeInForce: 'GTC',
         positionSide: 'BOTH',
       }, apiKey, secret);
@@ -157,6 +249,61 @@ function createClient(apiKey, secret) {
     },
 
     /**
+     * Đặt lệnh Stop Market (SL) hoặc Take Profit Market (TP) với closePosition=true.
+     */
+    placeStopOrder(symbol, side, type, stopPrice) {
+      let tickSize = null;
+      try {
+        if (fs.existsSync(FILE_PATH)) {
+          const content = fs.readFileSync(FILE_PATH, 'utf8');
+          const data = JSON.parse(content);
+          const tickSizes = data.tickSizes ?? {};
+          tickSize = tickSizes[`${symbol}USDT`] ?? null;
+        }
+      } catch (_) {}
+
+      let finalStopPriceStr;
+      if (tickSize) {
+        const roundedPrice = Math.round(stopPrice / tickSize) * tickSize;
+        const dec = Math.max(0, Math.round(-Math.log10(tickSize)));
+        finalStopPriceStr = roundedPrice.toFixed(dec);
+      } else {
+        finalStopPriceStr = stopPrice.toFixed(5); // fallback
+      }
+
+      return _post('/fapi/v1/order', {
+        symbol: `${symbol}USDT`,
+        side,
+        type,
+        stopPrice: finalStopPriceStr,
+        closePosition: 'true',
+        positionSide: 'BOTH',
+      }, apiKey, secret);
+    },
+
+    /**
+     * Lấy danh sách tất cả các vị thế đang mở (positionAmt != 0).
+     */
+    async getOpenPositions() {
+      const data = await _get('/fapi/v2/positionRisk', {}, apiKey, secret);
+      return data.filter(p => parseFloat(p.positionAmt) !== 0);
+    },
+
+    /**
+     * Lấy danh sách lệnh đang chờ khớp của 1 symbol.
+     */
+    getOpenOrders(symbol) {
+      return _get('/fapi/v1/openOrders', { symbol: `${symbol}USDT` }, apiKey, secret);
+    },
+
+    /**
+     * Hủy lệnh theo orderId.
+     */
+    cancelOrder(symbol, orderId) {
+      return _delete('/fapi/v1/order', { symbol: `${symbol}USDT`, orderId }, apiKey, secret);
+    },
+
+    /**
      * Kiểm tra có vị thế mở không (positionAmt != 0).
      */
     async hasOpenPosition(symbol) {
@@ -168,4 +315,4 @@ function createClient(apiKey, secret) {
   };
 }
 
-module.exports = { createClient, loadStepSizes, calcQuantity };
+module.exports = { createClient, loadStepSizes, loadLeverageBrackets, calcQuantity };

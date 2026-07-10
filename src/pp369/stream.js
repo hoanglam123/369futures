@@ -47,7 +47,7 @@ async function updatePricesRest() {
 }
 
 // ─── WebSocket dynamic subscription sync ─────────────────────────────────────
-function syncWebSocketSubscriptions(nearbySymbols) {
+async function syncWebSocketSubscriptions(nearbySymbols) {
   if (!_ws || _ws.readyState !== WebSocket.OPEN) return;
 
   const targetSymbols = new Set(nearbySymbols);
@@ -66,27 +66,37 @@ function syncWebSocketSubscriptions(nearbySymbols) {
     }
   }
 
+  const CHUNK_SIZE = 50;
+
   if (toSubscribe.length > 0) {
-    const payload = {
-      method: 'SUBSCRIBE',
-      params: toSubscribe,
-      id: _wsRequestId++
-    };
-    _ws.send(JSON.stringify(payload));
-    log.system(`[PP369Stream] WS Subscribe: ${toSubscribe.join(', ')}`);
+    for (let i = 0; i < toSubscribe.length; i += CHUNK_SIZE) {
+      const chunk = toSubscribe.slice(i, i + CHUNK_SIZE);
+      const payload = {
+        method: 'SUBSCRIBE',
+        params: chunk,
+        id: _wsRequestId++
+      };
+      _ws.send(JSON.stringify(payload));
+      log.system(`[PP369Stream] WS Subscribe (chunk ${Math.floor(i/CHUNK_SIZE) + 1}): ${chunk.join(', ')}`);
+      await new Promise(r => setTimeout(r, 50));
+    }
     for (const sym of targetSymbols) {
       if (!_subscribed.has(sym)) _subscribed.add(sym);
     }
   }
 
   if (toUnsubscribe.length > 0) {
-    const payload = {
-      method: 'UNSUBSCRIBE',
-      params: toUnsubscribe,
-      id: _wsRequestId++
-    };
-    _ws.send(JSON.stringify(payload));
-    log.system(`[PP369Stream] WS Unsubscribe: ${toUnsubscribe.join(', ')}`);
+    for (let i = 0; i < toUnsubscribe.length; i += CHUNK_SIZE) {
+      const chunk = toUnsubscribe.slice(i, i + CHUNK_SIZE);
+      const payload = {
+        method: 'UNSUBSCRIBE',
+        params: chunk,
+        id: _wsRequestId++
+      };
+      _ws.send(JSON.stringify(payload));
+      log.system(`[PP369Stream] WS Unsubscribe (chunk ${Math.floor(i/CHUNK_SIZE) + 1}): ${chunk.join(', ')}`);
+      await new Promise(r => setTimeout(r, 50));
+    }
     for (const stream of toUnsubscribe) {
       const sym = stream.replace('usdt@markPrice', '').toUpperCase();
       _subscribed.delete(sym);
@@ -188,6 +198,10 @@ function getNearbySymbols(symbols, levelCache, threshold = 0.02) {
 
     // Chưa có level -> include để tính mốc
     if (!levels?.longEntry || !levels?.shortEntry) return true;
+
+    // Kiểm tra khoảng cách lưới tại mức giá hiện tại (phải đạt 3-20%)
+    const currentGridPct = ((levels.shortEntry - levels.longEntry) / levels.longEntry) * 100;
+    if (currentGridPct < 3 || currentGridPct > 20) return false;
 
     // Threshold adaptive: đảm bảo giới hạn trong khoảng 25% của bước giá (step) để lọc hiệu quả các coin ở giữa mốc
     const adaptiveThreshold = levels.step
