@@ -220,19 +220,19 @@ async function startAutoTrade(coins) {
           `orderId=${order.orderId} status=${order.status}`
         );
 
-        // Đặt thêm TP (20%) và SL (10%) khi đặt lệnh LIMIT thành công
+        // Đặt thêm TP (20%) và SL (13%) khi đặt lệnh LIMIT thành công
         if (orderType !== 'MARKET' && order && order.orderId) {
           const entryPrice = sig.targetLevel;
           const oppositeSide = side === 'BUY' ? 'SELL' : 'BUY';
 
-          // TP = 20% / leverage, SL = 10% / leverage
+          // TP = 20% / leverage, SL = 13% / leverage
           let tpPrice, slPrice;
           if (side === 'BUY') {
             tpPrice = entryPrice * (1 + 0.20 / effectiveLeverage);
-            slPrice = entryPrice * (1 - 0.10 / effectiveLeverage);
+            slPrice = entryPrice * (1 - 0.13 / effectiveLeverage);
           } else {
             tpPrice = entryPrice * (1 - 0.20 / effectiveLeverage);
-            slPrice = entryPrice * (1 + 0.10 / effectiveLeverage);
+            slPrice = entryPrice * (1 + 0.13 / effectiveLeverage);
           }
 
           try {
@@ -369,12 +369,12 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
       }
 
       // ----------------------------------------------------
-      // 2. Quản lý STOP LOSS (SL = 10% ROI, Trailing SL entry + 1% khi ROI >= 10%)
+      // 2. Quản lý STOP LOSS (SL = 13% ROI, Trailing SL entry + 1% khi ROI >= 10%)
       // ----------------------------------------------------
       // Tính mức SL mục tiêu
       const targetSlPrice = roi >= 10
         ? (isLong ? entryPrice * (1 + 0.01 / leverageVal) : entryPrice * (1 - 0.01 / leverageVal))
-        : (isLong ? entryPrice * (1 - 0.10 / leverageVal) : entryPrice * (1 + 0.10 / leverageVal));
+        : (isLong ? entryPrice * (1 - 0.13 / leverageVal) : entryPrice * (1 + 0.13 / leverageVal));
 
       // Lấy tickSize từ cache để định dạng giá chính xác
       let tickSize = null;
@@ -438,7 +438,7 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
           : (markPrice >= roundedTargetSl);
 
         if (slTriggered) {
-          const typeLabel = roi >= 10 ? 'Virtual Trailing SL (+1% ROI)' : 'Virtual SL (10%)';
+          const typeLabel = roi >= 10 ? 'Virtual Trailing SL (+1% ROI)' : 'Virtual SL (13%)';
           log.system(`[AutoTrade] [${typeLabel}] Kích hoạt cho ${sym}: Giá ${markPrice} chạm/vượt mốc $${targetSlStr}. Đóng vị thế bằng lệnh MARKET.`);
           try {
             await client.placeMarket(sym, oppositeSide, absAmt);
