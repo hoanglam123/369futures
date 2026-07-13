@@ -49,48 +49,48 @@ function format369Alert(signals) {
     const strength = sig.strength === 'strong' ? '⭐⭐ Mạnh'
       : sig.strength === 'medium' ? '⭐ Trung bình'
         : '⚠️ Yếu';
-    const direction = sig.signal === 'LONG' ? 'xuống' : 'lên';
+    // const direction = sig.signal === 'LONG' ? 'xuống' : 'lên';
     const lan = sig.touchCount + 1;
 
-    lines.push(`${emoji} <b>${sig.symbol}</b> → <b>${sig.signal}</b> lần ${lan}  ${strength}`);
+    lines.push(`${emoji} <b>${sig.symbol}</b> → <b>${sig.signal}`);
     lines.push(`  Vào tại:         <code>${fmt369Price(sig.targetLevel)}</code>`);
-    lines.push(`  Giá đi từ mốc:  <code>${fmt369Price(sig.condLevel)}</code>  ${direction}`);
-    lines.push(`  Open. tháng H4:  <code>${fmt369Price(sig.openPrice)}</code>`);
-    lines.push(`  Close. tháng H4: <code>${fmt369Price(sig.closePrice)}</code>`);
+    // lines.push(`  Giá đi từ mốc:  <code>${fmt369Price(sig.condLevel)}</code>  ${direction}`);
+    // lines.push(`  Open. tháng H4:  <code>${fmt369Price(sig.openPrice)}</code>`);
+    // lines.push(`  Close. tháng H4: <code>${fmt369Price(sig.closePrice)}</code>`);
 
-    if (sig.score) {
-      const sc = sig.score;
-      const verdictEmoji = sc.total >= 9 ? '🔥' : sc.total >= 7 ? '✅' : sc.total >= 5 ? '⚠️' : '❌';
-      lines.push(`  Confluence: ${verdictEmoji} <b>${sc.total}đ</b> [${sc.verdict}]`);
-      const parts = [
-        `TA=${sc.breakdown.ta}`,
-        `Whale=${sc.breakdown.whale}`,
-        `Deriv=${sc.breakdown.derivatives}`,
-        sc.breakdown.pp369 ? `PP369=${sc.breakdown.pp369}` : null,
-      ].filter(Boolean).join(' | ');
-      lines.push(`  <i>${parts}</i>`);
-    }
+    // if (sig.score) {
+    //   const sc = sig.score;
+    //   const verdictEmoji = sc.total >= 9 ? '🔥' : sc.total >= 7 ? '✅' : sc.total >= 5 ? '⚠️' : '❌';
+    //   lines.push(`  Confluence: ${verdictEmoji} <b>${sc.total}đ</b> [${sc.verdict}]`);
+    //   const parts = [
+    //     `TA=${sc.breakdown.ta}`,
+    //     `Whale=${sc.breakdown.whale}`,
+    //     `Deriv=${sc.breakdown.derivatives}`,
+    //     sc.breakdown.pp369 ? `PP369=${sc.breakdown.pp369}` : null,
+    //   ].filter(Boolean).join(' | ');
+    //   lines.push(`  <i>${parts}</i>`);
+    // }
 
-    if (sig.aiComment) {
-      lines.push('');
-      lines.push(`💬 <i>${sig.aiComment}</i>`);
-    }
+    // if (sig.aiComment) {
+    //   lines.push('');
+    //   lines.push(`💬 <i>${sig.aiComment}</i>`);
+    // }
 
     const gridConfig = getGridBotConfig(sig);
     if (gridConfig) {
       lines.push('');
-      lines.push('🤖 <b>Binance Futures Grid Bot Config:</b>');
-      lines.push(`  • Direction: <b>${gridConfig.direction}</b>`);
+      // lines.push('🤖 <b>Binance Futures Grid Bot Config:</b>');
+      // lines.push(`  • Direction: <b>${gridConfig.direction}</b>`);
       lines.push(`  • Price Range: <code>${fmt369Price(gridConfig.lowerPrice)}</code> - <code>${fmt369Price(gridConfig.upperPrice)}</code>`);
       // lines.push(`  • Grids: <code>${gridConfig.grids}</code> (Khuyên dùng: 20-50)`);
       // lines.push(`  • Leverage: <code>${gridConfig.leverage}</code> (An toàn: 2x-5x)`);
       // lines.push(`  • Stop Loss: <code>${fmt369Price(gridConfig.stopLoss)}</code> (ngoài khoảng giá mốc xa nhất)`);
     }
 
-    lines.push('');
+    // lines.push('');
   }
 
-  lines.push('<i>⚠️ Tín hiệu kỹ thuật 369</i>');
+  // lines.push('<i>⚠️ Tín hiệu kỹ thuật 369</i>');
   return lines.join('\n');
 }
 
