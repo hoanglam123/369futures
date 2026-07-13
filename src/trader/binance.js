@@ -14,10 +14,25 @@ const { log } = require('../pp369/_logger');
 const BASE = 'https://fapi.binance.com';
 const FILE_PATH = path.join(process.cwd(), 'data', 'step_sizes.json');
 
-// ─── Signing helpers ──────────────────────────────────────────────────────────
+let timeOffset = 0;
+
+async function syncTimeOffset() {
+  try {
+    const res = await axios.get(`${BASE}/fapi/v1/time`, { timeout: 5000 });
+    const serverTime = res.data.serverTime;
+    timeOffset = serverTime - Date.now();
+    log.system(`[Binance] Đã đồng bộ giờ: offset = ${timeOffset}ms (Giờ server: ${new Date(serverTime).toISOString()})`);
+  } catch (err) {
+    log.warn(`[Binance] Không thể đồng bộ giờ: ${err.message}`);
+  }
+}
+
+// Chạy đồng bộ giờ ngay khi load module
+syncTimeOffset().catch(() => {});
 
 function _buildBody(params) {
-  return new URLSearchParams({ ...params, timestamp: Date.now(), recvWindow: 15000 }).toString();
+  const timestamp = Date.now() + timeOffset;
+  return new URLSearchParams({ ...params, timestamp, recvWindow: 10000 }).toString();
 }
 
 function _sign(body, secret) {
