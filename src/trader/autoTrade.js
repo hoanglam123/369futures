@@ -163,12 +163,6 @@ async function startAutoTrade(coins) {
         continue;
       }
 
-      // Đánh dấu debounce ngay lập tức trước khi gửi Telegram và đặt lệnh để tránh spam
-      _markFired(sig);
-
-      // Gửi Telegram thông báo tín hiệu (fire-and-forget, không chặn luồng)
-      notifySignals([sig]).catch(() => { });
-
       // Kiểm tra chưa có vị thế mở (double check)
       try {
         const hasPos = await client.hasOpenPosition(sym);
@@ -219,6 +213,8 @@ async function startAutoTrade(coins) {
         }
 
         activeSymbols.add(sym); // Thêm vào danh sách active để check SL/TP ngay lập tức
+        _markFired(sig); // Đánh dấu debounce sau khi đặt lệnh thành công
+        notifySignals([sig]).catch(() => { }); // Gửi Telegram thông báo lệnh đã đặt thành công
         logSignal369(sig);
 
         log.system(
