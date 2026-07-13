@@ -38,6 +38,7 @@ const _fired = new Map();
 // Tránh thông báo đóng vị thế trùng lặp giữa bot (Virtual) và sàn
 const justClosedByBot = new Set();
 const lastActivePositions = new Map(); // sym -> { entryPrice, leverage, amt, isLong }
+const partialClosedSymbols = new Set(); // sym -> true (đã chốt lời 50% tại 13% ROI)
 
 
 function _signalKey(sig) {
@@ -312,6 +313,7 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
     for (const [prevSym, prevPos] of lastActivePositions.entries()) {
       const isStillOpen = positions.some(p => p.symbol === `${prevSym}USDT`);
       if (!isStillOpen) {
+        partialClosedSymbols.delete(prevSym); // Giải phóng trạng thái chốt lời một phần
         if (justClosedByBot.has(prevSym)) {
           justClosedByBot.delete(prevSym); // Bỏ qua vì bot đã chủ động gửi thông báo Virtual TP/SL rồi
         } else {
@@ -394,6 +396,23 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
       ];
 
       // ----------------------------------------------------
+      // 0. Hỗ trợ PARTIAL TP (ROI >= 13% -> Đóng 50% vị thế)
+      // ----------------------------------------------------
+      if (roi >= 13 && !partialClosedSymbols.has(sym)) {
+        partialClosedSymbols.add(sym);
+        const closeQty = parseFloat((absAmt * 0.5).toFixed(3)); // Đóng 50%
+        if (closeQty > 0) {
+          log.system(`[AutoTrade] [Partial TP] Đóng 50% vị thế của ${sym}: qty = ${closeQty}`);
+          try {
+            await client.placeMarket(sym, oppositeSide, closeQty);
+            await sendTelegram(`🔔 <b>[AutoTrade] Partial TP (50%)</b>\n• Coin: <b>${sym}</b>\n• Hướng đóng: <b>${oppositeSide}</b>\n• Số lượng đóng: <b>${closeQty}</b>\n• Giá khớp: <b>$${markPrice}</b>\n• ROI đạt: <b>${roi.toFixed(2)}%</b>`);
+          } catch (e) {
+            log.error(`[AutoTrade] [Partial TP] Thất bại cho ${sym}: ${e.message}`);
+          }
+        }
+      }
+
+      // ----------------------------------------------------
       // 1. Quản lý TAKE PROFIT (TP = 20% ROI)
       // ----------------------------------------------------
       if (realTpOrders.length === 0) {
@@ -410,7 +429,7 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
           continue; // Bỏ qua check SL cho coin này trong lượt này
         }
 
-        // Đặt lệnh TP thật lên sàn vì vị thế đang mở và chưa có TP
+        // Đặt lệnh TP thật lên sàn vì vị thế đang mở và chưa có TP (50% còn lại tiếp tục giữ TP 20% như ban đầu)
         const tpPrice = isLong
           ? entryPrice * (1 + 0.20 / leverageVal)
           : entryPrice * (1 - 0.20 / leverageVal);
@@ -425,10 +444,10 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
       }
 
       // ----------------------------------------------------
-      // 2. Quản lý STOP LOSS (SL = 13% ROI, Trailing SL entry + 1% khi ROI >= 10%)
+      // 2. Quản lý STOP LOSS (SL = 13% ROI, Trailing SL entry + 1% khi ROI >= 13%)
       // ----------------------------------------------------
       // Tính mức SL mục tiêu
-      const targetSlPrice = roi >= 10
+      const targetSlPrice = roi >= 13
         ? (isLong ? entryPrice * (1 + 0.01 / leverageVal) : entryPrice * (1 - 0.01 / leverageVal))
         : (isLong ? entryPrice * (1 - 0.13 / leverageVal) : entryPrice * (1 + 0.13 / leverageVal));
 
@@ -456,8 +475,8 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
       const targetSlStr = roundedTargetSl.toFixed(dec);
 
       if (realSlOrders.length > 0) {
-        // Có lệnh SL trên sàn -> Chỉ thực hiện khi cần dịch chuyển Trailing SL (ROI >= 10%)
-        if (roi >= 10) {
+        // Có lệnh SL trên sàn -> Chỉ thực hiện khi cần dịch chuyển Trailing SL (ROI >= 13%)
+        if (roi >= 13) {
           let alreadyMoved = false;
           for (const o of realSlOrders) {
             const stopPrice = parseFloat(o.stopPrice);
@@ -468,7 +487,7 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
           }
 
           if (!alreadyMoved) {
-            log.system(`[AutoTrade] Trailing SL: ${sym} đạt ROI ${roi.toFixed(2)}% (>= 10%) -> Dịch SL trên sàn về entry + 1% ROI ($${targetSlStr})`);
+            log.system(`[AutoTrade] Trailing SL: ${sym} đạt ROI ${roi.toFixed(2)}% (>= 13%) -> Dịch SL trên sàn về entry + 1% ROI ($${targetSlStr})`);
             // Hủy SL cũ
             for (const o of realSlOrders) {
               try {
@@ -501,7 +520,7 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
           : (markPrice >= roundedTargetSl);
 
         if (slTriggered) {
-          const typeLabel = roi >= 10 ? 'Virtual Trailing SL (+1% ROI)' : 'Virtual SL (13%)';
+          const typeLabel = roi >= 13 ? 'Virtual Trailing SL (+1% ROI)' : 'Virtual SL (13%)';
           log.system(`[AutoTrade] [${typeLabel}] Kích hoạt cho ${sym}: Giá ${markPrice} chạm/vượt mốc $${targetSlStr}. Đóng vị thế bằng lệnh MARKET.`);
           try {
             justClosedByBot.add(sym);
