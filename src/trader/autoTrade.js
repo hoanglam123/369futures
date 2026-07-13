@@ -29,7 +29,7 @@ const {
 const { log } = require('../pp369/_logger');
 
 const SCAN_INTERVAL_MS = 30_000;   // scan mỗi 30 giây
-const TRAILING_SL_INTERVAL_MS = 2_000; // kiểm tra vị thế để dịch SL mỗi 2 giây
+const TRAILING_SL_INTERVAL_MS = 3_000; // kiểm tra vị thế để dịch SL mỗi 3 giây (tăng interval để tránh rate limit)
 const DEBOUNCE_MS = 5 * 60_000; // 5 phút / tín hiệu
 
 // Debounce map: key → timestamp lần đặt lệnh gần nhất
@@ -107,7 +107,7 @@ async function startAutoTrade(coins) {
     try {
       const currentPos = await client.getOpenPositions();
       const currentOrders = await client.getOpenOrders();
-      const currentAlgoOrders = await client.getOpenAlgoOrders().catch(() => []);
+      const currentAlgoOrders = await client.getOpenAlgoOrders();
       
       activeSymbols.clear();
       for (const p of currentPos) {
@@ -304,23 +304,19 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
     const positions = await client.getOpenPositions();
     if (!positions.length) return;
 
-    // Lấy tất cả lệnh chờ trên sàn (cả lệnh thường và lệnh algo)
-    const [openOrdersResult, openAlgoOrdersResult] = await Promise.all([
-      client.getOpenOrders().catch(() => []),
-      client.getOpenAlgoOrders().catch(() => [])
-    ]);
+    // Lấy các symbols của vị thế đang mở
+    const openSymbols = positions.map(p => p.symbol.replace('USDT', ''));
 
-    // Trộn hai danh sách để quản lý chung
-    const allOpenOrders = [
-      ...openOrdersResult,
-      ...openAlgoOrdersResult.map(o => ({
-        ...o,
-        orderId: o.algoId,       // Đồng bộ trường orderId cho tương thích với logic cũ
-        type: o.orderType,       // Đồng bộ trường type cho tương thích với logic cũ
-        stopPrice: o.triggerPrice, // Đồng bộ trường stopPrice cho tương thích với logic cũ
-        isAlgo: true             // Đánh dấu là lệnh Algo
-      }))
-    ];
+    // Lấy lệnh thường và lệnh algo cho từng symbol song song (không catch lỗi ẩn để tránh đua lệnh)
+    const orderPromises = openSymbols.map(async (sym) => {
+      const [orders, algoOrders] = await Promise.all([
+        client.getOpenOrders(sym),
+        client.getOpenAlgoOrders(sym)
+      ]);
+      return { sym, orders, algoOrders };
+    });
+
+    const symbolOrdersResults = await Promise.all(orderPromises);
 
     for (const p of positions) {
       const sym = p.symbol.replace('USDT', '');
@@ -340,10 +336,32 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
         ? ((markPrice - entryPrice) / entryPrice) * leverageVal * 100
         : ((entryPrice - markPrice) / entryPrice) * leverageVal * 100;
 
-      // Lọc ra các lệnh chờ của symbol hiện tại từ danh sách đã lấy
-      const openOrders = allOpenOrders.filter(o => o.symbol === `${sym}USDT`);
-      const realSlOrders = openOrders.filter(o => o.type === 'STOP_MARKET');
-      const realTpOrders = openOrders.filter(o => o.type === 'TAKE_PROFIT_MARKET');
+      // Lấy danh sách lệnh chờ của symbol hiện tại từ kết quả đã truy vấn
+      const symbolResult = symbolOrdersResults.find(r => r.sym === sym);
+      const openOrders = symbolResult ? symbolResult.orders : [];
+      const openAlgoOrders = symbolResult ? symbolResult.algoOrders : [];
+
+      const realSlOrders = [
+        ...openOrders.filter(o => o.type === 'STOP_MARKET'),
+        ...openAlgoOrders.filter(o => o.orderType === 'STOP_MARKET').map(o => ({
+          ...o,
+          orderId: o.algoId,
+          type: o.orderType,
+          stopPrice: o.triggerPrice,
+          isAlgo: true
+        }))
+      ];
+
+      const realTpOrders = [
+        ...openOrders.filter(o => o.type === 'TAKE_PROFIT_MARKET'),
+        ...openAlgoOrders.filter(o => o.orderType === 'TAKE_PROFIT_MARKET').map(o => ({
+          ...o,
+          orderId: o.algoId,
+          type: o.orderType,
+          stopPrice: o.triggerPrice,
+          isAlgo: true
+        }))
+      ];
 
       // ----------------------------------------------------
       // 1. Quản lý TAKE PROFIT (TP = 20% ROI)
