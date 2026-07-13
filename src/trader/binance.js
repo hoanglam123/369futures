@@ -43,34 +43,54 @@ function _authHeaders(apiKey) {
   return { 'X-MBX-APIKEY': apiKey };
 }
 
+async function _requestWithRetry(fn) {
+  try {
+    return await fn();
+  } catch (err) {
+    const data = err.response?.data;
+    if (data && data.code === -1021) {
+      log.system(`[Binance] Lỗi -1021 (Timestamp outside recvWindow). Đang tự động đồng bộ lại giờ và thử lại...`);
+      await syncTimeOffset();
+      return await fn();
+    }
+    throw err;
+  }
+}
+
 async function _post(path, params, apiKey, secret) {
-  const body = _buildBody(params);
-  const sig = _sign(body, secret);
-  const res = await axios.post(`${BASE}${path}`, `${body}&signature=${sig}`, {
-    headers: { ..._authHeaders(apiKey), 'Content-Type': 'application/x-www-form-urlencoded' },
-    timeout: 10000,
+  return _requestWithRetry(async () => {
+    const body = _buildBody(params);
+    const sig = _sign(body, secret);
+    const res = await axios.post(`${BASE}${path}`, `${body}&signature=${sig}`, {
+      headers: { ..._authHeaders(apiKey), 'Content-Type': 'application/x-www-form-urlencoded' },
+      timeout: 10000,
+    });
+    return res.data;
   });
-  return res.data;
 }
 
 async function _get(path, params, apiKey, secret) {
-  const body = _buildBody(params);
-  const sig = _sign(body, secret);
-  const res = await axios.get(`${BASE}${path}?${body}&signature=${sig}`, {
-    headers: _authHeaders(apiKey),
-    timeout: 10000,
+  return _requestWithRetry(async () => {
+    const body = _buildBody(params);
+    const sig = _sign(body, secret);
+    const res = await axios.get(`${BASE}${path}?${body}&signature=${sig}`, {
+      headers: _authHeaders(apiKey),
+      timeout: 10000,
+    });
+    return res.data;
   });
-  return res.data;
 }
 
 async function _delete(path, params, apiKey, secret) {
-  const body = _buildBody(params);
-  const sig = _sign(body, secret);
-  const res = await axios.delete(`${BASE}${path}?${body}&signature=${sig}`, {
-    headers: _authHeaders(apiKey),
-    timeout: 10000,
+  return _requestWithRetry(async () => {
+    const body = _buildBody(params);
+    const sig = _sign(body, secret);
+    const res = await axios.delete(`${BASE}${path}?${body}&signature=${sig}`, {
+      headers: _authHeaders(apiKey),
+      timeout: 10000,
+    });
+    return res.data;
   });
-  return res.data;
 }
 
 // ─── Exchange info (không cần auth) ──────────────────────────────────────────
