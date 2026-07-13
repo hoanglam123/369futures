@@ -566,7 +566,7 @@ async function notifyRealClose(client, sym, prevPos) {
     const lastTrade = closeTrades[0];
 
     const closePrice = parseFloat(lastTrade.price);
-    const realizedProfit = parseFloat(lastTrade.realizedProfit);
+    const realizedProfit = parseFloat(lastTrade.realizedPnl || lastTrade.realizedProfit || '0');
     const timeStr = new Date(lastTrade.time).toLocaleString('vi-VN');
 
     // Tính toán tỷ lệ ROI thực tế khi đóng vị thế
