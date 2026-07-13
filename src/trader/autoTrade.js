@@ -103,15 +103,20 @@ async function startAutoTrade(coins) {
     // 1. Cập nhật lại giá REST của toàn bộ coin để kiểm tra xem có coin nào mới đi vào mốc gần phản ứng không
     await updatePricesRest();
 
-    // Đồng bộ danh sách coin có vị thế hoặc lệnh chờ để tối ưu checkTrailingSL
+    // Đồng bộ danh sách coin có vị thế hoặc lệnh chờ (thường + algo) để tối ưu checkTrailingSL
     try {
       const currentPos = await client.getOpenPositions();
       const currentOrders = await client.getOpenOrders();
+      const currentAlgoOrders = await client.getOpenAlgoOrders().catch(() => []);
+      
       activeSymbols.clear();
       for (const p of currentPos) {
         activeSymbols.add(p.symbol.replace('USDT', ''));
       }
       for (const o of currentOrders) {
+        activeSymbols.add(o.symbol.replace('USDT', ''));
+      }
+      for (const o of currentAlgoOrders) {
         activeSymbols.add(o.symbol.replace('USDT', ''));
       }
     } catch (e) {
@@ -239,14 +244,16 @@ async function startAutoTrade(coins) {
 
           try {
             const tpOrder = await client.placeStopOrder(sym, oppositeSide, 'TAKE_PROFIT_MARKET', tpPrice);
-            log.system(`[AutoTrade] ✓ Đặt TP ${sym} @ $${tpOrder.stopPrice || tpPrice} (đối ứng ${oppositeSide}) orderId=${tpOrder.orderId}`);
+            const tpId = tpOrder.orderId || tpOrder.algoId || 'unknown';
+            log.system(`[AutoTrade] ✓ Đặt TP ${sym} @ $${tpOrder.stopPrice || tpOrder.triggerPrice || tpPrice} (đối ứng ${oppositeSide}) orderId=${tpId}`);
           } catch (e) {
             log.warn(`[AutoTrade] Đặt TP ${sym} thất bại: ${_binanceErr(e)}`);
           }
 
           try {
             const slOrder = await client.placeStopOrder(sym, oppositeSide, 'STOP_MARKET', slPrice);
-            log.system(`[AutoTrade] ✓ Đặt SL ${sym} @ $${slOrder.stopPrice || slPrice} (đối ứng ${oppositeSide}) orderId=${slOrder.orderId}`);
+            const slId = slOrder.orderId || slOrder.algoId || 'unknown';
+            log.system(`[AutoTrade] ✓ Đặt SL ${sym} @ $${slOrder.stopPrice || slOrder.triggerPrice || slPrice} (đối ứng ${oppositeSide}) orderId=${slId}`);
           } catch (e) {
             log.warn(`[AutoTrade] Đặt SL ${sym} thất bại: ${_binanceErr(e)}`);
           }
@@ -327,8 +334,23 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
     const positions = await client.getOpenPositions();
     if (!positions.length) return;
 
-    // Lấy tất cả lệnh chờ trên sàn một lần duy nhất để tối ưu API call
-    const allOpenOrders = await client.getOpenOrders();
+    // Lấy tất cả lệnh chờ trên sàn (cả lệnh thường và lệnh algo)
+    const [openOrdersResult, openAlgoOrdersResult] = await Promise.all([
+      client.getOpenOrders().catch(() => []),
+      client.getOpenAlgoOrders().catch(() => [])
+    ]);
+
+    // Trộn hai danh sách để quản lý chung
+    const allOpenOrders = [
+      ...openOrdersResult,
+      ...openAlgoOrdersResult.map(o => ({
+        ...o,
+        orderId: o.algoId,       // Đồng bộ trường orderId cho tương thích với logic cũ
+        type: o.orderType,       // Đồng bộ trường type cho tương thích với logic cũ
+        stopPrice: o.triggerPrice, // Đồng bộ trường stopPrice cho tương thích với logic cũ
+        isAlgo: true             // Đánh dấu là lệnh Algo
+      }))
+    ];
 
     for (const p of positions) {
       const sym = p.symbol.replace('USDT', '');
@@ -418,7 +440,11 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
             // Hủy SL cũ
             for (const o of realSlOrders) {
               try {
-                await client.cancelOrder(sym, o.orderId);
+                if (o.isAlgo) {
+                  await client.cancelAlgoOrder(sym, o.orderId);
+                } else {
+                  await client.cancelOrder(sym, o.orderId);
+                }
                 log.system(`[AutoTrade] Đã hủy SL cũ của ${sym} (orderId=${o.orderId})`);
               } catch (e) {
                 log.warn(`[AutoTrade] Hủy SL cũ ${sym} thất bại: ${e.message}`);
@@ -427,7 +453,9 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
             // Đặt SL mới
             try {
               const newSl = await client.placeStopOrder(sym, oppositeSide, 'STOP_MARKET', roundedTargetSl);
-              log.system(`[AutoTrade] ✓ Đã dịch SL mới cho ${sym} @ $${newSl.stopPrice} (orderId=${newSl.orderId})`);
+              const orderIdStr = newSl.orderId || newSl.algoId || 'unknown';
+              const stopPriceStr = newSl.stopPrice || newSl.triggerPrice || roundedTargetSl;
+              log.system(`[AutoTrade] ✓ Đã dịch SL mới cho ${sym} @ $${stopPriceStr} (orderId=${orderIdStr})`);
             } catch (e) {
               log.warn(`[AutoTrade] Đặt SL mới trên sàn thất bại: ${e.message} -> Sẽ quản lý Virtual SL từ lượt tiếp theo.`);
             }

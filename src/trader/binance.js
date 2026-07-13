@@ -286,14 +286,33 @@ function createClient(apiKey, secret) {
         finalStopPriceStr = stopPrice.toFixed(5); // fallback
       }
 
-      return _post('/fapi/v1/order', {
+      return _post('/fapi/v1/algoOrder', {
+        algoType: 'CONDITIONAL',
         symbol: `${symbol}USDT`,
         side,
         type,
-        stopPrice: finalStopPriceStr,
+        triggerPrice: finalStopPriceStr,
         closePosition: 'true',
         positionSide: 'BOTH',
       }, apiKey, secret);
+    },
+
+    /**
+     * Lấy danh sách lệnh Algo đang chờ của 1 symbol (hoặc toàn bộ nếu không truyền).
+     */
+    getOpenAlgoOrders(symbol) {
+      const params = {};
+      if (symbol) {
+        params.symbol = `${symbol}USDT`;
+      }
+      return _get('/fapi/v1/openAlgoOrders', params, apiKey, secret);
+    },
+
+    /**
+     * Hủy lệnh Algo theo algoId.
+     */
+    cancelAlgoOrder(symbol, algoId) {
+      return _delete('/fapi/v1/algoOrder', { symbol: `${symbol}USDT`, algoId }, apiKey, secret);
     },
 
     /**
