@@ -115,7 +115,7 @@ async function startAutoTrade(coins) {
         activeSymbols.add(o.symbol.replace('USDT', ''));
       }
     } catch (e) {
-      log.warn(`[AutoTrade] Lỗi đồng bộ activeSymbols: ${e.message}`);
+      log.warn(`[AutoTrade] Lỗi đồng bộ activeSymbols: ${_binanceErr(e)}`);
     }
 
     const levelCache = getLevelCache();
