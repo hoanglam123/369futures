@@ -227,37 +227,7 @@ async function startAutoTrade(coins) {
           `orderId=${order.orderId} status=${order.status}`
         );
 
-        // Đặt thêm TP (20%) và SL (13%) khi đặt lệnh LIMIT thành công
-        if (orderType !== 'MARKET' && order && order.orderId) {
-          const entryPrice = sig.targetLevel;
-          const oppositeSide = side === 'BUY' ? 'SELL' : 'BUY';
 
-          // TP = 20% / leverage, SL = 13% / leverage
-          let tpPrice, slPrice;
-          if (side === 'BUY') {
-            tpPrice = entryPrice * (1 + 0.20 / effectiveLeverage);
-            slPrice = entryPrice * (1 - 0.13 / effectiveLeverage);
-          } else {
-            tpPrice = entryPrice * (1 - 0.20 / effectiveLeverage);
-            slPrice = entryPrice * (1 + 0.13 / effectiveLeverage);
-          }
-
-          try {
-            const tpOrder = await client.placeStopOrder(sym, oppositeSide, 'TAKE_PROFIT_MARKET', tpPrice);
-            const tpId = tpOrder.orderId || tpOrder.algoId || 'unknown';
-            log.system(`[AutoTrade] ✓ Đặt TP ${sym} @ $${tpOrder.stopPrice || tpOrder.triggerPrice || tpPrice} (đối ứng ${oppositeSide}) orderId=${tpId}`);
-          } catch (e) {
-            log.warn(`[AutoTrade] Đặt TP ${sym} thất bại: ${_binanceErr(e)}`);
-          }
-
-          try {
-            const slOrder = await client.placeStopOrder(sym, oppositeSide, 'STOP_MARKET', slPrice);
-            const slId = slOrder.orderId || slOrder.algoId || 'unknown';
-            log.system(`[AutoTrade] ✓ Đặt SL ${sym} @ $${slOrder.stopPrice || slOrder.triggerPrice || slPrice} (đối ứng ${oppositeSide}) orderId=${slId}`);
-          } catch (e) {
-            log.warn(`[AutoTrade] Đặt SL ${sym} thất bại: ${_binanceErr(e)}`);
-          }
-        }
 
       } catch (e) {
         const binErr = e.response?.data;
@@ -379,7 +349,6 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
       // 1. Quản lý TAKE PROFIT (TP = 20% ROI)
       // ----------------------------------------------------
       if (realTpOrders.length === 0) {
-        // Không có lệnh TP trên sàn -> Quản lý Virtual TP
         if (roi >= 20) {
           log.system(`[AutoTrade] [Virtual TP] Kích hoạt cho ${sym}: ROI = ${roi.toFixed(2)}% (>= 20%). Đóng vị thế bằng lệnh MARKET.`);
           try {
@@ -389,6 +358,19 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
             log.error(`[AutoTrade] [Virtual TP] Lỗi đóng vị thế ${sym}: ${e.message}`);
           }
           continue; // Bỏ qua check SL cho coin này trong lượt này
+        }
+
+        // Đặt lệnh TP thật lên sàn vì vị thế đang mở và chưa có TP
+        const tpPrice = isLong
+          ? entryPrice * (1 + 0.20 / leverageVal)
+          : entryPrice * (1 - 0.20 / leverageVal);
+
+        try {
+          const tpOrder = await client.placeStopOrder(sym, oppositeSide, 'TAKE_PROFIT_MARKET', tpPrice);
+          const tpId = tpOrder.orderId || tpOrder.algoId || 'unknown';
+          log.system(`[AutoTrade] ✓ Đặt TP ${sym} @ $${tpOrder.stopPrice || tpOrder.triggerPrice || tpPrice} (đối ứng ${oppositeSide}) orderId=${tpId}`);
+        } catch (e) {
+          log.error(`[AutoTrade] Đặt TP ${sym} thất bại: ${_binanceErr(e)}`);
         }
       }
 
@@ -462,7 +444,8 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
           }
         }
       } else {
-        // Không có lệnh SL trên sàn -> Quản lý Virtual SL
+        // Không có lệnh SL trên sàn -> Đặt lệnh SL thật lên sàn
+        // Kiểm tra trước xem đã chạm mốc cắt lỗ chưa (Virtual SL)
         const slTriggered = isLong
           ? (markPrice <= roundedTargetSl)
           : (markPrice >= roundedTargetSl);
@@ -475,6 +458,15 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
             await sendTelegram(`🔔 <b>[AutoTrade] ${typeLabel}</b>\n• Coin: <b>${sym}</b>\n• Hướng: <b>${oppositeSide} (Close)</b>\n• Giá khớp: <b>$${markPrice}</b>\n• ROI đạt: <b>${roi.toFixed(2)}%</b>`);
           } catch (e) {
             log.error(`[AutoTrade] [${typeLabel}] Lỗi đóng vị thế ${sym}: ${e.message}`);
+          }
+        } else {
+          // Chưa chạm mốc cắt lỗ -> Đặt lệnh SL thật lên sàn
+          try {
+            const slOrder = await client.placeStopOrder(sym, oppositeSide, 'STOP_MARKET', roundedTargetSl);
+            const slId = slOrder.orderId || slOrder.algoId || 'unknown';
+            log.system(`[AutoTrade] ✓ Đặt SL ${sym} @ $${slOrder.stopPrice || slOrder.triggerPrice || roundedTargetSl} (đối ứng ${oppositeSide}) orderId=${slId}`);
+          } catch (e) {
+            log.error(`[AutoTrade] Đặt SL ${sym} thất bại: ${_binanceErr(e)}`);
           }
         }
       }
