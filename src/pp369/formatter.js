@@ -52,7 +52,7 @@ function format369Alert(signals) {
     // const direction = sig.signal === 'LONG' ? 'xuống' : 'lên';
     const lan = sig.touchCount + 1;
 
-    lines.push(`${emoji} <b>${sig.symbol}</b> → <b>${sig.signal}`);
+    lines.push(`${emoji} <b>${sig.symbol}</b> → <b>${sig.signal}</b>`);
     lines.push(`  Vào tại:         <code>${fmt369Price(sig.targetLevel)}</code>`);
     // lines.push(`  Giá đi từ mốc:  <code>${fmt369Price(sig.condLevel)}</code>  ${direction}`);
     // lines.push(`  Open. tháng H4:  <code>${fmt369Price(sig.openPrice)}</code>`);

@@ -17,7 +17,7 @@ const FILE_PATH = path.join(process.cwd(), 'data', 'step_sizes.json');
 // ─── Signing helpers ──────────────────────────────────────────────────────────
 
 function _buildBody(params) {
-  return new URLSearchParams({ ...params, timestamp: Date.now() }).toString();
+  return new URLSearchParams({ ...params, timestamp: Date.now(), recvWindow: 15000 }).toString();
 }
 
 function _sign(body, secret) {
