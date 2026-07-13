@@ -751,7 +751,7 @@ async function get369Signal(symbol, currentPrice = null) {
  * @param {Object}   taMap   - TA data map để lấy giá hiện tại (optional)
  * @returns {Object} { BTC: signal, ETH: signal, ... }
  */
-async function get369SignalsForCoins(symbols, taMap = {}) {
+async function get369SignalsForCoins(symbols, taMap = {}, notifyTelegram = false) {
   const CONCURRENCY = 3;
   const map = {};
 
@@ -768,9 +768,9 @@ async function get369SignalsForCoins(symbols, taMap = {}) {
     }
   }
 
-  // Gửi Telegram khi có tín hiệu LONG hoặc SHORT mới
+  // Gửi Telegram khi có tín hiệu LONG hoặc SHORT mới (nếu được yêu cầu)
   const activeSignals = Object.values(map).filter(s => s.signal === 'LONG' || s.signal === 'SHORT');
-  if (activeSignals.length > 0) {
+  if (notifyTelegram && activeSignals.length > 0) {
     notifySignals(activeSignals).catch(() => {}); // fire-and-forget, không chặn luồng chính
   }
 

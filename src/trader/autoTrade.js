@@ -128,6 +128,11 @@ async function startAutoTrade(coins) {
     if (!nearby.length) return;
 
     for (const sym of nearby) {
+      // Bỏ qua nếu coin đã có vị thế mở hoặc lệnh chờ khớp trên sàn để tránh đặt trùng
+      if (activeSymbols.has(sym)) {
+        continue;
+      }
+
       const markPrice = getMarkPrice(sym);
 
       let sig;
@@ -158,15 +163,17 @@ async function startAutoTrade(coins) {
         continue;
       }
 
+      // Đánh dấu debounce ngay lập tức trước khi gửi Telegram và đặt lệnh để tránh spam
+      _markFired(sig);
+
       // Gửi Telegram thông báo tín hiệu (fire-and-forget, không chặn luồng)
       notifySignals([sig]).catch(() => { });
 
-      // Kiểm tra chưa có vị thế mở
+      // Kiểm tra chưa có vị thế mở (double check)
       try {
         const hasPos = await client.hasOpenPosition(sym);
         if (hasPos) {
           log.system(`[AutoTrade] ${sym} đang có vị thế mở — bỏ qua`);
-          _markFired(sig); // debounce luôn để không check lại liên tục
           continue;
         }
       } catch (e) {
@@ -212,7 +219,6 @@ async function startAutoTrade(coins) {
         }
 
         activeSymbols.add(sym); // Thêm vào danh sách active để check SL/TP ngay lập tức
-        _markFired(sig);
         logSignal369(sig);
 
         log.system(
