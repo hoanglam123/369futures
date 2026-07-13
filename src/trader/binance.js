@@ -355,6 +355,13 @@ function createClient(apiKey, secret) {
     },
 
     /**
+     * Lấy lịch sử giao dịch cá nhân gần nhất cho 1 symbol.
+     */
+    getUserTrades(symbol, limit = 5) {
+      return _get('/fapi/v1/userTrades', { symbol: `${symbol}USDT`, limit }, apiKey, secret);
+    },
+
+    /**
      * Hủy lệnh theo orderId.
      */
     cancelOrder(symbol, orderId) {

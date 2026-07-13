@@ -35,6 +35,11 @@ const DEBOUNCE_MS = 5 * 60_000; // 5 phút / tín hiệu
 // Debounce map: key → timestamp lần đặt lệnh gần nhất
 const _fired = new Map();
 
+// Tránh thông báo đóng vị thế trùng lặp giữa bot (Virtual) và sàn
+const justClosedByBot = new Set();
+const lastActivePositions = new Map(); // sym -> { entryPrice, leverage, amt, isLong }
+
+
 function _signalKey(sig) {
   // Unique key theo symbol + hướng + tháng + mức entry — tránh re-entry cùng setup
   return `${sig.symbol}|${sig.signal}|${sig.month}|${sig.targetLevel}`;
@@ -302,6 +307,31 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
     if (!activeSymbols || activeSymbols.size === 0) return;
 
     const positions = await client.getOpenPositions();
+
+    // Kiểm tra xem có vị thế nào ở lượt trước mà lượt này không còn không (sàn đóng hoặc user đóng tay)
+    for (const [prevSym, prevPos] of lastActivePositions.entries()) {
+      const isStillOpen = positions.some(p => p.symbol === `${prevSym}USDT`);
+      if (!isStillOpen) {
+        if (justClosedByBot.has(prevSym)) {
+          justClosedByBot.delete(prevSym); // Bỏ qua vì bot đã chủ động gửi thông báo Virtual TP/SL rồi
+        } else {
+          notifyRealClose(client, prevSym, prevPos).catch(() => {});
+        }
+      }
+    }
+
+    // Cập nhật lại trạng thái các vị thế hoạt động cho lượt sau
+    lastActivePositions.clear();
+    for (const p of positions) {
+      const sym = p.symbol.replace('USDT', '');
+      lastActivePositions.set(sym, {
+        entryPrice: parseFloat(p.entryPrice),
+        leverage: parseFloat(p.leverage),
+        amt: parseFloat(p.positionAmt),
+        isLong: parseFloat(p.positionAmt) > 0
+      });
+    }
+
     if (!positions.length) return;
 
     // Lấy các symbols của vị thế đang mở
@@ -370,9 +400,11 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
         if (roi >= 20) {
           log.system(`[AutoTrade] [Virtual TP] Kích hoạt cho ${sym}: ROI = ${roi.toFixed(2)}% (>= 20%). Đóng vị thế bằng lệnh MARKET.`);
           try {
+            justClosedByBot.add(sym);
             await client.placeMarket(sym, oppositeSide, absAmt);
             await sendTelegram(`🔔 <b>[AutoTrade] Virtual TP</b>\n• Coin: <b>${sym}</b>\n• Hướng: <b>${oppositeSide} (Close)</b>\n• Giá khớp: <b>$${markPrice}</b>\n• ROI đạt: <b>${roi.toFixed(2)}%</b>`);
           } catch (e) {
+            justClosedByBot.delete(sym);
             log.error(`[AutoTrade] [Virtual TP] Lỗi đóng vị thế ${sym}: ${e.message}`);
           }
           continue; // Bỏ qua check SL cho coin này trong lượt này
@@ -472,9 +504,11 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
           const typeLabel = roi >= 10 ? 'Virtual Trailing SL (+1% ROI)' : 'Virtual SL (13%)';
           log.system(`[AutoTrade] [${typeLabel}] Kích hoạt cho ${sym}: Giá ${markPrice} chạm/vượt mốc $${targetSlStr}. Đóng vị thế bằng lệnh MARKET.`);
           try {
+            justClosedByBot.add(sym);
             await client.placeMarket(sym, oppositeSide, absAmt);
             await sendTelegram(`🔔 <b>[AutoTrade] ${typeLabel}</b>\n• Coin: <b>${sym}</b>\n• Hướng: <b>${oppositeSide} (Close)</b>\n• Giá khớp: <b>$${markPrice}</b>\n• ROI đạt: <b>${roi.toFixed(2)}%</b>`);
           } catch (e) {
+            justClosedByBot.delete(sym);
             log.error(`[AutoTrade] [${typeLabel}] Lỗi đóng vị thế ${sym}: ${e.message}`);
           }
         } else {
@@ -491,6 +525,57 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
     }
   } catch (err) {
     log.warn(`[AutoTrade] Lỗi kiểm tra virtual TP/SL: ${err.message}`);
+  }
+}
+
+async function notifyRealClose(client, sym, prevPos) {
+  try {
+    // Chờ 1.5 giây để Binance Futures cập nhật đầy đủ lịch sử giao dịch đóng vị thế
+    await new Promise(resolve => setTimeout(resolve, 1500));
+
+    // Lấy 5 giao dịch cá nhân gần nhất của symbol này
+    const trades = await client.getUserTrades(sym, 5);
+    if (!trades || !trades.length) return;
+
+    // Lọc các giao dịch đóng vị thế (có side ngược với hướng vị thế của prevPos)
+    const oppositeSide = prevPos.isLong ? 'SELL' : 'BUY';
+    const closeTrades = trades.filter(t => t.side === oppositeSide);
+    if (!closeTrades.length) return;
+
+    // Lấy giao dịch đóng mới nhất
+    closeTrades.sort((a, b) => b.time - a.time);
+    const lastTrade = closeTrades[0];
+
+    const closePrice = parseFloat(lastTrade.price);
+    const realizedProfit = parseFloat(lastTrade.realizedProfit);
+    const timeStr = new Date(lastTrade.time).toLocaleString('vi-VN');
+
+    // Tính toán tỷ lệ ROI thực tế khi đóng vị thế
+    const priceDiff = prevPos.isLong ? (closePrice - prevPos.entryPrice) : (prevPos.entryPrice - closePrice);
+    const roi = (priceDiff / prevPos.entryPrice) * prevPos.leverage * 100;
+
+    // Phân loại lý do đóng
+    let typeLabel = 'Đóng vị thế (Khớp sàn)';
+    if (realizedProfit > 0) {
+      typeLabel = '🎯 Take Profit (Sàn khớp)';
+    } else if (realizedProfit < 0) {
+      typeLabel = '🛡️ Stop Loss (Sàn khớp)';
+    }
+
+    const profitEmoji = realizedProfit >= 0 ? '🟢' : '🔴';
+
+    await sendTelegram(
+      `🔔 <b>[AutoTrade] ${typeLabel}</b>\n` +
+      `• Coin: <b>${sym}</b>\n` +
+      `• Hướng đóng: <b>${oppositeSide}</b>\n` +
+      `• Giá entry: <b>$${prevPos.entryPrice}</b>\n` +
+      `• Giá đóng: <b>$${closePrice}</b>\n` +
+      `• ROI đạt: <b>${roi.toFixed(2)}%</b>\n` +
+      `• Lợi nhuận: <b>${profitEmoji} $${realizedProfit.toFixed(2)}</b>\n` +
+      `• Thời gian: <b>${timeStr}</b>`
+    );
+  } catch (e) {
+    log.warn(`[AutoTrade] Lỗi gửi thông báo đóng vị thế ${sym}: ${e.message}`);
   }
 }
 
