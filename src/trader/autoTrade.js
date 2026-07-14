@@ -208,6 +208,8 @@ async function startAutoTrade(coins) {
       const maxAllowed = leverageInfo[sym] ?? leverage; // leverage mặc định từ .env làm fallback
       const effectiveLeverage = Math.max(1, Math.min(calculatedLeverage, maxAllowed));
 
+      sig.leverage = effectiveLeverage; // Gán vào signal để formatter hiển thị đòn bẩy chính xác trên Telegram
+
       // 2. Tính Notional động để cố định ký quỹ (Margin) = TRADE_AMOUNT = 10$
       const currentNotional = amount * effectiveLeverage;
 
