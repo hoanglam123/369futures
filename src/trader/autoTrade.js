@@ -201,8 +201,9 @@ async function startAutoTrade(coins) {
         log.warn(`[AutoTrade] Không check được vị thế ${sym}: ${_binanceErr(e)} — vẫn tiếp tục đặt lệnh`);
       }
 
-      // 1. Tính đòn bẩy động theo độ rộng grid: pct = (step / targetLevel) * 100
-      const pct = (sig.step / (sig.targetLevel || sig.openPrice)) * 100;
+      // 1. Tính đòn bẩy động theo khoảng cách thực tế giữa mốc LONG dưới và SHORT trên
+      const gridWidth = Math.abs(sig.condLevel - sig.targetLevel);
+      const pct = (gridWidth / Math.min(sig.targetLevel, sig.condLevel)) * 100;
       const calculatedLeverage = Math.floor(50 / pct);
       const maxAllowed = leverageInfo[sym] ?? leverage; // leverage mặc định từ .env làm fallback
       const effectiveLeverage = Math.max(1, Math.min(calculatedLeverage, maxAllowed));
