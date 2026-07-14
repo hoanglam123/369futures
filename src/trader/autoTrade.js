@@ -40,6 +40,22 @@ const justClosedByBot = new Set();
 const lastActivePositions = new Map(); // sym -> { entryPrice, leverage, amt, isLong }
 const partialClosedSymbols = new Set(); // sym -> true (đã chốt lời 50% tại 13% ROI)
 
+function formatQuantity(sym, rawQty) {
+  let stepSize = 0.001;
+  try {
+    const filePath = path.join(process.cwd(), 'data', 'step_sizes.json');
+    if (fs.existsSync(filePath)) {
+      const content = fs.readFileSync(filePath, 'utf8');
+      const data = JSON.parse(content);
+      const stepSizes = data.stepSizes ?? {};
+      stepSize = stepSizes[`${sym}USDT`] ?? 0.001;
+    }
+  } catch (_) {}
+  
+  const qty = Math.floor(rawQty / stepSize) * stepSize;
+  const dec = Math.max(0, Math.round(-Math.log10(stepSize)));
+  return parseFloat(qty.toFixed(dec));
+}
 
 function _signalKey(sig) {
   // Unique key theo symbol + hướng + tháng + mức entry — tránh re-entry cùng setup
@@ -400,7 +416,7 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
       // ----------------------------------------------------
       if (roi >= 10 && !partialClosedSymbols.has(sym)) {
         partialClosedSymbols.add(sym);
-        const closeQty = parseFloat((absAmt * 0.5).toFixed(3)); // Đóng 50%
+        const closeQty = formatQuantity(sym, absAmt * 0.5); // Đóng 50%
         if (closeQty > 0) {
           log.system(`[AutoTrade] [Partial TP] Đóng 50% vị thế của ${sym}: qty = ${closeQty}`);
           try {
