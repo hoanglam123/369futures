@@ -27,7 +27,10 @@ async function sendTelegram(text) {
       disable_web_page_preview: true,
     }, { timeout: 10_000 });
   } catch (err) {
-    log.warn(`[Telegram] Lỗi gửi tin nhắn: ${err.message}`);
+    const apiDesc = err.response?.data?.description ?? '(no response body)';
+    const preview = text ? text.slice(0, 300).replace(/\n/g, '↵') : '(empty)';
+    log.warn(`[Telegram] Lỗi gửi tin nhắn: ${err.message} | API: ${apiDesc}`);
+    log.warn(`[Telegram] Nội dung bị lỗi (300 ký tự đầu): ${preview}`);
   }
 }
 
