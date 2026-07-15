@@ -194,6 +194,24 @@ async function startAutoTrade(coins) {
 
       log.system(`[AutoTrade] ${sym} → ${sig.signal} (Score: +${sig.score}đ) tại $${sig.targetLevel}`);
 
+      // Bắt buộc phải có Tiêu chí 2 (Biến động H1 <= Step)
+      const hasCriterion2 = sig.scoreReasons && sig.scoreReasons.some(r => r.includes('[Biến động H1]') && r.includes('(+2)'));
+      if (!hasCriterion2) {
+        log.system(`[AutoTrade] ${sym} ${sig.signal} không đạt Tiêu chí 2 (Biến động H1 <= Step) — bỏ qua`);
+        continue;
+      }
+
+      // Xác định số tiền vào lệnh dựa trên điểm số
+      let tradeAmount = 0;
+      if (sig.score < 4) {
+        log.system(`[AutoTrade] ${sym} ${sig.signal} có Score = ${sig.score}đ < 4đ — bỏ qua`);
+        continue;
+      } else if (sig.score >= 4 && sig.score <= 6) {
+        tradeAmount = 10;
+      } else if (sig.score >= 7) {
+        tradeAmount = 20;
+      }
+
       // Kiểm tra debounce
       if (_isDebounced(sig)) {
         log.system(`[AutoTrade] ${sym} ${sig.signal} đã đặt gần đây — bỏ qua`);
@@ -220,8 +238,8 @@ async function startAutoTrade(coins) {
 
       sig.leverage = effectiveLeverage; // Gán vào signal để formatter hiển thị đòn bẩy chính xác trên Telegram
 
-      // 2. Tính Notional động để cố định ký quỹ (Margin) = TRADE_AMOUNT = 10$
-      const currentNotional = amount * effectiveLeverage;
+      // 2. Tính Notional động để cố định ký quỹ (Margin) = tradeAmount (10$ hoặc 20$)
+      const currentNotional = tradeAmount * effectiveLeverage;
 
       // 3. Tính quantity dựa trên currentNotional và giá kích hoạt targetLevel
       const { qty } = calcQuantity(sym, currentNotional, sig.targetLevel);
@@ -235,7 +253,7 @@ async function startAutoTrade(coins) {
       try {
         try {
           await client.setLeverage(sym, effectiveLeverage);
-          log.system(`[AutoTrade] Set leverage ${sym}USDT = ${effectiveLeverage}x (Lưới: ${pct.toFixed(2)}% → tính được ${calculatedLeverage}x, giới hạn: ${maxAllowed}x | Ký quỹ mục tiêu: $${amount})`);
+          log.system(`[AutoTrade] Set leverage ${sym}USDT = ${effectiveLeverage}x (Lưới: ${pct.toFixed(2)}% → tính được ${calculatedLeverage}x, giới hạn: ${maxAllowed}x | Ký quỹ mục tiêu: $${tradeAmount})`);
         } catch (e) {
           const binErr = e.response?.data;
           log.warn(`[AutoTrade] Set leverage ${sym} thất bại: ${_binanceErr(e)} — vẫn tiếp tục đặt lệnh`);
