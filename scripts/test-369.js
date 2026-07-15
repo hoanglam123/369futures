@@ -25,7 +25,7 @@ function bar(label, value, max = 80) {
   return `${label}: ${value}${' '.repeat(pad)}`;
 }
 
-function printSignal(sig) {
+async function printSignal(sig) {
   const line = '─'.repeat(60);
   console.log(`\n${line}`);
   console.log(`  ${sig.symbol}USDT  |  Tháng: ${sig.month}`);
@@ -81,8 +81,8 @@ function printSignal(sig) {
     console.log(`    Điều kiện:   Đã chạm $${fmt(sig.condLevel)} trước đó`);
 
     // Điểm confluence
-    const longScore  = score369Method(sig, 'LONG');
-    const shortScore = score369Method(sig, 'SHORT');
+    const longScore  = await score369Method(sig, 'LONG');
+    const shortScore = await score369Method(sig, 'SHORT');
     const sc = longScore.score || shortScore.score;
     const rr = longScore.reasons.concat(shortScore.reasons);
     console.log(`    Confluence:  +${sc}đ`);
@@ -105,7 +105,7 @@ async function main() {
     for (let j = 0; j < batch.length; j++) {
       const r = results[j];
       if (r.status === 'fulfilled') {
-        printSignal(r.value);
+        await printSignal(r.value);
       } else {
         console.error(`\n[${batch[j]}] Lỗi:`, r.reason?.message ?? r.reason);
       }

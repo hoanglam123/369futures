@@ -25,6 +25,7 @@ const {
   syncWebSocketSubscriptions,
   notifySignals,
   sendTelegram,
+  score369Method,
 } = require('../pp369');
 const { log } = require('../pp369/_logger');
 
@@ -182,7 +183,16 @@ async function startAutoTrade(coins) {
         continue;
       }
 
-      log.system(`[AutoTrade] ${sym} → ${sig.signal} (${sig.strength}) tại $${sig.targetLevel}`);
+      // Tính điểm Scorer trước khi đặt lệnh và gửi Telegram
+      try {
+        const scoreRes = await score369Method(sig, sig.signal);
+        sig.score = scoreRes.score;
+        sig.scoreReasons = scoreRes.reasons;
+      } catch (err) {
+        log.warn(`[AutoTrade] Lỗi tính score cho ${sym}: ${err.message}`);
+      }
+
+      log.system(`[AutoTrade] ${sym} → ${sig.signal} (Score: +${sig.score}đ) tại $${sig.targetLevel}`);
 
       // Kiểm tra debounce
       if (_isDebounced(sig)) {

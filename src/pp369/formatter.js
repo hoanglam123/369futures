@@ -55,6 +55,12 @@ function format369Alert(signals) {
     lines.push(`${emoji} <b>${sig.symbol}</b> → <b>${sig.signal}</b>`);
     lines.push(`  Vào tại:         <code>${fmt369Price(sig.targetLevel)}</code>`);
 
+    const step = sig.step || 0;
+    const pairLow = sig.debugInfo?.pairLow ?? Math.min(sig.targetLevel, sig.condLevel) ?? sig.nearestBelow;
+    const pairHigh = sig.debugInfo?.pairHigh ?? Math.max(sig.targetLevel, sig.condLevel) ?? sig.nearestAbove;
+    const stopLoss = sig.signal === 'LONG' ? (pairLow - step) : (pairHigh + step);
+    lines.push(`  Stop Loss:       <code>${fmt369Price(stopLoss)}</code>`);
+
     let sigLeverage = sig.leverage;
     if (sigLeverage == null && sig.condLevel && sig.targetLevel) {
       const gridWidth = Math.abs(sig.condLevel - sig.targetLevel);
@@ -83,18 +89,14 @@ function format369Alert(signals) {
     // lines.push(`  Open. tháng H4:  <code>${fmt369Price(sig.openPrice)}</code>`);
     // lines.push(`  Close. tháng H4: <code>${fmt369Price(sig.closePrice)}</code>`);
 
-    // if (sig.score) {
-    //   const sc = sig.score;
-    //   const verdictEmoji = sc.total >= 9 ? '🔥' : sc.total >= 7 ? '✅' : sc.total >= 5 ? '⚠️' : '❌';
-    //   lines.push(`  Confluence: ${verdictEmoji} <b>${sc.total}đ</b> [${sc.verdict}]`);
-    //   const parts = [
-    //     `TA=${sc.breakdown.ta}`,
-    //     `Whale=${sc.breakdown.whale}`,
-    //     `Deriv=${sc.breakdown.derivatives}`,
-    //     sc.breakdown.pp369 ? `PP369=${sc.breakdown.pp369}` : null,
-    //   ].filter(Boolean).join(' | ');
-    //   lines.push(`  <i>${parts}</i>`);
-    // }
+    if (sig.score !== undefined && sig.score !== null) {
+      lines.push(`  Confluence:      <b>+${sig.score}đ</b>`);
+      if (sig.scoreReasons && sig.scoreReasons.length) {
+        sig.scoreReasons.forEach(reason => {
+          lines.push(`    <i>${reason}</i>`);
+        });
+      }
+    }
 
     // if (sig.aiComment) {
     //   lines.push('');

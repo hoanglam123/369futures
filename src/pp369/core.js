@@ -770,8 +770,15 @@ async function get369SignalsForCoins(symbols, taMap = {}, notifyTelegram = false
 
   // Gửi Telegram khi có tín hiệu LONG hoặc SHORT mới (nếu được yêu cầu)
   const activeSignals = Object.values(map).filter(s => s.signal === 'LONG' || s.signal === 'SHORT');
-  if (notifyTelegram && activeSignals.length > 0) {
-    notifySignals(activeSignals).catch(() => {}); // fire-and-forget, không chặn luồng chính
+  if (activeSignals.length > 0) {
+    for (const sig of activeSignals) {
+      const res = await score369Method(sig, sig.signal);
+      sig.score = res.score;
+      sig.scoreReasons = res.reasons;
+    }
+    if (notifyTelegram) {
+      notifySignals(activeSignals).catch(() => {}); // fire-and-forget, không chặn luồng chính
+    }
   }
 
   return map;
@@ -779,12 +786,22 @@ async function get369SignalsForCoins(symbols, taMap = {}, notifyTelegram = false
 
 // ─── Tính điểm đóng góp cho Confluence Scorer ────────────────────────────────
 
+function calculateEMA(candles, period) {
+  if (candles.length < period) return null;
+  const k = 2 / (period + 1);
+  let ema = candles[0].close;
+  for (let i = 1; i < candles.length; i++) {
+    ema = candles[i].close * k + ema * (1 - k);
+  }
+  return ema;
+}
+
 /**
  * @param {object} sig369   - Kết quả từ get369Signal
  * @param {string} direction - 'LONG' | 'SHORT'
- * @returns {{ score: number, reasons: string[] }}
+ * @returns {Promise<{ score: number, reasons: string[] }>}
  */
-function score369Method(sig369, direction) {
+async function score369Method(sig369, direction) {
   if (!sig369 || sig369.signal === 'NONE') {
     return { score: 0, reasons: [] };
   }
@@ -792,15 +809,34 @@ function score369Method(sig369, direction) {
     return { score: 0, reasons: [] };
   }
 
-  const score = sig369.strength === 'strong' ? 2
-    : sig369.strength === 'medium' ? 1
-      : sig369.strength === 'weak' ? 1
-        : 0;
+  let score = 0;
+  const reasons = [];
 
-  const lan = sig369.touchCount + 1;
-  const reasons = score > 0
-    ? [`[PP369] ${direction} lần ${lan} tại ${sig369.targetLevel} ← từ ${sig369.condLevel} (${sig369.strength}) (+${score})`]
-    : [];
+  try {
+    const h1Candles = await fetchH1Historical(sig369.symbol);
+    const ema200 = calculateEMA(h1Candles, 200);
+
+    if (ema200 !== null) {
+      const price = sig369.currentPrice ?? (h1Candles.length ? h1Candles[h1Candles.length - 1].close : 0);
+      const isLong = direction === 'LONG';
+      const isSameTrend = isLong ? price > ema200 : price < ema200;
+
+      if (isSameTrend) {
+        score = 1;
+        reasons.push(`[EMA200 H1] Thuận xu hướng: Giá $${price} ${isLong ? '>' : '<'} EMA200 $${ema200.toFixed(4)} (+1)`);
+      } else {
+        score = 0;
+        reasons.push(`[EMA200 H1] Ngược xu hướng: Giá $${price} ${isLong ? '<' : '>'} EMA200 $${ema200.toFixed(4)} (+0)`);
+      }
+    } else {
+      score = 0;
+      reasons.push(`[EMA200 H1] Chưa đủ 200 nến H1 để tính xu hướng (+0)`);
+    }
+  } catch (e) {
+    log.warn(`[EMA200 H1] Lỗi tính EMA200 cho ${sig369.symbol}: ${e.message}`);
+    score = 0;
+    reasons.push(`[EMA200 H1] Lỗi tính xu hướng (+0)`);
+  }
 
   return { score, reasons };
 }
