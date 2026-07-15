@@ -796,6 +796,219 @@ function calculateEMA(candles, period) {
   return ema;
 }
 
+function calculateRSI(candles, period = 14) {
+  if (candles.length < period + 1) return null;
+  
+  const length = candles.length;
+  let changes = [];
+  for (let i = 1; i < length; i++) {
+    changes.push(candles[i].close - candles[i - 1].close);
+  }
+
+  if (changes.length < period) return null;
+
+  let firstGains = [];
+  let firstLosses = [];
+  for (let i = 0; i < period; i++) {
+    const chg = changes[i];
+    firstGains.push(chg > 0 ? chg : 0);
+    firstLosses.push(chg < 0 ? -chg : 0);
+  }
+
+  let currentAvgGain = firstGains.reduce((a, b) => a + b, 0) / period;
+  let currentAvgLoss = firstLosses.reduce((a, b) => a + b, 0) / period;
+
+  for (let i = period; i < changes.length; i++) {
+    const chg = changes[i];
+    const gain = chg > 0 ? chg : 0;
+    const loss = chg < 0 ? -chg : 0;
+    currentAvgGain = (currentAvgGain * (period - 1) + gain) / period;
+    currentAvgLoss = (currentAvgLoss * (period - 1) + loss) / period;
+  }
+
+  if (currentAvgLoss === 0) return 100;
+  const rs = currentAvgGain / currentAvgLoss;
+  return 100 - (100 / (1 + rs));
+}
+
+async function fetchGlobalLongShortRatio(symbol, period = '1h') {
+  const url = 'https://fapi.binance.com/futures/data/globalLongShortAccountRatio';
+  for (let attempt = 0; attempt < 4; attempt++) {
+    try {
+      const res = await axios.get(url, {
+        params: { symbol: `${symbol}USDT`, period, limit: 1 },
+        timeout: 10000,
+      });
+      if (res.data && res.data.length > 0) {
+        return {
+          longAccount: parseFloat(res.data[0].longAccount),
+          shortAccount: parseFloat(res.data[0].shortAccount),
+          ratio: parseFloat(res.data[0].longShortRatio),
+        };
+      }
+    } catch (err) {
+      if (err?.response?.status === 429 && attempt < 3) {
+        await new Promise(r => setTimeout(r, (attempt + 1) * 2000));
+        continue;
+      }
+      log.warn(`[Binance API] Lỗi lấy Long/Short ratio cho ${symbol}: ${err.message}`);
+    }
+  }
+  return null;
+}
+
+async function fetchTopLongShortPositionRatio(symbol, period = '1h') {
+  const url = 'https://fapi.binance.com/futures/data/topLongShortPositionRatio';
+  for (let attempt = 0; attempt < 4; attempt++) {
+    try {
+      const res = await axios.get(url, {
+        params: { symbol: `${symbol}USDT`, period, limit: 1 },
+        timeout: 10000,
+      });
+      if (res.data && res.data.length > 0) {
+        return {
+          longAccount: parseFloat(res.data[0].longAccount),
+          shortAccount: parseFloat(res.data[0].shortAccount),
+          ratio: parseFloat(res.data[0].longShortRatio),
+        };
+      }
+    } catch (err) {
+      if (err?.response?.status === 429 && attempt < 3) {
+        await new Promise(r => setTimeout(r, (attempt + 1) * 2000));
+        continue;
+      }
+      log.warn(`[Binance API] Lỗi lấy Top Traders L/S ratio cho ${symbol}: ${err.message}`);
+    }
+  }
+  return null;
+}
+
+async function fetchOpenInterestHistory(symbol, period = '1h', limit = 5) {
+  const url = 'https://fapi.binance.com/futures/data/openInterestHist';
+  for (let attempt = 0; attempt < 4; attempt++) {
+    try {
+      const res = await axios.get(url, {
+        params: { symbol: `${symbol}USDT`, period, limit },
+        timeout: 10000,
+      });
+      if (res.data && Array.isArray(res.data) && res.data.length > 0) {
+        return res.data.map(item => ({
+          oi: parseFloat(item.sumOpenInterest),
+          oiValue: parseFloat(item.sumOpenInterestValue),
+          timestamp: item.timestamp,
+        }));
+      }
+    } catch (err) {
+      if (err?.response?.status === 429 && attempt < 3) {
+        await new Promise(r => setTimeout(r, (attempt + 1) * 2000));
+        continue;
+      }
+      log.warn(`[Binance API] Lỗi lấy Open Interest history cho ${symbol}: ${err.message}`);
+    }
+  }
+  return null;
+}
+
+async function checkAndUpdateMarketCapCache() {
+  const filePath = path.join(process.cwd(), 'data', 'market_cap_top.json');
+  
+  // Tạo thư mục data nếu chưa có
+  const dirPath = path.dirname(filePath);
+  if (!fs.existsSync(dirPath)) {
+    fs.mkdirSync(dirPath, { recursive: true });
+  }
+
+  let cacheData = null;
+  if (fs.existsSync(filePath)) {
+    try {
+      cacheData = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+    } catch (_) {}
+  }
+
+  const now = Date.now();
+  const ONE_DAY_MS = 24 * 60 * 60 * 1000;
+
+  // Nếu cache còn hạn trong 24h và có dữ liệu, dùng luôn
+  if (cacheData && cacheData.updatedAt && (now - cacheData.updatedAt < ONE_DAY_MS) && cacheData.symbols && cacheData.symbols.length > 0) {
+    return cacheData.symbols;
+  }
+
+  // Cần cập nhật cache từ Coingecko
+  try {
+    const url = 'https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=150&page=1';
+    const res = await axios.get(url, { timeout: 10000 });
+    if (res.data && Array.isArray(res.data) && res.data.length > 0) {
+      const symbols = res.data.map(c => c.symbol.toUpperCase());
+      const newCache = {
+        updatedAt: now,
+        symbols: symbols
+      };
+      fs.writeFileSync(filePath, JSON.stringify(newCache, null, 2), 'utf8');
+      return symbols;
+    }
+  } catch (err) {
+    log.warn(`[MarketCap Cache] Không thể tải danh sách từ CoinGecko (${err.message}). Sử dụng cache cũ hoặc fallback.`);
+  }
+
+  // Nếu có cache cũ dù hết hạn thì vẫn dùng tạm
+  if (cacheData && cacheData.symbols && cacheData.symbols.length > 0) {
+    return cacheData.symbols;
+  }
+
+  // Fallback nếu chưa có file nào
+  const fallbackSymbols = [
+    'BTC', 'ETH', 'BNB', 'SOL', 'XRP', 'ADA', 'DOGE', 'SHIB', 'AVAX', 'DOT',
+    'MATIC', 'LINK', 'TRX', 'UNI', 'LTC', 'ICP', 'NEAR', 'APT', 'FIL', 'LDO',
+    'OP', 'ARB', 'RNDR', 'SUI', 'TIA', 'INJ', 'IMX', 'VET', 'ATOM', 'GRT',
+    'STX', 'HBAR', 'THETA', 'MKR', 'FLOW', 'GALA', 'SAND', 'MANA', 'EGLD', 'APE',
+    'DYDX', 'ALGO', 'EOS', 'XTZ', 'AAVE', 'FTM', 'CRV', 'WAVES', 'LRC', 'ZIL',
+    'AXS', 'ENJ', 'CHZ', 'ONE', 'HOT', 'DENT', 'QTUM', 'OMG', 'ICX', 'ZRX'
+  ];
+  try {
+    fs.writeFileSync(filePath, JSON.stringify({ updatedAt: 0, symbols: fallbackSymbols }, null, 2), 'utf8');
+  } catch (_) {}
+  return fallbackSymbols;
+}
+
+function findSwingPoints(candles, leftStrength = 4, rightStrength = 4) {
+  const highs = [];
+  const lows = [];
+
+  for (let i = leftStrength; i < candles.length - rightStrength; i++) {
+    const c = candles[i];
+    
+    // Check Swing High
+    let isHigh = true;
+    for (let j = 1; j <= leftStrength; j++) {
+      if (candles[i - j].high >= c.high) { isHigh = false; break; }
+    }
+    if (isHigh) {
+      for (let j = 1; j <= rightStrength; j++) {
+        if (candles[i + j].high > c.high) { isHigh = false; break; }
+      }
+    }
+    if (isHigh) {
+      highs.push(c.high);
+    }
+
+    // Check Swing Low
+    let isLow = true;
+    for (let j = 1; j <= leftStrength; j++) {
+      if (candles[i - j].low <= c.low) { isLow = false; break; }
+    }
+    if (isLow) {
+      for (let j = 1; j <= rightStrength; j++) {
+        if (candles[i + j].low < c.low) { isLow = false; break; }
+      }
+    }
+    if (isLow) {
+      lows.push(c.low);
+    }
+  }
+
+  return { highs, lows };
+}
+
 /**
  * @param {object} sig369   - Kết quả từ get369Signal
  * @param {string} direction - 'LONG' | 'SHORT'
@@ -814,28 +1027,183 @@ async function score369Method(sig369, direction) {
 
   try {
     const h1Candles = await fetchH1Historical(sig369.symbol);
+    
+    // 1. Tiêu chí 1: Xu xu hướng H1 EMA 200 (Tối đa +1đ)
     const ema200 = calculateEMA(h1Candles, 200);
-
     if (ema200 !== null) {
       const price = sig369.currentPrice ?? (h1Candles.length ? h1Candles[h1Candles.length - 1].close : 0);
       const isLong = direction === 'LONG';
       const isSameTrend = isLong ? price > ema200 : price < ema200;
 
       if (isSameTrend) {
-        score = 1;
+        score += 1;
         reasons.push(`[EMA200 H1] Thuận xu hướng: Giá $${price} ${isLong ? '>' : '<'} EMA200 $${ema200.toFixed(4)} (+1)`);
       } else {
-        score = 0;
         reasons.push(`[EMA200 H1] Ngược xu hướng: Giá $${price} ${isLong ? '<' : '>'} EMA200 $${ema200.toFixed(4)} (+0)`);
       }
     } else {
-      score = 0;
       reasons.push(`[EMA200 H1] Chưa đủ 200 nến H1 để tính xu hướng (+0)`);
     }
+
+    // 2. Tiêu chí 2: Biến động nến H1 gần nhất vs Step (Tối đa +2đ)
+    if (h1Candles && h1Candles.length > 0) {
+      const lastH1 = h1Candles[h1Candles.length - 1];
+      const range = lastH1.high - lastH1.low;
+      const step = sig369.step || 0;
+
+      if (step > 0) {
+        const isSafeVol = range <= step;
+        if (isSafeVol) {
+          score += 2;
+          reasons.push(`[Biến động H1] Nến gần nhất biến động $${range.toFixed(4)} <= Step $${step} (+2)`);
+        } else {
+          reasons.push(`[Biến động H1] Nến gần nhất biến động $${range.toFixed(4)} > Step $${step} (+0)`);
+        }
+      } else {
+        reasons.push(`[Biến động H1] Thiếu dữ liệu Step để so sánh (+0)`);
+      }
+    } else {
+      reasons.push(`[Biến động H1] Thiếu dữ liệu nến H1 để tính biến động (+0)`);
+    }
+
+    // 3. Tiêu chí 3: Quá mua / Quá bán RSI H1 (Tối đa +1đ)
+    const rsi14 = calculateRSI(h1Candles, 14);
+    if (rsi14 !== null) {
+      const isLong = direction === 'LONG';
+      if (isLong) {
+        if (rsi14 <= 35) {
+          score += 1;
+          reasons.push(`[RSI H1] Quá bán: RSI H1 $${rsi14.toFixed(2)} <= 35 (+1)`);
+        } else {
+          reasons.push(`[RSI H1] Trung tính: RSI H1 $${rsi14.toFixed(2)} > 35 (+0)`);
+        }
+      } else {
+        if (rsi14 >= 65) {
+          score += 1;
+          reasons.push(`[RSI H1] Quá mua: RSI H1 $${rsi14.toFixed(2)} >= 65 (+1)`);
+        } else {
+          reasons.push(`[RSI H1] Trung tính: RSI H1 $${rsi14.toFixed(2)} < 65 (+0)`);
+        }
+      }
+    } else {
+      reasons.push(`[RSI H1] Chưa đủ 15 nến H1 để tính RSI (+0)`);
+    }
+
+    // 4. Tiêu chí 4: Tỷ lệ Long/Short của Retail (Tối đa +1đ)
+    const ratioData = await fetchGlobalLongShortRatio(sig369.symbol, '1h');
+    if (ratioData !== null) {
+      const isLong = direction === 'LONG';
+      if (isLong) {
+        const shortPct = ratioData.shortAccount * 100;
+        if (shortPct >= 55) {
+          score += 1;
+          reasons.push(`[Retail L/S] Thuận contrarian: Short Account đạt ${shortPct.toFixed(2)}% >= 55% (+1)`);
+        } else {
+          reasons.push(`[Retail L/S] Trung tính: Short Account đạt ${shortPct.toFixed(2)}% < 55% (+0)`);
+        }
+      } else {
+        const longPct = ratioData.longAccount * 100;
+        if (longPct >= 55) {
+          score += 1;
+          reasons.push(`[Retail L/S] Thuận contrarian: Long Account đạt ${longPct.toFixed(2)}% >= 55% (+1)`);
+        } else {
+          reasons.push(`[Retail L/S] Trung tính: Long Account đạt ${longPct.toFixed(2)}% < 55% (+0)`);
+        }
+      }
+    } else {
+      reasons.push(`[Retail L/S] Không lấy được tỷ lệ Long/Short (+0)`);
+    }
+
+    // 5. Tiêu chí 5: Danh sách Top 150 Market Cap (Tối đa +1đ)
+    try {
+      const topSymbols = await checkAndUpdateMarketCapCache();
+      const isLargeCap = topSymbols.includes(sig369.symbol.toUpperCase());
+      if (isLargeCap) {
+        score += 1;
+        reasons.push(`[Vốn hóa] Thuộc Top 150 Market Cap (+1)`);
+      } else {
+        reasons.push(`[Vốn hóa] Ngoài Top 150 Market Cap (Low Cap/Rủi ro cao) (+0)`);
+      }
+    } catch (e) {
+      reasons.push(`[Vốn hóa] Lỗi kiểm tra vốn hóa (+0)`);
+    }
+
+    // 6. Tiêu chí 6: Trùng cản Price Action (Swing S/R) (Tối đa +1đ)
+    if (h1Candles && h1Candles.length > 0) {
+      const { highs, lows } = findSwingPoints(h1Candles, 4, 4);
+      const step = sig369.step || 0;
+      const targetLevel = sig369.targetLevel;
+
+      if (step > 0 && targetLevel > 0) {
+        const maxDev = 0.15 * step;
+        const isLong = direction === 'LONG';
+        const searchList = isLong ? lows : highs;
+
+        // Đếm xem có bao nhiêu đỉnh/đáy lịch sử nằm trong khoảng lệch cho phép
+        const matches = searchList.filter(price => Math.abs(price - targetLevel) <= maxDev);
+
+        if (matches.length >= 2) {
+          score += 1;
+          reasons.push(`[Price Action S/R] Trùng cản lịch sử: Có ${matches.length} đáy/đỉnh cũ quanh mốc $${targetLevel} (+1)`);
+        } else {
+          reasons.push(`[Price Action S/R] Không trùng cản: Chỉ có ${matches.length} đáy/đỉnh cũ quanh mốc $${targetLevel} (+0)`);
+        }
+      } else {
+        reasons.push(`[Price Action S/R] Thiếu dữ liệu Step hoặc TargetLevel (+0)`);
+      }
+    } else {
+      reasons.push(`[Price Action S/R] Thiếu dữ liệu nến H1 (+0)`);
+    }
+
+    // 7. Tiêu chí 7: Tỷ lệ vị thế Long/Short của Cá voi (Tối đa +1đ)
+    const whaleData = await fetchTopLongShortPositionRatio(sig369.symbol, '1h');
+    if (whaleData !== null) {
+      const isLong = direction === 'LONG';
+      if (isLong) {
+        const longPct = whaleData.longAccount * 100;
+        if (longPct >= 53) {
+          score += 1;
+          reasons.push(`[Cá voi L/S] Thuận xu hướng: Top Trader Long Position đạt ${longPct.toFixed(2)}% >= 53% (+1)`);
+        } else {
+          reasons.push(`[Cá voi L/S] Trung tính: Top Trader Long Position đạt ${longPct.toFixed(2)}% < 53% (+0)`);
+        }
+      } else {
+        const shortPct = whaleData.shortAccount * 100;
+        if (shortPct >= 53) {
+          score += 1;
+          reasons.push(`[Cá voi L/S] Thuận xu hướng: Top Trader Short Position đạt ${shortPct.toFixed(2)}% >= 53% (+1)`);
+        } else {
+          reasons.push(`[Cá voi L/S] Trung tính: Top Trader Short Position đạt ${shortPct.toFixed(2)}% < 53% (+0)`);
+        }
+      }
+    } else {
+      reasons.push(`[Cá voi L/S] Không lấy được tỷ lệ Long/Short (+0)`);
+    }
+
+    // 8. Tiêu chí 8: Biến động Open Interest H1 (4h qua) (Tối đa +1đ)
+    const oiData = await fetchOpenInterestHistory(sig369.symbol, '1h', 5);
+    if (oiData !== null && oiData.length >= 5) {
+      const latestOI = oiData[oiData.length - 1].oi;
+      const prevOI = oiData[0].oi; // 4 giờ trước
+
+      if (prevOI > 0) {
+        const oiChangePct = ((latestOI - prevOI) / prevOI) * 100;
+        if (oiChangePct <= -2.0) {
+          score += 1;
+          reasons.push(`[OI H1] Hạ nhiệt vị thế: Lượng OI giảm ${oiChangePct.toFixed(2)}% <= -2% (+1)`);
+        } else {
+          reasons.push(`[OI H1] Giữ nguyên vị thế: Lượng OI thay đổi ${oiChangePct.toFixed(2)}% > -2% (+0)`);
+        }
+      } else {
+        reasons.push(`[OI H1] Lượng OI cơ sở bằng 0 (+0)`);
+      }
+    } else {
+      reasons.push(`[OI H1] Không lấy được lịch sử Open Interest (+0)`);
+    }
+
   } catch (e) {
-    log.warn(`[EMA200 H1] Lỗi tính EMA200 cho ${sig369.symbol}: ${e.message}`);
-    score = 0;
-    reasons.push(`[EMA200 H1] Lỗi tính xu hướng (+0)`);
+    log.warn(`[Confluence Scorer] Lỗi tính điểm cho ${sig369.symbol}: ${e.message}`);
+    reasons.push(`[Confluence Scorer] Lỗi tính toán chỉ báo (+0)`);
   }
 
   return { score, reasons };

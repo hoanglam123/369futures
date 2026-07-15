@@ -41,25 +41,22 @@ function getGridBotConfig(sig) {
  * signals[].score   (optional) — từ confluence scorer
  * signals[].aiComment (optional) — nhận xét Gemini
  */
+function escapeHTML(str) {
+  if (!str) return '';
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
 function format369Alert(signals) {
-  const lines = ['📐 <b>PP369 — Tín hiệu mới xuất hiện</b>', ''];
+  const lines = [];
 
   for (const sig of signals) {
     const emoji = sig.signal === 'LONG' ? '🟢' : '🔴';
-    const strength = sig.strength === 'strong' ? '⭐⭐ Mạnh'
-      : sig.strength === 'medium' ? '⭐ Trung bình'
-        : '⚠️ Yếu';
-    // const direction = sig.signal === 'LONG' ? 'xuống' : 'lên';
-    const lan = sig.touchCount + 1;
+    const scoreStr = (sig.score !== undefined && sig.score !== null) ? ` ${sig.score}đ` : '';
 
-    lines.push(`${emoji} <b>${sig.symbol}</b> → <b>${sig.signal}</b>`);
-    lines.push(`  Vào tại:         <code>${fmt369Price(sig.targetLevel)}</code>`);
-
-    const step = sig.step || 0;
-    const pairLow = sig.debugInfo?.pairLow ?? Math.min(sig.targetLevel, sig.condLevel) ?? sig.nearestBelow;
-    const pairHigh = sig.debugInfo?.pairHigh ?? Math.max(sig.targetLevel, sig.condLevel) ?? sig.nearestAbove;
-    const stopLoss = sig.signal === 'LONG' ? (pairLow - step) : (pairHigh + step);
-    lines.push(`  Stop Loss:       <code>${fmt369Price(stopLoss)}</code>`);
+    lines.push(`${emoji} <b>${sig.symbol}</b> → <b>${sig.signal}${scoreStr}</b>`);
 
     let sigLeverage = sig.leverage;
     if (sigLeverage == null && sig.condLevel && sig.targetLevel) {
@@ -82,42 +79,32 @@ function format369Alert(signals) {
       } catch (_) {}
       sigLeverage = Math.max(1, Math.min(calculatedLeverage, maxAllowed));
     }
-    if (sigLeverage != null) {
-      lines.push(`  Đòn bẩy:         <code>${sigLeverage}x</code>`);
-    }
-    // lines.push(`  Giá đi từ mốc:  <code>${fmt369Price(sig.condLevel)}</code>  ${direction}`);
-    // lines.push(`  Open. tháng H4:  <code>${fmt369Price(sig.openPrice)}</code>`);
-    // lines.push(`  Close. tháng H4: <code>${fmt369Price(sig.closePrice)}</code>`);
+    const leverageStr = sigLeverage != null ? ` - ${sigLeverage}x` : '';
+    lines.push(`  Entry:   <code>${fmt369Price(sig.targetLevel)}</code>${leverageStr}`);
 
-    if (sig.score !== undefined && sig.score !== null) {
-      lines.push(`  Confluence:      <b>+${sig.score}đ</b>`);
-      if (sig.scoreReasons && sig.scoreReasons.length) {
-        sig.scoreReasons.forEach(reason => {
-          lines.push(`    <i>${reason}</i>`);
-        });
-      }
-    }
+    const step = sig.step || 0;
+    const pairLow = sig.debugInfo?.pairLow ?? Math.min(sig.targetLevel, sig.condLevel) ?? sig.nearestBelow;
+    const pairHigh = sig.debugInfo?.pairHigh ?? Math.max(sig.targetLevel, sig.condLevel) ?? sig.nearestAbove;
+    const stopLoss = sig.signal === 'LONG' ? (pairLow - step) : (pairHigh + step);
+    lines.push(`  SL: <code>${fmt369Price(stopLoss)}</code>`);
+    
+    lines.push('  -----------------------------------------');
 
-    // if (sig.aiComment) {
-    //   lines.push('');
-    //   lines.push(`💬 <i>${sig.aiComment}</i>`);
-    // }
-
-    const gridConfig = getGridBotConfig(sig);
-    if (gridConfig) {
-      lines.push('');
-      // lines.push('🤖 <b>Binance Futures Grid Bot Config:</b>');
-      // lines.push(`  • Direction: <b>${gridConfig.direction}</b>`);
-      lines.push(`  • Price Range: <code>${fmt369Price(gridConfig.lowerPrice)}</code> - <code>${fmt369Price(gridConfig.upperPrice)}</code>`);
-      // lines.push(`  • Grids: <code>${gridConfig.grids}</code> (Khuyên dùng: 20-50)`);
-      // lines.push(`  • Leverage: <code>${gridConfig.leverage}</code> (An toàn: 2x-5x)`);
-      // lines.push(`  • Stop Loss: <code>${fmt369Price(gridConfig.stopLoss)}</code> (ngoài khoảng giá mốc xa nhất)`);
+    if (sig.scoreReasons && sig.scoreReasons.length) {
+      sig.scoreReasons.forEach(reason => {
+        lines.push(`   <i>${escapeHTML(reason)}</i>`);
+      });
+    } else {
+      lines.push('   <i>Không có chi tiết lý do.</i>');
     }
 
-    // lines.push('');
+    lines.push('');
   }
 
-  // lines.push('<i>⚠️ Tín hiệu kỹ thuật 369</i>');
+  if (lines.length > 0 && lines[lines.length - 1] === '') {
+    lines.pop();
+  }
+
   return lines.join('\n');
 }
 
