@@ -831,6 +831,78 @@ function calculateRSI(candles, period = 14) {
   return 100 - (100 / (1 + rs));
 }
 
+function calculateADX(candles, period = 14) {
+  if (candles.length < period * 2 + 1) return null;
+
+  const tr = [];
+  const plusDM = [];
+  const minusDM = [];
+
+  for (let i = 1; i < candles.length; i++) {
+    const c = candles[i];
+    const p = candles[i - 1];
+
+    // 1. True Range (TR)
+    const tr1 = c.high - c.low;
+    const tr2 = Math.abs(c.high - p.close);
+    const tr3 = Math.abs(c.low - p.close);
+    tr.push(Math.max(tr1, tr2, tr3));
+
+    // 2. Directional Movement (+DM & -DM)
+    const upMove = c.high - p.high;
+    const downMove = p.low - c.low;
+
+    if (upMove > downMove && upMove > 0) {
+      plusDM.push(upMove);
+    } else {
+      plusDM.push(0);
+    }
+
+    if (downMove > upMove && downMove > 0) {
+      minusDM.push(downMove);
+    } else {
+      minusDM.push(0);
+    }
+  }
+
+  // Smooth TR, +DM, -DM bằng Wilders (tương tự EMA)
+  let smoothTR = tr.slice(0, period).reduce((a, b) => a + b, 0);
+  let smoothPlusDM = plusDM.slice(0, period).reduce((a, b) => a + b, 0);
+  let smoothMinusDM = minusDM.slice(0, period).reduce((a, b) => a + b, 0);
+
+  const dxList = [];
+  
+  // Tính +DI, -DI và DX
+  for (let i = period; i < tr.length; i++) {
+    smoothTR = smoothTR - (smoothTR / period) + tr[i];
+    smoothPlusDM = smoothPlusDM - (smoothPlusDM / period) + plusDM[i];
+    smoothMinusDM = smoothMinusDM - (smoothMinusDM / period) + minusDM[i];
+
+    if (smoothTR === 0) {
+      dxList.push(0);
+      continue;
+    }
+
+    const plusDI = (smoothPlusDM / smoothTR) * 100;
+    const minusDI = (smoothMinusDM / smoothTR) * 100;
+    
+    const sum = plusDI + minusDI;
+    const diff = Math.abs(plusDI - minusDI);
+    const dx = sum === 0 ? 0 : (diff / sum) * 100;
+    dxList.push(dx);
+  }
+
+  if (dxList.length < period) return null;
+
+  // Tính ADX (Smooth của DX)
+  let adx = dxList.slice(0, period).reduce((a, b) => a + b, 0) / period;
+  for (let i = period; i < dxList.length; i++) {
+    adx = ((adx * (period - 1)) + dxList[i]) / period;
+  }
+
+  return adx;
+}
+
 async function fetchGlobalLongShortRatio(symbol, period = '1h') {
   const url = 'https://fapi.binance.com/futures/data/globalLongShortAccountRatio';
   for (let attempt = 0; attempt < 4; attempt++) {
@@ -1028,13 +1100,47 @@ async function score369Method(sig369, direction) {
   try {
     const h1Candles = await fetchH1Historical(sig369.symbol);
     
-    // 1. Tiêu chí 1: Xu xu hướng H1 EMA 200 (Tối đa +1đ)
-    const ema200 = calculateEMA(h1Candles, 200);
-    if (ema200 !== null) {
+    // 1. Tiêu chí 1: Xu xu hướng EMA200 & Độ mạnh xu hướng ADX H1 (Tối đa +2đ)
+    let ema200 = calculateEMA(h1Candles, 200);
+    let adx14 = calculateADX(h1Candles, 14);
+
+    if (ema200 === null || adx14 === null) {
+      // Dự phòng: Lấy trực tiếp từ Binance nếu cache chưa đủ nến
+      try {
+        const startTime = Date.now() - 250 * 3600000;
+        const fallbackKlines = await fetchBinanceKlines(sig369.symbol, '1h', startTime, 250);
+        if (fallbackKlines && fallbackKlines.length >= 200) {
+          if (ema200 === null) ema200 = calculateEMA(fallbackKlines, 200);
+          if (adx14 === null) adx14 = calculateADX(fallbackKlines, 14);
+        }
+      } catch (err) {
+        log.warn(`[Confluence Scorer] Không thể lấy klines dự phòng để tính EMA200/ADX cho ${sig369.symbol}: ${err.message}`);
+      }
+    }
+
+    if (ema200 !== null && adx14 !== null) {
       const price = sig369.currentPrice ?? (h1Candles.length ? h1Candles[h1Candles.length - 1].close : 0);
       const isLong = direction === 'LONG';
       const isSameTrend = isLong ? price > ema200 : price < ema200;
+      const isStrongTrend = adx14 >= 25;
 
+      if (isSameTrend && isStrongTrend) {
+        score += 2;
+        reasons.push(`[Xu hướng H1] Thuận xu hướng & Trend mạnh (ADX = ${adx14.toFixed(1)} >= 25) (+2)`);
+      } else if (isSameTrend && !isStrongTrend) {
+        score += 1;
+        reasons.push(`[Xu hướng H1] Thuận xu hướng & Trend yếu (ADX = ${adx14.toFixed(1)} < 25) (+1)`);
+      } else if (!isSameTrend && !isStrongTrend) {
+        score += 1;
+        reasons.push(`[Xu hướng H1] Ngược xu hướng & Trend yếu (ADX = ${adx14.toFixed(1)} < 25) (+1)`);
+      } else {
+        reasons.push(`[Xu hướng H1] Ngược xu hướng & Trend mạnh (ADX = ${adx14.toFixed(1)} >= 25) (+0)`);
+      }
+    } else if (ema200 !== null) {
+      // Dự phòng chỉ có EMA200
+      const price = sig369.currentPrice ?? (h1Candles.length ? h1Candles[h1Candles.length - 1].close : 0);
+      const isLong = direction === 'LONG';
+      const isSameTrend = isLong ? price > ema200 : price < ema200;
       if (isSameTrend) {
         score += 1;
         reasons.push(`[EMA200 H1] Thuận xu hướng: Giá $${price} ${isLong ? '>' : '<'} EMA200 $${ema200.toFixed(4)} (+1)`);
@@ -1042,7 +1148,7 @@ async function score369Method(sig369, direction) {
         reasons.push(`[EMA200 H1] Ngược xu hướng: Giá $${price} ${isLong ? '<' : '>'} EMA200 $${ema200.toFixed(4)} (+0)`);
       }
     } else {
-      reasons.push(`[EMA200 H1] Chưa đủ 200 nến H1 để tính xu hướng (+0)`);
+      reasons.push(`[Xu hướng H1] Chưa đủ nến H1 để tính xu hướng & ADX (+0)`);
     }
 
     // 2. Tiêu chí 2: Biến động nến H1 gần nhất vs Step (Tối đa +2đ)

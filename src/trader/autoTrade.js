@@ -203,10 +203,10 @@ async function startAutoTrade(coins) {
 
       // Xác định số tiền vào lệnh dựa trên điểm số
       let tradeAmount = 0;
-      if (sig.score < 4) {
-        log.system(`[AutoTrade] ${sym} ${sig.signal} có Score = ${sig.score}đ < 4đ — bỏ qua`);
+      if (sig.score < 5) {
+        log.system(`[AutoTrade] ${sym} ${sig.signal} có Score = ${sig.score}đ < 5đ — bỏ qua`);
         continue;
-      } else if (sig.score >= 4 && sig.score <= 6) {
+      } else if (sig.score >= 5 && sig.score <= 6) {
         tradeAmount = 10;
       } else if (sig.score >= 7) {
         tradeAmount = 20;
