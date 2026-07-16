@@ -465,22 +465,22 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
       const openAlgoOrders = symbolResult ? symbolResult.algoOrders : [];
 
       const realSlOrders = [
-        ...openOrders.filter(o => o.type === 'STOP_MARKET'),
-        ...openAlgoOrders.filter(o => o.orderType === 'STOP_MARKET').map(o => ({
+        ...openOrders.filter(o => o.type === 'STOP_MARKET' || o.type === 'STOP'),
+        ...openAlgoOrders.filter(o => o.type === 'STOP_MARKET' || o.orderType === 'STOP_MARKET' || o.type === 'STOP' || o.orderType === 'STOP').map(o => ({
           ...o,
           orderId: o.algoId,
-          type: o.orderType,
+          type: o.type || o.orderType,
           stopPrice: o.triggerPrice,
           isAlgo: true
         }))
       ];
 
       const realTpOrders = [
-        ...openOrders.filter(o => o.type === 'TAKE_PROFIT_MARKET'),
-        ...openAlgoOrders.filter(o => o.orderType === 'TAKE_PROFIT_MARKET').map(o => ({
+        ...openOrders.filter(o => o.type === 'TAKE_PROFIT_MARKET' || o.type === 'TAKE_PROFIT'),
+        ...openAlgoOrders.filter(o => o.type === 'TAKE_PROFIT_MARKET' || o.orderType === 'TAKE_PROFIT_MARKET' || o.type === 'TAKE_PROFIT' || o.orderType === 'TAKE_PROFIT').map(o => ({
           ...o,
           orderId: o.algoId,
-          type: o.orderType,
+          type: o.type || o.orderType,
           stopPrice: o.triggerPrice,
           isAlgo: true
         }))
@@ -493,7 +493,7 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
       
       let tpPct = 20;        // ROI % chốt lời (mặc định)
       let slPct = -13;       // ROI % cắt lỗ (mặc định)
-      let trailTrigger = 10; // ROI % để bắt đầu dời SL về entry
+      let trailTrigger = 9;  // ROI % để bắt đầu dời SL về entry
       let trailSlRoi = 1;    // ROI % sau khi dời SL (entry + 1%)
 
       if (meta) {
@@ -513,16 +513,16 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
           trailTrigger = 5;
           trailSlRoi = 1;
         } else if (score === 6) {
-          // Lệnh điểm trung bình (6đ) và thuận xu hướng: TP 20%, SL 13%, dịch SL về ROI +1% khi TP đạt 10%
+          // Lệnh điểm trung bình (6đ) và thuận xu hướng: TP 20%, SL 13%, dịch SL về ROI +1% khi TP đạt 9%
           tpPct = 20;
           slPct = -13;
-          trailTrigger = 10;
+          trailTrigger = 9;
           trailSlRoi = 1;
         } else if (score >= 7) {
-          // Lệnh thuận xu hướng & Điểm cao (>= 7đ): TP 25%, SL 15%, dịch SL về ROI +1% khi TP đạt 10%
+          // Lệnh thuận xu hướng & Điểm cao (>= 7đ): TP 25%, SL 15%, dịch SL về ROI +1% khi TP đạt 9%
           tpPct = 25;
           slPct = -15;
-          trailTrigger = 10;
+          trailTrigger = 9;
           trailSlRoi = 1;
         }
       }
