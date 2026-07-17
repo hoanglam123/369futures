@@ -300,6 +300,7 @@ async function startAutoTrade(coins) {
       const effectiveLeverage = Math.max(1, Math.min(calculatedLeverage, maxAllowed));
 
       sig.leverage = effectiveLeverage; // Gán vào signal để formatter hiển thị đòn bẩy chính xác trên Telegram
+      sig.margin = tradeAmount; // Gán để ghi log signal
 
       // 2. Tính Notional động để cố định ký quỹ (Margin) = tradeAmount (10$ hoặc 20$)
       const currentNotional = tradeAmount * effectiveLeverage;
@@ -575,7 +576,7 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
           try {
             justClosedByBot.add(sym);
             await client.placeMarket(sym, oppositeSide, absAmt);
-            await sendTelegram(`🔔 <b>[AutoTrade] Virtual TP</b>\n• Coin: <b>${sym}</b>\n• Hướng: <b>${oppositeSide} (Close)</b>\n• Giá khớp: <b>$${markPrice}</b>\n• ROI đạt: <b>${roi.toFixed(2)}%</b>`);
+            await sendTelegram(`🎯 <b>Take Profit (Virtual)</b>\n• Coin: <b>${sym}</b>\n• ROI đạt: <b>${roi.toFixed(2)}%</b>`);
           } catch (e) {
             justClosedByBot.delete(sym);
             log.error(`[AutoTrade] [Virtual TP] Lỗi đóng vị thế ${sym}: ${e.message}`);
@@ -600,10 +601,22 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
       // ----------------------------------------------------
       // 2. Quản lý STOP LOSS (Virtual & Real, Trailing SL)
       // ----------------------------------------------------
-      // Tính mức SL mục tiêu dựa trên trailing trigger
-      const targetSlPrice = roi >= trailTrigger
-        ? (isLong ? entryPrice * (1 + (trailSlRoi / 100) / leverageVal) : entryPrice * (1 - (trailSlRoi / 100) / leverageVal))
-        : (isLong ? entryPrice * (1 + (slPct / 100) / leverageVal) : entryPrice * (1 - (slPct / 100) / leverageVal));
+      // Tính mức SL mục tiêu dựa trên trailing trigger 2 tầng (Bảo vệ lãi khi đạt 75% quãng đường)
+      let currentSlPct = slPct;
+      
+      // Tầng 2: Khóa lãi khi giá chạy được 75% quãng đường tới TP
+      const trailTrigger2 = tpPct >= 20 ? (tpPct === 20 ? 15 : 18) : null;
+      const trailSlRoi2 = tpPct >= 20 ? (tpPct === 20 ? 8 : 10) : null;
+
+      if (trailTrigger2 !== null && roi >= trailTrigger2) {
+        currentSlPct = trailSlRoi2; // Khóa lãi (ví dụ +8% hoặc +10% ROI)
+      } else if (roi >= trailTrigger) {
+        currentSlPct = trailSlRoi;  // Hòa vốn (ví dụ +1% ROI)
+      }
+
+      const targetSlPrice = isLong
+        ? entryPrice * (1 + (currentSlPct / 100) / leverageVal)
+        : entryPrice * (1 - (currentSlPct / 100) / leverageVal);
 
       // Lấy tickSize từ cache để định dạng giá chính xác
       let tickSize = null;
@@ -674,12 +687,12 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
           : (markPrice >= roundedTargetSl);
 
         if (slTriggered) {
-          const typeLabel = roi >= trailTrigger ? `Virtual Trailing SL (+${trailSlRoi}% ROI)` : `Virtual SL (${Math.abs(slPct)}%)`;
-          log.system(`[AutoTrade] [${typeLabel}] Kích hoạt cho ${sym}: Giá ${markPrice} chạm/vượt mốc $${targetSlStr}. Đóng vị thế bằng lệnh MARKET.`);
+          const typeLabel = roi >= trailTrigger ? 'Trailing SL' : 'Stop Loss';
+          log.system(`[AutoTrade] [Virtual ${typeLabel}] Kích hoạt cho ${sym}: Giá ${markPrice} chạm/vượt mốc $${targetSlStr}. Đóng vị thế bằng lệnh MARKET.`);
           try {
             justClosedByBot.add(sym);
             await client.placeMarket(sym, oppositeSide, absAmt);
-            await sendTelegram(`🔔 <b>[AutoTrade] ${typeLabel}</b>\n• Coin: <b>${sym}</b>\n• Hướng: <b>${oppositeSide} (Close)</b>\n• Giá khớp: <b>$${markPrice}</b>\n• ROI đạt: <b>${roi.toFixed(2)}%</b>`);
+            await sendTelegram(`🛡️ <b>${typeLabel} (Virtual)</b>\n• Coin: <b>${sym}</b>\n• ROI đạt: <b>${roi.toFixed(2)}%</b>`);
           } catch (e) {
             justClosedByBot.delete(sym);
             log.error(`[AutoTrade] [${typeLabel}] Lỗi đóng vị thế ${sym}: ${e.message}`);
@@ -728,24 +741,17 @@ async function notifyRealClose(client, sym, prevPos) {
     const roi = (priceDiff / prevPos.entryPrice) * prevPos.leverage * 100;
 
     // Phân loại lý do đóng
-    let typeLabel = 'Đóng vị thế (Khớp sàn)';
+    let label = 'Đóng vị thế';
     if (realizedProfit > 0) {
-      typeLabel = '🎯 Take Profit (Sàn khớp)';
+      label = '🎯 Take Profit';
     } else if (realizedProfit < 0) {
-      typeLabel = '🛡️ Stop Loss (Sàn khớp)';
+      label = '🛡️ Stop Loss';
     }
 
-    const profitEmoji = realizedProfit >= 0 ? '🟢' : '🔴';
-
     await sendTelegram(
-      `🔔 <b>[AutoTrade] ${typeLabel}</b>\n` +
+      `<b>${label}</b>\n` +
       `• Coin: <b>${sym}</b>\n` +
-      `• Hướng đóng: <b>${oppositeSide}</b>\n` +
-      `• Giá entry: <b>$${prevPos.entryPrice}</b>\n` +
-      `• Giá đóng: <b>$${closePrice}</b>\n` +
-      `• ROI đạt: <b>${roi.toFixed(2)}%</b>\n` +
-      `• Lợi nhuận: <b>${profitEmoji} $${realizedProfit.toFixed(2)}</b>\n` +
-      `• Thời gian: <b>${timeStr}</b>`
+      `• ROI đạt: <b>${roi.toFixed(2)}%</b>`
     );
   } catch (e) {
     log.warn(`[AutoTrade] Lỗi gửi thông báo đóng vị thế ${sym}: ${e.message}`);

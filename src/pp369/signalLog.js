@@ -31,18 +31,11 @@ function logSignal369(sig) {
   const entry = {
     ts:          nowVN(),
     symbol:      sig.symbol,
-    month:       sig.month,
     signal:      sig.signal,
     price:       sig.currentPrice,
-    h1Open:      sig.openPrice,    // Open nến H1 đầu tháng — mốc gốc PP369
-    h1Close:     sig.closePrice,   // Close nến H1 đầu tháng — mốc gốc PP369
-    targetLevel: sig.targetLevel,
-    condLevel:   sig.condLevel,
-    touchCount:  sig.touchCount,
-    lan:         sig.touchCount + 1,
-    strength:    sig.strength,
-    pairLow:     sig.debugInfo?.pairLow,
-    pairHigh:    sig.debugInfo?.pairHigh,
+    leverage:    sig.leverage ?? null,
+    score:       sig.score ?? null,
+    margin:      sig.margin ?? null,
   };
 
   try {
