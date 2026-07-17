@@ -86,13 +86,14 @@ function format369Alert(signals) {
     const pairLow = sig.debugInfo?.pairLow ?? Math.min(sig.targetLevel, sig.condLevel) ?? sig.nearestBelow;
     const pairHigh = sig.debugInfo?.pairHigh ?? Math.max(sig.targetLevel, sig.condLevel) ?? sig.nearestAbove;
     const stopLoss = sig.signal === 'LONG' ? (pairLow - step) : (pairHigh + step);
-    lines.push(`  SL: <code>${fmt369Price(stopLoss)}</code>`);
+    // lines.push(`  SL: <code>${fmt369Price(stopLoss)}</code>`); // Đã ẩn theo yêu cầu
     
     lines.push('  -----------------------------------------');
 
     if (sig.scoreReasons && sig.scoreReasons.length) {
       sig.scoreReasons.forEach(reason => {
-        lines.push(`   <i>${escapeHTML(reason)}</i>`);
+        const formatted = formatReasonTelegram(reason);
+        if (formatted) lines.push(formatted);
       });
     } else {
       lines.push('   <i>Không có chi tiết lý do.</i>');
@@ -106,6 +107,125 @@ function format369Alert(signals) {
   }
 
   return lines.join('\n');
+}
+
+/**
+ * Định dạng rút gọn và tối ưu nội dung lý do gửi lên Telegram.
+ */
+function formatReasonTelegram(rawReason) {
+  if (!rawReason) return null;
+  if (rawReason.includes('Cá voi L/S') && rawReason.includes('Đã gộp')) return null;
+
+  const match = rawReason.match(/^\[(.*?)\]\s*(.*)$/);
+  if (!match) return `  • <i>${escapeHTML(rawReason)}</i>`;
+
+  const header = match[1];
+  let body = match[2];
+
+  // Rút ngắn nội dung theo từng tiêu chí
+  if (header === 'Xu hướng H4/H1') {
+    body = body
+      .replace(/ngược xu hướng/g, 'ngược')
+      .replace(/thuận xu hướng/g, 'thuận')
+      .replace(/trend yếu/g, 'yếu')
+      .replace(/trend mạnh/g, 'mạnh')
+      .replace(/Giá\s*\$?[0-9.,]+\s*[<>]\s*EMA200\s*\$?[0-9.,]+/g, '')
+      .replace(/:\s*\|\s*/g, ' | ')
+      .replace(/:\s*\(/g, ' (')
+      .replace(/\s+/g, ' ')
+      .trim();
+  } else if (header === 'Biến động H1/M15') {
+    body = body
+      .replace(/nén vừa:\s*\$?[0-9.,]+\s*<=\s*\$?[0-9.,]+/g, 'nén vừa')
+      .replace(/siêu nén:\s*\$?[0-9.,]+\s*<=\s*\$?[0-9.,]+/g, 'siêu nén')
+      .replace(/quá biên độ:\s*\$?[0-9.,]+\s*>\s*\$?[0-9.,]+/g, 'quá biên độ')
+      .replace(/bình thường:\s*\$?[0-9.,]+\s*<=\s*\$?[0-9.,]+/g, 'bình thường')
+      .replace(/:\s*\|\s*/g, ' | ')
+      .replace(/\s+/g, ' ')
+      .trim();
+  } else if (header === 'RSI H1') {
+    body = body
+      .replace(/RSI H1\s*([0-9.]+)\s*(<=|>=|<|>)\s*[0-9.]+/g, 'RSI $1')
+      .replace(/cực đại/g, 'cực')
+      .replace(/\s+/g, ' ')
+      .trim();
+  } else if (header === 'Tương quan dòng tiền L/S') {
+    body = body
+      .replace(/Đồng thuận tuyệt đối/g, 'Đồng thuận 100%')
+      .replace(/Đồng thuận một phần/g, 'Đồng thuận 1 phần')
+      .replace(/Cá voi đạt\s*\([0-9.%]+\)/g, 'Whales đạt')
+      .replace(/Cá voi không đạt\s*\([0-9.%]+\)/g, 'Whales ko đạt')
+      .replace(/Retail đạt\s*\([0-9.%]+\)/g, 'Retail đạt')
+      .replace(/Retail không đạt\s*\([0-9.%]+\)/g, 'Retail ko đạt')
+      .replace(/\s+/g, ' ')
+      .trim();
+  } else if (header === 'Vốn hóa') {
+    body = body
+      .replace(/Ngoài Top 150\s*\(Rank\s*>\s*150\):\s*/g, '')
+      .replace(/Top 30 Blue Chip\s*\(Rank\s*[0-9]+\):\s*/g, '')
+      .replace(/Top 31-150 Mid Cap\s*\(Rank\s*[0-9]+\):\s*/g, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+  } else if (header === 'Price Action S/R') {
+    body = body
+      .replace(/chỉ có/g, '')
+      .replace(/cản cũ/g, 'cản')
+      .replace(/không cản/g, 'ko cản')
+      .replace(/\s+/g, ' ')
+      .trim();
+  } else if (header === 'OI H1') {
+    body = body
+      .replace(/Hạ nhiệt vị thế:\s*/g, 'Hạ nhiệt: ')
+      .replace(/Dòng tiền ổn định:\s*/g, 'Ổn định: ')
+      .replace(/Đòn bẩy tăng mạnh\s*\(Nóng\):\s*/g, 'Tăng mạnh: ')
+      .replace(/Lượng OI/g, 'OI')
+      .replace(/thay đổi/g, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+  } else if (header === 'Động lượng Volume') {
+    body = body
+      .replace(/Volume cạn kiệt:\s*[0-9.]+\s*<=\s*[0-9.]+/g, 'Volume cạn kiệt')
+      .replace(/Volume ổn định:\s*[0-9.]+\s*<=\s*[0-9.]+/g, 'Volume ổn định')
+      .replace(/Volume đột biến\s*\(Xả\/Fomo\):\s*[0-9.]+\s*>\s*[0-9.]+/g, 'Volume đột biến')
+      .replace(/\s+/g, ' ')
+      .trim();
+  } else if (header === 'Funding Rate') {
+    body = body
+      .replace(/Phí tài trợ bình thường/g, 'Bình thường')
+      .replace(/Long đu bám\s*\(Nóng\):/g, 'Phe Long đông:')
+      .replace(/Short đu bám\s*\(Nóng\):/g, 'Phe Short đông:')
+      .replace(/Bình thường:\s*Funding Rate\s*/g, 'Bình thường: ')
+      .replace(/Short Crowded\s*\(Squeeze\):\s*Funding Rate\s*/g, 'Short Squeeze: ')
+      .replace(/Long Crowded\s*\(Squeeze\):\s*Funding Rate\s*/g, 'Long Squeeze: ')
+      .replace(/Funding Rate/g, 'Funding')
+      .replace(/\s+/g, ' ')
+      .trim();
+  } else if (header === 'Sóng BTC') {
+    body = body
+      .replace(/BTC đi ngang\s*\(ADX H1 = [0-9.]+\s*<\s*25\):\s*/g, '')
+      .replace(/BTC thuận trend mạnh\s*\(ADX H1 = [0-9.]+\s*>=\s*25\):\s*/g, '')
+      .replace(/BTC ngược trend mạnh\s*\(ADX H1 = [0-9.]+\s*>=\s*25\):\s*/g, '')
+      .replace(/BTC bão giá:\s*/g, '')
+      .replace(/Giao dịch tự do/g, 'BTC đi ngang')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
+  const shortHeaders = {
+    'Xu hướng H4/H1': 'Xu hướng',
+    'Biến động H1/M15': 'Biến động',
+    'RSI H1': 'RSI H1',
+    'Tương quan dòng tiền L/S': 'Dòng tiền L/S',
+    'Vốn hóa': 'Vốn hóa',
+    'Price Action S/R': 'Cản Swing',
+    'OI H1': 'OI H1',
+    'Động lượng Volume': 'Volume H1',
+    'Funding Rate': 'Funding',
+    'Sóng BTC': 'Sóng BTC',
+  };
+
+  const displayHeader = shortHeaders[header] || header;
+  return `  • <b>${displayHeader}</b>: <i>${escapeHTML(body)}</i>`;
 }
 
 module.exports = { fmt369Price, format369Alert, getGridBotConfig };
