@@ -19,18 +19,27 @@ const API_URL = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`;
  * @returns {Promise<void>}
  */
 async function sendTelegram(text) {
-  try {
-    await axios.post(API_URL, {
-      chat_id: CHAT_ID,
-      text,
-      parse_mode: 'HTML',
-      disable_web_page_preview: true,
-    }, { timeout: 10_000 });
-  } catch (err) {
-    const apiDesc = err.response?.data?.description ?? '(no response body)';
-    const preview = text ? text.slice(0, 300).replace(/\n/g, '↵') : '(empty)';
-    log.warn(`[Telegram] Lỗi gửi tin nhắn: ${err.message} | API: ${apiDesc}`);
-    log.warn(`[Telegram] Nội dung bị lỗi (300 ký tự đầu): ${preview}`);
+  const maxAttempts = 3;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      await axios.post(API_URL, {
+        chat_id: CHAT_ID,
+        text,
+        parse_mode: 'HTML',
+        disable_web_page_preview: true,
+      }, { timeout: 10_000 });
+      return; // Gửi thành công -> thoát
+    } catch (err) {
+      if (attempt < maxAttempts) {
+        log.warn(`[Telegram] Lỗi gửi tin nhắn (Lần ${attempt}/${maxAttempts}): ${err.message}. Thử lại sau 2 giây...`);
+        await new Promise(r => setTimeout(r, 2000));
+        continue;
+      }
+      const apiDesc = err.response?.data?.description ?? '(no response body)';
+      const preview = text ? text.slice(0, 300).replace(/\n/g, '↵') : '(empty)';
+      log.warn(`[Telegram] Lỗi gửi tin nhắn (Thất bại sau ${maxAttempts} lần): ${err.message} | API: ${apiDesc}`);
+      log.warn(`[Telegram] Nội dung bị lỗi (300 ký tự đầu): ${preview}`);
+    }
   }
 }
 
