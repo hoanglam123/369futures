@@ -69,6 +69,12 @@ const _h4RefCache = {};
 // H1 historical candle cache: { symbol: { yearStart, candles: [], cursor } } — toàn bộ H1 đã đóng từ đầu năm
 const _h1HistCache = {};
 
+// H4 historical candle cache: { symbol: { yearStart, candles: [], cursor } } — toàn bộ H4 đã đóng từ đầu năm
+const _h4HistCache = {};
+
+// D1 historical candle cache: { symbol: { yearStart, candles: [], cursor } } — toàn bộ D1 đã đóng từ đầu năm
+const _d1HistCache = {};
+
 // M1 current H1 period cache: { symbol: { h1Start, candles: [], cursor } } — reset mỗi khi H1 mới mở
 const _m1CurrCache = {};
 
@@ -416,6 +422,94 @@ async function fetchH1Historical(symbol) {
 
   if (cache.candles.length > 0) {
     cache.cursor = cache.candles[cache.candles.length - 1].openTime + H1_MS;
+  }
+
+  return cache.candles;
+}
+
+function floorToH4(tsMs) {
+  const H4_MS = 4 * 60 * 60 * 1000;
+  return Math.floor(tsMs / H4_MS) * H4_MS;
+}
+
+function floorToD1(tsMs) {
+  const D1_MS = 24 * 60 * 60 * 1000;
+  return Math.floor(tsMs / D1_MS) * D1_MS;
+}
+
+/**
+ * Lấy toàn bộ nến H4 đã đóng từ đầu năm 2026 đến H4 hiện tại (incremental).
+ */
+async function fetchH4Historical(symbol) {
+  const H4_MS = 4 * 60 * 60 * 1000;
+  const currentH4Start = floorToH4(Date.now());
+  let cache = _h4HistCache[symbol];
+
+  if (!cache || cache.yearStart !== YEAR_START_MS) {
+    cache = { yearStart: YEAR_START_MS, candles: [], cursor: YEAR_START_MS };
+    _h4HistCache[symbol] = cache;
+  }
+
+  if (cache.cursor >= currentH4Start) return cache.candles;
+
+  let cursor = cache.cursor;
+  while (cursor < currentH4Start) {
+    const batch = await fetchBinanceKlines(symbol, '4h', cursor, 1500);
+    if (!batch.length) break;
+
+    const closed = batch.filter(c => c.openTime < currentH4Start);
+    if (cache.candles.length > 0) {
+      const lastTime = cache.candles[cache.candles.length - 1].openTime;
+      cache.candles.push(...closed.filter(c => c.openTime > lastTime));
+    } else {
+      cache.candles.push(...closed);
+    }
+
+    if (batch.length < 1500 || closed.length < batch.length) break;
+    cursor = batch[batch.length - 1].openTime + H4_MS;
+  }
+
+  if (cache.candles.length > 0) {
+    cache.cursor = cache.candles[cache.candles.length - 1].openTime + H4_MS;
+  }
+
+  return cache.candles;
+}
+
+/**
+ * Lấy toàn bộ nến D1 đã đóng từ đầu năm 2026 đến D1 hiện tại (incremental).
+ */
+async function fetchD1Historical(symbol) {
+  const D1_MS = 24 * 60 * 60 * 1000;
+  const currentD1Start = floorToD1(Date.now());
+  let cache = _d1HistCache[symbol];
+
+  if (!cache || cache.yearStart !== YEAR_START_MS) {
+    cache = { yearStart: YEAR_START_MS, candles: [], cursor: YEAR_START_MS };
+    _d1HistCache[symbol] = cache;
+  }
+
+  if (cache.cursor >= currentD1Start) return cache.candles;
+
+  let cursor = cache.cursor;
+  while (cursor < currentD1Start) {
+    const batch = await fetchBinanceKlines(symbol, '1d', cursor, 1500);
+    if (!batch.length) break;
+
+    const closed = batch.filter(c => c.openTime < currentD1Start);
+    if (cache.candles.length > 0) {
+      const lastTime = cache.candles[cache.candles.length - 1].openTime;
+      cache.candles.push(...closed.filter(c => c.openTime > lastTime));
+    } else {
+      cache.candles.push(...closed);
+    }
+
+    if (batch.length < 1500 || closed.length < batch.length) break;
+    cursor = batch[batch.length - 1].openTime + D1_MS;
+  }
+
+  if (cache.candles.length > 0) {
+    cache.cursor = cache.candles[cache.candles.length - 1].openTime + D1_MS;
   }
 
   return cache.candles;
@@ -981,6 +1075,28 @@ async function fetchOpenInterestHistory(symbol, period = '1h', limit = 5) {
   return null;
 }
 
+async function fetchFundingRate(symbol) {
+  const url = 'https://fapi.binance.com/fapi/v1/premiumIndex';
+  for (let attempt = 0; attempt < 4; attempt++) {
+    try {
+      const res = await axios.get(url, {
+        params: { symbol: `${symbol}USDT` },
+        timeout: 10000,
+      });
+      if (res.data && res.data.lastFundingRate !== undefined) {
+        return parseFloat(res.data.lastFundingRate);
+      }
+    } catch (err) {
+      if (err?.response?.status === 429 && attempt < 3) {
+        await new Promise(r => setTimeout(r, (attempt + 1) * 2000));
+        continue;
+      }
+      log.warn(`[Binance API] Lỗi lấy Funding Rate cho ${symbol}: ${err.message}`);
+    }
+  }
+  return null;
+}
+
 async function checkAndUpdateMarketCapCache() {
   const filePath = path.join(process.cwd(), 'data', 'market_cap_top.json');
   
@@ -1100,193 +1216,294 @@ async function score369Method(sig369, direction) {
   try {
     const h1Candles = await fetchH1Historical(sig369.symbol);
     
-    // 1. Tiêu chí 1: Xu xu hướng EMA200 & Độ mạnh xu hướng ADX H1 (Tối đa +2đ)
-    let ema200 = calculateEMA(h1Candles, 200);
-    let adx14 = calculateADX(h1Candles, 14);
+    // 1. Tiêu chí 1: Xu hướng kép H4 + H1 & ADX H1 (Tối đa +2đ: H4 tối đa +1đ, H1 tối đa +1đ)
+    let trendScore = 0;
+    const trendReasons = [];
 
-    if (ema200 === null || adx14 === null) {
-      // Dự phòng: Lấy trực tiếp từ Binance nếu cache chưa đủ nến
+    const price = sig369.currentPrice ?? (h1Candles.length ? h1Candles[h1Candles.length - 1].close : 0);
+    const isLong = direction === 'LONG';
+
+    // 1.1 Khung H4: Xu hướng trung hạn (Tối đa 1đ)
+    let ema200H4 = null;
+    try {
+      const h4Candles = await fetchH4Historical(sig369.symbol);
+      if (h4Candles && h4Candles.length >= 200) {
+        ema200H4 = calculateEMA(h4Candles, 200);
+      } else {
+        // Fallback: Lấy trực tiếp từ Binance
+        const startTimeH4 = Date.now() - 250 * 4 * 3600000;
+        const fallbackH4 = await fetchBinanceKlines(sig369.symbol, '4h', startTimeH4, 250);
+        if (fallbackH4 && fallbackH4.length >= 200) {
+          ema200H4 = calculateEMA(fallbackH4, 200);
+        }
+      }
+    } catch (e) {
+      log.warn(`[Confluence Scorer] Không thể lấy klines H4 cho ${sig369.symbol}: ${e.message}`);
+    }
+
+    if (ema200H4 !== null) {
+      const isSameH4 = isLong ? price > ema200H4 : price < ema200H4;
+      if (isSameH4) {
+        trendScore += 1.0;
+        trendReasons.push(`H4 thuận: Giá $${price.toFixed(2)} ${isLong ? '>' : '<'} EMA200 $${ema200H4.toFixed(2)} (+1.0đ)`);
+      } else {
+        trendReasons.push(`H4 ngược xu hướng: Giá $${price.toFixed(2)} ${isLong ? '<' : '>'} EMA200 $${ema200H4.toFixed(2)} (+0đ)`);
+      }
+    } else {
+      trendReasons.push(`H4: thiếu dữ liệu (+0đ)`);
+    }
+
+    // 1.2 Khung H1: Momentum & Xu hướng ngắn hạn (Tối đa 1đ)
+    let ema200H1 = calculateEMA(h1Candles, 200);
+    let adx14H1 = calculateADX(h1Candles, 14);
+
+    if (ema200H1 === null || adx14H1 === null) {
       try {
-        const startTime = Date.now() - 250 * 3600000;
-        const fallbackKlines = await fetchBinanceKlines(sig369.symbol, '1h', startTime, 250);
-        if (fallbackKlines && fallbackKlines.length >= 200) {
-          if (ema200 === null) ema200 = calculateEMA(fallbackKlines, 200);
-          if (adx14 === null) adx14 = calculateADX(fallbackKlines, 14);
+        const startTimeH1 = Date.now() - 250 * 3600000;
+        const fallbackH1 = await fetchBinanceKlines(sig369.symbol, '1h', startTimeH1, 250);
+        if (fallbackH1 && fallbackH1.length >= 200) {
+          if (ema200H1 === null) ema200H1 = calculateEMA(fallbackH1, 200);
+          if (adx14H1 === null) adx14H1 = calculateADX(fallbackH1, 14);
         }
       } catch (err) {
-        log.warn(`[Confluence Scorer] Không thể lấy klines dự phòng để tính EMA200/ADX cho ${sig369.symbol}: ${err.message}`);
+        log.warn(`[Confluence Scorer] Không thể lấy klines H1 cho ${sig369.symbol}: ${err.message}`);
       }
     }
 
-    if (ema200 !== null && adx14 !== null) {
-      const price = sig369.currentPrice ?? (h1Candles.length ? h1Candles[h1Candles.length - 1].close : 0);
-      const isLong = direction === 'LONG';
-      const isSameTrend = isLong ? price > ema200 : price < ema200;
-      const isStrongTrend = adx14 >= 25;
+    if (ema200H1 !== null && adx14H1 !== null) {
+      const isSameH1 = isLong ? price > ema200H1 : price < ema200H1;
+      const isStrongH1 = adx14H1 >= 25;
 
-      if (isSameTrend && isStrongTrend) {
-        score += 2;
-        reasons.push(`[Xu hướng H1] Thuận xu hướng & Trend mạnh (ADX = ${adx14.toFixed(1)} >= 25) (+2)`);
-      } else if (isSameTrend && !isStrongTrend) {
-        score += 1;
-        reasons.push(`[Xu hướng H1] Thuận xu hướng & Trend yếu (ADX = ${adx14.toFixed(1)} < 25) (+1)`);
-      } else if (!isSameTrend && !isStrongTrend) {
-        score += 1;
-        reasons.push(`[Xu hướng H1] Ngược xu hướng & Trend yếu (ADX = ${adx14.toFixed(1)} < 25) (+1)`);
+      if (isSameH1 && isStrongH1) {
+        trendScore += 1.0;
+        trendReasons.push(`H1 thuận & trend mạnh (ADX = ${adx14H1.toFixed(1)} >= 25) (+1.0đ)`);
+      } else if (isSameH1 && !isStrongH1) {
+        trendScore += 0.5;
+        trendReasons.push(`H1 thuận & trend yếu (ADX = ${adx14H1.toFixed(1)} < 25) (+0.5đ)`);
+      } else if (!isSameH1 && !isStrongH1) {
+        trendScore += 0.5;
+        trendReasons.push(`H1 ngược & trend yếu (ADX = ${adx14H1.toFixed(1)} < 25) (+0.5đ)`);
       } else {
-        reasons.push(`[Xu hướng H1] Ngược xu hướng & Trend mạnh (ADX = ${adx14.toFixed(1)} >= 25) (+0)`);
-      }
-    } else if (ema200 !== null) {
-      // Dự phòng chỉ có EMA200
-      const price = sig369.currentPrice ?? (h1Candles.length ? h1Candles[h1Candles.length - 1].close : 0);
-      const isLong = direction === 'LONG';
-      const isSameTrend = isLong ? price > ema200 : price < ema200;
-      if (isSameTrend) {
-        score += 1;
-        reasons.push(`[EMA200 H1] Thuận xu hướng: Giá $${price} ${isLong ? '>' : '<'} EMA200 $${ema200.toFixed(4)} (+1)`);
-      } else {
-        reasons.push(`[EMA200 H1] Ngược xu hướng: Giá $${price} ${isLong ? '<' : '>'} EMA200 $${ema200.toFixed(4)} (+0)`);
+        trendReasons.push(`H1 ngược & trend mạnh (ADX = ${adx14H1.toFixed(1)} >= 25) (+0đ)`);
       }
     } else {
-      reasons.push(`[Xu hướng H1] Chưa đủ nến H1 để tính xu hướng & ADX (+0)`);
+      trendReasons.push(`H1: thiếu dữ liệu (+0đ)`);
     }
 
-    // 2. Tiêu chí 2: Biến động nến H1 gần nhất vs Step (Tối đa +2đ)
-    if (h1Candles && h1Candles.length > 0) {
-      const lastH1 = h1Candles[h1Candles.length - 1];
-      const range = lastH1.high - lastH1.low;
-      const step = sig369.step || 0;
+    score += trendScore;
+    reasons.push(`[Xu hướng H4/H1] ${trendReasons.join(' | ')}`);
 
-      if (step > 0) {
-        const isSafeVol = range <= step;
-        if (isSafeVol) {
-          score += 2;
-          reasons.push(`[Biến động H1] Nến gần nhất biến động $${range.toFixed(4)} <= Step $${step} (+2)`);
+    // 2. Tiêu chí 2: Bộ lọc kép biến động H1 & M15 (Tối đa +2đ: H1 tối đa +1đ, M15 tối đa +1đ)
+    let volScore = 0;
+    const volReasons = [];
+    const step = sig369.step || 0;
+
+    if (step > 0) {
+      // 2.1 Kiểm tra biến động H1 (Tối đa 1đ)
+      if (h1Candles && h1Candles.length > 0) {
+        const lastH1 = h1Candles[h1Candles.length - 1];
+        const h1Range = lastH1.high - lastH1.low;
+        if (h1Range <= 0.5 * step) {
+          volScore += 1.0;
+          volReasons.push(`H1 siêu nén: $${h1Range.toFixed(4)} <= ${0.5 * step} (+1.0đ)`);
+        } else if (h1Range <= step) {
+          volScore += 0.5;
+          volReasons.push(`H1 nén vừa: $${h1Range.toFixed(4)} <= ${step} (+0.5đ)`);
         } else {
-          reasons.push(`[Biến động H1] Nến gần nhất biến động $${range.toFixed(4)} > Step $${step} (+0)`);
+          volReasons.push(`H1 biến động mạnh: $${h1Range.toFixed(4)} > ${step} (+0đ)`);
         }
       } else {
-        reasons.push(`[Biến động H1] Thiếu dữ liệu Step để so sánh (+0)`);
+        volReasons.push(`H1: thiếu nến (+0đ)`);
+      }
+
+      // 2.2 Kiểm tra biến động M15 (Tối đa 1đ)
+      try {
+        const m1Recent = await fetchBinanceKlines(sig369.symbol, '1m', Date.now() - 16 * 60_000, 16);
+        if (m1Recent && m1Recent.length >= 15) {
+          const m15Candles = m1Recent.slice(-15);
+          const m15High = Math.max(...m15Candles.map(c => c.high));
+          const m15Low = Math.min(...m15Candles.map(c => c.low));
+          const m15Range = m15High - m15Low;
+
+          if (m15Range <= 0.2 * step) {
+            volScore += 1.0;
+            volReasons.push(`M15 siêu nén: $${m15Range.toFixed(4)} <= ${(0.2 * step).toFixed(4)} (+1.0đ)`);
+          } else if (m15Range <= 0.4 * step) {
+            volScore += 0.5;
+            volReasons.push(`M15 nén vừa: $${m15Range.toFixed(4)} <= ${(0.4 * step).toFixed(4)} (+0.5đ)`);
+          } else {
+            volReasons.push(`M15 biến động mạnh: $${m15Range.toFixed(4)} > ${(0.4 * step).toFixed(4)} (+0đ)`);
+          }
+        } else {
+          volReasons.push(`M15: thiếu nến (+0đ)`);
+        }
+      } catch (err) {
+        volReasons.push(`M15: lỗi check (${err.message}) (+0đ)`);
       }
     } else {
-      reasons.push(`[Biến động H1] Thiếu dữ liệu nến H1 để tính biến động (+0)`);
+      volReasons.push(`Thiếu dữ liệu Step để kiểm tra (+0đ)`);
     }
 
-    // 3. Tiêu chí 3: Quá mua / Quá bán RSI H1 (Tối đa +1đ)
+    score += volScore;
+    reasons.push(`[Biến động H1/M15] ${volReasons.join(' | ')}`);
+
+    // 3. Tiêu chí 3: Quá mua / Quá bán RSI H1 (Tối đa +1đ: cực đại +1đ, cận cản +0.5đ)
     const rsi14 = calculateRSI(h1Candles, 14);
     if (rsi14 !== null) {
       const isLong = direction === 'LONG';
       if (isLong) {
-        if (rsi14 <= 35) {
-          score += 1;
-          reasons.push(`[RSI H1] Quá bán: RSI H1 $${rsi14.toFixed(2)} <= 35 (+1)`);
+        if (rsi14 <= 30) {
+          score += 1.0;
+          reasons.push(`[RSI H1] Quá bán cực đại: RSI H1 ${rsi14.toFixed(2)} <= 30 (+1.0)`);
+        } else if (rsi14 <= 38) {
+          score += 0.5;
+          reasons.push(`[RSI H1] Cận quá bán: RSI H1 ${rsi14.toFixed(2)} <= 38 (+0.5)`);
         } else {
-          reasons.push(`[RSI H1] Trung tính: RSI H1 $${rsi14.toFixed(2)} > 35 (+0)`);
+          reasons.push(`[RSI H1] Trung tính: RSI H1 ${rsi14.toFixed(2)} > 38 (+0)`);
         }
       } else {
-        if (rsi14 >= 65) {
-          score += 1;
-          reasons.push(`[RSI H1] Quá mua: RSI H1 $${rsi14.toFixed(2)} >= 65 (+1)`);
+        const isShort = direction === 'SHORT';
+        if (rsi14 >= 70) {
+          score += 1.0;
+          reasons.push(`[RSI H1] Quá mua cực đại: RSI H1 ${rsi14.toFixed(2)} >= 70 (+1.0)`);
+        } else if (rsi14 >= 62) {
+          score += 0.5;
+          reasons.push(`[RSI H1] Cận quá mua: RSI H1 ${rsi14.toFixed(2)} >= 62 (+0.5)`);
         } else {
-          reasons.push(`[RSI H1] Trung tính: RSI H1 $${rsi14.toFixed(2)} < 65 (+0)`);
+          reasons.push(`[RSI H1] Trung tính: RSI H1 ${rsi14.toFixed(2)} < 62 (+0)`);
         }
       }
     } else {
       reasons.push(`[RSI H1] Chưa đủ 15 nến H1 để tính RSI (+0)`);
     }
 
-    // 4. Tiêu chí 4: Tỷ lệ Long/Short của Retail (Tối đa +1đ)
-    const ratioData = await fetchGlobalLongShortRatio(sig369.symbol, '1h');
-    if (ratioData !== null) {
+    // 4. Tiêu chí 4: Tương quan dòng tiền L/S (Whales vs Retail) (Tối đa +1.5đ)
+    let flowScore = 0;
+    const flowReasons = [];
+    try {
+      const [ratioData, whaleData] = await Promise.all([
+        fetchGlobalLongShortRatio(sig369.symbol, '1h'),
+        fetchTopLongShortPositionRatio(sig369.symbol, '1h')
+      ]);
+
       const isLong = direction === 'LONG';
-      if (isLong) {
-        const shortPct = ratioData.shortAccount * 100;
-        if (shortPct >= 55) {
-          score += 1;
-          reasons.push(`[Retail L/S] Thuận contrarian: Short Account đạt ${shortPct.toFixed(2)}% >= 55% (+1)`);
+
+      let retailOk = false;
+      let retailPct = 0;
+      if (ratioData !== null) {
+        const checkPct = isLong ? ratioData.shortAccount * 100 : ratioData.longAccount * 100;
+        retailPct = checkPct;
+        retailOk = checkPct >= 55;
+      }
+
+      let whaleOk = false;
+      let whalePct = 0;
+      if (whaleData !== null) {
+        const checkPct = isLong ? whaleData.longAccount * 100 : whaleData.shortAccount * 100;
+        whalePct = checkPct;
+        whaleOk = checkPct >= 53;
+      }
+
+      if (ratioData !== null && whaleData !== null) {
+        if (whaleOk && retailOk) {
+          flowScore = 1.5;
+          flowReasons.push(`Đồng thuận tuyệt đối (Gold Setup): Cá voi ${isLong ? 'Long' : 'Short'} ${whalePct.toFixed(1)}% >= 53% & Retail ${isLong ? 'Short' : 'Long'} ${retailPct.toFixed(1)}% >= 55% (+1.5đ)`);
+        } else if (whaleOk || retailOk) {
+          flowScore = 0.5;
+          flowReasons.push(`Đồng thuận một phần: Cá voi ${whaleOk ? 'đạt' : 'không đạt'} (${whalePct.toFixed(1)}%), Retail ${retailOk ? 'đạt' : 'không đạt'} (${retailPct.toFixed(1)}%) (+0.5đ)`);
         } else {
-          reasons.push(`[Retail L/S] Trung tính: Short Account đạt ${shortPct.toFixed(2)}% < 55% (+0)`);
+          flowReasons.push(`Không đồng thuận hoặc phân kỳ: Cá voi ${whalePct.toFixed(1)}%, Retail ${retailPct.toFixed(1)}% (+0đ)`);
         }
       } else {
-        const longPct = ratioData.longAccount * 100;
-        if (longPct >= 55) {
-          score += 1;
-          reasons.push(`[Retail L/S] Thuận contrarian: Long Account đạt ${longPct.toFixed(2)}% >= 55% (+1)`);
-        } else {
-          reasons.push(`[Retail L/S] Trung tính: Long Account đạt ${longPct.toFixed(2)}% < 55% (+0)`);
-        }
+        if (ratioData === null) flowReasons.push(`Lỗi tải dữ liệu Retail`);
+        if (whaleData === null) flowReasons.push(`Lỗi tải dữ liệu Cá voi`);
+        flowReasons.push(`(+0đ)`);
       }
-    } else {
-      reasons.push(`[Retail L/S] Không lấy được tỷ lệ Long/Short (+0)`);
+    } catch (e) {
+      flowReasons.push(`Lỗi hệ thống khi check dòng tiền (${e.message}) (+0đ)`);
     }
 
-    // 5. Tiêu chí 5: Danh sách Top 150 Market Cap (Tối đa +1đ)
+    score += flowScore;
+    reasons.push(`[Tương quan dòng tiền L/S] ${flowReasons.join(' | ')}`);
+
+    // 5. Tiêu chí 5: Phân hạng Vốn hóa (Tối đa +1.0đ: Top 30 Blue Chip +1.0đ, Top 31-150 +0.5đ, ngoài Top 150 +0đ)
     try {
       const topSymbols = await checkAndUpdateMarketCapCache();
-      const isLargeCap = topSymbols.includes(sig369.symbol.toUpperCase());
-      if (isLargeCap) {
-        score += 1;
-        reasons.push(`[Vốn hóa] Thuộc Top 150 Market Cap (+1)`);
+      const rank = topSymbols.indexOf(sig369.symbol.toUpperCase());
+      if (rank !== -1) {
+        if (rank < 30) {
+          score += 1.0;
+          reasons.push(`[Vốn hóa] Top 30 Blue Chip (Rank ${rank + 1}): Thanh khoản cực dày (+1.0)`);
+        } else {
+          score += 0.5;
+          reasons.push(`[Vốn hóa] Top 31-150 Mid Cap (Rank ${rank + 1}): Thanh khoản ổn định (+0.5)`);
+        }
       } else {
-        reasons.push(`[Vốn hóa] Ngoài Top 150 Market Cap (Low Cap/Rủi ro cao) (+0)`);
+        reasons.push(`[Vốn hóa] Ngoài Top 150 (Rank > 150): Low Cap/Thanh khoản mỏng (+0)`);
       }
     } catch (e) {
       reasons.push(`[Vốn hóa] Lỗi kiểm tra vốn hóa (+0)`);
     }
 
-    // 6. Tiêu chí 6: Trùng cản Price Action (Swing S/R) (Tối đa +1đ)
-    if (h1Candles && h1Candles.length > 0) {
-      const { highs, lows } = findSwingPoints(h1Candles, 4, 4);
-      const step = sig369.step || 0;
-      const targetLevel = sig369.targetLevel;
+    // 6. Tiêu chí 6: Trùng cản Price Action (Swing S/R) (Tối đa +1đ: 0.4đ H4 và 0.6đ D1)
+    let paScore = 0;
+    const paReasons = [];
+    const targetLevel = sig369.targetLevel;
 
-      if (step > 0 && targetLevel > 0) {
-        const maxDev = 0.15 * step;
-        const isLong = direction === 'LONG';
-        const searchList = isLong ? lows : highs;
-
-        // Đếm xem có bao nhiêu đỉnh/đáy lịch sử nằm trong khoảng lệch cho phép
-        const matches = searchList.filter(price => Math.abs(price - targetLevel) <= maxDev);
-
-        if (matches.length >= 2) {
-          score += 1;
-          reasons.push(`[Price Action S/R] Trùng cản lịch sử: Có ${matches.length} đáy/đỉnh cũ quanh mốc $${targetLevel} (+1)`);
-        } else {
-          reasons.push(`[Price Action S/R] Không trùng cản: Chỉ có ${matches.length} đáy/đỉnh cũ quanh mốc $${targetLevel} (+0)`);
-        }
-      } else {
-        reasons.push(`[Price Action S/R] Thiếu dữ liệu Step hoặc TargetLevel (+0)`);
-      }
-    } else {
-      reasons.push(`[Price Action S/R] Thiếu dữ liệu nến H1 (+0)`);
-    }
-
-    // 7. Tiêu chí 7: Tỷ lệ vị thế Long/Short của Cá voi (Tối đa +1đ)
-    const whaleData = await fetchTopLongShortPositionRatio(sig369.symbol, '1h');
-    if (whaleData !== null) {
+    if (step > 0 && targetLevel > 0) {
+      const maxDev = 0.15 * step;
       const isLong = direction === 'LONG';
-      if (isLong) {
-        const longPct = whaleData.longAccount * 100;
-        if (longPct >= 53) {
-          score += 1;
-          reasons.push(`[Cá voi L/S] Thuận xu hướng: Top Trader Long Position đạt ${longPct.toFixed(2)}% >= 53% (+1)`);
+
+      // 6.1 Kiểm tra cản H4 (0.4đ)
+      try {
+        const h4Candles = await fetchH4Historical(sig369.symbol);
+        if (h4Candles && h4Candles.length > 0) {
+          const { highs: h4Highs, lows: h4Lows } = findSwingPoints(h4Candles, 4, 4);
+          const searchListH4 = isLong ? h4Lows : h4Highs;
+          const matchesH4 = searchListH4.filter(price => Math.abs(price - targetLevel) <= maxDev);
+          if (matchesH4.length >= 2) {
+            paScore += 0.4;
+            paReasons.push(`H4: ${matchesH4.length} cản cũ (+0.4đ)`);
+          } else {
+            paReasons.push(`H4: chỉ có ${matchesH4.length} cản cũ (+0đ)`);
+          }
         } else {
-          reasons.push(`[Cá voi L/S] Trung tính: Top Trader Long Position đạt ${longPct.toFixed(2)}% < 53% (+0)`);
+          paReasons.push(`H4: thiếu nến (+0đ)`);
         }
-      } else {
-        const shortPct = whaleData.shortAccount * 100;
-        if (shortPct >= 53) {
-          score += 1;
-          reasons.push(`[Cá voi L/S] Thuận xu hướng: Top Trader Short Position đạt ${shortPct.toFixed(2)}% >= 53% (+1)`);
+      } catch (e) {
+        paReasons.push(`H4: lỗi check (+0đ)`);
+      }
+
+      // 6.2 Kiểm tra cản D1 (0.6đ)
+      try {
+        const d1Candles = await fetchD1Historical(sig369.symbol);
+        if (d1Candles && d1Candles.length > 0) {
+          const { highs: d1Highs, lows: d1Lows } = findSwingPoints(d1Candles, 3, 3);
+          const searchListD1 = isLong ? d1Lows : d1Highs;
+          const matchesD1 = searchListD1.filter(price => Math.abs(price - targetLevel) <= maxDev);
+          if (matchesD1.length >= 1) {
+            paScore += 0.6;
+            paReasons.push(`D1: ${matchesD1.length} cản cũ (+0.6đ)`);
+          } else {
+            paReasons.push(`D1: không cản (+0đ)`);
+          }
         } else {
-          reasons.push(`[Cá voi L/S] Trung tính: Top Trader Short Position đạt ${shortPct.toFixed(2)}% < 53% (+0)`);
+          paReasons.push(`D1: thiếu nến (+0đ)`);
         }
+      } catch (e) {
+        paReasons.push(`D1: lỗi check (+0đ)`);
       }
     } else {
-      reasons.push(`[Cá voi L/S] Không lấy được tỷ lệ Long/Short (+0)`);
+      paReasons.push(`Thiếu dữ liệu Step hoặc TargetLevel (+0đ)`);
     }
 
-    // 8. Tiêu chí 8: Biến động Open Interest H1 (4h qua) (Tối đa +1đ)
+    score += paScore;
+    reasons.push(`[Price Action S/R] ${paReasons.join(' | ')}`);
+
+    // 7. Tiêu chí 7: Tỷ lệ vị thế Long/Short của Cá voi (Đã gộp vào Tiêu chí 4 - Tương quan dòng tiền)
+    reasons.push(`[Cá voi L/S] Đã gộp vào Tiêu chí 4 (+0)`);
+
+    // 8. Tiêu chí 8: Biến động Open Interest H1 (4h qua) (Tối đa +1.0đ: hạ nhiệt +1.0đ, ổn định +0.5đ, tăng mạnh +0đ)
     const oiData = await fetchOpenInterestHistory(sig369.symbol, '1h', 5);
     if (oiData !== null && oiData.length >= 5) {
       const latestOI = oiData[oiData.length - 1].oi;
@@ -1295,10 +1512,13 @@ async function score369Method(sig369, direction) {
       if (prevOI > 0) {
         const oiChangePct = ((latestOI - prevOI) / prevOI) * 100;
         if (oiChangePct <= -2.0) {
-          score += 1;
-          reasons.push(`[OI H1] Hạ nhiệt vị thế: Lượng OI giảm ${oiChangePct.toFixed(2)}% <= -2% (+1)`);
+          score += 1.0;
+          reasons.push(`[OI H1] Hạ nhiệt vị thế: Lượng OI giảm ${oiChangePct.toFixed(2)}% <= -2% (+1.0)`);
+        } else if (oiChangePct <= 3.0) {
+          score += 0.5;
+          reasons.push(`[OI H1] Dòng tiền ổn định: Lượng OI thay đổi ${oiChangePct.toFixed(2)}% (+0.5)`);
         } else {
-          reasons.push(`[OI H1] Giữ nguyên vị thế: Lượng OI thay đổi ${oiChangePct.toFixed(2)}% > -2% (+0)`);
+          reasons.push(`[OI H1] Đòn bẩy tăng mạnh (Nóng): Lượng OI tăng ${oiChangePct.toFixed(2)}% >= +3% (+0)`);
         }
       } else {
         reasons.push(`[OI H1] Lượng OI cơ sở bằng 0 (+0)`);
@@ -1306,6 +1526,145 @@ async function score369Method(sig369, direction) {
     } else {
       reasons.push(`[OI H1] Không lấy được lịch sử Open Interest (+0)`);
     }
+
+    // 9. Tiêu chí 9: Động lượng Khối lượng Giao dịch (VSA Volume Surge) (Tối đa +1.0đ)
+    let volSurgeScore = 0;
+    const volSurgeReasons = [];
+    if (h1Candles && h1Candles.length >= 25) {
+      const lastH1 = h1Candles[h1Candles.length - 1];
+      const recent24 = h1Candles.slice(-25, -1);
+      const avgVol = recent24.reduce((sum, c) => sum + c.volume, 0) / 24;
+
+      if (avgVol > 0) {
+        const ratio = lastH1.volume / avgVol;
+        if (ratio <= 1.0) {
+          volSurgeScore = 1.0;
+          volSurgeReasons.push(`Volume cạn kiệt: ${lastH1.volume.toFixed(0)} <= ${avgVol.toFixed(0)} (${ratio.toFixed(2)}x) (+1.0đ)`);
+        } else if (ratio <= 2.0) {
+          volSurgeScore = 0.5;
+          volSurgeReasons.push(`Volume ổn định: ${lastH1.volume.toFixed(0)} <= ${(avgVol * 2).toFixed(0)} (${ratio.toFixed(2)}x) (+0.5đ)`);
+        } else {
+          volSurgeReasons.push(`Volume đột biến (Xả/Fomo): ${lastH1.volume.toFixed(0)} > ${(avgVol * 2).toFixed(0)} (${ratio.toFixed(2)}x) (+0đ)`);
+        }
+      } else {
+        volSurgeReasons.push(`Lượng Volume trung bình bằng 0 (+0đ)`);
+      }
+    } else {
+      volSurgeReasons.push(`Chưa đủ dữ liệu nến H1 để tính Volume trung bình (+0đ)`);
+    }
+    score += volSurgeScore;
+    reasons.push(`[Động lượng Volume] ${volSurgeReasons.join(' | ')}`);
+
+    // 10. Tiêu chí 10: Tỷ lệ Funding Rate (Funding Rate Squeeze) (Tối đa +1.0đ)
+    let fundingScore = 0;
+    const fundingReasons = [];
+    try {
+      const fundingRate = await fetchFundingRate(sig369.symbol);
+      if (fundingRate !== null) {
+        const fundingPct = fundingRate * 100;
+        const isLong = direction === 'LONG';
+
+        if (isLong) {
+          if (fundingPct <= -0.02) {
+            fundingScore = 1.0;
+            fundingReasons.push(`Short Crowded (Squeeze): Funding Rate ${fundingPct.toFixed(4)}% <= -0.02% (+1.0đ)`);
+          } else if (fundingPct <= 0.03) {
+            fundingScore = 0.5;
+            fundingReasons.push(`Bình thường: Funding Rate ${fundingPct.toFixed(4)}% (+0.5đ)`);
+          } else {
+            fundingReasons.push(`Long đu bám (Nóng): Funding Rate ${fundingPct.toFixed(4)}% > 0.03% (+0đ)`);
+          }
+        } else {
+          // SHORT
+          if (fundingPct >= 0.05) {
+            fundingScore = 1.0;
+            fundingReasons.push(`Long Crowded (Squeeze): Funding Rate ${fundingPct.toFixed(4)}% >= 0.05% (+1.0đ)`);
+          } else if (fundingPct >= -0.01) {
+            fundingScore = 0.5;
+            fundingReasons.push(`Bình thường: Funding Rate ${fundingPct.toFixed(4)}% (+0.5đ)`);
+          } else {
+            fundingReasons.push(`Short đu bám (Nóng): Funding Rate ${fundingPct.toFixed(4)}% < -0.01% (+0đ)`);
+          }
+        }
+      } else {
+        fundingReasons.push(`Không lấy được Funding Rate (+0đ)`);
+      }
+    } catch (err) {
+      fundingReasons.push(`Lỗi check: ${err.message} (+0đ)`);
+    }
+    score += fundingScore;
+    reasons.push(`[Funding Rate] ${fundingReasons.join(' | ')}`);
+
+    // 11. Tiêu chí 11: Chỉ số Xu hướng & Sóng BTC (Tối đa +1.0đ: thuận trend mạnh +1.0đ, đi ngang +0.5đ, ngược trend mạnh/bão +0đ)
+    let btcScore = 0;
+    const btcReasons = [];
+    if (sig369.symbol.toUpperCase() === 'BTC') {
+      btcScore = 1.0;
+      btcReasons.push(`Chính là BTC (+1.0đ)`);
+    } else {
+      try {
+        // 11.1 Check biến động nến M15 của BTC
+        const btcM1Recent = await fetchBinanceKlines('BTC', '1m', Date.now() - 16 * 60_000, 16);
+        let btcM15Pct = 0;
+        let btcPrice = price; // Fallback
+        if (btcM1Recent && btcM1Recent.length >= 15) {
+          const btcM15Candles = btcM1Recent.slice(-15);
+          const btcM15High = Math.max(...btcM15Candles.map(c => c.high));
+          const btcM15Low = Math.min(...btcM15Candles.map(c => c.low));
+          btcPrice = btcM15Candles[btcM15Candles.length - 1].close;
+          btcM15Pct = ((btcM15High - btcM15Low) / btcPrice) * 100;
+        }
+
+        if (btcM15Pct > 1.0) {
+          btcReasons.push(`BTC bão giá: M15 biến động ${btcM15Pct.toFixed(2)}% > 1.0% (+0đ)`);
+        } else {
+          // BTC an toàn, check trend
+          const btcH4Candles = await fetchH4Historical('BTC');
+          const btcH1Candles = await fetchH1Historical('BTC');
+          
+          let btcEma200H4 = null;
+          if (btcH4Candles && btcH4Candles.length >= 200) {
+            btcEma200H4 = calculateEMA(btcH4Candles, 200);
+          } else {
+            const startTimeH4 = Date.now() - 250 * 4 * 3600000;
+            const fallbackH4 = await fetchBinanceKlines('BTC', '4h', startTimeH4, 250);
+            if (fallbackH4 && fallbackH4.length >= 200) {
+              btcEma200H4 = calculateEMA(fallbackH4, 200);
+            }
+          }
+
+          let btcAdx14H1 = null;
+          if (btcH1Candles && btcH1Candles.length >= 14) {
+            btcAdx14H1 = calculateADX(btcH1Candles, 14);
+          }
+
+          if (btcEma200H4 !== null && btcAdx14H1 !== null) {
+            const isBtcLong = btcPrice > btcEma200H4;
+            const isSameTrendBtc = isLong ? isBtcLong : !isBtcLong;
+            const isStrongTrendBtc = btcAdx14H1 >= 25;
+
+            if (!isStrongTrendBtc) {
+              btcScore = 0.5;
+              btcReasons.push(`BTC đi ngang (ADX H1 = ${btcAdx14H1.toFixed(1)} < 25): Giao dịch tự do (+0.5đ)`);
+            } else {
+              if (isSameTrendBtc) {
+                btcScore = 1.0;
+                btcReasons.push(`BTC thuận trend mạnh (ADX H1 = ${btcAdx14H1.toFixed(1)} >= 25): Thuận hướng ${isLong ? 'LONG' : 'SHORT'} (+1.0đ)`);
+              } else {
+                btcReasons.push(`BTC ngược trend mạnh (ADX H1 = ${btcAdx14H1.toFixed(1)} >= 25): Ngược hướng lệnh (+0đ)`);
+              }
+            }
+          } else {
+            btcReasons.push(`BTC: thiếu dữ liệu kỹ thuật (+0đ)`);
+          }
+        }
+      } catch (err) {
+        btcReasons.push(`BTC: lỗi check (${err.message}) (+0đ)`);
+      }
+    }
+
+    score += btcScore;
+    reasons.push(`[Sóng BTC] ${btcReasons.join(' | ')}`);
 
   } catch (e) {
     log.warn(`[Confluence Scorer] Lỗi tính điểm cho ${sig369.symbol}: ${e.message}`);

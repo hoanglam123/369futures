@@ -102,6 +102,8 @@ async function startAutoTrade(coins) {
   const leverage = parseInt(process.env.LEVERAGE || '10', 10);
   const orderType = (process.env.ORDER_TYPE || 'LIMIT').toUpperCase();
   const notional = amount * leverage;
+  const limitTimeoutMinutes = parseInt(process.env.LIMIT_TIMEOUT_MINUTES || '15', 10);
+  const limitTimeoutMs = limitTimeoutMinutes * 60_000;
 
   const activeSymbols = new Set();
 
@@ -151,11 +153,44 @@ async function startAutoTrade(coins) {
       const currentOrders = await client.getOpenOrders();
       const currentAlgoOrders = await client.getOpenAlgoOrders();
 
+      // Quét và hủy các lệnh LIMIT treo quá hạn
+      const now = Date.now();
+      const remainingOrders = [];
+      for (const order of currentOrders) {
+        if (order.type === 'LIMIT' && (now - order.time) > limitTimeoutMs) {
+          const sym = order.symbol.replace('USDT', '');
+          log.system(`[AutoTrade] Lệnh LIMIT của ${sym} đã treo quá ${limitTimeoutMinutes} phút (${((now - order.time) / 60000).toFixed(1)} phút) -> Tiến hành hủy...`);
+          try {
+            await client.cancelOrder(sym, order.orderId);
+            log.system(`[AutoTrade] ✓ Đã hủy thành công lệnh LIMIT treo của ${sym}`);
+            
+            if (activeTradesMetadata[sym]) {
+              delete activeTradesMetadata[sym];
+              saveActiveTradesMetadata();
+            }
+            
+            sendTelegram(
+              `⚠️ <b>[AutoTrade] Hủy lệnh Limit treo quá hạn</b>\n` +
+              `• Coin: <b>${sym}</b>\n` +
+              `• Hướng: <b>${order.side}</b>\n` +
+              `• Giá đặt: <b>$${order.price}</b>\n` +
+              `• Số lượng: <b>${order.origQty}</b>\n` +
+              `• Đã chờ: <b>${((now - order.time) / 60000).toFixed(1)} phút</b>`
+            ).catch(() => {});
+          } catch (e) {
+            log.warn(`[AutoTrade] Không thể hủy lệnh LIMIT của ${sym}: ${_binanceErr(e)}`);
+            remainingOrders.push(order); // Giữ lại nếu hủy thất bại
+          }
+        } else {
+          remainingOrders.push(order);
+        }
+      }
+
       activeSymbols.clear();
       for (const p of currentPos) {
         activeSymbols.add(p.symbol.replace('USDT', ''));
       }
-      for (const o of currentOrders) {
+      for (const o of remainingOrders) {
         activeSymbols.add(o.symbol.replace('USDT', ''));
       }
       for (const o of currentAlgoOrders) {
@@ -213,30 +248,31 @@ async function startAutoTrade(coins) {
 
       log.system(`[AutoTrade] ${sym} → ${sig.signal} (Score: +${sig.score}đ) tại $${sig.targetLevel}`);
 
-      // Bắt buộc phải có Tiêu chí 2 (Biến động H1 <= Step)
-      const hasCriterion2 = sig.scoreReasons && sig.scoreReasons.some(r => r.includes('[Biến động H1]') && r.includes('(+2)'));
+      // Bắt buộc phải có Tiêu chí 2 (Biến động H1/M15 an toàn - không có khung nào bị điểm cộng (+0đ))
+      const hasCriterion2 = sig.scoreReasons && sig.scoreReasons.some(r => r.includes('[Biến động H1/M15]') && !r.includes('(+0đ)'));
       if (!hasCriterion2) {
-        log.system(`[AutoTrade] ${sym} ${sig.signal} không đạt Tiêu chí 2 (Biến động H1 <= Step) — bỏ qua`);
+        log.system(`[AutoTrade] ${sym} ${sig.signal} không đạt Tiêu chí 2 (Biến động H1/M15 an toàn) — bỏ qua`);
         continue;
       }
 
-      // Xác định số tiền vào lệnh dựa trên điểm số
+      // Xác định số tiền vào lệnh dựa trên thang điểm đề xuất (so sánh >= trực tiếp với điểm số thực tế)
+      const score = sig.score;
       let tradeAmount = 0;
-      if (sig.score < 5) {
-        log.system(`[AutoTrade] ${sym} ${sig.signal} có Score = ${sig.score}đ < 5đ — bỏ qua`);
+      if (score < 6) {
+        log.system(`[AutoTrade] ${sym} ${sig.signal} có Score = ${sig.score}đ < 6đ — bỏ qua`);
         continue;
-      } else if (sig.score === 5) {
-        tradeAmount = 10;
-      } else if (sig.score === 6) {
-        tradeAmount = 15;
-      } else if (sig.score === 7) {
-        tradeAmount = 20; // Phân bổ trung gian cho 7đ
-      } else if (sig.score === 8) {
-        tradeAmount = 25;
-      } else if (sig.score === 9) {
-        tradeAmount = 30;
-      } else if (sig.score >= 10) {
+      } else if (score >= 11) {
         tradeAmount = 35;
+      } else if (score >= 10) {
+        tradeAmount = 30;
+      } else if (score >= 9) {
+        tradeAmount = 25;
+      } else if (score >= 8) {
+        tradeAmount = 20;
+      } else if (score >= 7) {
+        tradeAmount = 15;
+      } else if (score >= 6) {
+        tradeAmount = 10;
       }
 
       // Kiểm tra debounce
@@ -300,7 +336,7 @@ async function startAutoTrade(coins) {
         activeSymbols.add(sym); // Thêm vào danh sách active để check SL/TP ngay lập tức
 
         // Lưu metadata vị thế để check TP/SL động
-        const trendReason = sig.scoreReasons.find(r => r.includes('[Xu hướng H1]') || r.includes('[EMA200 H1]'));
+        const trendReason = sig.scoreReasons.find(r => r.includes('[Xu hướng H4/H1]') || r.includes('[Xu hướng H1]') || r.includes('[EMA200 H1]'));
         const isCounter = trendReason ? trendReason.includes('Ngược xu hướng') : false;
 
         activeTradesMetadata[sym] = {
@@ -509,20 +545,20 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
           slPct = -8;
           trailTrigger = 5;
           trailSlRoi = 1;
-        } else if (score === 5) {
-          // Lệnh điểm thấp (5đ) và thuận xu hướng: TP=10%, SL 10%, lãi 5% dịch SL về mức hòa vốn (ROI +1%)
+        } else if (score < 7) {
+          // Lệnh điểm thấp (dưới 7đ, tức là [6.0 - 7.0)) và thuận xu hướng: TP=10%, SL 10%, lãi 5% dịch SL về mức hòa vốn (ROI +1%)
           tpPct = 10;
           slPct = -10;
           trailTrigger = 5;
           trailSlRoi = 1;
-        } else if (score === 6) {
-          // Lệnh điểm trung bình (6đ) và thuận xu hướng: TP 20%, SL 13%, dịch SL về ROI +1% khi TP đạt 9%
+        } else if (score < 8) {
+          // Lệnh điểm trung bình (dưới 8đ, tức là [7.0 - 8.0)) và thuận xu hướng: TP 20%, SL 13%, dịch SL về ROI +1% khi TP đạt 9%
           tpPct = 20;
           slPct = -13;
           trailTrigger = 9;
           trailSlRoi = 1;
-        } else if (score >= 7) {
-          // Lệnh thuận xu hướng & Điểm cao (>= 7đ): TP 25%, SL 15%, dịch SL về ROI +1% khi TP đạt 9%
+        } else {
+          // Lệnh thuận xu hướng & Điểm cao (>= 8đ): TP 25%, SL 15%, dịch SL về ROI +1% khi TP đạt 9%
           tpPct = 25;
           slPct = -15;
           trailTrigger = 9;
