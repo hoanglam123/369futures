@@ -206,7 +206,7 @@ async function startAutoTrade(coins) {
     // 2. Đồng bộ danh sách đăng ký WebSocket (Subscribe các coin mới vào mốc, Unsubscribe các coin đã ra xa)
     syncWebSocketSubscriptions(nearby);
 
-    log.system(`[AutoTrade] Scan: ${nearby.length}/${coins.length} coin gần mốc phản ứng.`);
+    // log.system(`[AutoTrade] Scan: ${nearby.length}/${coins.length} coin gần mốc phản ứng.`);
     if (!nearby.length) return;
 
     for (const sym of nearby) {

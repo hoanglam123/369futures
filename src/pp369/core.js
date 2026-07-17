@@ -35,10 +35,10 @@ const YEAR_START_MS = Date.UTC(2026, 0, 1);
 
 // ─── Lọc coin theo độ rộng grid ──────────────────────────────────────────────
 // Grid quá hẹp (< 3%): coin cực đắt — khoảng giá biến động quá nhỏ so với step
-// Grid quá rộng (> 20%): coin rẻ tiền (1000x...) — biến động quá lớn, rủi ro cao
-// Ngưỡng 3–20% bao gồm BTC/ETH (≈3%), SOL (≈4%), các altcoin tầm trung (5–15%)
+// Grid quá rộng (> 30%): coin rẻ tiền (1000x...) — biến động quá lớn, rủi ro cao
+// Ngưỡng 3–30% bao gồm BTC/ETH (≈3%), SOL (≈4%), các altcoin tầm trung (5–20%), altcoin biến động cao (20–30%)
 const GRID_MIN_PCT = 3;   // 3% — bao gồm cả coin đắt tiền/thị phần lớn (BTC, ETH, SOL...)
-const GRID_MAX_PCT = 20;  // 20%
+const GRID_MAX_PCT = 30;  // 30%
 
 /**
  * Tính khoảng cách % giữa 2 mốc cùng loại (tren→tren hoặc duoi→duoi).
@@ -46,18 +46,20 @@ const GRID_MAX_PCT = 20;  // 20%
  * @param {{ step: number, openPrice: number }} h1Entry - Entry từ h1Cache
  * @returns {number} Khoảng cách % (ví dụ 3.09 cho BTC)
  */
-function getGridStepPct(h1Entry) {
-  if (!h1Entry || !h1Entry.step || !h1Entry.openPrice) return 0;
-  return (h1Entry.step / h1Entry.openPrice) * 100;
+function getGridStepPct(h1Entry, currentPrice) {
+  const price = currentPrice || h1Entry.openPrice;
+  if (!h1Entry || !h1Entry.step || !price) return 0;
+  return (h1Entry.step / price) * 100;
 }
 
 /**
  * Kiểm tra coin có nằm trong ngưỡng grid cho phép không (GRID_MIN_PCT – GRID_MAX_PCT).
  * @param {{ step: number, openPrice: number }} h1Entry
+ * @param {number} [currentPrice]
  * @returns {boolean}
  */
-function isGridWidthValid(h1Entry) {
-  const pct = getGridStepPct(h1Entry);
+function isGridWidthValid(h1Entry, currentPrice) {
+  const pct = getGridStepPct(h1Entry, currentPrice);
   return pct >= GRID_MIN_PCT && pct <= GRID_MAX_PCT;
 }
 

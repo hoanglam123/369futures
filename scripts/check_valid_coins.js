@@ -1,5 +1,8 @@
 'use strict';
+require('dotenv').config({ path: require('path').join(__dirname, '../.env') });
+
 const fs = require('fs');
+const { updatePricesRest, getMarkPrice } = require('../src/pp369');
 
 const STEP_SIZES_PATH = 'f:/LamDH/Project/369futures/data/step_sizes.json';
 const MARKET_CAP_PATH = 'f:/LamDH/Project/369futures/data/market_cap_top.json';
@@ -14,24 +17,44 @@ function isTop150(symbol) {
 const h4Cache = stepSizesData.h4Cache || {};
 const YEAR_START_MS = Date.UTC(2026, 0, 1);
 const GRID_MIN_PCT = 3;
-const GRID_MAX_PCT = 20;
+const GRID_MAX_PCT = 30;
 
-function getGridStepPct(e) {
-  return (e.step / e.openPrice) * 100;
+function getGridStepPct(e, currentPrice) {
+  const price = currentPrice || e.openPrice;
+  return (e.step / price) * 100;
 }
 
-function isGridWidthValid(e) {
-  const pct = getGridStepPct(e);
+function isGridWidthValid(e, currentPrice) {
+  const pct = getGridStepPct(e, currentPrice);
   return pct >= GRID_MIN_PCT && pct <= GRID_MAX_PCT;
 }
 
-const allValidCoins = Object.entries(h4Cache)
-  .filter(([, e]) => e.yearStart === YEAR_START_MS && !e.failed && isGridWidthValid(e))
-  .map(([sym]) => sym);
+async function main() {
+  // Lấy giá thị trường hiện tại (1 request)
+  try {
+    await updatePricesRest();
+    console.log('[check_valid_coins] Đã lấy giá thị trường hiện tại.');
+  } catch (err) {
+    console.warn('[check_valid_coins] Không thể lấy giá hiện tại, fallback về giá openPrice đầu năm:', err.message);
+  }
 
-const validCoins = allValidCoins.filter(isTop150);
+  const allValidCoins = Object.entries(h4Cache)
+    .filter(([sym, e]) => {
+      if (e.yearStart !== YEAR_START_MS || e.failed) return false;
+      const currentPrice = getMarkPrice(sym);
+      return isGridWidthValid(e, currentPrice);
+    })
+    .map(([sym]) => sym);
 
-console.log('Total Coins in Cache:', Object.keys(h4Cache).length);
-console.log('Total Valid Coins:', allValidCoins.length);
-console.log('Total Top 150 Valid Coins:', validCoins.length);
-console.log('Top 150 Valid Coins list:', validCoins);
+  const validCoins = allValidCoins.filter(isTop150);
+
+  console.log('Total Coins in Cache:', Object.keys(h4Cache).length);
+  console.log('Total Valid Coins (theo giá hiện tại):', allValidCoins.length);
+  console.log('Total Top 150 Valid Coins:', validCoins.length);
+  console.log('Top 150 Valid Coins list:', validCoins);
+}
+
+main().catch(err => {
+  console.error('[check_valid_coins] Fatal:', err.message);
+  process.exit(1);
+});

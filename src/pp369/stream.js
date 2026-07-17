@@ -77,7 +77,7 @@ async function syncWebSocketSubscriptions(nearbySymbols) {
         id: _wsRequestId++
       };
       _ws.send(JSON.stringify(payload));
-      log.system(`[PP369Stream] WS Subscribe (chunk ${Math.floor(i/CHUNK_SIZE) + 1}): ${chunk.join(', ')}`);
+      // log.system(`[PP369Stream] WS Subscribe (chunk ${Math.floor(i/CHUNK_SIZE) + 1}): ${chunk.join(', ')}`);
       await new Promise(r => setTimeout(r, 50));
     }
     for (const sym of targetSymbols) {
@@ -94,7 +94,7 @@ async function syncWebSocketSubscriptions(nearbySymbols) {
         id: _wsRequestId++
       };
       _ws.send(JSON.stringify(payload));
-      log.system(`[PP369Stream] WS Unsubscribe (chunk ${Math.floor(i/CHUNK_SIZE) + 1}): ${chunk.join(', ')}`);
+      // log.system(`[PP369Stream] WS Unsubscribe (chunk ${Math.floor(i/CHUNK_SIZE) + 1}): ${chunk.join(', ')}`);
       await new Promise(r => setTimeout(r, 50));
     }
     for (const stream of toUnsubscribe) {

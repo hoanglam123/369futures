@@ -6,7 +6,7 @@ const fs = require('fs');
 const path = require('path');
 const { startAutoTrade } = require('../src/trader/autoTrade');
 const { loadLeverageBrackets } = require('../src/trader/binance');
-const { initH4Cache, isGridWidthValid, GRID_MIN_PCT, GRID_MAX_PCT, YEAR_START_MS } = require('../src/pp369');
+const { initH4Cache, isGridWidthValid, GRID_MIN_PCT, GRID_MAX_PCT, YEAR_START_MS, updatePricesRest, getMarkPrice } = require('../src/pp369');
 const { notifyBotStart } = require('../src/pp369/telegram');
 
 async function main() {
@@ -25,23 +25,42 @@ async function main() {
       
       // Gọi initH4Cache để kiểm tra và chỉ lấy nến H4 đầu năm 2026 cho mã chưa có cache
       await initH4Cache(allSymbols);
-      
+
+      // Lấy giá thị trường hiện tại (1 request duy nhất) để lọc coin theo % grid hiện tại
+      try {
+        await updatePricesRest();
+      } catch (err) {
+        console.warn('[AutoTrade] Không thể lấy giá hiện tại, fallback về giá openPrice đầu năm:', err.message);
+      }
+
       // Đọc lại tệp sau khi đã lấy nến H4 xong
       const updatedData = JSON.parse(fs.readFileSync(filePath, 'utf8'));
       const updatedH4Cache = updatedData.h4Cache || {};
-      
+
       // Chỉ dùng mã đã cache H4 thành công (yearStart đúng, không bị failed)
-      // và có độ rộng grid nằm trong khoảng cho phép
+      // và có độ rộng grid nằm trong khoảng cho phép theo GIÁ HIỆN TẠI
       const allValid = Object.entries(updatedH4Cache)
-        .filter(([, e]) => e.yearStart === YEAR_START_MS && !e.failed && isGridWidthValid(e))
+        .filter(([sym, e]) => {
+          if (e.yearStart !== YEAR_START_MS || e.failed) return false;
+          const currentPrice = getMarkPrice(sym);
+          return isGridWidthValid(e, currentPrice);
+        })
         .map(([sym]) => sym);
-      
+
       const filtered = Object.entries(updatedH4Cache)
-        .filter(([, e]) => e.yearStart === YEAR_START_MS && !e.failed && !isGridWidthValid(e));
-      
+        .filter(([sym, e]) => {
+          if (e.yearStart !== YEAR_START_MS || e.failed) return false;
+          const currentPrice = getMarkPrice(sym);
+          return !isGridWidthValid(e, currentPrice);
+        });
+
       if (filtered.length > 0) {
-        console.info(`[AutoTrade] Bỏ qua ${filtered.length} coin có grid ngoài khoảng ${GRID_MIN_PCT}–${GRID_MAX_PCT}%:`,
-          filtered.map(([sym, e]) => `${sym}(${((e.step / e.openPrice) * 100).toFixed(1)}%)`).join(', '));
+        console.info(`[AutoTrade] Bỏ qua ${filtered.length} coin có grid ngoài khoảng ${GRID_MIN_PCT}–${GRID_MAX_PCT}% (theo giá hiện tại):`,
+          filtered.map(([sym, e]) => {
+            const cp = getMarkPrice(sym);
+            const price = cp || e.openPrice;
+            return `${sym}(${((e.step / price) * 100).toFixed(1)}%)`;
+          }).join(', '));
       }
       coins = allValid;
       
