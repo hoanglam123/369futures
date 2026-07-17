@@ -26,12 +26,15 @@ const {
   notifySignals,
   sendTelegram,
   score369Method,
+  isGridWidthValid,
+  YEAR_START_MS,
 } = require('../pp369');
 const { log } = require('../pp369/_logger');
 
 const SCAN_INTERVAL_MS = 30_000;   // scan mỗi 30 giây
 const TRAILING_SL_INTERVAL_MS = 3_000; // kiểm tra vị thế để dịch SL mỗi 3 giây (tăng interval để tránh rate limit)
 const DEBOUNCE_MS = 5 * 60_000; // 5 phút / tín hiệu
+const COIN_REFRESH_INTERVAL_MS = 4 * 60 * 60_000; // Tái kiểm tra danh sách coin mỗi 4 giờ
 
 // Debounce map: key → timestamp lần đặt lệnh gần nhất
 const _fired = new Map();
@@ -113,6 +116,9 @@ async function startAutoTrade(coins) {
 
   log.system(`[AutoTrade] Khởi động: ${coins.length} coin | margin=$${amount} | ${leverage}x | type=${orderType}`);
 
+  // Danh sách coin mutable — sẽ được cập nhật định kỳ theo giá hiện tại
+  let activeCoinList = [...coins];
+
   await loadStepSizes();
 
   // Đọc leverageInfo từ cache để cap leverage theo giới hạn Binance cho phép mỗi coin
@@ -131,10 +137,33 @@ async function startAutoTrade(coins) {
   // Lấy giá REST lần đầu để xác định các coin gần mốc
   await updatePricesRest();
   const initialLevelCache = getLevelCache();
-  const initialNearby = getNearbySymbols(coins, initialLevelCache, 0.01);
+  const initialNearby = getNearbySymbols(activeCoinList, initialLevelCache, 0.01);
 
   // Khởi động WebSocket stream và đăng ký (subscribe) chỉ các mã đang gần mốc
   start369Stream(initialNearby);
+
+  // ── Tái kiểm tra danh sách coin mỗi 4 giờ theo giá thị trường hiện tại ────
+  setInterval(async () => {
+    try {
+      await updatePricesRest();
+      const cachePath = path.join(process.cwd(), 'data', 'step_sizes.json');
+      if (!fs.existsSync(cachePath)) return;
+      const cacheData = JSON.parse(fs.readFileSync(cachePath, 'utf8'));
+      const h4Cache = cacheData.h4Cache || {};
+      const newList = Object.entries(h4Cache)
+        .filter(([sym, e]) => {
+          if (e.yearStart !== YEAR_START_MS || e.failed) return false;
+          const currentPrice = getMarkPrice(sym);
+          return isGridWidthValid(e, currentPrice);
+        })
+        .map(([sym]) => sym);
+      const oldCount = activeCoinList.length;
+      activeCoinList = newList;
+      log.system(`[AutoTrade] [CoinRefresh] Tái kiểm tra danh sách: ${oldCount} → ${activeCoinList.length} coin hợp lệ theo giá hiện tại.`);
+    } catch (err) {
+      log.warn(`[AutoTrade] [CoinRefresh] Lỗi tái kiểm tra danh sách coin: ${err.message}`);
+    }
+  }, COIN_REFRESH_INTERVAL_MS);
 
   // Chờ WebSocket kết nối và nhận giá live ban đầu cho các mã đó
   await new Promise(r => setTimeout(r, 4000));
@@ -201,12 +230,12 @@ async function startAutoTrade(coins) {
     }
 
     const levelCache = getLevelCache();
-    const nearby = getNearbySymbols(coins, levelCache, 0.01);
+    const nearby = getNearbySymbols(activeCoinList, levelCache, 0.01);
 
     // 2. Đồng bộ danh sách đăng ký WebSocket (Subscribe các coin mới vào mốc, Unsubscribe các coin đã ra xa)
     syncWebSocketSubscriptions(nearby);
 
-    // log.system(`[AutoTrade] Scan: ${nearby.length}/${coins.length} coin gần mốc phản ứng.`);
+    // log.system(`[AutoTrade] Scan: ${nearby.length}/${activeCoinList.length} coin gần mốc phản ứng.`);
     if (!nearby.length) return;
 
     for (const sym of nearby) {
