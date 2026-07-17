@@ -163,12 +163,12 @@ async function startAutoTrade(coins) {
           try {
             await client.cancelOrder(sym, order.orderId);
             log.system(`[AutoTrade] ✓ Đã hủy thành công lệnh LIMIT treo của ${sym}`);
-            
+
             if (activeTradesMetadata[sym]) {
               delete activeTradesMetadata[sym];
               saveActiveTradesMetadata();
             }
-            
+
             sendTelegram(
               `⚠️ <b>[AutoTrade] Hủy lệnh Limit treo quá hạn</b>\n` +
               `• Coin: <b>${sym}</b>\n` +
@@ -176,7 +176,7 @@ async function startAutoTrade(coins) {
               `• Giá đặt: <b>$${order.price}</b>\n` +
               `• Số lượng: <b>${order.origQty}</b>\n` +
               `• Đã chờ: <b>${((now - order.time) / 60000).toFixed(1)} phút</b>`
-            ).catch(() => {});
+            ).catch(() => { });
           } catch (e) {
             log.warn(`[AutoTrade] Không thể hủy lệnh LIMIT của ${sym}: ${_binanceErr(e)}`);
             remainingOrders.push(order); // Giữ lại nếu hủy thất bại
@@ -338,7 +338,7 @@ async function startAutoTrade(coins) {
 
         // Lưu metadata vị thế để check TP/SL động
         const trendReason = sig.scoreReasons.find(r => r.includes('[Xu hướng H4/H1]') || r.includes('[Xu hướng H1]') || r.includes('[EMA200 H1]'));
-        const isCounter = trendReason ? trendReason.includes('Ngược xu hướng') : false;
+        const isCounter = trendReason ? trendReason.includes('ngược xu hướng') : false;
 
         activeTradesMetadata[sym] = {
           score: sig.score,
@@ -603,7 +603,7 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
       // ----------------------------------------------------
       // Tính mức SL mục tiêu dựa trên trailing trigger 2 tầng (Bảo vệ lãi khi đạt 75% quãng đường)
       let currentSlPct = slPct;
-      
+
       // Tầng 2: Khóa lãi khi giá chạy được 75% quãng đường tới TP
       const trailTrigger2 = tpPct >= 20 ? (tpPct === 20 ? 15 : 18) : null;
       const trailSlRoi2 = tpPct >= 20 ? (tpPct === 20 ? 8 : 10) : null;
