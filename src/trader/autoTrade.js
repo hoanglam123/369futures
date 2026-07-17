@@ -70,8 +70,8 @@ function formatQuantity(sym, rawQty) {
       const stepSizes = data.stepSizes ?? {};
       stepSize = stepSizes[`${sym}USDT`] ?? 0.001;
     }
-  } catch (_) {}
-  
+  } catch (_) { }
+
   const qty = Math.floor(rawQty / stepSize) * stepSize;
   const dec = Math.max(0, Math.round(-Math.log10(stepSize)));
   return parseFloat(qty.toFixed(dec));
@@ -150,7 +150,7 @@ async function startAutoTrade(coins) {
       const currentPos = await client.getOpenPositions();
       const currentOrders = await client.getOpenOrders();
       const currentAlgoOrders = await client.getOpenAlgoOrders();
-      
+
       activeSymbols.clear();
       for (const p of currentPos) {
         activeSymbols.add(p.symbol.replace('USDT', ''));
@@ -230,13 +230,13 @@ async function startAutoTrade(coins) {
       } else if (sig.score === 6) {
         tradeAmount = 15;
       } else if (sig.score === 7) {
-        tradeAmount = 15; // Phân bổ trung gian cho 7đ
+        tradeAmount = 20; // Phân bổ trung gian cho 7đ
       } else if (sig.score === 8) {
-        tradeAmount = 20;
-      } else if (sig.score === 9) {
         tradeAmount = 25;
-      } else if (sig.score >= 10) {
+      } else if (sig.score === 9) {
         tradeAmount = 30;
+      } else if (sig.score >= 10) {
+        tradeAmount = 35;
       }
 
       // Kiểm tra debounce
@@ -300,9 +300,12 @@ async function startAutoTrade(coins) {
         activeSymbols.add(sym); // Thêm vào danh sách active để check SL/TP ngay lập tức
 
         // Lưu metadata vị thế để check TP/SL động
+        const trendReason = sig.scoreReasons.find(r => r.includes('[Xu hướng H1]') || r.includes('[EMA200 H1]'));
+        const isCounter = trendReason ? trendReason.includes('Ngược xu hướng') : false;
+
         activeTradesMetadata[sym] = {
           score: sig.score,
-          isCounterTrend: !sig.scoreReasons.some(r => r.includes('Thuận xu hướng')),
+          isCounterTrend: isCounter,
           entryPrice: sig.targetLevel,
           time: Date.now()
         };
@@ -398,7 +401,7 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
       const isStillOpen = positions.some(p => p.symbol === `${prevSym}USDT`);
       if (!isStillOpen) {
         partialClosedSymbols.delete(prevSym); // Giải phóng trạng thái chốt lời một phần
-        
+
         // Xóa metadata của vị thế đã đóng
         if (activeTradesMetadata[prevSym]) {
           delete activeTradesMetadata[prevSym];
@@ -408,7 +411,7 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
         if (justClosedByBot.has(prevSym)) {
           justClosedByBot.delete(prevSym); // Bỏ qua vì bot đã chủ động gửi thông báo Virtual TP/SL rồi
         } else {
-          notifyRealClose(client, prevSym, prevPos).catch(() => {});
+          notifyRealClose(client, prevSym, prevPos).catch(() => { });
         }
       }
     }
@@ -490,7 +493,7 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
       // Lấy cấu hình TP/SL dựa trên metadata của lệnh
       // ----------------------------------------------------
       const meta = activeTradesMetadata[sym];
-      
+
       let tpPct = 20;        // ROI % chốt lời (mặc định)
       let slPct = -13;       // ROI % cắt lỗ (mặc định)
       let trailTrigger = 9;  // ROI % để bắt đầu dời SL về entry
