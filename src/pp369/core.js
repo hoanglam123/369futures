@@ -1299,18 +1299,22 @@ async function score369Method(sig369, direction) {
     const step = sig369.step || 0;
 
     if (step > 0) {
+      const stepPct = (step / price) * 100;
+
       // 2.1 Kiểm tra biến động H1 (Tối đa 1đ)
       if (h1Candles && h1Candles.length > 0) {
         const lastH1 = h1Candles[h1Candles.length - 1];
         const h1Range = lastH1.high - lastH1.low;
-        if (h1Range <= 0.5 * step) {
+        const h1RangePct = (h1Range / price) * 100;
+        
+        if (h1RangePct <= 0.5 * stepPct) {
           volScore += 1.0;
-          volReasons.push(`H1 siêu nén: $${h1Range.toFixed(4)} <= ${0.5 * step} (+1.0đ)`);
-        } else if (h1Range <= step) {
-          volScore += 0.5;
-          volReasons.push(`H1 nén vừa: $${h1Range.toFixed(4)} <= ${step} (+0.5đ)`);
+          volReasons.push(`H1 siêu nén: ${h1RangePct.toFixed(2)}% <= ${(0.5 * stepPct).toFixed(2)}% (+1.0đ)`);
+        } else if (h1RangePct <= stepPct) {
+          volScore += 0.8;
+          volReasons.push(`H1 nén vừa: ${h1RangePct.toFixed(2)}% <= ${stepPct.toFixed(2)}% (+0.8đ)`);
         } else {
-          volReasons.push(`H1 biến động mạnh: $${h1Range.toFixed(4)} > ${step} (+0đ)`);
+          volReasons.push(`H1 biến động mạnh: ${h1RangePct.toFixed(2)}% > ${stepPct.toFixed(2)}% (+0đ)`);
         }
       } else {
         volReasons.push(`H1: thiếu nến (+0đ)`);
@@ -1324,15 +1328,19 @@ async function score369Method(sig369, direction) {
           const m15High = Math.max(...m15Candles.map(c => c.high));
           const m15Low = Math.min(...m15Candles.map(c => c.low));
           const m15Range = m15High - m15Low;
+          const m15RangePct = (m15Range / price) * 100;
 
-          if (m15Range <= 0.2 * step) {
+          const m15LimitPct = 0.69 * stepPct;
+          const m15SuperLimitPct = 0.345 * stepPct;
+
+          if (m15RangePct <= m15SuperLimitPct) {
             volScore += 1.0;
-            volReasons.push(`M15 siêu nén: $${m15Range.toFixed(4)} <= ${(0.2 * step).toFixed(4)} (+1.0đ)`);
-          } else if (m15Range <= 0.4 * step) {
-            volScore += 0.5;
-            volReasons.push(`M15 nén vừa: $${m15Range.toFixed(4)} <= ${(0.4 * step).toFixed(4)} (+0.5đ)`);
+            volReasons.push(`M15 siêu nén: ${m15RangePct.toFixed(2)}% <= ${m15SuperLimitPct.toFixed(2)}% (+1.0đ)`);
+          } else if (m15RangePct <= m15LimitPct) {
+            volScore += 0.8;
+            volReasons.push(`M15 nén vừa: ${m15RangePct.toFixed(2)}% <= ${m15LimitPct.toFixed(2)}% (+0.8đ)`);
           } else {
-            volReasons.push(`M15 biến động mạnh: $${m15Range.toFixed(4)} > ${(0.4 * step).toFixed(4)} (+0đ)`);
+            volReasons.push(`M15 biến động mạnh: ${m15RangePct.toFixed(2)}% > ${m15LimitPct.toFixed(2)}% (+0đ)`);
           }
         } else {
           volReasons.push(`M15: thiếu nến (+0đ)`);
