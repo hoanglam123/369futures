@@ -1,0 +1,7 @@
+node_modules/
+.env
+data/market_cap_top.json
+data/step_sizes.json
+data/369_signals.jsonl
+data/backtest_results.json
+data/active_trades.json
