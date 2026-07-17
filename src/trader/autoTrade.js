@@ -645,16 +645,29 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
         // Có lệnh SL trên sàn -> Chỉ thực hiện khi cần dịch chuyển Trailing SL (ROI >= trailTrigger)
         if (roi >= trailTrigger) {
           let alreadyMoved = false;
+          let betterOrEqualExists = false;
+
           for (const o of realSlOrders) {
             const stopPrice = parseFloat(o.stopPrice);
             if (stopPrice.toFixed(dec) === targetSlStr) {
               alreadyMoved = true;
               break;
             }
+            // Kiểm tra xem đã có lệnh SL tốt hơn (khóa lãi cao hơn) tồn tại trên sàn chưa
+            if (isLong) {
+              if (stopPrice > targetSlPrice) {
+                betterOrEqualExists = true;
+              }
+            } else {
+              if (stopPrice < targetSlPrice) {
+                betterOrEqualExists = true;
+              }
+            }
           }
 
-          if (!alreadyMoved) {
-            log.system(`[AutoTrade] Trailing SL: ${sym} đạt ROI ${roi.toFixed(2)}% (>= ${trailTrigger}%) -> Dịch SL trên sàn về entry + ${trailSlRoi}% ROI ($${targetSlStr})`);
+          if (!alreadyMoved && !betterOrEqualExists) {
+            const levelLabel = currentSlPct === trailSlRoi ? 'Hòa vốn' : 'Khóa lãi';
+            log.system(`[AutoTrade] Trailing SL: ${sym} đạt ROI ${roi.toFixed(2)}% -> Dịch SL trên sàn về entry + ${currentSlPct}% ROI ($${targetSlStr}) [Mức: ${levelLabel}]`);
             // Hủy SL cũ
             for (const o of realSlOrders) {
               try {
