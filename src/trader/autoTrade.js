@@ -579,16 +579,21 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
     // Lấy các symbols của vị thế đang mở
     const openSymbols = positions.map(p => p.symbol.replace('USDT', ''));
 
-    // Lấy lệnh thường và lệnh algo cho từng symbol song song (không catch lỗi ẩn để tránh đua lệnh)
-    const orderPromises = openSymbols.map(async (sym) => {
-      const [orders, algoOrders] = await Promise.all([
-        client.getOpenOrders(sym),
-        client.getOpenAlgoOrders(sym)
-      ]);
+    // Lấy toàn bộ lệnh thường và lệnh algo 1 lần (không theo symbol) rồi lọc — tránh N×2 requests song song gây timeout
+    const [allOpenOrders, allAlgoOrdersRaw] = await Promise.all([
+      client.getOpenOrders(),
+      client.getOpenAlgoOrders()
+    ]);
+    const allAlgoOrders = Array.isArray(allAlgoOrdersRaw)
+      ? allAlgoOrdersRaw
+      : (allAlgoOrdersRaw?.orders ?? []);
+
+    const symbolOrdersResults = openSymbols.map((sym) => {
+      const symUsdt = `${sym}USDT`;
+      const orders = allOpenOrders.filter(o => o.symbol === symUsdt);
+      const algoOrders = allAlgoOrders.filter(o => o.symbol === symUsdt);
       return { sym, orders, algoOrders };
     });
-
-    const symbolOrdersResults = await Promise.all(orderPromises);
 
     for (const p of positions) {
       const sym = p.symbol.replace('USDT', '');

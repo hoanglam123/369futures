@@ -18,7 +18,7 @@ let timeOffset = 0;
 
 async function syncTimeOffset() {
   try {
-    const res = await axios.get(`${BASE}/fapi/v1/time`, { timeout: 5000 });
+    const res = await axios.get(`${BASE}/fapi/v1/time`, { timeout: 10000 });
     const serverTime = res.data.serverTime;
     timeOffset = serverTime - Date.now();
     log.system(`[Binance] Đã đồng bộ giờ: offset = ${timeOffset}ms (Giờ server: ${new Date(serverTime).toISOString()})`);
@@ -29,6 +29,8 @@ async function syncTimeOffset() {
 
 // Chạy đồng bộ giờ ngay khi load module
 syncTimeOffset().catch(() => {});
+// Đồng bộ lại thời gian mỗi 30 phút để tránh drift kéo dài
+setInterval(() => syncTimeOffset().catch(() => {}), 30 * 60 * 1000);
 
 function _buildBody(params) {
   const timestamp = Date.now() + timeOffset;
