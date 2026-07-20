@@ -33,6 +33,7 @@ const { log } = require('../pp369/_logger');
 
 const SCAN_INTERVAL_MS = 30_000;   // scan mỗi 30 giây
 const TRAILING_SL_INTERVAL_MS = 3_000; // kiểm tra vị thế để dịch SL mỗi 3 giây (tăng interval để tránh rate limit)
+const MONITOR_LIMIT_INTERVAL_MS = 3_000; // Luồng 3: monitor lệnh LIMIT đang chờ mỗi 3 giây
 const DEBOUNCE_MS = 5 * 60_000; // 5 phút / tín hiệu
 const COIN_REFRESH_INTERVAL_MS = 4 * 60 * 60_000; // Tái kiểm tra danh sách coin mỗi 4 giờ
 
@@ -382,6 +383,18 @@ async function startAutoTrade(coins) {
         tradeAmount = 10;
       }
 
+      // Phương án B: Block lệnh counter-trend (H4 ngược) nếu score < 6.5
+      // Lý do: score 6.0–6.4 + H4 ngược = rủi ro kép (điểm thấp + đi ngược xu hướng trung hạn)
+      //        score 6.0–6.4 + H4 thuận = vẫn chấp nhận (pullback trong trend chính)
+      const _trendR = sig.scoreReasons && sig.scoreReasons.find(r => r.includes('[Xu hướng H4/H1]'));
+      const _h4Part = _trendR ? _trendR.split('|')[0] : '';
+      const _isCounterEarly = _h4Part.includes('H4 ngược');
+      if (_isCounterEarly && score < 6.5) {
+        log.system(`[AutoTrade] ${sym} ${sig.signal} Score = ${sig.score}đ + H4 ngược xu hướng — bỏ qua (counter-trend < 6.5đ)`);
+        continue;
+      }
+
+
       // Kiểm tra debounce
       if (_isDebounced(sig)) {
         log.system(`[AutoTrade] ${sym} ${sig.signal} đã đặt gần đây — bỏ qua`);
@@ -444,8 +457,12 @@ async function startAutoTrade(coins) {
         activeSymbols.add(sym); // Thêm vào danh sách active để check SL/TP ngay lập tức
 
         // Lưu metadata vị thế để check TP/SL động
-        const trendReason = sig.scoreReasons.find(r => r.includes('[Xu hướng H4/H1]') || r.includes('[Xu hướng H1]') || r.includes('[EMA200 H1]'));
-        const isCounter = trendReason ? trendReason.includes('ngược xu hướng') : false;
+        // isCounterTrend chỉ xét H4 (xu hướng trung hạn)
+        // H4 ngược = counter-trend thật → TP/SL chặt hơn
+        // H1 ngược nhưng H4 thuận = pullback trong trend chính → không phạt
+        const trendReason = sig.scoreReasons.find(r => r.includes('[Xu hướng H4/H1]'));
+        const h4Part = trendReason ? trendReason.split('|')[0] : '';
+        const isCounter = h4Part.includes('H4 ngược');
 
         activeTradesMetadata[sym] = {
           score: sig.score,
@@ -453,6 +470,8 @@ async function startAutoTrade(coins) {
           entryPrice: sig.targetLevel,
           side,                   // 'BUY' hoặc 'SELL' — dùng cho bounce cancel
           gridStepPct: (sig.step / sig.targetLevel) * 100, // % grid theo giá entry
+          orderId: order.orderId ?? null,  // Luồng 3: dùng để cancel đúng lệnh
+          maxFavorablePrice: null,         // Luồng 3: giá xa nhất đúng chiều từ sau khi đặt lệnh
           time: Date.now()
         };
         saveActiveTradesMetadata();
@@ -493,17 +512,25 @@ async function startAutoTrade(coins) {
   // Luồng 1: Quét tín hiệu để đặt lệnh LIMIT (Mỗi 30s)
   const timer = setInterval(scan, SCAN_INTERVAL_MS);
 
-  // Luồng 2: Kiểm tra vị thế đang mở và dịch chuyển Stop Loss (Mỗi 2s)
+  // Luồng 2: Kiểm tra vị thế đang mở và dịch chuyển Stop Loss (Mỗi 3s)
   const trailingSlTimer = setInterval(() => {
     checkTrailingSL(client, leverage, leverageInfo, activeSymbols).catch(err => {
       log.warn(`[AutoTrade] Lỗi luồng Trailing SL: ${err.message}`);
     });
   }, TRAILING_SL_INTERVAL_MS);
 
+  // Luồng 3: Monitor lệnh LIMIT đang chờ — Return Cancel (Mỗi 3s)
+  const monitorLimitTimer = setInterval(() => {
+    checkPendingLimits(client, activeSymbols).catch(err => {
+      log.warn(`[AutoTrade] Lỗi luồng Monitor Limit: ${err.message}`);
+    });
+  }, MONITOR_LIMIT_INTERVAL_MS);
+
   // Trả về hàm stop để caller có thể dừng nếu cần
   return function stop() {
     clearInterval(timer);
     clearInterval(trailingSlTimer);
+    clearInterval(monitorLimitTimer);
     log.system('[AutoTrade] Đã dừng.');
   };
 }
@@ -512,6 +539,117 @@ function _binanceErr(e) {
   const d = e.response?.data;
   return d ? `[${d.code}] ${d.msg}` : e.message;
 }
+
+/**
+ * Luồng 3: Return Cancel — Monitor lệnh LIMIT đang chờ khớp (mỗi 3s)
+ *
+ * Vấn đề giải quyết:
+ *   Giá chạm entry → bounce → rồi quay lại fill lệnh LIMIT ở thời điểm
+ *   bối cảnh đã xấu (support đã bị test lại = tín hiệu yếu).
+ *
+ * Logic:
+ *   - Track maxFavorablePrice: giá xa nhất đi đúng chiều kể từ khi đặt lệnh
+ *   - Khi giá đã từng bật ra >= bouncePct% khỏi entry (ghi nhận bounce thật)
+ *     AND giá hiện tại quay về gần entry (<= touchThresholdPct% trên entry)
+ *     → Hủy lệnh LIMIT (stale fill)
+ *
+ * Không gọi API: dùng getMarkPrice() từ WebSocket cache.
+ * Chỉ gọi API cancelOrder khi thực sự cần cancel.
+ */
+async function checkPendingLimits(client, activeSymbols) {
+  // Ngưỡng: giá phải bounce ra bao nhiêu % từ entry mới coi là bounce thật
+  // Dùng gridStepPct/5 (giống BounceCancel L1) — ví dụ grid 3.7% → bouncePct = 0.74%
+  const TOUCH_THRESHOLD_PCT = 0.15; // % tính từ entry — nếu giá về trong mức này → coi là "sắp fill lại"
+
+  for (const [sym, meta] of Object.entries(activeTradesMetadata)) {
+    // Chỉ xử lý lệnh LIMIT đang chờ (có orderId, chưa fill thành vị thế)
+    if (!meta.orderId) continue;
+
+    // Nếu đã có vị thế mở (fill rồi) → bỏ qua, để Luồng 2 xử lý
+    if (activeSymbols && activeSymbols.has(sym)) {
+      // Kiểm tra thêm: nếu sym trong activeSymbols nhưng vẫn là lệnh chờ
+      // thì vẫn có thể monitor — activeSymbols bao gồm cả pending orders
+      // Chỉ skip nếu đã có position thật (lastActivePositions)
+      if (lastActivePositions.has(sym)) continue;
+    }
+
+    const markPrice = getMarkPrice(sym);
+    if (!markPrice || !meta.entryPrice || !meta.gridStepPct) continue;
+
+    const entry = meta.entryPrice;
+    const bouncePct = meta.gridStepPct / 5; // ngưỡng bounce tối thiểu để ghi nhận
+
+    if (meta.side === 'BUY') {
+      // ── LONG: giá tốt khi đi LÊN khỏi entry ──────────────────────────────
+      // Cập nhật giá cao nhất đã đạt được (đúng chiều LONG)
+      if (meta.maxFavorablePrice === null || markPrice > meta.maxFavorablePrice) {
+        meta.maxFavorablePrice = markPrice;
+      }
+
+      const maxFav = meta.maxFavorablePrice;
+      const bouncedPct = ((maxFav - entry) / entry) * 100;
+      const returnedPct = ((markPrice - entry) / entry) * 100;
+
+      // Cancel khi: đã bounce đủ xa VÀ giá đã quay về gần entry
+      if (bouncedPct >= bouncePct && returnedPct <= TOUCH_THRESHOLD_PCT) {
+        log.system(
+          `[AutoTrade] [ReturnCancel] ${sym} LONG: ` +
+          `entry=$${entry}, max=$${maxFav.toFixed(6)} (+${bouncedPct.toFixed(2)}%), ` +
+          `current=$${markPrice.toFixed(6)} (về ${returnedPct.toFixed(2)}% trên entry) → Hủy LIMIT stale`
+        );
+        try {
+          await client.cancelOrder(sym, meta.orderId);
+          sendTelegram(
+            `🔄 <b>[AutoTrade] Hủy LIMIT (Return Cancel)</b>\n` +
+            `• Coin: <b>${sym} LONG</b>\n` +
+            `• Entry: <b>$${entry}</b>\n` +
+            `• Đã bật lên: <b>$${maxFav.toFixed(6)}</b> (+${bouncedPct.toFixed(2)}%)\n` +
+            `• Quay về: <b>$${markPrice.toFixed(6)}</b> — sắp fill lại → Hủy`
+          ).catch(() => { });
+          delete activeTradesMetadata[sym];
+          saveActiveTradesMetadata();
+        } catch (e) {
+          log.warn(`[AutoTrade] [ReturnCancel] Không hủy được LIMIT ${sym}: ${_binanceErr(e)}`);
+        }
+      }
+
+    } else if (meta.side === 'SELL') {
+      // ── SHORT: giá tốt khi đi XUỐNG khỏi entry ───────────────────────────
+      // Cập nhật giá thấp nhất đã đạt được (đúng chiều SHORT)
+      if (meta.maxFavorablePrice === null || markPrice < meta.maxFavorablePrice) {
+        meta.maxFavorablePrice = markPrice;
+      }
+
+      const maxFav = meta.maxFavorablePrice;
+      const bouncedPct = ((entry - maxFav) / entry) * 100;
+      const returnedPct = ((entry - markPrice) / entry) * 100;
+
+      // Cancel khi: đã bounce đủ xa XUỐNG VÀ giá đã quay về gần entry
+      if (bouncedPct >= bouncePct && returnedPct <= TOUCH_THRESHOLD_PCT) {
+        log.system(
+          `[AutoTrade] [ReturnCancel] ${sym} SHORT: ` +
+          `entry=$${entry}, min=$${maxFav.toFixed(6)} (-${bouncedPct.toFixed(2)}%), ` +
+          `current=$${markPrice.toFixed(6)} (về ${returnedPct.toFixed(2)}% dưới entry) → Hủy LIMIT stale`
+        );
+        try {
+          await client.cancelOrder(sym, meta.orderId);
+          sendTelegram(
+            `🔄 <b>[AutoTrade] Hủy LIMIT (Return Cancel)</b>\n` +
+            `• Coin: <b>${sym} SHORT</b>\n` +
+            `• Entry: <b>$${entry}</b>\n` +
+            `• Đã rớt xuống: <b>$${maxFav.toFixed(6)}</b> (-${bouncedPct.toFixed(2)}%)\n` +
+            `• Quay về: <b>$${markPrice.toFixed(6)}</b> — sắp fill lại → Hủy`
+          ).catch(() => { });
+          delete activeTradesMetadata[sym];
+          saveActiveTradesMetadata();
+        } catch (e) {
+          log.warn(`[AutoTrade] [ReturnCancel] Không hủy được LIMIT ${sym}: ${_binanceErr(e)}`);
+        }
+      }
+    }
+  }
+}
+
 
 async function markSymbolFailed(sym, reason) {
   try {
@@ -598,7 +736,6 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
     for (const p of positions) {
       const sym = p.symbol.replace('USDT', '');
       const entryPrice = parseFloat(p.entryPrice);
-      const markPrice = parseFloat(p.markPrice);
       const leverageVal = parseFloat(p.leverage);
       const amt = parseFloat(p.positionAmt);
 
@@ -608,10 +745,17 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
       const absAmt = Math.abs(amt);
       const oppositeSide = isLong ? 'SELL' : 'BUY';
 
+      // Ưu tiên dùng markPrice từ WebSocket cache (real-time, cập nhật liên tục)
+      // thay vì p.markPrice từ REST API (có độ trễ 200-500ms, có thể bỏ lỡ bounce ngắn)
+      const wsMark = getMarkPrice(sym);
+      const markPrice = (wsMark && wsMark > 0) ? wsMark : parseFloat(p.markPrice);
+
+
       // ROI % = % thay đổi giá * leverage
       const roi = isLong
         ? ((markPrice - entryPrice) / entryPrice) * leverageVal * 100
         : ((entryPrice - markPrice) / entryPrice) * leverageVal * 100;
+
 
       // Lấy danh sách lệnh chờ của symbol hiện tại từ kết quả đã truy vấn
       const symbolResult = symbolOrdersResults.find(r => r.sym === sym);
@@ -684,21 +828,25 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
       // ----------------------------------------------------
       // 1. Quản lý TAKE PROFIT (Virtual & Real)
       // ----------------------------------------------------
-      if (realTpOrders.length === 0) {
-        if (roi >= tpPct) {
-          log.system(`[AutoTrade] [Virtual TP] Kích hoạt cho ${sym}: ROI = ${roi.toFixed(2)}% (>= ${tpPct}%). Đóng vị thế bằng lệnh MARKET.`);
-          try {
-            justClosedByBot.add(sym);
-            await client.placeMarket(sym, oppositeSide, absAmt);
-            await sendTelegram(`🎯 <b>Take Profit (Virtual)</b>\n• Coin: <b>${sym}</b>\n• ROI đạt: <b>${roi.toFixed(2)}%</b>`);
-          } catch (e) {
-            justClosedByBot.delete(sym);
-            log.error(`[AutoTrade] [Virtual TP] Lỗi đóng vị thế ${sym}: ${e.message}`);
-          }
-          continue; // Bỏ qua check SL cho coin này trong lượt này
-        }
 
-        // Đặt lệnh TP thật lên sàn
+      // 1a. Virtual TP — luôn chạy độc lập, là tuyến phòng thủ cuối cùng.
+      //     Đảm bảo chốt lời ngay cả khi algo TP đã đặt nhưng Binance không trigger
+      //     (ví dụ: giá spike nhanh vượt trigger rồi rút về, mark vs last price lệch nhỏ).
+      if (roi >= tpPct) {
+        log.system(`[AutoTrade] [Virtual TP] Kích hoạt cho ${sym}: ROI = ${roi.toFixed(2)}% (>= ${tpPct}%). Đóng vị thế bằng lệnh MARKET.`);
+        try {
+          justClosedByBot.add(sym);
+          await client.placeMarket(sym, oppositeSide, absAmt);
+          await sendTelegram(`🎯 <b>Take Profit (Virtual)</b>\n• Coin: <b>${sym}</b>\n• ROI đạt: <b>${roi.toFixed(2)}%</b>`);
+        } catch (e) {
+          justClosedByBot.delete(sym);
+          log.error(`[AutoTrade] [Virtual TP] Lỗi đóng vị thế ${sym}: ${e.message}`);
+        }
+        continue; // Bỏ qua check SL cho coin này trong lượt này
+      }
+
+      // 1b. Đặt algo TP lên sàn (chỉ khi chưa có)
+      if (realTpOrders.length === 0) {
         const tpPrice = isLong
           ? entryPrice * (1 + (tpPct / 100) / leverageVal)
           : entryPrice * (1 - (tpPct / 100) / leverageVal);
@@ -711,6 +859,7 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
           log.error(`[AutoTrade] Đặt TP ${sym} thất bại: ${_binanceErr(e)}`);
         }
       }
+
 
       // ----------------------------------------------------
       // 2. Quản lý STOP LOSS (Virtual & Real, Trailing SL)
