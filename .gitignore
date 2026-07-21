@@ -5,3 +5,4 @@ data/step_sizes.json
 data/369_signals.jsonl
 data/backtest_results.json
 data/active_trades.json
+data/h1_history_cache.json
