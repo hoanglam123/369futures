@@ -383,13 +383,8 @@ async function startAutoTrade(coins) {
         tradeAmount = 10;
       }
 
-      // Phương án A: Block tuyệt đối các lệnh counter-trend (Ngược cấu trúc Dow & EMA)
-      const _trendR = sig.scoreReasons && sig.scoreReasons.find(r => r.includes('[Xu hướng H4/H1]'));
-      const _isCounterEarly = _trendR ? _trendR.includes('Ngược cấu trúc Dow & EMA') : false;
-      if (_isCounterEarly) {
-        log.system(`[AutoTrade] ${sym} ${sig.signal} Score = ${sig.score}đ + Ngược cấu trúc Dow & EMA — bỏ qua (Block lệnh Ngược Dow theo Phương án A)`);
-        continue;
-      }
+      // Dow & Trendline đóng vai trò tiêu chí phụ trợ (+0đ đến +2đ). 
+      // Quyết định vào lệnh hoàn toàn phụ thuộc vào tổng điểm Scorer PP369 (Score >= 6.0đ).
 
 
       // Kiểm tra debounce
