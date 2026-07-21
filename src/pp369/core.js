@@ -1254,7 +1254,7 @@ async function score369Method(sig369, direction) {
   try {
     const h1Candles = await fetchH1Historical(sig369.symbol);
     
-    // 1. Tiêu chí 1: Cấu trúc Dow + Trendline (Higher Low/Lower High) + EMA20/50 + ADX(14) (Tối đa +2.0đ)
+    // 1. Tiêu chí 1: Cấu trúc Dow Kép (Dow H1 15 ngày + Dow M15 3 ngày) + EMA20/50 + ADX(14) (Tối đa +2.0đ)
     let trendScore = 0;
     const trendReasons = [];
     const price = sig369.currentPrice ?? (h1Candles.length ? h1Candles[h1Candles.length - 1].close : 0);
@@ -1271,6 +1271,37 @@ async function score369Method(sig369, direction) {
       } catch (err) {
         log.warn(`[Confluence Scorer] Không thể lấy klines H1 bổ sung cho ${sig369.symbol}: ${err.message}`);
       }
+    }
+
+    // Tải nến M15 (3 ngày = 288 nến) phục vụ Dow M15
+    let m15Data = [];
+    try {
+      const startTimeM15 = Date.now() - 288 * 15 * 60_000;
+      m15Data = await fetchBinanceKlines(sig369.symbol, '15m', startTimeM15, 300);
+    } catch (err) {
+      log.warn(`[Confluence Scorer] Không thể lấy klines M15 cho ${sig369.symbol}: ${err.message}`);
+    }
+
+    let isM15HigherLow = false;
+    let isM15LowerHigh = false;
+    if (m15Data && m15Data.length >= 20) {
+      const m15Sample = m15Data.slice(-288);
+      const m15Lows = [];
+      const m15Highs = [];
+      for (let i = 2; i < m15Sample.length - 2; i++) {
+        const cH = m15Sample[i].high;
+        const cL = m15Sample[i].low;
+        let isH = true, isL = true;
+        for (let j = i - 2; j <= i + 2; j++) {
+          if (j === i) continue;
+          if (m15Sample[j].high >= cH) isH = false;
+          if (m15Sample[j].low <= cL) isL = false;
+        }
+        if (isH) m15Highs.push(cH);
+        if (isL) m15Lows.push(cL);
+      }
+      if (m15Lows.length >= 2) isM15HigherLow = m15Lows[m15Lows.length - 1] > m15Lows[m15Lows.length - 2];
+      if (m15Highs.length >= 2) isM15LowerHigh = m15Highs[m15Highs.length - 1] < m15Highs[m15Highs.length - 2];
     }
 
     if (h1Data && h1Data.length >= 20) {
@@ -1347,7 +1378,8 @@ async function score369Method(sig369, direction) {
             `EMA20>EMA50 thuận ngắn hạn (${adxText}) (+${trendScore.toFixed(1)}đ)`
           );
         } else {
-          trendReasons.push(`Ngược cấu trúc Dow & EMA (${adxText}) (+0đ)`);
+          trendScore = -1.0;
+          trendReasons.push(`Ngược cấu trúc Dow & EMA (${adxText}) (-1.0đ)`);
         }
       } else { // SHORT
         const isLowerHigh = high2 < high1;  // Đỉnh sau thấp hơn đỉnh trước
@@ -1370,7 +1402,8 @@ async function score369Method(sig369, direction) {
             `EMA20<EMA50 thuận ngắn hạn (${adxText}) (+${trendScore.toFixed(1)}đ)`
           );
         } else {
-          trendReasons.push(`Ngược cấu trúc Dow & EMA (${adxText}) (+0đ)`);
+          trendScore = -1.0;
+          trendReasons.push(`Ngược cấu trúc Dow & EMA (${adxText}) (-1.0đ)`);
         }
       }
     } else {
@@ -1380,7 +1413,7 @@ async function score369Method(sig369, direction) {
     score += trendScore;
     reasons.push(`[Xu hướng H4/H1] ${trendReasons.join(' | ')}`);
 
-    // 2. Tiêu chí 2: Bộ lọc kép biến động H1 & M15 (Tối đa +2đ: H1 tối đa +1đ, M15 tối đa +1đ)
+    // 2. Tiêu chí 2: Bộ lọc kép biến động H1 & M15 (Tối đa +1.0đ: H1 tối đa +0.5đ, M15 tối đa +0.5đ)
     let volScore = 0;
     const volReasons = [];
     const step = sig369.step || 0;
@@ -1388,18 +1421,18 @@ async function score369Method(sig369, direction) {
     if (step > 0) {
       const stepPct = (step / price) * 100;
 
-      // 2.1 Kiểm tra biến động H1 (Tối đa 1đ)
+      // 2.1 Kiểm tra biến động H1 (Tối đa 0.5đ)
       if (h1Candles && h1Candles.length > 0) {
         const lastH1 = h1Candles[h1Candles.length - 1];
         const h1Range = lastH1.high - lastH1.low;
         const h1RangePct = (h1Range / price) * 100;
         
         if (h1RangePct <= 0.5 * stepPct) {
-          volScore += 1.0;
-          volReasons.push(`H1 siêu nén: ${h1RangePct.toFixed(2)}% <= ${(0.5 * stepPct).toFixed(2)}% (+1.0đ)`);
+          volScore += 0.5;
+          volReasons.push(`H1 siêu nén: ${h1RangePct.toFixed(2)}% <= ${(0.5 * stepPct).toFixed(2)}% (+0.5đ)`);
         } else if (h1RangePct <= stepPct) {
-          volScore += 0.8;
-          volReasons.push(`H1 nén vừa: ${h1RangePct.toFixed(2)}% <= ${stepPct.toFixed(2)}% (+0.8đ)`);
+          volScore += 0.3;
+          volReasons.push(`H1 nén vừa: ${h1RangePct.toFixed(2)}% <= ${stepPct.toFixed(2)}% (+0.3đ)`);
         } else {
           volReasons.push(`H1 biến động mạnh: ${h1RangePct.toFixed(2)}% > ${stepPct.toFixed(2)}% (+0đ)`);
         }
@@ -1407,7 +1440,7 @@ async function score369Method(sig369, direction) {
         volReasons.push(`H1: thiếu nến (+0đ)`);
       }
 
-      // 2.2 Kiểm tra biến động M15 (Tối đa 1đ)
+      // 2.2 Kiểm tra biến động M15 (Tối đa 0.5đ)
       try {
         const m1Recent = await fetchBinanceKlines(sig369.symbol, '1m', Date.now() - 16 * 60_000, 16);
         if (m1Recent && m1Recent.length >= 15) {
@@ -1421,11 +1454,11 @@ async function score369Method(sig369, direction) {
           const m15SuperLimitPct = 0.345 * stepPct;
 
           if (m15RangePct <= m15SuperLimitPct) {
-            volScore += 1.0;
-            volReasons.push(`M15 siêu nén: ${m15RangePct.toFixed(2)}% <= ${m15SuperLimitPct.toFixed(2)}% (+1.0đ)`);
+            volScore += 0.5;
+            volReasons.push(`M15 siêu nén: ${m15RangePct.toFixed(2)}% <= ${m15SuperLimitPct.toFixed(2)}% (+0.5đ)`);
           } else if (m15RangePct <= m15LimitPct) {
-            volScore += 0.8;
-            volReasons.push(`M15 nén vừa: ${m15RangePct.toFixed(2)}% <= ${m15LimitPct.toFixed(2)}% (+0.8đ)`);
+            volScore += 0.3;
+            volReasons.push(`M15 nén vừa: ${m15RangePct.toFixed(2)}% <= ${m15LimitPct.toFixed(2)}% (+0.3đ)`);
           } else {
             volReasons.push(`M15 biến động mạnh: ${m15RangePct.toFixed(2)}% > ${m15LimitPct.toFixed(2)}% (+0đ)`);
           }
@@ -1598,7 +1631,7 @@ async function score369Method(sig369, direction) {
     // 7. Tiêu chí 7: Tỷ lệ vị thế Long/Short của Cá voi (Đã gộp vào Tiêu chí 4 - Tương quan dòng tiền)
     reasons.push(`[Cá voi L/S] Đã gộp vào Tiêu chí 4 (+0)`);
 
-    // 8. Tiêu chí 8: Biến động Open Interest H1 (4h qua) (Tối đa +1.0đ: hạ nhiệt +1.0đ, ổn định +0.5đ, tăng mạnh +0đ)
+    // 8. Tiêu chí 8: Biến động Open Interest H1 (4h qua) (Tối đa +0.5đ: hạ nhiệt +0.5đ, ổn định +0.3đ, tăng mạnh +0đ)
     const oiData = await fetchOpenInterestHistory(sig369.symbol, '1h', 5);
     if (oiData !== null && oiData.length >= 5) {
       const latestOI = oiData[oiData.length - 1].oi;
@@ -1607,11 +1640,11 @@ async function score369Method(sig369, direction) {
       if (prevOI > 0) {
         const oiChangePct = ((latestOI - prevOI) / prevOI) * 100;
         if (oiChangePct <= -2.0) {
-          score += 1.0;
-          reasons.push(`[OI H1] Hạ nhiệt vị thế: Lượng OI giảm ${oiChangePct.toFixed(2)}% <= -2% (+1.0)`);
-        } else if (oiChangePct <= 3.0) {
           score += 0.5;
-          reasons.push(`[OI H1] Dòng tiền ổn định: Lượng OI thay đổi ${oiChangePct.toFixed(2)}% (+0.5)`);
+          reasons.push(`[OI H1] Hạ nhiệt vị thế: Lượng OI giảm ${oiChangePct.toFixed(2)}% <= -2% (+0.5)`);
+        } else if (oiChangePct <= 3.0) {
+          score += 0.3;
+          reasons.push(`[OI H1] Dòng tiền ổn định: Lượng OI thay đổi ${oiChangePct.toFixed(2)}% (+0.3)`);
         } else {
           reasons.push(`[OI H1] Đòn bẩy tăng mạnh (Nóng): Lượng OI tăng ${oiChangePct.toFixed(2)}% >= +3% (+0)`);
         }
@@ -1632,14 +1665,15 @@ async function score369Method(sig369, direction) {
 
       if (avgVol > 0) {
         const ratio = lastH1.volume / avgVol;
-        if (ratio <= 1.0) {
+        if (ratio >= 1.5) {
           volSurgeScore = 1.0;
-          volSurgeReasons.push(`Volume cạn kiệt: ${lastH1.volume.toFixed(0)} <= ${avgVol.toFixed(0)} (${ratio.toFixed(2)}x) (+1.0đ)`);
-        } else if (ratio <= 2.0) {
+          volSurgeReasons.push(`Volume bùng nổ (Dòng tiền dội vào): ${lastH1.volume.toFixed(0)} >= ${(avgVol * 1.5).toFixed(0)} (${ratio.toFixed(2)}x) (+1.0đ)`);
+        } else if (ratio >= 1.0) {
           volSurgeScore = 0.5;
-          volSurgeReasons.push(`Volume ổn định: ${lastH1.volume.toFixed(0)} <= ${(avgVol * 2).toFixed(0)} (${ratio.toFixed(2)}x) (+0.5đ)`);
+          volSurgeReasons.push(`Volume ổn định: ${lastH1.volume.toFixed(0)} >= ${avgVol.toFixed(0)} (${ratio.toFixed(2)}x) (+0.5đ)`);
         } else {
-          volSurgeReasons.push(`Volume đột biến (Xả/Fomo): ${lastH1.volume.toFixed(0)} > ${(avgVol * 2).toFixed(0)} (${ratio.toFixed(2)}x) (+0đ)`);
+          volSurgeScore = 0.3;
+          volSurgeReasons.push(`Volume cạn kiệt: ${lastH1.volume.toFixed(0)} < ${avgVol.toFixed(0)} (${ratio.toFixed(2)}x) (+0.3đ)`);
         }
       } else {
         volSurgeReasons.push(`Lượng Volume trung bình bằng 0 (+0đ)`);

@@ -383,14 +383,11 @@ async function startAutoTrade(coins) {
         tradeAmount = 10;
       }
 
-      // Phương án B: Block lệnh counter-trend (H4 ngược) nếu score < 6.5
-      // Lý do: score 6.0–6.4 + H4 ngược = rủi ro kép (điểm thấp + đi ngược xu hướng trung hạn)
-      //        score 6.0–6.4 + H4 thuận = vẫn chấp nhận (pullback trong trend chính)
+      // Phương án A: Block tuyệt đối các lệnh counter-trend (Ngược cấu trúc Dow & EMA)
       const _trendR = sig.scoreReasons && sig.scoreReasons.find(r => r.includes('[Xu hướng H4/H1]'));
-      const _h4Part = _trendR ? _trendR.split('|')[0] : '';
-      const _isCounterEarly = _h4Part.includes('H4 ngược');
-      if (_isCounterEarly && score < 6.5) {
-        log.system(`[AutoTrade] ${sym} ${sig.signal} Score = ${sig.score}đ + H4 ngược xu hướng — bỏ qua (counter-trend < 6.5đ)`);
+      const _isCounterEarly = _trendR ? _trendR.includes('Ngược cấu trúc Dow & EMA') : false;
+      if (_isCounterEarly) {
+        log.system(`[AutoTrade] ${sym} ${sig.signal} Score = ${sig.score}đ + Ngược cấu trúc Dow & EMA — bỏ qua (Block lệnh Ngược Dow theo Phương án A)`);
         continue;
       }
 
