@@ -152,3 +152,6 @@
 {"ts":"2026-07-21T10:30:02","symbol":"HOLO","signal":"LONG","price":0.06285,"leverage":14,"score":7.5,"margin":15}
 {"ts":"2026-07-21T10:35:32","symbol":"HOLO","signal":"LONG","price":0.06284108,"leverage":14,"score":7.5,"margin":15}
 {"ts":"2026-07-21T11:39:33","symbol":"1000XEC","signal":"LONG","price":0.007238,"leverage":14,"score":6.5,"margin":10}
+{"ts":"2026-07-21T15:09:02","symbol":"1000XEC","signal":"LONG","price":0.006932,"leverage":13,"score":6,"margin":10}
+{"ts":"2026-07-21T15:22:31","symbol":"TOWNS","signal":"LONG","price":0.002135,"leverage":4,"score":6.8,"margin":10}
+{"ts":"2026-07-21T15:27:32","symbol":"TOWNS","signal":"LONG","price":0.00213234,"leverage":4,"score":6.8,"margin":10}
