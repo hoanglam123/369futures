@@ -34,16 +34,52 @@ const PROXIMITY_PCT = 0.02;  // 2% = ngưỡng lọc WebSocket — chỉ scan co
 const YEAR_START_MS = Date.UTC(2026, 0, 1);
 
 // ─── Lọc coin theo độ rộng grid ──────────────────────────────────────────────
-// Grid quá hẹp (< 3%): coin cực đắt — khoảng giá biến động quá nhỏ so với step
-// Grid quá rộng (> 30%): coin rẻ tiền (1000x...) — biến động quá lớn, rủi ro cao
-// Ngưỡng 3–30% bao gồm BTC/ETH (≈3%), SOL (≈4%), các altcoin tầm trung (5–20%), altcoin biến động cao (20–30%)
-const GRID_MIN_PCT = 3;   // 3% — bao gồm cả coin đắt tiền/thị phần lớn (BTC, ETH, SOL...)
-const GRID_MAX_PCT = 30;  // 30%
+// Ngưỡng:
+//   - Coin Top 100 MarketCap: 2% – 25%
+//   - Các coin còn lại: 3% – 25%
+const GRID_MIN_PCT = 3;          // 3% cho các coin thông thường (ngoài Top 100)
+const GRID_MIN_PCT_TOP100 = 2;   // 2% cho Top 100 MarketCap
+const GRID_MAX_PCT = 25;         // 25%
+
+let _top100SymbolsCache = null;
+let _top100CacheTime = 0;
+
+function getTop100SymbolsSync() {
+  const now = Date.now();
+  if (_top100SymbolsCache && (now - _top100CacheTime < 60 * 60 * 1000)) {
+    return _top100SymbolsCache;
+  }
+  try {
+    const filePath = path.join(process.cwd(), 'data', 'market_cap_top.json');
+    if (fs.existsSync(filePath)) {
+      const content = fs.readFileSync(filePath, 'utf8');
+      const data = JSON.parse(content);
+      if (Array.isArray(data.symbols)) {
+        _top100SymbolsCache = new Set(data.symbols.slice(0, 100).map(s => s.toUpperCase()));
+        _top100CacheTime = now;
+        return _top100SymbolsCache;
+      }
+    }
+  } catch (_) {}
+  return new Set();
+}
+
+function isTop100Symbol(symbol) {
+  if (!symbol) return false;
+  const cleanSym = symbol.toUpperCase().replace(/USDT$/, '');
+  const top100 = getTop100SymbolsSync();
+  return top100.has(cleanSym);
+}
+
+function getMinGridPct(symbol) {
+  return isTop100Symbol(symbol) ? GRID_MIN_PCT_TOP100 : GRID_MIN_PCT;
+}
 
 /**
  * Tính khoảng cách % giữa 2 mốc cùng loại (tren→tren hoặc duoi→duoi).
  * = step / openPrice × 100
  * @param {{ step: number, openPrice: number }} h1Entry - Entry từ h1Cache
+ * @param {number} [currentPrice]
  * @returns {number} Khoảng cách % (ví dụ 3.09 cho BTC)
  */
 function getGridStepPct(h1Entry, currentPrice) {
@@ -53,14 +89,19 @@ function getGridStepPct(h1Entry, currentPrice) {
 }
 
 /**
- * Kiểm tra coin có nằm trong ngưỡng grid cho phép không (GRID_MIN_PCT – GRID_MAX_PCT).
- * @param {{ step: number, openPrice: number }} h1Entry
+ * Kiểm tra coin có nằm trong ngưỡng grid cho phép không.
+ * Top 100 marketcap: 2% – 25%
+ * Coin còn lại: 3% – 25%
+ * @param {{ step: number, openPrice: number, symbol?: string }} h1Entry
  * @param {number} [currentPrice]
+ * @param {string} [symbol]
  * @returns {boolean}
  */
-function isGridWidthValid(h1Entry, currentPrice) {
+function isGridWidthValid(h1Entry, currentPrice, symbol) {
   const pct = getGridStepPct(h1Entry, currentPrice);
-  return pct >= GRID_MIN_PCT && pct <= GRID_MAX_PCT;
+  const sym = symbol || h1Entry?.symbol;
+  const minPct = getMinGridPct(sym);
+  return pct >= minPct && pct <= GRID_MAX_PCT;
 }
 
 // ─── In-memory cache ──────────────────────────────────────────────────────────
@@ -716,11 +757,12 @@ async function get369Signal(symbol, currentPrice = null) {
 
       if (longEntry && shortEntry) {
         const currentGridPct = ((shortEntry.value - longEntry.value) / longEntry.value) * 100;
-        if (currentGridPct < GRID_MIN_PCT || currentGridPct > GRID_MAX_PCT) {
+        const minGridPct = getMinGridPct(symbol);
+        if (currentGridPct < minGridPct || currentGridPct > GRID_MAX_PCT) {
           _levelCache[symbol] = { longEntry: longEntry.value, shortEntry: shortEntry.value, step: step };
           return {
             signal: 'NONE', symbol, month, openPrice, closePrice, step: step,
-            reason: `Khoảng cách giữa 2 mốc gần nhất (${currentGridPct.toFixed(2)}%) không đạt yêu cầu ${GRID_MIN_PCT}-${GRID_MAX_PCT}%`
+            reason: `Khoảng cách giữa 2 mốc gần nhất (${currentGridPct.toFixed(2)}%) không đạt yêu cầu ${minGridPct}-${GRID_MAX_PCT}%`
           };
         }
 
@@ -771,10 +813,11 @@ async function get369Signal(symbol, currentPrice = null) {
     const pairHigh = shortEntry.value;
     const currentGridPct = ((pairHigh - pairLow) / pairLow) * 100;
 
-    if (currentGridPct < GRID_MIN_PCT || currentGridPct > GRID_MAX_PCT) {
+    const minGridPct = getMinGridPct(symbol);
+    if (currentGridPct < minGridPct || currentGridPct > GRID_MAX_PCT) {
       return {
         signal: 'NONE', symbol, month, openPrice, closePrice, step: step,
-        reason: `Khoảng cách giữa 2 mốc gần nhất (${currentGridPct.toFixed(2)}%) không đạt yêu cầu ${GRID_MIN_PCT}-${GRID_MAX_PCT}%`
+        reason: `Khoảng cách giữa 2 mốc gần nhất (${currentGridPct.toFixed(2)}%) không đạt yêu cầu ${minGridPct}-${GRID_MAX_PCT}%`
       };
     }
 
@@ -1963,5 +2006,5 @@ module.exports = {
   get369Signal, get369SignalsForCoins, score369Method, format369ForPrompt,
   getLevelCache, PROXIMITY_PCT, getDecimals, getStep,
   initH4Cache, YEAR_START_MS,
-  getGridStepPct, isGridWidthValid, GRID_MIN_PCT, GRID_MAX_PCT,
+  getGridStepPct, isGridWidthValid, GRID_MIN_PCT, GRID_MIN_PCT_TOP100, GRID_MAX_PCT, getMinGridPct, isTop100Symbol,
 };

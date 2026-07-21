@@ -2,7 +2,7 @@
 require('dotenv').config({ path: require('path').join(__dirname, '../.env') });
 
 const fs = require('fs');
-const { updatePricesRest, getMarkPrice } = require('../src/pp369');
+const { updatePricesRest, getMarkPrice, isGridWidthValid } = require('../src/pp369');
 
 const STEP_SIZES_PATH = 'f:/LamDH/Project/369futures/data/step_sizes.json';
 const MARKET_CAP_PATH = 'f:/LamDH/Project/369futures/data/market_cap_top.json';
@@ -16,18 +16,6 @@ function isTop150(symbol) {
 
 const h4Cache = stepSizesData.h4Cache || {};
 const YEAR_START_MS = Date.UTC(2026, 0, 1);
-const GRID_MIN_PCT = 3;
-const GRID_MAX_PCT = 30;
-
-function getGridStepPct(e, currentPrice) {
-  const price = currentPrice || e.openPrice;
-  return (e.step / price) * 100;
-}
-
-function isGridWidthValid(e, currentPrice) {
-  const pct = getGridStepPct(e, currentPrice);
-  return pct >= GRID_MIN_PCT && pct <= GRID_MAX_PCT;
-}
 
 async function main() {
   // Lấy giá thị trường hiện tại (1 request)
@@ -42,7 +30,7 @@ async function main() {
     .filter(([sym, e]) => {
       if (e.yearStart !== YEAR_START_MS || e.failed) return false;
       const currentPrice = getMarkPrice(sym);
-      return isGridWidthValid(e, currentPrice);
+      return isGridWidthValid(e, currentPrice, sym);
     })
     .map(([sym]) => sym);
 
