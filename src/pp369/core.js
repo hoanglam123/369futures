@@ -437,6 +437,12 @@ function loadH1HistDiskCache() {
     if (fs.existsSync(HIST_CACHE_FILE)) {
       const data = JSON.parse(fs.readFileSync(HIST_CACHE_FILE, 'utf8'));
       if (data && data.yearStart === YEAR_START_MS && data.items) {
+        // Cắt tỉa ngay dữ liệu nến H1 đã load từ đĩa về tối đa 1,000 nến gần nhất để giải phóng RAM
+        for (const [sym, item] of Object.entries(data.items)) {
+          if (item && Array.isArray(item.candles) && item.candles.length > 1000) {
+            item.candles = item.candles.slice(-1000);
+          }
+        }
         Object.assign(_h1HistCache, data.items);
       }
     }
