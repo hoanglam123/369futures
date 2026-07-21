@@ -499,6 +499,12 @@ async function fetchH1Historical(symbol) {
     cache.cursor = cache.candles[cache.candles.length - 1].openTime + H1_MS;
   }
 
+  // Tối ưu RAM (Sliding Window): Chỉ giữ tối đa 1,000 nến H1 gần nhất (~41.6 ngày).
+  // Các nến cũ hơn sẽ tự động bị xóa khỏi bộ nhớ RAM bởi Garbage Collector.
+  if (cache.candles.length > 1000) {
+    cache.candles = cache.candles.slice(-1000);
+  }
+
   if (fetchedNew) {
     saveH1HistDiskCache();
   }
@@ -550,6 +556,11 @@ async function fetchH4Historical(symbol) {
 
   if (cache.candles.length > 0) {
     cache.cursor = cache.candles[cache.candles.length - 1].openTime + H4_MS;
+  }
+
+  // Tối ưu RAM (Sliding Window): Chỉ giữ tối đa 300 nến H4 gần nhất (~50 ngày) cho cản Swing.
+  if (cache.candles.length > 300) {
+    cache.candles = cache.candles.slice(-300);
   }
 
   return cache.candles;
