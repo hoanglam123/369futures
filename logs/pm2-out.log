@@ -1813,3 +1813,98 @@
 2026-07-21 14:14:01: [PP369] [AutoTrade] DUSK SHORT có Score = 3.8đ < 6đ — bỏ qua 
 2026-07-21 14:14:04: [PP369] [AutoTrade] KOMA → SHORT (Score: +1.1đ) tại $0.00823 
 2026-07-21 14:14:04: [PP369] [AutoTrade] KOMA SHORT có Score = 1.1đ < 6đ — bỏ qua 
+2026-07-21 14:16:56: ◇ injected env (8) from .env // tip: ⌘ custom filepath { path: '/custom/path/.env' }
+2026-07-21 14:16:58: [PP369] [369] initH4Cache: Tất cả 779 coin đã có nến H4 đầu năm. 
+2026-07-21 14:16:58: [PP369] [Binance] Đã đồng bộ giờ: offset = 93158ms (Giờ server: 2026-07-21T07:18:31.286Z) 
+2026-07-21 14:16:58: [AutoTrade] Bỏ qua 137 coin có grid ngoài khoảng 3–30% (theo giá hiện tại): SOL(38.2%), ETC(43.0%), LINK(34.5%), BAT(38.2%), QTUM(42.0%), DOT(35.0%), AVAX(45.0%), AAVE(31.8%), FIL(40.4%), BEL(3.0%), COTI(39.1%), ALICE(2.4%), NKN(2.6%), DGB(1.6%), ATA(1.8%), DYDX(2.5%), KLAY(2.4%), APE(2.1%), DAR(2.1%), OP(31.0%), STG(2.1%), SPELL(35.6%), APT(48.8%), FET(1.9%), CKB(32.5%), AMB(2.5%), RDNT(2.9%), HFT(32.8%), SUI(38.8%), MAV(33.6%), ARKM(2.8%), DODOX(1.8%), RIF(2.8%), SUPER(34.6%), 1000SATS(311.5%), JUP(1.5%), PORTAL(2.8%), MYRO(3.0%), W(32.3%), IO(1.9%), ZK(31.5%), ZRO(37.9%), SYN(1.4%), SYS(1.7%), SUN(1.6%), DOGS(80.0%), BSW(2.5%), QUICK(2.3%), NEIRO(49.3%), FIO(2.5%), GHST(1.8%), LOKA(2.6%), COS(2.5%), SANTOS(59.2%), ACT(34.1%), HIPPO(2.9%), DEGEN(2.9%), 1000WHY(197.4%), THE(55.4%), VELODROME(1.7%), MOCA(33.8%), USUAL(33.6%), DEXE(0.8%), DF(2.6%), COOKIE(34.6%), D(2.2%), PIPPIN(177.2%), VVV(2.3%), TST(2.5%), MUBARAK(2.6%), TUT(1.9%), BROCCOLI714(2.4%), BR(2.0%), PLUME(2.7%), FUN(1.7%), BABY(2.3%), PUMP(1.5%), BANK(1.1%), JST(3.0%), SIGN(34.4%), PUNDIX(35.8%), SXT(40.6%), ASR(34.6%), MILK(3.0%), OG(116.6%), AGT(2.6%), B(1.2%), MERL(169.8%), PUMPBTC(31.7%), MYX(368.1%), DMC(2.3%), OL(1.7%), SAHARA(33.0%), TANSSI(2.4%), VELVET(0.6%), ZORA(46.5%), TAG(2.7%), ESPORTS(141.5%), A2Z(2.1%), YALA(1.8%), AIO(2.5%), LA(49.6%), BAS(1.1%), Q(1.5%), PTB(50.1%), PORT3(2.5%), 1000000BOB(1.9%), AVNT(31.8%), UB(2.9%), TRADOOR(60.6%), HANA(0.7%), AKE(1.9%), LIGHT(238.9%), XAN(2.4%), TRUTH(2.3%), YB(37.8%), EUL(30.5%), LAB(2.3%), RIVER(90.6%), 币安人生(0.5%), BLUAI(2.3%), APR(1.4%), ON(2.0%), KITE(2.7%), AT(2.1%), CC(2.4%), UAI(0.9%), STABLE(0.8%), JCT(0.7%), ALLO(0.6%), BOB(2.8%), POWER(36.5%), US(0.7%), BREV(39.8%), MAGMA(1.0%), OPEN(1.9%), RLS(2.8%)
+2026-07-21 14:16:59: [PP369] [Binance] Đang lấy leverage brackets cho 470 coin... 
+2026-07-21 14:16:59: [PP369] [Binance] Đã lưu leverage cho 470 coin vào step_sizes.json 
+2026-07-21 14:16:59: [PP369] [AutoTrade] Khởi động: 470 coin | margin=$10 | 10x | type=LIMIT 
+2026-07-21 14:16:59: [PP369] [Binance] Loaded step and tick sizes from existing file: 827 symbols 
+2026-07-21 14:16:59: [PP369] [AutoTrade] Đã nạp leverageInfo cho 470 coin từ cache. 
+2026-07-21 14:16:59: [PP369] [PP369Stream] Kết nối WebSocket thành công (market/stream) 
+2026-07-21 14:17:03: [PP369] [AutoTrade] Bắt đầu scan... 
+2026-07-21 14:17:07: [PP369] [AutoTrade] DUSK → SHORT (Score: +3.8đ) tại $0.06771 
+2026-07-21 14:17:07: [PP369] [AutoTrade] DUSK SHORT có Score = 3.8đ < 6đ — bỏ qua 
+2026-07-21 14:17:50: [PP369] [AutoTrade] DUSK → SHORT (Score: +3.8đ) tại $0.06771 
+2026-07-21 14:17:50: [PP369] [AutoTrade] DUSK SHORT có Score = 3.8đ < 6đ — bỏ qua 
+2026-07-21 14:17:53: [PP369] [AutoTrade] TREE → LONG (Score: +5đ) tại $0.0439 
+2026-07-21 14:17:53: [PP369] [AutoTrade] TREE LONG không đạt Tiêu chí 2 (Biến động H1/M15 an toàn) — bỏ qua 
+2026-07-21 14:18:19: [PP369] [AutoTrade] TREE → LONG (Score: +5đ) tại $0.0439 
+2026-07-21 14:18:19: [PP369] [AutoTrade] TREE LONG không đạt Tiêu chí 2 (Biến động H1/M15 an toàn) — bỏ qua 
+2026-07-21 14:26:45: ◇ injected env (8) from .env // tip: ⌁ auth for agents [www.vestauth.com]
+2026-07-21 14:26:47: [PP369] [369] initH4Cache: Tất cả 779 coin đã có nến H4 đầu năm. 
+2026-07-21 14:26:47: [PP369] [Binance] Đã đồng bộ giờ: offset = 93215ms (Giờ server: 2026-07-21T07:28:20.920Z) 
+2026-07-21 14:26:47: [AutoTrade] Bỏ qua 137 coin có grid ngoài khoảng 3–30% (theo giá hiện tại): SOL(38.2%), ETC(43.0%), LINK(34.5%), BAT(38.2%), QTUM(42.2%), DOT(35.2%), AVAX(45.1%), AAVE(31.8%), FIL(40.4%), BEL(3.0%), COTI(39.1%), ALICE(2.5%), NKN(2.6%), DGB(1.6%), ATA(1.8%), DYDX(2.5%), KLAY(2.4%), APE(2.1%), DAR(2.1%), OP(31.1%), STG(2.1%), SPELL(35.6%), APT(48.9%), FET(1.9%), CKB(32.6%), AMB(2.5%), RDNT(2.9%), HFT(32.9%), SUI(38.8%), MAV(33.7%), ARKM(2.8%), DODOX(1.8%), RIF(2.8%), SUPER(34.7%), 1000SATS(311.9%), JUP(1.5%), PORTAL(2.8%), MYRO(3.0%), W(32.4%), IO(2.0%), ZK(31.6%), ZRO(37.9%), SYN(1.4%), SYS(1.7%), SUN(1.6%), DOGS(80.1%), BSW(2.5%), QUICK(2.3%), NEIRO(49.4%), FIO(2.5%), GHST(1.8%), LOKA(2.6%), COS(2.5%), SANTOS(59.4%), ACT(34.1%), HIPPO(2.9%), DEGEN(2.9%), 1000WHY(197.4%), THE(55.5%), VELODROME(1.7%), MOCA(33.8%), USUAL(33.7%), DEXE(0.9%), DF(2.6%), COOKIE(34.8%), D(2.2%), PIPPIN(177.7%), VVV(2.3%), TST(2.5%), MUBARAK(2.6%), TUT(1.9%), BROCCOLI714(2.4%), BR(2.0%), PLUME(2.8%), FUN(1.7%), BABY(2.4%), PUMP(1.5%), BANK(1.0%), JST(3.0%), SIGN(34.4%), PUNDIX(35.8%), SXT(40.7%), ASR(34.7%), MILK(3.0%), OG(116.7%), AGT(2.6%), B(1.2%), MERL(170.3%), PUMPBTC(31.7%), MYX(370.3%), DMC(2.3%), OL(1.7%), SAHARA(33.1%), TANSSI(2.4%), VELVET(0.6%), ZORA(46.5%), TAG(2.7%), ESPORTS(138.6%), A2Z(2.1%), YALA(1.8%), AIO(2.5%), LA(52.3%), BAS(1.1%), Q(1.5%), PTB(50.2%), PORT3(2.5%), 1000000BOB(1.9%), AVNT(32.0%), UB(2.8%), TRADOOR(61.3%), HANA(0.8%), AKE(1.8%), LIGHT(239.8%), XAN(2.4%), TRUTH(2.3%), YB(37.9%), EUL(30.4%), LAB(2.3%), RIVER(90.7%), 币安人生(0.5%), BLUAI(2.3%), APR(1.4%), ON(1.9%), KITE(2.7%), AT(2.1%), CC(2.4%), UAI(0.9%), STABLE(0.8%), JCT(0.7%), ALLO(0.6%), BOB(2.8%), POWER(36.6%), US(0.7%), BREV(39.8%), MAGMA(1.0%), OPEN(1.9%), RLS(2.8%)
+2026-07-21 14:26:48: [PP369] [Binance] Đang lấy leverage brackets cho 470 coin... 
+2026-07-21 14:26:48: [PP369] [Binance] Đã lưu leverage cho 470 coin vào step_sizes.json 
+2026-07-21 14:26:48: [PP369] [AutoTrade] Khởi động: 470 coin | margin=$10 | 10x | type=LIMIT 
+2026-07-21 14:26:48: [PP369] [Binance] Loaded step and tick sizes from existing file: 827 symbols 
+2026-07-21 14:26:48: [PP369] [AutoTrade] Đã nạp leverageInfo cho 470 coin từ cache. 
+2026-07-21 14:26:49: [PP369] [PP369Stream] Kết nối WebSocket thành công (market/stream) 
+2026-07-21 14:26:52: [PP369] [AutoTrade] Bắt đầu scan... 
+2026-07-21 14:36:01: [PP369] [AutoTrade] EDU → SHORT (Score: +4.199999999999999đ) tại $0.031 
+2026-07-21 14:36:01: [PP369] [AutoTrade] EDU SHORT có Score = 4.199999999999999đ < 6đ — bỏ qua 
+2026-07-21 14:36:28: [PP369] [AutoTrade] EDU → SHORT (Score: +4.199999999999999đ) tại $0.031 
+2026-07-21 14:36:28: [PP369] [AutoTrade] EDU SHORT có Score = 4.199999999999999đ < 6đ — bỏ qua 
+2026-07-21 14:36:58: [PP369] [AutoTrade] EDU → SHORT (Score: +4.199999999999999đ) tại $0.031 
+2026-07-21 14:36:58: [PP369] [AutoTrade] EDU SHORT có Score = 4.199999999999999đ < 6đ — bỏ qua 
+2026-07-21 14:37:28: [PP369] [AutoTrade] EDU → SHORT (Score: +4.199999999999999đ) tại $0.031 
+2026-07-21 14:37:28: [PP369] [AutoTrade] EDU SHORT có Score = 4.199999999999999đ < 6đ — bỏ qua 
+2026-07-21 14:41:33: [PP369] [AutoTrade] AIN → LONG (Score: +5.6đ) tại $0.07886 
+2026-07-21 14:41:33: [PP369] [AutoTrade] AIN LONG có Score = 5.6đ < 6đ — bỏ qua 
+2026-07-21 14:41:59: [PP369] [AutoTrade] AIN → LONG (Score: +5.6đ) tại $0.07886 
+2026-07-21 14:41:59: [PP369] [AutoTrade] AIN LONG có Score = 5.6đ < 6đ — bỏ qua 
+2026-07-21 14:44:01: [PP369] [AutoTrade] KAITO → SHORT (Score: +2.2đ) tại $0.9862 
+2026-07-21 14:44:01: [PP369] [AutoTrade] KAITO SHORT có Score = 2.2đ < 6đ — bỏ qua 
+2026-07-21 14:52:58: [PP369] [AutoTrade] DUSK → SHORT (Score: +3.8đ) tại $0.06771 
+2026-07-21 14:52:58: [PP369] [AutoTrade] DUSK SHORT có Score = 3.8đ < 6đ — bỏ qua 
+2026-07-21 14:53:29: [PP369] [AutoTrade] DUSK → SHORT (Score: +3.8đ) tại $0.06771 
+2026-07-21 14:53:29: [PP369] [AutoTrade] DUSK SHORT có Score = 3.8đ < 6đ — bỏ qua 
+2026-07-21 14:53:58: [PP369] [AutoTrade] DUSK → SHORT (Score: +3.8đ) tại $0.06771 
+2026-07-21 14:53:58: [PP369] [AutoTrade] DUSK SHORT có Score = 3.8đ < 6đ — bỏ qua 
+2026-07-21 14:54:28: [PP369] [AutoTrade] DUSK → SHORT (Score: +3.8đ) tại $0.06771 
+2026-07-21 14:54:28: [PP369] [AutoTrade] DUSK SHORT có Score = 3.8đ < 6đ — bỏ qua 
+2026-07-21 14:54:58: [PP369] [AutoTrade] DUSK → SHORT (Score: +3.8đ) tại $0.06771 
+2026-07-21 14:54:58: [PP369] [AutoTrade] DUSK SHORT có Score = 3.8đ < 6đ — bỏ qua 
+2026-07-21 14:55:28: [PP369] [AutoTrade] DUSK → SHORT (Score: +3.8đ) tại $0.06771 
+2026-07-21 14:55:28: [PP369] [AutoTrade] DUSK SHORT có Score = 3.8đ < 6đ — bỏ qua 
+2026-07-21 14:55:58: [PP369] [AutoTrade] DUSK → SHORT (Score: +3.8đ) tại $0.06771 
+2026-07-21 14:55:58: [PP369] [AutoTrade] DUSK SHORT có Score = 3.8đ < 6đ — bỏ qua 
+2026-07-21 14:56:28: [PP369] [AutoTrade] DUSK → SHORT (Score: +3.8đ) tại $0.06771 
+2026-07-21 14:56:28: [PP369] [AutoTrade] DUSK SHORT có Score = 3.8đ < 6đ — bỏ qua 
+2026-07-21 14:56:46: [PP369] [Binance] Đã đồng bộ giờ: offset = 93394ms (Giờ server: 2026-07-21T07:58:19.523Z) 
+2026-07-21 15:09:01: [PP369] [AutoTrade] 1000XEC → LONG (Score: +6đ) tại $0.00693 
+2026-07-21 15:09:02: [PP369] [AutoTrade] Set leverage 1000XECUSDT = 13x (Lưới: 3.61% → tính được 13x, giới hạn: 75x | Ký quỹ mục tiêu: $10) 
+2026-07-21 15:09:02: [PP369] [AutoTrade] ✓ 1000XEC BUY 18759 @ $0.00693 orderId=3797348157 status=NEW 
+2026-07-21 15:09:04: [PP369] [AutoTrade] ✓ Đặt TP 1000XEC @ $0.0069830 (đối ứng SELL) orderId=1000002465299808 
+2026-07-21 15:09:04: [PP369] [AutoTrade] ✓ Đặt SL 1000XEC @ $0.0068770 (đối ứng SELL) orderId=1000002465299817 
+2026-07-21 15:11:47: [PP369] [AutoTrade] Trailing SL: 1000XEC đạt ROI 7.13% -> Dịch SL trên sàn về entry + 1% ROI ($0.006935) [Mức: Hòa vốn] 
+2026-07-21 15:11:47: [PP369] [AutoTrade] Đã hủy SL cũ của 1000XEC (orderId=1000002465299817) 
+2026-07-21 15:11:47: [PP369] [AutoTrade] ✓ Đã dịch SL mới cho 1000XEC @ $0.0069350 (orderId=1000002465305502) 
+2026-07-21 15:22:31: [PP369] [AutoTrade] TOWNS → LONG (Score: +6.8đ) tại $0.00213 
+2026-07-21 15:22:31: [PP369] [AutoTrade] Set leverage TOWNSUSDT = 4x (Lưới: 11.88% → tính được 4x, giới hạn: 10x | Ký quỹ mục tiêu: $10) 
+2026-07-21 15:22:31: [PP369] [AutoTrade] ✓ TOWNS BUY 18779 @ $0.00213 orderId=560907612 status=NEW 
+2026-07-21 15:26:46: [PP369] [Binance] Đã đồng bộ giờ: offset = 93570ms (Giờ server: 2026-07-21T08:28:19.695Z) 
+2026-07-21 15:27:28: [PP369] [AutoTrade] Lệnh LIMIT của TOWNS đã treo quá 3 phút (3.4 phút) -> Tiến hành hủy... 
+2026-07-21 15:27:28: [PP369] [AutoTrade] ✓ Đã hủy thành công lệnh LIMIT treo của TOWNS 
+2026-07-21 15:27:31: [PP369] [AutoTrade] AIN → SHORT (Score: +2.3000000000000003đ) tại $0.08165 
+2026-07-21 15:27:31: [PP369] [AutoTrade] AIN SHORT không đạt Tiêu chí 2 (Biến động H1/M15 an toàn) — bỏ qua 
+2026-07-21 15:27:31: [PP369] [AutoTrade] TOWNS → LONG (Score: +6.8đ) tại $0.00213 
+2026-07-21 15:27:32: [PP369] [AutoTrade] Set leverage TOWNSUSDT = 4x (Lưới: 11.88% → tính được 4x, giới hạn: 10x | Ký quỹ mục tiêu: $10) 
+2026-07-21 15:27:32: [PP369] [AutoTrade] ✓ TOWNS BUY 18779 @ $0.00213 orderId=560909845 status=NEW 
+2026-07-21 15:28:29: [PP369] [AutoTrade] AIN → SHORT (Score: +2.3000000000000003đ) tại $0.08165 
+2026-07-21 15:28:29: [PP369] [AutoTrade] AIN SHORT không đạt Tiêu chí 2 (Biến động H1/M15 an toàn) — bỏ qua 
+2026-07-21 15:28:33: [PP369] [AutoTrade] ✓ Đặt TP TOWNS @ $0.0021830 (đối ứng SELL) orderId=1000002465339380 
+2026-07-21 15:28:34: [PP369] [AutoTrade] ✓ Đặt SL TOWNS @ $0.0020770 (đối ứng SELL) orderId=1000002465339382 
+2026-07-21 15:28:59: [PP369] [AutoTrade] AIN → SHORT (Score: +2.3000000000000003đ) tại $0.08165 
+2026-07-21 15:28:59: [PP369] [AutoTrade] AIN SHORT không đạt Tiêu chí 2 (Biến động H1/M15 an toàn) — bỏ qua 
+2026-07-21 15:29:29: [PP369] [AutoTrade] AIN → SHORT (Score: +2.3000000000000003đ) tại $0.08165 
+2026-07-21 15:29:29: [PP369] [AutoTrade] AIN SHORT không đạt Tiêu chí 2 (Biến động H1/M15 an toàn) — bỏ qua 
+2026-07-21 15:29:59: [PP369] [AutoTrade] AIN → SHORT (Score: +2.3000000000000003đ) tại $0.08165 
+2026-07-21 15:29:59: [PP369] [AutoTrade] AIN SHORT không đạt Tiêu chí 2 (Biến động H1/M15 an toàn) — bỏ qua 
+2026-07-21 15:40:00: [PP369] [AutoTrade] TREE → LONG (Score: +5.5đ) tại $0.0379 
+2026-07-21 15:40:00: [PP369] [AutoTrade] TREE LONG không đạt Tiêu chí 2 (Biến động H1/M15 an toàn) — bỏ qua 
+2026-07-21 15:56:46: [PP369] [Binance] Đã đồng bộ giờ: offset = 93747ms (Giờ server: 2026-07-21T08:58:19.871Z) 
+2026-07-21 15:58:29: [PP369] [AutoTrade] AIN → SHORT (Score: +2.8đ) tại $0.08465 
+2026-07-21 15:58:29: [PP369] [AutoTrade] AIN SHORT có Score = 2.8đ < 6đ — bỏ qua 
