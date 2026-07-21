@@ -1378,8 +1378,8 @@ async function score369Method(sig369, direction) {
             `EMA20>EMA50 thuận ngắn hạn (${adxText}) (+${trendScore.toFixed(1)}đ)`
           );
         } else {
-          trendScore = -1.0;
-          trendReasons.push(`Ngược cấu trúc Dow & EMA (${adxText}) (-1.0đ)`);
+          trendScore = 0;
+          trendReasons.push(`Ngược cấu trúc Dow & EMA (${adxText}) (+0đ)`);
         }
       } else { // SHORT
         const isLowerHigh = high2 < high1;  // Đỉnh sau thấp hơn đỉnh trước
@@ -1402,8 +1402,8 @@ async function score369Method(sig369, direction) {
             `EMA20<EMA50 thuận ngắn hạn (${adxText}) (+${trendScore.toFixed(1)}đ)`
           );
         } else {
-          trendScore = -1.0;
-          trendReasons.push(`Ngược cấu trúc Dow & EMA (${adxText}) (-1.0đ)`);
+          trendScore = 0;
+          trendReasons.push(`Ngược cấu trúc Dow & EMA (${adxText}) (+0đ)`);
         }
       }
     } else {
