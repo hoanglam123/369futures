@@ -1,0 +1,51 @@
+2026-07-19 00:23:45: [PP369 WARN] [Binance] Không thể đồng bộ giờ: timeout of 5000ms exceeded 
+2026-07-19 00:24:25: [PP369 WARN] [AutoTrade] Lỗi kiểm tra virtual TP/SL: timeout of 10000ms exceeded 
+2026-07-19 00:24:28: [PP369 WARN] [AutoTrade] Lỗi kiểm tra virtual TP/SL: timeout of 10000ms exceeded 
+2026-07-19 00:24:31: [PP369 WARN] [AutoTrade] Lỗi kiểm tra virtual TP/SL: timeout of 10000ms exceeded 
+2026-07-19 00:24:37: [PP369 WARN] [AutoTrade] Lỗi kiểm tra virtual TP/SL: timeout of 10000ms exceeded 
+2026-07-19 00:24:52: [PP369 WARN] [AutoTrade] Lỗi kiểm tra virtual TP/SL: timeout of 10000ms exceeded 
+2026-07-19 00:24:55: [PP369 WARN] [AutoTrade] Lỗi kiểm tra virtual TP/SL: timeout of 10000ms exceeded 
+2026-07-19 00:25:22: [PP369 WARN] [AutoTrade] Lỗi kiểm tra virtual TP/SL: timeout of 10000ms exceeded 
+2026-07-19 00:27:52: [PP369 WARN] [AutoTrade] Lỗi kiểm tra virtual TP/SL: timeout of 10000ms exceeded 
+2026-07-19 00:30:52: [PP369 WARN] [AutoTrade] Lỗi kiểm tra virtual TP/SL: timeout of 10000ms exceeded 
+2026-07-19 00:31:22: [PP369 WARN] [AutoTrade] Lỗi kiểm tra virtual TP/SL: timeout of 10000ms exceeded 
+2026-07-19 00:31:52: [PP369 WARN] [AutoTrade] Lỗi kiểm tra virtual TP/SL: timeout of 10000ms exceeded 
+2026-07-19 00:31:57: [PP369 WARN] [Telegram] Lỗi gửi tin nhắn (Lần 1/3): timeout of 10000ms exceeded. Thử lại sau 2 giây... 
+2026-07-19 00:33:52: [PP369 WARN] [AutoTrade] Lỗi kiểm tra virtual TP/SL: timeout of 10000ms exceeded 
+2026-07-19 00:35:22: [PP369 WARN] [AutoTrade] Lỗi kiểm tra virtual TP/SL: timeout of 10000ms exceeded 
+2026-07-19 01:22:36: [PP369 WARN] [AutoTrade] Lỗi kiểm tra virtual TP/SL: timeout of 10000ms exceeded 
+2026-07-19 01:28:36: [PP369 WARN] [AutoTrade] Lỗi kiểm tra virtual TP/SL: timeout of 10000ms exceeded 
+2026-07-19 01:30:06: [PP369 WARN] [AutoTrade] Lỗi kiểm tra virtual TP/SL: timeout of 10000ms exceeded 
+2026-07-19 01:30:37: [PP369 WARN] [369] RONIN: lỗi fetch klines — getaddrinfo ENOTFOUND fapi.binance.com 
+2026-07-19 01:35:37: [PP369 WARN] [AutoTrade] Lỗi kiểm tra virtual TP/SL: timeout of 10000ms exceeded 
+2026-07-19 01:37:07: [PP369 WARN] [AutoTrade] Lỗi kiểm tra virtual TP/SL: timeout of 10000ms exceeded 
+2026-07-19 01:39:07: [PP369 WARN] [AutoTrade] Lỗi kiểm tra virtual TP/SL: timeout of 10000ms exceeded 
+2026-07-19 01:40:07: [PP369 WARN] [AutoTrade] Lỗi kiểm tra virtual TP/SL: timeout of 10000ms exceeded 
+2026-07-19 01:41:37: [PP369 WARN] [AutoTrade] Lỗi kiểm tra virtual TP/SL: timeout of 10000ms exceeded 
+2026-07-19 01:43:07: [PP369 WARN] [AutoTrade] Lỗi kiểm tra virtual TP/SL: timeout of 10000ms exceeded 
+2026-07-19 01:44:37: [PP369 WARN] [AutoTrade] Lỗi kiểm tra virtual TP/SL: timeout of 10000ms exceeded 
+2026-07-19 01:49:37: [PP369 WARN] [AutoTrade] Lỗi kiểm tra virtual TP/SL: timeout of 10000ms exceeded 
+2026-07-19 01:51:07: [PP369 WARN] [AutoTrade] Lỗi kiểm tra virtual TP/SL: timeout of 10000ms exceeded 
+2026-07-19 01:52:37: [PP369 WARN] [AutoTrade] Lỗi kiểm tra virtual TP/SL: timeout of 10000ms exceeded 
+2026-07-19 01:53:07: [PP369 WARN] [AutoTrade] Lỗi kiểm tra virtual TP/SL: timeout of 10000ms exceeded 
+2026-07-19 01:56:37: [PP369 WARN] [AutoTrade] Lỗi kiểm tra virtual TP/SL: timeout of 10000ms exceeded 
+2026-07-19 01:57:07: [PP369 WARN] [AutoTrade] Lỗi kiểm tra virtual TP/SL: timeout of 10000ms exceeded 
+2026-07-19 01:57:37: [PP369 WARN] [AutoTrade] Lỗi kiểm tra virtual TP/SL: timeout of 10000ms exceeded 
+2026-07-19 01:59:10: [PP369 WARN] [AutoTrade] Lỗi kiểm tra virtual TP/SL: timeout of 10000ms exceeded 
+2026-07-19 02:01:37: [PP369 WARN] [AutoTrade] Lỗi kiểm tra virtual TP/SL: timeout of 10000ms exceeded 
+2026-07-19 02:03:07: [PP369 WARN] [AutoTrade] Lỗi kiểm tra virtual TP/SL: timeout of 10000ms exceeded 
+2026-07-19 02:03:37: [PP369 WARN] [AutoTrade] Lỗi kiểm tra virtual TP/SL: timeout of 10000ms exceeded 
+2026-07-19 02:04:37: [PP369 WARN] [AutoTrade] Lỗi kiểm tra virtual TP/SL: timeout of 10000ms exceeded 
+2026-07-19 02:09:37: [PP369 WARN] [AutoTrade] Lỗi kiểm tra virtual TP/SL: timeout of 10000ms exceeded 
+2026-07-19 02:18:07: [PP369 WARN] [AutoTrade] Lỗi kiểm tra virtual TP/SL: timeout of 10000ms exceeded 
+2026-07-19 02:41:37: [PP369 WARN] [Telegram] Lỗi gửi tin nhắn (Lần 1/3): timeout of 10000ms exceeded. Thử lại sau 2 giây... 
+2026-07-19 14:56:55: [PP369 ERR] [AutoTrade] Đặt TP ATH thất bại: [-4509] Time in Force (TIF) GTE can only be used with open positions. Please ensure that positions are available. 
+2026-07-19 14:56:55: [PP369 ERR] [AutoTrade] Đặt SL ATH thất bại: [-4509] Time in Force (TIF) GTE can only be used with open positions. Please ensure that positions are available. 
+2026-07-20 09:41:35: [PP369 WARN] [AutoTrade] Lỗi kiểm tra virtual TP/SL: Request failed with status code 429 
+2026-07-20 11:50:06: [PP369 WARN] [AutoTrade] [ReturnCancel] Không hủy được LIMIT KAITO: [-2011] Unknown order sent. 
+2026-07-20 12:11:30: [PP369 WARN] [AutoTrade] Lỗi kiểm tra virtual TP/SL: Request failed with status code 429 
+2026-07-20 12:11:33: [PP369 WARN] [AutoTrade] Lỗi kiểm tra virtual TP/SL: Request failed with status code 429 
+2026-07-20 12:12:34: [PP369 WARN] [AutoTrade] Lỗi kiểm tra virtual TP/SL: Request failed with status code 429 
+2026-07-21 08:29:50: [PP369 ERR] [AutoTrade] Đặt SL KOMA thất bại: [-2021] Order would immediately trigger. 
+2026-07-21 09:14:51: [PP369 ERR] [AutoTrade] Đặt TP KAITO thất bại: [-4509] Time in Force (TIF) GTE can only be used with open positions. Please ensure that positions are available. 
+2026-07-21 09:14:51: [PP369 ERR] [AutoTrade] Đặt SL KAITO thất bại: [-4509] Time in Force (TIF) GTE can only be used with open positions. Please ensure that positions are available. 
