@@ -155,7 +155,7 @@ async function startAutoTrade(coins) {
         .filter(([sym, e]) => {
           if (e.yearStart !== YEAR_START_MS || e.failed) return false;
           const currentPrice = getMarkPrice(sym);
-          return isGridWidthValid(e, currentPrice);
+          return isGridWidthValid(e, currentPrice, sym);
         })
         .map(([sym]) => sym);
       const oldCount = activeCoinList.length;

@@ -42,7 +42,10 @@ module.exports = {
   getGridStepPct:        core.getGridStepPct,
   isGridWidthValid:      core.isGridWidthValid,
   GRID_MIN_PCT:          core.GRID_MIN_PCT,
+  GRID_MIN_PCT_TOP100:  core.GRID_MIN_PCT_TOP100,
   GRID_MAX_PCT:          core.GRID_MAX_PCT,
+  getMinGridPct:         core.getMinGridPct,
+  isTop100Symbol:        core.isTop100Symbol,
 
   // ── WebSocket stream ─────────────────────────────────────────────────────
   start369Stream:   stream.start369Stream,

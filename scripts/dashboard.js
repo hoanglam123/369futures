@@ -988,10 +988,10 @@ async function bootstrap() {
       }
 
       const excluded = Object.entries(filteredCache)
-        .filter(([, e]) => !isGridWidthValid(e));
+        .filter(([sym, e]) => !isGridWidthValid(e, null, sym));
       
       coins = Object.entries(filteredCache)
-        .filter(([, e]) => isGridWidthValid(e))
+        .filter(([sym, e]) => isGridWidthValid(e, null, sym))
         .map(([sym]) => sym);
       
       if (excluded.length > 0) {

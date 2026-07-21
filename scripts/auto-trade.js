@@ -43,7 +43,7 @@ async function main() {
         .filter(([sym, e]) => {
           if (e.yearStart !== YEAR_START_MS || e.failed) return false;
           const currentPrice = getMarkPrice(sym);
-          return isGridWidthValid(e, currentPrice);
+          return isGridWidthValid(e, currentPrice, sym);
         })
         .map(([sym]) => sym);
 
@@ -51,7 +51,7 @@ async function main() {
         .filter(([sym, e]) => {
           if (e.yearStart !== YEAR_START_MS || e.failed) return false;
           const currentPrice = getMarkPrice(sym);
-          return !isGridWidthValid(e, currentPrice);
+          return !isGridWidthValid(e, currentPrice, sym);
         });
 
       if (filtered.length > 0) {
