@@ -1331,18 +1331,18 @@ async function score369Method(sig369, direction) {
   try {
     const h1Candles = await fetchH1Historical(sig369.symbol);
     
-    // 1. Tiêu chí 1: Cấu trúc Dow Kép (Dow H1 15 ngày + Dow M15 3 ngày) + EMA20/50 + ADX(14) (Tối đa +2.0đ)
+    // 1. Tiêu chí 1: Cấu trúc Dow Kép (Dow H1 3 ngày + Dow M15 3 ngày) + EMA20/50 + ADX(14) (Tối đa +2.0đ)
     let trendScore = 0;
     const trendReasons = [];
     const price = sig369.currentPrice ?? (h1Candles.length ? h1Candles[h1Candles.length - 1].close : 0);
     const isLong = direction === 'LONG';
 
     let h1Data = h1Candles;
-    if (!h1Data || h1Data.length < 100) {
+    if (!h1Data || h1Data.length < 50) {
       try {
-        const startTimeH1 = Date.now() - 400 * 3600000; // Nạp 400 nến H1 (~16.6 ngày)
-        const fallbackH1 = await fetchBinanceKlines(sig369.symbol, '1h', startTimeH1, 400);
-        if (fallbackH1 && fallbackH1.length >= 100) {
+        const startTimeH1 = Date.now() - 150 * 3600000; // Nạp 150 nến H1 (~6 ngày)
+        const fallbackH1 = await fetchBinanceKlines(sig369.symbol, '1h', startTimeH1, 150);
+        if (fallbackH1 && fallbackH1.length >= 50) {
           h1Data = fallbackH1;
         }
       } catch (err) {
@@ -1390,12 +1390,12 @@ async function score369Method(sig369, direction) {
       const isStrongTrend = adx14H1 !== null && adx14H1 >= 25;
       const adxText = adx14H1 !== null ? `ADX=${adx14H1.toFixed(1)}` : 'No ADX';
 
-      // Quét 360 nến H1 gần nhất (15 ngày) để tìm các điểm Major Swing Low / Swing High chuẩn Lý thuyết Dow
-      const sampleCandles = h1Data.slice(-360);
+      // Quét 72 nến H1 gần nhất (3 ngày) để tìm các điểm Major Swing Low / Swing High chuẩn Lý thuyết Dow H1
+      const sampleCandles = h1Data.slice(-72);
       const pivotLows = [];
       const pivotHighs = [];
-      const leftLen = 4;
-      const rightLen = 4;
+      const leftLen = 2;
+      const rightLen = 2;
 
       for (let i = leftLen; i < sampleCandles.length - rightLen; i++) {
         const cHigh = sampleCandles[i].high;
@@ -1416,7 +1416,7 @@ async function score369Method(sig369, direction) {
         low1 = pivotLows[pivotLows.length - 2];
         low2 = pivotLows[pivotLows.length - 1];
       } else {
-        // Fallback: chia 360 nến làm 2 nửa 7.5 ngày
+        // Fallback: chia 72 nến làm 2 nửa 1.5 ngày
         const cHalf = sampleCandles;
         const mid = Math.floor(cHalf.length / 2);
         low1 = Math.min(...cHalf.slice(0, mid).map(c => c.low));
@@ -1427,7 +1427,7 @@ async function score369Method(sig369, direction) {
         high1 = pivotHighs[pivotHighs.length - 2];
         high2 = pivotHighs[pivotHighs.length - 1];
       } else {
-        // Fallback: chia 360 nến làm 2 nửa 7.5 ngày
+        // Fallback: chia 72 nến làm 2 nửa 1.5 ngày
         const cHalf = sampleCandles;
         const mid = Math.floor(cHalf.length / 2);
         high1 = Math.max(...cHalf.slice(0, mid).map(c => c.high));
@@ -1442,21 +1442,26 @@ async function score369Method(sig369, direction) {
         if (isHigherLow && isHigherHigh && isEmaBullish) {
           trendScore = isStrongTrend ? 2.0 : 1.5;
           trendReasons.push(
-            `Dow & Trendline LONG hoàn hảo (${adxText}): HL ($${low2.toFixed(6)} > $${low1.toFixed(6)}) & HH & EMA20>EMA50 (+${trendScore.toFixed(1)}đ)`
+            `Dow & Trendline LONG hoàn hảo H1 3 ngày (${adxText}): HL ($${low2.toFixed(6)} > $${low1.toFixed(6)}) & HH ($${high2.toFixed(6)} > $${high1.toFixed(6)}) & EMA20>EMA50 (+${trendScore.toFixed(1)}đ)`
           );
-        } else if (isHigherLow && isEmaBullish) {
-          trendScore = isStrongTrend ? 1.5 : 1.0;
-          trendReasons.push(
-            `Trendline LONG (Higher Low $${low2.toFixed(6)} > $${low1.toFixed(6)}) & EMA20>EMA50 (${adxText}) (+${trendScore.toFixed(1)}đ)`
-          );
-        } else if (isEmaBullish) {
+        } else if (isHigherLow && isHigherHigh) {
           trendScore = isStrongTrend ? 1.0 : 0.5;
+          trendReasons.push(
+            `Cấu trúc Dow LONG H1 3 ngày (HL & HH) (${adxText}) (+${trendScore.toFixed(1)}đ)`
+          );
+        } else if (isM15HigherLow) {
+          trendScore = 0.5;
+          trendReasons.push(
+            `H1 Sideway nhưng M15 có xu hướng LONG ngắn hạn (Higher Low M15) (+0.5đ)`
+          );
+        } else if (isEmaBullish && !isHigherLow && !isHigherHigh) {
+          trendScore = 0.5;
           trendReasons.push(
             `EMA20>EMA50 thuận ngắn hạn (${adxText}) (+${trendScore.toFixed(1)}đ)`
           );
         } else {
           trendScore = 0;
-          trendReasons.push(`Ngược cấu trúc Dow & EMA (${adxText}) (+0đ)`);
+          trendReasons.push(`Ngược/Mâu thuẫn cấu trúc Dow H1 3 ngày & EMA (${adxText}) (+0đ)`);
         }
       } else { // SHORT
         const isLowerHigh = high2 < high1;  // Đỉnh sau thấp hơn đỉnh trước
@@ -1466,21 +1471,26 @@ async function score369Method(sig369, direction) {
         if (isLowerHigh && isLowerLow && isEmaBearish) {
           trendScore = isStrongTrend ? 2.0 : 1.5;
           trendReasons.push(
-            `Dow & Trendline SHORT hoàn hảo (${adxText}): LH ($${high2.toFixed(6)} < $${high1.toFixed(6)}) & LL & EMA20<EMA50 (+${trendScore.toFixed(1)}đ)`
+            `Dow & Trendline SHORT hoàn hảo H1 3 ngày (${adxText}): LH ($${high2.toFixed(6)} < $${high1.toFixed(6)}) & LL ($${low2.toFixed(6)} < $${low1.toFixed(6)}) & EMA20<EMA50 (+${trendScore.toFixed(1)}đ)`
           );
-        } else if (isLowerHigh && isEmaBearish) {
-          trendScore = isStrongTrend ? 1.5 : 1.0;
-          trendReasons.push(
-            `Trendline SHORT (Lower High $${high2.toFixed(6)} < $${high1.toFixed(6)}) & EMA20<EMA50 (${adxText}) (+${trendScore.toFixed(1)}đ)`
-          );
-        } else if (isEmaBearish) {
+        } else if (isLowerHigh && isLowerLow) {
           trendScore = isStrongTrend ? 1.0 : 0.5;
+          trendReasons.push(
+            `Cấu trúc Dow SHORT H1 3 ngày (LH & LL) (${adxText}) (+${trendScore.toFixed(1)}đ)`
+          );
+        } else if (isM15LowerHigh) {
+          trendScore = 0.5;
+          trendReasons.push(
+            `H1 Sideway nhưng M15 có xu hướng SHORT ngắn hạn (Lower High M15) (+0.5đ)`
+          );
+        } else if (isEmaBearish && !isLowerHigh && !isLowerLow) {
+          trendScore = 0.5;
           trendReasons.push(
             `EMA20<EMA50 thuận ngắn hạn (${adxText}) (+${trendScore.toFixed(1)}đ)`
           );
         } else {
           trendScore = 0;
-          trendReasons.push(`Ngược cấu trúc Dow & EMA (${adxText}) (+0đ)`);
+          trendReasons.push(`Ngược/Mâu thuẫn cấu trúc Dow H1 3 ngày & EMA (${adxText}) (+0đ)`);
         }
       }
     } else {
