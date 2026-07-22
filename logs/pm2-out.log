@@ -1908,3 +1908,531 @@
 2026-07-21 15:56:46: [PP369] [Binance] Đã đồng bộ giờ: offset = 93747ms (Giờ server: 2026-07-21T08:58:19.871Z) 
 2026-07-21 15:58:29: [PP369] [AutoTrade] AIN → SHORT (Score: +2.8đ) tại $0.08465 
 2026-07-21 15:58:29: [PP369] [AutoTrade] AIN SHORT có Score = 2.8đ < 6đ — bỏ qua 
+2026-07-21 17:16:50: ◇ injected env (8) from .env // tip: ⌘ override existing { override: true }
+2026-07-21 17:16:50: [PP369] [369] initH4Cache: Tất cả 779 coin đã có nến H4 đầu năm. 
+2026-07-21 17:16:51: [PP369] [Binance] Đã đồng bộ giờ: offset = 94206ms (Giờ server: 2026-07-21T10:18:25.350Z) 
+2026-07-21 17:16:51: [AutoTrade] Bỏ qua 158 coin có grid ngoài khoảng 3–25% (theo giá hiện tại): SOL(38.3%), XRP(26.5%), ETC(42.5%), LINK(34.5%), BAT(38.3%), QTUM(42.7%), KNC(26.8%), DOT(34.6%), AVAX(45.1%), AAVE(31.6%), FIL(39.7%), BEL(2.9%), CTK(28.8%), COTI(39.4%), ALICE(2.5%), ONE(26.2%), NKN(2.6%), DGB(1.6%), ATA(1.8%), DYDX(2.5%), KLAY(2.4%), APE(2.1%), DAR(2.1%), OP(30.9%), STG(2.1%), SPELL(35.6%), APT(48.6%), FET(1.9%), CKB(32.6%), USDC(30.0%), AMB(2.5%), LEVER(26.7%), RDNT(2.9%), HFT(33.4%), SUI(38.8%), MAV(33.9%), ARKM(2.7%), DODOX(1.9%), ARK(28.7%), BOND(28.1%), RIF(3.0%), GAS(28.5%), SUPER(34.6%), 1000SATS(313.5%), ACE(29.4%), JUP(1.5%), GLM(30.0%), PORTAL(2.8%), MYRO(3.0%), W(32.6%), IO(2.0%), ZK(31.3%), ZRO(37.7%), SYN(1.5%), SYS(1.7%), ALPACA(25.2%), SUN(1.6%), DOGS(80.1%), BSW(2.5%), QUICK(2.3%), NEIRO(49.4%), FIO(2.5%), GHST(1.8%), LOKA(2.6%), COS(2.5%), DIA(29.0%), SANTOS(58.7%), 1000000MOG(29.0%), ACT(34.7%), HIPPO(2.9%), DEGEN(2.9%), 1000WHY(197.4%), THE(56.2%), ORCA(25.0%), MOVE(27.6%), VELODROME(1.6%), MOCA(33.9%), VANA(25.5%), USUAL(33.8%), DEXE(1.4%), DF(2.6%), COOKIE(35.0%), D(2.2%), PIPPIN(178.9%), TST(2.5%), RED(29.2%), BMT(25.2%), MUBARAK(2.7%), TUT(2.0%), BROCCOLI714(2.4%), BR(2.0%), PLUME(2.8%), FUN(1.7%), BABY(2.4%), PUMP(1.5%), BANK(2.1%), SIGN(34.4%), PUNDIX(35.8%), SXT(42.5%), ASR(34.6%), MILK(3.0%), OG(116.4%), AGT(2.6%), B(1.3%), MERL(172.3%), PUMPBTC(31.9%), MYX(375.7%), DMC(2.3%), OL(1.7%), SAHARA(33.1%), BULLA(26.4%), M(25.5%), TANSSI(2.4%), VELVET(0.6%), ZORA(46.4%), TAG(2.5%), ESPORTS(123.4%), A2Z(2.1%), YALA(1.8%), AIO(2.5%), LA(52.8%), SOMI(29.6%), BAS(1.1%), Q(1.5%), PTB(49.1%), PORT3(2.5%), 1000000BOB(1.9%), AVNT(32.2%), UB(2.9%), TOSHI(26.9%), TRADOOR(61.3%), FLUID(29.1%), HANA(0.8%), AKE(1.9%), LIGHT(240.6%), XAN(2.5%), TRUTH(2.2%), YB(38.2%), EUL(30.2%), LAB(2.4%), RIVER(90.4%), 币安人生(0.5%), BLUAI(2.5%), APR(1.4%), ON(1.8%), KITE(2.6%), AT(2.1%), UAI(0.9%), STABLE(0.8%), JCT(0.7%), ALLO(0.6%), BOB(2.8%), POWER(36.5%), US(0.7%), BREV(39.7%), MAGMA(1.0%), OPEN(1.8%), RLS(2.8%)
+2026-07-21 17:16:51: [PP369] [Binance] Đang lấy leverage brackets cho 449 coin... 
+2026-07-21 17:16:52: [PP369] [Binance] Đã lưu leverage cho 449 coin vào step_sizes.json 
+2026-07-21 17:16:52: [PP369] [AutoTrade] Khởi động: 449 coin | margin=$10 | 10x | type=LIMIT 
+2026-07-21 17:16:52: [PP369] [Binance] Loaded step and tick sizes from existing file: 827 symbols 
+2026-07-21 17:16:52: [PP369] [AutoTrade] Đã nạp leverageInfo cho 449 coin từ cache. 
+2026-07-21 17:16:52: [PP369] [PP369Stream] Kết nối WebSocket thành công (market/stream) 
+2026-07-21 17:16:56: [PP369] [AutoTrade] Bắt đầu scan... 
+2026-07-21 17:17:11: [PP369] [AutoTrade] XNY → SHORT (Score: +2.8đ) tại $0.006497 
+2026-07-21 17:17:11: [PP369] [AutoTrade] XNY SHORT có Score = 2.8đ < 6đ — bỏ qua 
+2026-07-21 17:27:44: [PP369] [AutoTrade] VIRTUAL → SHORT (Score: +3.4999999999999996đ) tại $0.6749 
+2026-07-21 17:27:44: [PP369] [AutoTrade] VIRTUAL SHORT có Score = 3.4999999999999996đ < 6đ — bỏ qua 
+2026-07-21 17:28:13: [PP369] [AutoTrade] VIRTUAL → SHORT (Score: +3.4999999999999996đ) tại $0.6749 
+2026-07-21 17:28:13: [PP369] [AutoTrade] VIRTUAL SHORT có Score = 3.4999999999999996đ < 6đ — bỏ qua 
+2026-07-21 17:28:43: [PP369] [AutoTrade] VIRTUAL → SHORT (Score: +3.4999999999999996đ) tại $0.6749 
+2026-07-21 17:28:43: [PP369] [AutoTrade] VIRTUAL SHORT có Score = 3.4999999999999996đ < 6đ — bỏ qua 
+2026-07-21 17:29:13: [PP369] [AutoTrade] VIRTUAL → SHORT (Score: +3.4999999999999996đ) tại $0.6749 
+2026-07-21 17:29:13: [PP369] [AutoTrade] VIRTUAL SHORT có Score = 3.4999999999999996đ < 6đ — bỏ qua 
+2026-07-21 17:29:43: [PP369] [AutoTrade] VIRTUAL → SHORT (Score: +3.4999999999999996đ) tại $0.6749 
+2026-07-21 17:29:43: [PP369] [AutoTrade] VIRTUAL SHORT có Score = 3.4999999999999996đ < 6đ — bỏ qua 
+2026-07-21 17:30:12: [PP369] [AutoTrade] VIRTUAL → SHORT (Score: +3.4999999999999996đ) tại $0.6749 
+2026-07-21 17:30:12: [PP369] [AutoTrade] VIRTUAL SHORT có Score = 3.4999999999999996đ < 6đ — bỏ qua 
+2026-07-21 17:30:43: [PP369] [AutoTrade] VIRTUAL → SHORT (Score: +3.4999999999999996đ) tại $0.6749 
+2026-07-21 17:30:43: [PP369] [AutoTrade] VIRTUAL SHORT có Score = 3.4999999999999996đ < 6đ — bỏ qua 
+2026-07-21 17:32:13: [PP369] [AutoTrade] AIN → SHORT (Score: +2.1đ) tại $0.09065 
+2026-07-21 17:32:13: [PP369] [AutoTrade] AIN SHORT không đạt Tiêu chí 2 (Biến động H1/M15 an toàn) — bỏ qua 
+2026-07-21 17:46:51: [PP369] [Binance] Đã đồng bộ giờ: offset = 94389ms (Giờ server: 2026-07-21T10:48:25.449Z) 
+2026-07-21 18:16:51: [PP369] [Binance] Đã đồng bộ giờ: offset = 94564ms (Giờ server: 2026-07-21T11:18:25.639Z) 
+2026-07-21 18:25:43: [PP369] [AutoTrade] DUSK → SHORT (Score: +3.6đ) tại $0.07071 
+2026-07-21 18:25:43: [PP369] [AutoTrade] DUSK SHORT có Score = 3.6đ < 6đ — bỏ qua 
+2026-07-21 18:26:12: [PP369] [AutoTrade] DUSK → SHORT (Score: +3.6đ) tại $0.07071 
+2026-07-21 18:26:12: [PP369] [AutoTrade] DUSK SHORT có Score = 3.6đ < 6đ — bỏ qua 
+2026-07-21 18:46:51: [PP369] [Binance] Đã đồng bộ giờ: offset = 94739ms (Giờ server: 2026-07-21T11:48:25.814Z) 
+2026-07-21 19:11:13: [PP369] [AutoTrade] BTC → SHORT (Score: +4.6đ) tại $66608.3 
+2026-07-21 19:11:13: [PP369] [AutoTrade] BTC SHORT có Score = 4.6đ < 6đ — bỏ qua 
+2026-07-21 19:16:51: [PP369] [Binance] Đã đồng bộ giờ: offset = 94915ms (Giờ server: 2026-07-21T12:18:25.984Z) 
+2026-07-21 19:18:12: [PP369] [AutoTrade] BTC → SHORT (Score: +4.6đ) tại $66608.3 
+2026-07-21 19:18:12: [PP369] [AutoTrade] BTC SHORT có Score = 4.6đ < 6đ — bỏ qua 
+2026-07-21 19:19:12: [PP369] [AutoTrade] BTC → SHORT (Score: +4.6đ) tại $66608.3 
+2026-07-21 19:19:12: [PP369] [AutoTrade] BTC SHORT có Score = 4.6đ < 6đ — bỏ qua 
+2026-07-21 19:19:42: [PP369] [AutoTrade] BTC → SHORT (Score: +4.6đ) tại $66608.3 
+2026-07-21 19:19:42: [PP369] [AutoTrade] BTC SHORT có Score = 4.6đ < 6đ — bỏ qua 
+2026-07-21 19:20:12: [PP369] [AutoTrade] BTC → SHORT (Score: +4.6đ) tại $66608.3 
+2026-07-21 19:20:12: [PP369] [AutoTrade] BTC SHORT có Score = 4.6đ < 6đ — bỏ qua 
+2026-07-21 19:20:42: [PP369] [AutoTrade] BTC → SHORT (Score: +4.6đ) tại $66608.3 
+2026-07-21 19:20:42: [PP369] [AutoTrade] BTC SHORT có Score = 4.6đ < 6đ — bỏ qua 
+2026-07-21 19:21:12: [PP369] [AutoTrade] BTC → SHORT (Score: +4.6đ) tại $66608.3 
+2026-07-21 19:21:12: [PP369] [AutoTrade] BTC SHORT có Score = 4.6đ < 6đ — bỏ qua 
+2026-07-21 19:21:42: [PP369] [AutoTrade] BTC → SHORT (Score: +4.6đ) tại $66608.3 
+2026-07-21 19:21:42: [PP369] [AutoTrade] BTC SHORT có Score = 4.6đ < 6đ — bỏ qua 
+2026-07-21 19:22:12: [PP369] [AutoTrade] BTC → SHORT (Score: +4.6đ) tại $66608.3 
+2026-07-21 19:22:12: [PP369] [AutoTrade] BTC SHORT có Score = 4.6đ < 6đ — bỏ qua 
+2026-07-21 19:22:42: [PP369] [AutoTrade] BTC → SHORT (Score: +4.6đ) tại $66608.3 
+2026-07-21 19:22:42: [PP369] [AutoTrade] BTC SHORT có Score = 4.6đ < 6đ — bỏ qua 
+2026-07-21 19:23:12: [PP369] [AutoTrade] BTC → SHORT (Score: +4.6đ) tại $66608.3 
+2026-07-21 19:23:12: [PP369] [AutoTrade] BTC SHORT có Score = 4.6đ < 6đ — bỏ qua 
+2026-07-21 19:23:42: [PP369] [AutoTrade] BTC → SHORT (Score: +4.6đ) tại $66608.3 
+2026-07-21 19:23:42: [PP369] [AutoTrade] BTC SHORT có Score = 4.6đ < 6đ — bỏ qua 
+2026-07-21 19:24:12: [PP369] [AutoTrade] BTC → SHORT (Score: +4.6đ) tại $66608.3 
+2026-07-21 19:24:12: [PP369] [AutoTrade] BTC SHORT có Score = 4.6đ < 6đ — bỏ qua 
+2026-07-21 19:24:42: [PP369] [AutoTrade] BTC → SHORT (Score: +4.6đ) tại $66608.3 
+2026-07-21 19:24:42: [PP369] [AutoTrade] BTC SHORT có Score = 4.6đ < 6đ — bỏ qua 
+2026-07-21 19:25:12: [PP369] [AutoTrade] BTC → SHORT (Score: +4.6đ) tại $66608.3 
+2026-07-21 19:25:12: [PP369] [AutoTrade] BTC SHORT có Score = 4.6đ < 6đ — bỏ qua 
+2026-07-21 19:28:12: [PP369] [AutoTrade] BTC → SHORT (Score: +4.6đ) tại $66608.3 
+2026-07-21 19:28:12: [PP369] [AutoTrade] BTC SHORT có Score = 4.6đ < 6đ — bỏ qua 
+2026-07-21 19:28:42: [PP369] [AutoTrade] BTC → SHORT (Score: +4.6đ) tại $66608.3 
+2026-07-21 19:28:42: [PP369] [AutoTrade] BTC SHORT có Score = 4.6đ < 6đ — bỏ qua 
+2026-07-21 19:29:42: [PP369] [AutoTrade] BTC → SHORT (Score: +4.6đ) tại $66608.3 
+2026-07-21 19:29:42: [PP369] [AutoTrade] BTC SHORT có Score = 4.6đ < 6đ — bỏ qua 
+2026-07-21 19:30:12: [PP369] [AutoTrade] BTC → SHORT (Score: +4.6đ) tại $66608.3 
+2026-07-21 19:30:12: [PP369] [AutoTrade] BTC SHORT có Score = 4.6đ < 6đ — bỏ qua 
+2026-07-21 19:30:42: [PP369] [AutoTrade] BTC → SHORT (Score: +4.6đ) tại $66608.3 
+2026-07-21 19:30:42: [PP369] [AutoTrade] BTC SHORT có Score = 4.6đ < 6đ — bỏ qua 
+2026-07-21 19:31:12: [PP369] [AutoTrade] BTC → SHORT (Score: +4.6đ) tại $66608.3 
+2026-07-21 19:31:12: [PP369] [AutoTrade] BTC SHORT có Score = 4.6đ < 6đ — bỏ qua 
+2026-07-21 19:31:42: [PP369] [AutoTrade] BTC → SHORT (Score: +4.6đ) tại $66608.3 
+2026-07-21 19:31:42: [PP369] [AutoTrade] BTC SHORT có Score = 4.6đ < 6đ — bỏ qua 
+2026-07-21 19:32:12: [PP369] [AutoTrade] BTC → SHORT (Score: +4.6đ) tại $66608.3 
+2026-07-21 19:32:12: [PP369] [AutoTrade] BTC SHORT có Score = 4.6đ < 6đ — bỏ qua 
+2026-07-21 19:32:42: [PP369] [AutoTrade] BTC → SHORT (Score: +4.6đ) tại $66608.3 
+2026-07-21 19:32:42: [PP369] [AutoTrade] BTC SHORT có Score = 4.6đ < 6đ — bỏ qua 
+2026-07-21 19:33:12: [PP369] [AutoTrade] BTC → SHORT (Score: +4.6đ) tại $66608.3 
+2026-07-21 19:33:12: [PP369] [AutoTrade] BTC SHORT có Score = 4.6đ < 6đ — bỏ qua 
+2026-07-21 19:33:42: [PP369] [AutoTrade] BTC → SHORT (Score: +4.6đ) tại $66608.3 
+2026-07-21 19:33:42: [PP369] [AutoTrade] BTC SHORT có Score = 4.6đ < 6đ — bỏ qua 
+2026-07-21 19:34:12: [PP369] [AutoTrade] BTC → SHORT (Score: +4.6đ) tại $66608.3 
+2026-07-21 19:34:12: [PP369] [AutoTrade] BTC SHORT có Score = 4.6đ < 6đ — bỏ qua 
+2026-07-21 19:34:42: [PP369] [AutoTrade] BTC → SHORT (Score: +4.6đ) tại $66608.3 
+2026-07-21 19:34:42: [PP369] [AutoTrade] BTC SHORT có Score = 4.6đ < 6đ — bỏ qua 
+2026-07-21 19:35:12: [PP369] [AutoTrade] BTC → SHORT (Score: +4.6đ) tại $66608.3 
+2026-07-21 19:35:12: [PP369] [AutoTrade] BTC SHORT có Score = 4.6đ < 6đ — bỏ qua 
+2026-07-21 19:35:42: [PP369] [AutoTrade] BTC → SHORT (Score: +4.6đ) tại $66608.3 
+2026-07-21 19:35:42: [PP369] [AutoTrade] BTC SHORT có Score = 4.6đ < 6đ — bỏ qua 
+2026-07-21 19:36:12: [PP369] [AutoTrade] BTC → SHORT (Score: +4.6đ) tại $66608.3 
+2026-07-21 19:36:12: [PP369] [AutoTrade] BTC SHORT có Score = 4.6đ < 6đ — bỏ qua 
+2026-07-21 19:36:42: [PP369] [AutoTrade] BTC → SHORT (Score: +4.6đ) tại $66608.3 
+2026-07-21 19:36:42: [PP369] [AutoTrade] BTC SHORT có Score = 4.6đ < 6đ — bỏ qua 
+2026-07-21 19:37:12: [PP369] [AutoTrade] BTC → SHORT (Score: +4.6đ) tại $66608.3 
+2026-07-21 19:37:12: [PP369] [AutoTrade] BTC SHORT có Score = 4.6đ < 6đ — bỏ qua 
+2026-07-21 19:37:42: [PP369] [AutoTrade] BTC → SHORT (Score: +4.6đ) tại $66608.3 
+2026-07-21 19:37:42: [PP369] [AutoTrade] BTC SHORT có Score = 4.6đ < 6đ — bỏ qua 
+2026-07-21 19:46:51: [PP369] [Binance] Đã đồng bộ giờ: offset = 95089ms (Giờ server: 2026-07-21T12:48:26.158Z) 
+2026-07-21 20:09:13: [PP369] [AutoTrade] 1INCH → SHORT (Score: +3.4000000000000004đ) tại $0.0776 
+2026-07-21 20:09:13: [PP369] [AutoTrade] 1INCH SHORT có Score = 3.4000000000000004đ < 6đ — bỏ qua 
+2026-07-21 20:09:42: [PP369] [AutoTrade] 1INCH → SHORT (Score: +3.4000000000000004đ) tại $0.0776 
+2026-07-21 20:09:42: [PP369] [AutoTrade] 1INCH SHORT có Score = 3.4000000000000004đ < 6đ — bỏ qua 
+2026-07-21 20:10:12: [PP369] [AutoTrade] 1INCH → SHORT (Score: +3.4000000000000004đ) tại $0.0776 
+2026-07-21 20:10:12: [PP369] [AutoTrade] 1INCH SHORT có Score = 3.4000000000000004đ < 6đ — bỏ qua 
+2026-07-21 20:16:51: [PP369] [Binance] Đã đồng bộ giờ: offset = 95264ms (Giờ server: 2026-07-21T13:18:26.319Z) 
+2026-07-21 20:22:13: [PP369] [AutoTrade] AIN → SHORT (Score: +1.9000000000000001đ) tại $0.08765 
+2026-07-21 20:22:13: [PP369] [AutoTrade] AIN SHORT không đạt Tiêu chí 2 (Biến động H1/M15 an toàn) — bỏ qua 
+2026-07-21 20:36:42: [PP369] [AutoTrade] AIN → SHORT (Score: +1.9000000000000001đ) tại $0.08765 
+2026-07-21 20:36:42: [PP369] [AutoTrade] AIN SHORT không đạt Tiêu chí 2 (Biến động H1/M15 an toàn) — bỏ qua 
+2026-07-21 20:37:13: [PP369] [AutoTrade] AIN → SHORT (Score: +2.4000000000000004đ) tại $0.08765 
+2026-07-21 20:37:13: [PP369] [AutoTrade] AIN SHORT có Score = 2.4000000000000004đ < 6đ — bỏ qua 
+2026-07-21 20:38:42: [PP369] [AutoTrade] AIN → SHORT (Score: +2.4000000000000004đ) tại $0.08765 
+2026-07-21 20:38:42: [PP369] [AutoTrade] AIN SHORT có Score = 2.4000000000000004đ < 6đ — bỏ qua 
+2026-07-21 20:46:51: [PP369] [Binance] Đã đồng bộ giờ: offset = 95440ms (Giờ server: 2026-07-21T13:48:26.509Z) 
+2026-07-21 20:58:43: [PP369] [AutoTrade] IOTA → SHORT (Score: +3.8đ) tại $0.0377 
+2026-07-21 20:58:43: [PP369] [AutoTrade] IOTA SHORT có Score = 3.8đ < 6đ — bỏ qua 
+2026-07-21 21:10:13: [PP369] [AutoTrade] IOTA → SHORT (Score: +4.3đ) tại $0.0377 
+2026-07-21 21:10:13: [PP369] [AutoTrade] IOTA SHORT có Score = 4.3đ < 6đ — bỏ qua 
+2026-07-21 21:10:42: [PP369] [AutoTrade] IOTA → SHORT (Score: +4.3đ) tại $0.0377 
+2026-07-21 21:10:42: [PP369] [AutoTrade] IOTA SHORT có Score = 4.3đ < 6đ — bỏ qua 
+2026-07-21 21:11:12: [PP369] [AutoTrade] IOTA → SHORT (Score: +4.3đ) tại $0.0377 
+2026-07-21 21:11:12: [PP369] [AutoTrade] IOTA SHORT có Score = 4.3đ < 6đ — bỏ qua 
+2026-07-21 21:15:13: [PP369] [AutoTrade] C → LONG (Score: +5.6đ) tại $0.06523 
+2026-07-21 21:15:13: [PP369] [AutoTrade] C LONG có Score = 5.6đ < 6đ — bỏ qua 
+2026-07-21 21:16:42: [PP369] [AutoTrade] C → LONG (Score: +5.6đ) tại $0.06523 
+2026-07-21 21:16:42: [PP369] [AutoTrade] C LONG có Score = 5.6đ < 6đ — bỏ qua 
+2026-07-21 21:16:51: [PP369] [Binance] Đã đồng bộ giờ: offset = 95613ms (Giờ server: 2026-07-21T14:18:26.675Z) 
+2026-07-21 21:16:52: [PP369] [AutoTrade] [CoinRefresh] Tái kiểm tra danh sách: 449 → 450 coin hợp lệ theo giá hiện tại. 
+2026-07-21 21:24:12: [PP369] [AutoTrade] C → LONG (Score: +5.6đ) tại $0.06523 
+2026-07-21 21:24:12: [PP369] [AutoTrade] C LONG có Score = 5.6đ < 6đ — bỏ qua 
+2026-07-21 21:24:42: [PP369] [AutoTrade] C → LONG (Score: +5.6đ) tại $0.06523 
+2026-07-21 21:24:42: [PP369] [AutoTrade] C LONG có Score = 5.6đ < 6đ — bỏ qua 
+2026-07-21 21:25:12: [PP369] [AutoTrade] C → LONG (Score: +5.6đ) tại $0.06523 
+2026-07-21 21:25:12: [PP369] [AutoTrade] C LONG có Score = 5.6đ < 6đ — bỏ qua 
+2026-07-21 21:26:42: [PP369] [AutoTrade] IOTA → SHORT (Score: +4.3đ) tại $0.0377 
+2026-07-21 21:26:42: [PP369] [AutoTrade] IOTA SHORT có Score = 4.3đ < 6đ — bỏ qua 
+2026-07-21 21:26:43: [PP369] [AutoTrade] C → LONG (Score: +5.6đ) tại $0.06523 
+2026-07-21 21:26:43: [PP369] [AutoTrade] C LONG có Score = 5.6đ < 6đ — bỏ qua 
+2026-07-21 21:27:12: [PP369] [AutoTrade] IOTA → SHORT (Score: +4.3đ) tại $0.0377 
+2026-07-21 21:27:12: [PP369] [AutoTrade] IOTA SHORT có Score = 4.3đ < 6đ — bỏ qua 
+2026-07-21 21:27:13: [PP369] [AutoTrade] C → LONG (Score: +5.6đ) tại $0.06523 
+2026-07-21 21:27:13: [PP369] [AutoTrade] C LONG có Score = 5.6đ < 6đ — bỏ qua 
+2026-07-21 21:27:42: [PP369] [AutoTrade] IOTA → SHORT (Score: +4.3đ) tại $0.0377 
+2026-07-21 21:27:42: [PP369] [AutoTrade] IOTA SHORT có Score = 4.3đ < 6đ — bỏ qua 
+2026-07-21 21:27:43: [PP369] [AutoTrade] C → LONG (Score: +5.6đ) tại $0.06523 
+2026-07-21 21:27:43: [PP369] [AutoTrade] C LONG có Score = 5.6đ < 6đ — bỏ qua 
+2026-07-21 21:28:12: [PP369] [AutoTrade] IOTA → SHORT (Score: +4.3đ) tại $0.0377 
+2026-07-21 21:28:12: [PP369] [AutoTrade] IOTA SHORT có Score = 4.3đ < 6đ — bỏ qua 
+2026-07-21 21:28:13: [PP369] [AutoTrade] C → LONG (Score: +5.6đ) tại $0.06523 
+2026-07-21 21:28:13: [PP369] [AutoTrade] C LONG có Score = 5.6đ < 6đ — bỏ qua 
+2026-07-21 21:28:42: [PP369] [AutoTrade] C → LONG (Score: +5.6đ) tại $0.06523 
+2026-07-21 21:28:42: [PP369] [AutoTrade] C LONG có Score = 5.6đ < 6đ — bỏ qua 
+2026-07-21 21:35:12: [PP369] [AutoTrade] C → LONG (Score: +5.6đ) tại $0.06523 
+2026-07-21 21:35:12: [PP369] [AutoTrade] C LONG có Score = 5.6đ < 6đ — bỏ qua 
+2026-07-21 21:35:42: [PP369] [AutoTrade] C → LONG (Score: +5.6đ) tại $0.06523 
+2026-07-21 21:35:42: [PP369] [AutoTrade] C LONG có Score = 5.6đ < 6đ — bỏ qua 
+2026-07-21 21:36:12: [PP369] [AutoTrade] C → LONG (Score: +5.6đ) tại $0.06523 
+2026-07-21 21:36:12: [PP369] [AutoTrade] C LONG có Score = 5.6đ < 6đ — bỏ qua 
+2026-07-21 21:46:51: [PP369] [Binance] Đã đồng bộ giờ: offset = 95789ms (Giờ server: 2026-07-21T14:48:26.854Z) 
+2026-07-21 21:47:43: [PP369] [AutoTrade] VET → SHORT (Score: +3.9999999999999996đ) tại $0.00499 
+2026-07-21 21:47:43: [PP369] [AutoTrade] VET SHORT có Score = 3.9999999999999996đ < 6đ — bỏ qua 
+2026-07-21 21:51:42: [PP369] [AutoTrade] VET → SHORT (Score: +3.9999999999999996đ) tại $0.00499 
+2026-07-21 21:51:42: [PP369] [AutoTrade] VET SHORT có Score = 3.9999999999999996đ < 6đ — bỏ qua 
+2026-07-21 21:57:12: [PP369] [AutoTrade] RIF → LONG (Score: +5đ) tại $0.07668 
+2026-07-21 21:57:12: [PP369] [AutoTrade] RIF LONG không đạt Tiêu chí 2 (Biến động H1/M15 an toàn) — bỏ qua 
+2026-07-21 22:04:13: [PP369] [AutoTrade] 1000RATS → LONG (Score: +5.9đ) tại $0.02531 
+2026-07-21 22:04:13: [PP369] [AutoTrade] 1000RATS LONG có Score = 5.9đ < 6đ — bỏ qua 
+2026-07-21 22:04:42: [PP369] [AutoTrade] 1000RATS → LONG (Score: +5.9đ) tại $0.02531 
+2026-07-21 22:04:42: [PP369] [AutoTrade] 1000RATS LONG có Score = 5.9đ < 6đ — bỏ qua 
+2026-07-21 22:10:12: [PP369] [AutoTrade] 1000RATS → LONG (Score: +5.9đ) tại $0.02531 
+2026-07-21 22:10:12: [PP369] [AutoTrade] 1000RATS LONG có Score = 5.9đ < 6đ — bỏ qua 
+2026-07-21 22:10:42: [PP369] [AutoTrade] 1000RATS → LONG (Score: +5.9đ) tại $0.02531 
+2026-07-21 22:10:42: [PP369] [AutoTrade] 1000RATS LONG có Score = 5.9đ < 6đ — bỏ qua 
+2026-07-21 22:11:12: [PP369] [AutoTrade] 1000RATS → LONG (Score: +5.9đ) tại $0.02531 
+2026-07-21 22:11:12: [PP369] [AutoTrade] 1000RATS LONG có Score = 5.9đ < 6đ — bỏ qua 
+2026-07-21 22:11:42: [PP369] [AutoTrade] 1000RATS → LONG (Score: +5.9đ) tại $0.02531 
+2026-07-21 22:11:42: [PP369] [AutoTrade] 1000RATS LONG có Score = 5.9đ < 6đ — bỏ qua 
+2026-07-21 22:12:12: [PP369] [AutoTrade] 1000RATS → LONG (Score: +5.9đ) tại $0.02531 
+2026-07-21 22:12:12: [PP369] [AutoTrade] 1000RATS LONG có Score = 5.9đ < 6đ — bỏ qua 
+2026-07-21 22:12:42: [PP369] [AutoTrade] 1000RATS → LONG (Score: +5.9đ) tại $0.02531 
+2026-07-21 22:12:42: [PP369] [AutoTrade] 1000RATS LONG có Score = 5.9đ < 6đ — bỏ qua 
+2026-07-21 22:13:12: [PP369] [AutoTrade] 1000RATS → LONG (Score: +5.9đ) tại $0.02531 
+2026-07-21 22:13:12: [PP369] [AutoTrade] 1000RATS LONG có Score = 5.9đ < 6đ — bỏ qua 
+2026-07-21 22:13:43: [PP369] [AutoTrade] 1000XEC → SHORT (Score: +4.2đ) tại $0.00718 
+2026-07-21 22:13:43: [PP369] [AutoTrade] 1000XEC SHORT có Score = 4.2đ < 6đ — bỏ qua 
+2026-07-21 22:13:43: [PP369] [AutoTrade] 1000RATS → LONG (Score: +5.9đ) tại $0.02531 
+2026-07-21 22:13:43: [PP369] [AutoTrade] 1000RATS LONG có Score = 5.9đ < 6đ — bỏ qua 
+2026-07-21 22:14:12: [PP369] [AutoTrade] 1000RATS → LONG (Score: +5.9đ) tại $0.02531 
+2026-07-21 22:14:12: [PP369] [AutoTrade] 1000RATS LONG có Score = 5.9đ < 6đ — bỏ qua 
+2026-07-21 22:16:51: [PP369] [Binance] Đã đồng bộ giờ: offset = 95964ms (Giờ server: 2026-07-21T15:18:27.035Z) 
+2026-07-21 22:41:43: [PP369] [AutoTrade] ARC → LONG (Score: +4.1đ) tại $0.06855 
+2026-07-21 22:41:43: [PP369] [AutoTrade] ARC LONG có Score = 4.1đ < 6đ — bỏ qua 
+2026-07-21 22:43:42: [PP369] [AutoTrade] ARC → LONG (Score: +4.1đ) tại $0.06855 
+2026-07-21 22:43:42: [PP369] [AutoTrade] ARC LONG có Score = 4.1đ < 6đ — bỏ qua 
+2026-07-21 22:46:51: [PP369] [Binance] Đã đồng bộ giờ: offset = 96140ms (Giờ server: 2026-07-21T15:48:27.201Z) 
+2026-07-21 23:00:13: [PP369] [AutoTrade] VET → SHORT (Score: +4.4đ) tại $0.00499 
+2026-07-21 23:00:13: [PP369] [AutoTrade] VET SHORT có Score = 4.4đ < 6đ — bỏ qua 
+2026-07-21 23:00:42: [PP369] [AutoTrade] VET → SHORT (Score: +4.4đ) tại $0.00499 
+2026-07-21 23:00:42: [PP369] [AutoTrade] VET SHORT có Score = 4.4đ < 6đ — bỏ qua 
+2026-07-21 23:01:12: [PP369] [AutoTrade] VET → SHORT (Score: +4.4đ) tại $0.00499 
+2026-07-21 23:01:12: [PP369] [AutoTrade] VET SHORT có Score = 4.4đ < 6đ — bỏ qua 
+2026-07-21 23:01:13: [PP369] [AutoTrade] AIN → LONG (Score: +5.3999999999999995đ) tại $0.08486 
+2026-07-21 23:01:13: [PP369] [AutoTrade] AIN LONG có Score = 5.3999999999999995đ < 6đ — bỏ qua 
+2026-07-21 23:01:42: [PP369] [AutoTrade] VET → SHORT (Score: +4.4đ) tại $0.00499 
+2026-07-21 23:01:42: [PP369] [AutoTrade] VET SHORT có Score = 4.4đ < 6đ — bỏ qua 
+2026-07-21 23:01:44: [PP369] [AutoTrade] NIL → SHORT (Score: +3.4đ) tại $0.03718 
+2026-07-21 23:01:44: [PP369] [AutoTrade] NIL SHORT có Score = 3.4đ < 6đ — bỏ qua 
+2026-07-21 23:02:12: [PP369] [AutoTrade] VET → SHORT (Score: +4.4đ) tại $0.00499 
+2026-07-21 23:02:12: [PP369] [AutoTrade] VET SHORT có Score = 4.4đ < 6đ — bỏ qua 
+2026-07-21 23:04:42: [PP369] [AutoTrade] VET → SHORT (Score: +4.4đ) tại $0.00499 
+2026-07-21 23:04:42: [PP369] [AutoTrade] VET SHORT có Score = 4.4đ < 6đ — bỏ qua 
+2026-07-21 23:05:12: [PP369] [AutoTrade] VET → SHORT (Score: +4.4đ) tại $0.00499 
+2026-07-21 23:05:12: [PP369] [AutoTrade] VET SHORT có Score = 4.4đ < 6đ — bỏ qua 
+2026-07-21 23:16:51: [PP369] [Binance] Đã đồng bộ giờ: offset = 96312ms (Giờ server: 2026-07-21T16:18:27.388Z) 
+2026-07-21 23:38:13: [PP369] [AutoTrade] NIL → SHORT (Score: +3.4đ) tại $0.03718 
+2026-07-21 23:38:13: [PP369] [AutoTrade] NIL SHORT có Score = 3.4đ < 6đ — bỏ qua 
+2026-07-21 23:38:43: [PP369] [AutoTrade] NIL → SHORT (Score: +3.4đ) tại $0.03718 
+2026-07-21 23:38:43: [PP369] [AutoTrade] NIL SHORT có Score = 3.4đ < 6đ — bỏ qua 
+2026-07-21 23:39:14: [PP369] [AutoTrade] NIL → SHORT (Score: +3.4đ) tại $0.03718 
+2026-07-21 23:39:14: [PP369] [AutoTrade] NIL SHORT có Score = 3.4đ < 6đ — bỏ qua 
+2026-07-21 23:46:51: [PP369] [Binance] Đã đồng bộ giờ: offset = 96491ms (Giờ server: 2026-07-21T16:48:27.611Z) 
+2026-07-21 23:56:43: [PP369] [AutoTrade] 1000XEC → SHORT (Score: +4.699999999999999đ) tại $0.00748 
+2026-07-21 23:56:43: [PP369] [AutoTrade] 1000XEC SHORT không đạt Tiêu chí 2 (Biến động H1/M15 an toàn) — bỏ qua 
+2026-07-21 23:57:12: [PP369] [AutoTrade] 1000XEC → SHORT (Score: +4.699999999999999đ) tại $0.00748 
+2026-07-21 23:57:12: [PP369] [AutoTrade] 1000XEC SHORT không đạt Tiêu chí 2 (Biến động H1/M15 an toàn) — bỏ qua 
+2026-07-22 00:08:14: [PP369] [AutoTrade] SIREN → SHORT (Score: +5.3đ) tại $0.0295 
+2026-07-22 00:08:14: [PP369] [AutoTrade] SIREN SHORT có Score = 5.3đ < 6đ — bỏ qua 
+2026-07-22 00:08:43: [PP369] [AutoTrade] SIREN → SHORT (Score: +5.3đ) tại $0.0295 
+2026-07-22 00:08:43: [PP369] [AutoTrade] SIREN SHORT có Score = 5.3đ < 6đ — bỏ qua 
+2026-07-22 00:10:43: [PP369] [AutoTrade] AERO → SHORT (Score: +4.199999999999999đ) tại $0.4622 
+2026-07-22 00:10:43: [PP369] [AutoTrade] AERO SHORT có Score = 4.199999999999999đ < 6đ — bỏ qua 
+2026-07-22 00:11:12: [PP369] [AutoTrade] AERO → SHORT (Score: +4.199999999999999đ) tại $0.4622 
+2026-07-22 00:11:12: [PP369] [AutoTrade] AERO SHORT có Score = 4.199999999999999đ < 6đ — bỏ qua 
+2026-07-22 00:13:12: [PP369] [AutoTrade] RIF → LONG (Score: +4.5đ) tại $0.08868 
+2026-07-22 00:13:12: [PP369] [AutoTrade] RIF LONG không đạt Tiêu chí 2 (Biến động H1/M15 an toàn) — bỏ qua 
+2026-07-22 00:16:51: [PP369] [Binance] Đã đồng bộ giờ: offset = 96666ms (Giờ server: 2026-07-21T17:18:27.730Z) 
+2026-07-22 00:42:43: [PP369] [AutoTrade] VET → SHORT (Score: +4.199999999999999đ) tại $0.00499 
+2026-07-22 00:42:43: [PP369] [AutoTrade] VET SHORT có Score = 4.199999999999999đ < 6đ — bỏ qua 
+2026-07-22 00:43:12: [PP369] [AutoTrade] VET → SHORT (Score: +4.199999999999999đ) tại $0.00499 
+2026-07-22 00:43:12: [PP369] [AutoTrade] VET SHORT có Score = 4.199999999999999đ < 6đ — bỏ qua 
+2026-07-22 00:43:42: [PP369] [AutoTrade] VET → SHORT (Score: +4.199999999999999đ) tại $0.00499 
+2026-07-22 00:43:42: [PP369] [AutoTrade] VET SHORT có Score = 4.199999999999999đ < 6đ — bỏ qua 
+2026-07-22 00:44:12: [PP369] [AutoTrade] VET → SHORT (Score: +4.199999999999999đ) tại $0.00499 
+2026-07-22 00:44:12: [PP369] [AutoTrade] VET SHORT có Score = 4.199999999999999đ < 6đ — bỏ qua 
+2026-07-22 00:44:42: [PP369] [AutoTrade] VET → SHORT (Score: +4.199999999999999đ) tại $0.00499 
+2026-07-22 00:44:42: [PP369] [AutoTrade] VET SHORT có Score = 4.199999999999999đ < 6đ — bỏ qua 
+2026-07-22 00:45:12: [PP369] [AutoTrade] VET → SHORT (Score: +4.199999999999999đ) tại $0.00499 
+2026-07-22 00:45:12: [PP369] [AutoTrade] VET SHORT có Score = 4.199999999999999đ < 6đ — bỏ qua 
+2026-07-22 00:46:14: [PP369] [AutoTrade] MANTA → LONG (Score: +5.4đ) tại $0.06205 
+2026-07-22 00:46:14: [PP369] [AutoTrade] MANTA LONG có Score = 5.4đ < 6đ — bỏ qua 
+2026-07-22 00:46:51: [PP369] [Binance] Đã đồng bộ giờ: offset = 96841ms (Giờ server: 2026-07-21T17:48:27.897Z) 
+2026-07-22 01:16:51: [PP369] [Binance] Đã đồng bộ giờ: offset = 97017ms (Giờ server: 2026-07-21T18:18:28.075Z) 
+2026-07-22 01:16:52: [PP369] [AutoTrade] [CoinRefresh] Tái kiểm tra danh sách: 450 → 450 coin hợp lệ theo giá hiện tại. 
+2026-07-22 01:19:43: [PP369] [AutoTrade] NAORIS → LONG (Score: +5.299999999999999đ) tại $0.03859 
+2026-07-22 01:19:43: [PP369] [AutoTrade] NAORIS LONG có Score = 5.299999999999999đ < 6đ — bỏ qua 
+2026-07-22 01:20:12: [PP369] [AutoTrade] NAORIS → LONG (Score: +5.299999999999999đ) tại $0.03859 
+2026-07-22 01:20:12: [PP369] [AutoTrade] NAORIS LONG có Score = 5.299999999999999đ < 6đ — bỏ qua 
+2026-07-22 01:25:13: [PP369] [AutoTrade] AIN → LONG (Score: +5.6đ) tại $0.08186 
+2026-07-22 01:25:13: [PP369] [AutoTrade] AIN LONG có Score = 5.6đ < 6đ — bỏ qua 
+2026-07-22 01:40:42: [PP369] [AutoTrade] RIF → LONG (Score: +4.5đ) tại $0.08268 
+2026-07-22 01:40:42: [PP369] [AutoTrade] RIF LONG không đạt Tiêu chí 2 (Biến động H1/M15 an toàn) — bỏ qua 
+2026-07-22 01:42:44: [PP369] [AutoTrade] HOLO → SHORT (Score: +5.6đ) tại $0.06483 
+2026-07-22 01:42:44: [PP369] [AutoTrade] HOLO SHORT có Score = 5.6đ < 6đ — bỏ qua 
+2026-07-22 01:43:13: [PP369] [AutoTrade] HOLO → SHORT (Score: +5.6đ) tại $0.06483 
+2026-07-22 01:43:13: [PP369] [AutoTrade] HOLO SHORT có Score = 5.6đ < 6đ — bỏ qua 
+2026-07-22 01:44:13: [PP369] [AutoTrade] HOLO → SHORT (Score: +5.6đ) tại $0.06483 
+2026-07-22 01:44:13: [PP369] [AutoTrade] HOLO SHORT có Score = 5.6đ < 6đ — bỏ qua 
+2026-07-22 01:46:51: [PP369] [Binance] Đã đồng bộ giờ: offset = 97192ms (Giờ server: 2026-07-21T18:48:28.254Z) 
+2026-07-22 02:16:51: [PP369] [Binance] Đã đồng bộ giờ: offset = 97366ms (Giờ server: 2026-07-21T19:18:28.434Z) 
+2026-07-22 02:29:43: [PP369] [AutoTrade] RIF → LONG (Score: +5.6đ) tại $0.07968 
+2026-07-22 02:29:43: [PP369] [AutoTrade] RIF LONG không đạt Tiêu chí 2 (Biến động H1/M15 an toàn) — bỏ qua 
+2026-07-22 02:30:12: [PP369] [AutoTrade] RIF → LONG (Score: +5.6đ) tại $0.07968 
+2026-07-22 02:30:12: [PP369] [AutoTrade] RIF LONG không đạt Tiêu chí 2 (Biến động H1/M15 an toàn) — bỏ qua 
+2026-07-22 02:31:12: [PP369] [AutoTrade] RIF → LONG (Score: +5.6đ) tại $0.07968 
+2026-07-22 02:31:12: [PP369] [AutoTrade] RIF LONG không đạt Tiêu chí 2 (Biến động H1/M15 an toàn) — bỏ qua 
+2026-07-22 02:34:43: [PP369] [AutoTrade] PIEVERSE → LONG (Score: +6.199999999999999đ) tại $0.6728 
+2026-07-22 02:34:43: [PP369] [AutoTrade] Set leverage PIEVERSEUSDT = 13x (Lưới: 3.69% → tính được 13x, giới hạn: 20x | Ký quỹ mục tiêu: $10) 
+2026-07-22 02:34:43: [PP369] [AutoTrade] ✓ PIEVERSE BUY 193 @ $0.6728 orderId=1697642869 status=NEW 
+2026-07-22 02:39:42: [PP369] [AutoTrade] Lệnh LIMIT của PIEVERSE đã treo quá 3 phút (3.3 phút) -> Tiến hành hủy... 
+2026-07-22 02:39:42: [PP369] [AutoTrade] ✓ Đã hủy thành công lệnh LIMIT treo của PIEVERSE 
+2026-07-22 02:42:42: [PP369] [AutoTrade] PIEVERSE → LONG (Score: +6.199999999999999đ) tại $0.6728 
+2026-07-22 02:42:43: [PP369] [AutoTrade] Set leverage PIEVERSEUSDT = 13x (Lưới: 3.69% → tính được 13x, giới hạn: 20x | Ký quỹ mục tiêu: $10) 
+2026-07-22 02:42:43: [PP369] [AutoTrade] ✓ PIEVERSE BUY 193 @ $0.6728 orderId=1697646899 status=NEW 
+2026-07-22 02:46:51: [PP369] [Binance] Đã đồng bộ giờ: offset = 97543ms (Giờ server: 2026-07-21T19:48:28.607Z) 
+2026-07-22 02:47:42: [PP369] [AutoTrade] Lệnh LIMIT của PIEVERSE đã treo quá 3 phút (3.4 phút) -> Tiến hành hủy... 
+2026-07-22 02:47:42: [PP369] [AutoTrade] ✓ Đã hủy thành công lệnh LIMIT treo của PIEVERSE 
+2026-07-22 02:52:14: [PP369] [AutoTrade] GUA → SHORT (Score: +3.0999999999999996đ) tại $0.05515 
+2026-07-22 02:52:14: [PP369] [AutoTrade] GUA SHORT có Score = 3.0999999999999996đ < 6đ — bỏ qua 
+2026-07-22 03:16:51: [PP369] [Binance] Đã đồng bộ giờ: offset = 97718ms (Giờ server: 2026-07-21T20:18:28.777Z) 
+2026-07-22 03:46:13: [PP369] [AutoTrade] MANTA → SHORT (Score: +4.3đ) tại $0.06492 
+2026-07-22 03:46:13: [PP369] [AutoTrade] MANTA SHORT có Score = 4.3đ < 6đ — bỏ qua 
+2026-07-22 03:46:43: [PP369] [AutoTrade] MANTA → SHORT (Score: +4.3đ) tại $0.06492 
+2026-07-22 03:46:43: [PP369] [AutoTrade] MANTA SHORT có Score = 4.3đ < 6đ — bỏ qua 
+2026-07-22 03:46:51: [PP369] [Binance] Đã đồng bộ giờ: offset = 97892ms (Giờ server: 2026-07-21T20:48:28.955Z) 
+2026-07-22 03:47:13: [PP369] [AutoTrade] MANTA → SHORT (Score: +4.3đ) tại $0.06492 
+2026-07-22 03:47:13: [PP369] [AutoTrade] MANTA SHORT có Score = 4.3đ < 6đ — bỏ qua 
+2026-07-22 03:48:13: [PP369] [AutoTrade] MANTA → SHORT (Score: +4.3đ) tại $0.06492 
+2026-07-22 03:48:13: [PP369] [AutoTrade] MANTA SHORT có Score = 4.3đ < 6đ — bỏ qua 
+2026-07-22 03:49:13: [PP369] [AutoTrade] MANTA → SHORT (Score: +4.3đ) tại $0.06492 
+2026-07-22 03:49:13: [PP369] [AutoTrade] MANTA SHORT có Score = 4.3đ < 6đ — bỏ qua 
+2026-07-22 03:49:43: [PP369] [AutoTrade] MANTA → SHORT (Score: +4.3đ) tại $0.06492 
+2026-07-22 03:49:43: [PP369] [AutoTrade] MANTA SHORT có Score = 4.3đ < 6đ — bỏ qua 
+2026-07-22 04:09:14: [PP369] [AutoTrade] RIF → LONG (Score: +4.8đ) tại $0.07668 
+2026-07-22 04:09:14: [PP369] [AutoTrade] RIF LONG không đạt Tiêu chí 2 (Biến động H1/M15 an toàn) — bỏ qua 
+2026-07-22 04:09:43: [PP369] [AutoTrade] RIF → LONG (Score: +4.8đ) tại $0.07668 
+2026-07-22 04:09:43: [PP369] [AutoTrade] RIF LONG không đạt Tiêu chí 2 (Biến động H1/M15 an toàn) — bỏ qua 
+2026-07-22 04:10:13: [PP369] [AutoTrade] RIF → LONG (Score: +4.8đ) tại $0.07668 
+2026-07-22 04:10:13: [PP369] [AutoTrade] RIF LONG không đạt Tiêu chí 2 (Biến động H1/M15 an toàn) — bỏ qua 
+2026-07-22 04:13:44: [PP369] [AutoTrade] SAFE → SHORT (Score: +3.5999999999999996đ) tại $0.0838 
+2026-07-22 04:13:44: [PP369] [AutoTrade] SAFE SHORT có Score = 3.5999999999999996đ < 6đ — bỏ qua 
+2026-07-22 04:14:43: [PP369] [AutoTrade] SAFE → SHORT (Score: +3.5999999999999996đ) tại $0.0838 
+2026-07-22 04:14:43: [PP369] [AutoTrade] SAFE SHORT có Score = 3.5999999999999996đ < 6đ — bỏ qua 
+2026-07-22 04:16:51: [PP369] [Binance] Đã đồng bộ giờ: offset = 98067ms (Giờ server: 2026-07-21T21:18:29.132Z) 
+2026-07-22 04:46:51: [PP369] [Binance] Đã đồng bộ giờ: offset = 98244ms (Giờ server: 2026-07-21T21:48:29.304Z) 
+2026-07-22 04:50:13: [PP369] [AutoTrade] KAITO → SHORT (Score: +2.4000000000000004đ) tại $0.9862 
+2026-07-22 04:50:13: [PP369] [AutoTrade] KAITO SHORT có Score = 2.4000000000000004đ < 6đ — bỏ qua 
+2026-07-22 05:02:44: [PP369] [AutoTrade] RONIN → LONG (Score: +6.4đ) tại $0.0545 
+2026-07-22 05:02:44: [PP369] [AutoTrade] Set leverage RONINUSDT = 9x (Lưới: 5.14% → tính được 9x, giới hạn: 50x | Ký quỹ mục tiêu: $10) 
+2026-07-22 05:02:44: [PP369] [AutoTrade] ✓ RONIN BUY 1651.3 @ $0.0545 orderId=1928639618 status=NEW 
+2026-07-22 05:07:42: [PP369] [AutoTrade] Lệnh LIMIT của RONIN đã treo quá 3 phút (3.3 phút) -> Tiến hành hủy... 
+2026-07-22 05:07:42: [PP369] [AutoTrade] ✓ Đã hủy thành công lệnh LIMIT treo của RONIN 
+2026-07-22 05:16:51: [PP369] [Binance] Đã đồng bộ giờ: offset = 98419ms (Giờ server: 2026-07-21T22:18:29.485Z) 
+2026-07-22 05:16:52: [PP369] [AutoTrade] [CoinRefresh] Tái kiểm tra danh sách: 450 → 452 coin hợp lệ theo giá hiện tại. 
+2026-07-22 05:35:12: [PP369] [AutoTrade] RIF → LONG (Score: +4.5đ) tại $0.07368 
+2026-07-22 05:35:12: [PP369] [AutoTrade] RIF LONG không đạt Tiêu chí 2 (Biến động H1/M15 an toàn) — bỏ qua 
+2026-07-22 05:44:13: [PP369] [AutoTrade] PIEVERSE → LONG (Score: +6.199999999999999đ) tại $0.6728 
+2026-07-22 05:44:13: [PP369] [AutoTrade] Set leverage PIEVERSEUSDT = 13x (Lưới: 3.69% → tính được 13x, giới hạn: 20x | Ký quỹ mục tiêu: $10) 
+2026-07-22 05:44:14: [PP369] [AutoTrade] ✓ PIEVERSE BUY 193 @ $0.6728 orderId=1697702813 status=NEW 
+2026-07-22 05:46:51: [PP369] [Binance] Đã đồng bộ giờ: offset = 98595ms (Giờ server: 2026-07-21T22:48:29.620Z) 
+2026-07-22 05:49:12: [PP369] [AutoTrade] Lệnh LIMIT của PIEVERSE đã treo quá 3 phút (3.3 phút) -> Tiến hành hủy... 
+2026-07-22 05:49:12: [PP369] [AutoTrade] ✓ Đã hủy thành công lệnh LIMIT treo của PIEVERSE 
+2026-07-22 05:55:43: [PP369] [AutoTrade] PIEVERSE → LONG (Score: +6.199999999999999đ) tại $0.6728 
+2026-07-22 05:55:43: [PP369] [AutoTrade] Set leverage PIEVERSEUSDT = 13x (Lưới: 3.69% → tính được 13x, giới hạn: 20x | Ký quỹ mục tiêu: $10) 
+2026-07-22 05:55:43: [PP369] [AutoTrade] ✓ PIEVERSE BUY 193 @ $0.6728 orderId=1697706410 status=NEW 
+2026-07-22 05:59:44: [PP369] [AutoTrade] PLAY → SHORT (Score: +3.3đ) tại $0.03687 
+2026-07-22 05:59:44: [PP369] [AutoTrade] PLAY SHORT có Score = 3.3đ < 6đ — bỏ qua 
+2026-07-22 05:59:59: [PP369] [AutoTrade] ✓ Đặt TP PIEVERSE @ $0.6780000 (đối ứng SELL) orderId=1000002466658989 
+2026-07-22 05:59:59: [PP369] [AutoTrade] ✓ Đặt SL PIEVERSE @ $0.6676000 (đối ứng SELL) orderId=1000002466658991 
+2026-07-22 06:00:13: [PP369] [AutoTrade] PLAY → SHORT (Score: +2.6đ) tại $0.03687 
+2026-07-22 06:00:13: [PP369] [AutoTrade] PLAY SHORT có Score = 2.6đ < 6đ — bỏ qua 
+2026-07-22 06:03:13: [PP369] [AutoTrade] 1000XEC → LONG (Score: +4.6đ) tại $0.00723 
+2026-07-22 06:03:13: [PP369] [AutoTrade] 1000XEC LONG có Score = 4.6đ < 6đ — bỏ qua 
+2026-07-22 06:06:14: [PP369] [AutoTrade] LUMIA → LONG (Score: +5.1đ) tại $0.0665 
+2026-07-22 06:06:14: [PP369] [AutoTrade] LUMIA LONG có Score = 5.1đ < 6đ — bỏ qua 
+2026-07-22 06:12:43: [PP369] [AutoTrade] VANRY → LONG (Score: +5.6đ) tại $0.004538 
+2026-07-22 06:12:43: [PP369] [AutoTrade] VANRY LONG có Score = 5.6đ < 6đ — bỏ qua 
+2026-07-22 06:14:13: [PP369] [AutoTrade] VANRY → LONG (Score: +5.6đ) tại $0.004538 
+2026-07-22 06:14:13: [PP369] [AutoTrade] VANRY LONG có Score = 5.6đ < 6đ — bỏ qua 
+2026-07-22 06:14:43: [PP369] [AutoTrade] VANRY → LONG (Score: +5.6đ) tại $0.004538 
+2026-07-22 06:14:43: [PP369] [AutoTrade] VANRY LONG có Score = 5.6đ < 6đ — bỏ qua 
+2026-07-22 06:15:43: [PP369] [AutoTrade] VANRY → LONG (Score: +5.6đ) tại $0.004538 
+2026-07-22 06:15:43: [PP369] [AutoTrade] VANRY LONG có Score = 5.6đ < 6đ — bỏ qua 
+2026-07-22 06:16:13: [PP369] [AutoTrade] VANRY → LONG (Score: +5.6đ) tại $0.004538 
+2026-07-22 06:16:13: [PP369] [AutoTrade] VANRY LONG có Score = 5.6đ < 6đ — bỏ qua 
+2026-07-22 06:16:51: [PP369] [Binance] Đã đồng bộ giờ: offset = 98770ms (Giờ server: 2026-07-21T23:18:29.796Z) 
+2026-07-22 06:19:43: [PP369] [AutoTrade] VANRY → LONG (Score: +5.6đ) tại $0.004538 
+2026-07-22 06:19:43: [PP369] [AutoTrade] VANRY LONG có Score = 5.6đ < 6đ — bỏ qua 
+2026-07-22 06:20:13: [PP369] [AutoTrade] VANRY → LONG (Score: +5.6đ) tại $0.004538 
+2026-07-22 06:20:13: [PP369] [AutoTrade] VANRY LONG có Score = 5.6đ < 6đ — bỏ qua 
+2026-07-22 06:20:43: [PP369] [AutoTrade] VANRY → LONG (Score: +5.6đ) tại $0.004538 
+2026-07-22 06:20:43: [PP369] [AutoTrade] VANRY LONG có Score = 5.6đ < 6đ — bỏ qua 
+2026-07-22 06:21:12: [PP369] [AutoTrade] VANRY → LONG (Score: +5.6đ) tại $0.004538 
+2026-07-22 06:21:12: [PP369] [AutoTrade] VANRY LONG có Score = 5.6đ < 6đ — bỏ qua 
+2026-07-22 06:21:43: [PP369] [AutoTrade] VANRY → LONG (Score: +5.6đ) tại $0.004538 
+2026-07-22 06:21:43: [PP369] [AutoTrade] VANRY LONG có Score = 5.6đ < 6đ — bỏ qua 
+2026-07-22 06:26:32: [PP369] [AutoTrade] Trailing SL: PIEVERSE đạt ROI 5.99% -> Dịch SL trên sàn về entry + 1% ROI ($0.6733) [Mức: Hòa vốn] 
+2026-07-22 06:26:32: [PP369] [AutoTrade] Đã hủy SL cũ của PIEVERSE (orderId=1000002466658991) 
+2026-07-22 06:26:33: [PP369] [AutoTrade] ✓ Đã dịch SL mới cho PIEVERSE @ $0.6733000 (orderId=1000002466690789) 
+2026-07-22 06:46:51: [PP369] [Binance] Đã đồng bộ giờ: offset = 98945ms (Giờ server: 2026-07-21T23:48:30.020Z) 
+2026-07-22 06:47:13: [PP369] [AutoTrade] RIF → LONG (Score: +5đ) tại $0.07968 
+2026-07-22 06:47:13: [PP369] [AutoTrade] RIF LONG không đạt Tiêu chí 2 (Biến động H1/M15 an toàn) — bỏ qua 
+2026-07-22 07:01:14: [PP369] [AutoTrade] ICNT → SHORT (Score: +4.699999999999999đ) tại $0.1903 
+2026-07-22 07:01:14: [PP369] [AutoTrade] ICNT SHORT có Score = 4.699999999999999đ < 6đ — bỏ qua 
+2026-07-22 07:02:43: [PP369] [AutoTrade] RIF → LONG (Score: +5đ) tại $0.07368 
+2026-07-22 07:02:43: [PP369] [AutoTrade] RIF LONG không đạt Tiêu chí 2 (Biến động H1/M15 an toàn) — bỏ qua 
+2026-07-22 07:13:13: [PP369] [AutoTrade] RIF → SHORT (Score: +3.6đ) tại $0.07668 
+2026-07-22 07:13:13: [PP369] [AutoTrade] RIF SHORT không đạt Tiêu chí 2 (Biến động H1/M15 an toàn) — bỏ qua 
+2026-07-22 07:13:44: [PP369] [AutoTrade] LAYER → SHORT (Score: +3.0999999999999996đ) tại $0.0659 
+2026-07-22 07:13:44: [PP369] [AutoTrade] LAYER SHORT có Score = 3.0999999999999996đ < 6đ — bỏ qua 
+2026-07-22 07:14:13: [PP369] [AutoTrade] RIF → SHORT (Score: +3đ) tại $0.07968 
+2026-07-22 07:14:13: [PP369] [AutoTrade] RIF SHORT không đạt Tiêu chí 2 (Biến động H1/M15 an toàn) — bỏ qua 
+2026-07-22 07:14:13: [PP369] [AutoTrade] LAYER → SHORT (Score: +3.0999999999999996đ) tại $0.0659 
+2026-07-22 07:14:13: [PP369] [AutoTrade] LAYER SHORT có Score = 3.0999999999999996đ < 6đ — bỏ qua 
+2026-07-22 07:14:43: [PP369] [AutoTrade] RIF → SHORT (Score: +3đ) tại $0.08268 
+2026-07-22 07:14:43: [PP369] [AutoTrade] RIF SHORT không đạt Tiêu chí 2 (Biến động H1/M15 an toàn) — bỏ qua 
+2026-07-22 07:15:13: [PP369] [AutoTrade] LAYER → SHORT (Score: +3.0999999999999996đ) tại $0.0659 
+2026-07-22 07:15:13: [PP369] [AutoTrade] LAYER SHORT có Score = 3.0999999999999996đ < 6đ — bỏ qua 
+2026-07-22 07:15:14: [PP369] [AutoTrade] HOLO → LONG (Score: +5.1đ) tại $0.06569 
+2026-07-22 07:15:14: [PP369] [AutoTrade] HOLO LONG không đạt Tiêu chí 2 (Biến động H1/M15 an toàn) — bỏ qua 
+2026-07-22 07:16:51: [PP369] [Binance] Đã đồng bộ giờ: offset = 99120ms (Giờ server: 2026-07-22T00:18:30.184Z) 
+2026-07-22 07:46:51: [PP369] [Binance] Đã đồng bộ giờ: offset = 99296ms (Giờ server: 2026-07-22T00:48:30.374Z) 
+2026-07-22 07:55:13: [PP369] [AutoTrade] RIF → LONG (Score: +4.5đ) tại $0.07368 
+2026-07-22 07:55:13: [PP369] [AutoTrade] RIF LONG không đạt Tiêu chí 2 (Biến động H1/M15 an toàn) — bỏ qua 
+2026-07-22 08:16:14: [PP369] [AutoTrade] USTC → SHORT (Score: +3.0999999999999996đ) tại $0.005496 
+2026-07-22 08:16:14: [PP369] [AutoTrade] USTC SHORT có Score = 3.0999999999999996đ < 6đ — bỏ qua 
+2026-07-22 08:16:43: [PP369] [AutoTrade] USTC → SHORT (Score: +3.0999999999999996đ) tại $0.005496 
+2026-07-22 08:16:43: [PP369] [AutoTrade] USTC SHORT có Score = 3.0999999999999996đ < 6đ — bỏ qua 
+2026-07-22 08:16:51: [PP369] [Binance] Đã đồng bộ giờ: offset = 99472ms (Giờ server: 2026-07-22T01:18:30.546Z) 
+2026-07-22 08:19:14: [PP369] [AutoTrade] 1000XEC → SHORT (Score: +3.9999999999999996đ) tại $0.00748 
+2026-07-22 08:19:14: [PP369] [AutoTrade] 1000XEC SHORT có Score = 3.9999999999999996đ < 6đ — bỏ qua 
+2026-07-22 08:27:44: [PP369] [AutoTrade] FLOCK → SHORT (Score: +4.6đ) tại $0.0332 
+2026-07-22 08:27:44: [PP369] [AutoTrade] FLOCK SHORT có Score = 4.6đ < 6đ — bỏ qua 
+2026-07-22 08:46:51: [PP369] [Binance] Đã đồng bộ giờ: offset = 99647ms (Giờ server: 2026-07-22T01:48:30.749Z) 
+2026-07-22 09:02:14: [PP369] [AutoTrade] USTC → SHORT (Score: +3.3đ) tại $0.005496 
+2026-07-22 09:02:14: [PP369] [AutoTrade] USTC SHORT có Score = 3.3đ < 6đ — bỏ qua 
+2026-07-22 09:02:43: [PP369] [AutoTrade] USTC → SHORT (Score: +3.3đ) tại $0.005496 
+2026-07-22 09:02:43: [PP369] [AutoTrade] USTC SHORT có Score = 3.3đ < 6đ — bỏ qua 
+2026-07-22 09:03:13: [PP369] [AutoTrade] USTC → SHORT (Score: +3.3đ) tại $0.005496 
+2026-07-22 09:03:13: [PP369] [AutoTrade] USTC SHORT có Score = 3.3đ < 6đ — bỏ qua 
+2026-07-22 09:04:43: [PP369] [AutoTrade] USTC → SHORT (Score: +3.3đ) tại $0.005496 
+2026-07-22 09:04:43: [PP369] [AutoTrade] USTC SHORT có Score = 3.3đ < 6đ — bỏ qua 
+2026-07-22 09:05:13: [PP369] [AutoTrade] USTC → SHORT (Score: +3.3đ) tại $0.005496 
+2026-07-22 09:05:13: [PP369] [AutoTrade] USTC SHORT có Score = 3.3đ < 6đ — bỏ qua 
+2026-07-22 09:10:13: [PP369] [AutoTrade] USTC → SHORT (Score: +3.3đ) tại $0.005496 
+2026-07-22 09:10:13: [PP369] [AutoTrade] USTC SHORT có Score = 3.3đ < 6đ — bỏ qua 
+2026-07-22 09:11:13: [PP369] [AutoTrade] USTC → SHORT (Score: +3.3đ) tại $0.005496 
+2026-07-22 09:11:13: [PP369] [AutoTrade] USTC SHORT có Score = 3.3đ < 6đ — bỏ qua 
+2026-07-22 09:15:13: [PP369] [AutoTrade] USTC → SHORT (Score: +3.3đ) tại $0.005496 
+2026-07-22 09:15:13: [PP369] [AutoTrade] USTC SHORT có Score = 3.3đ < 6đ — bỏ qua 
+2026-07-22 09:15:43: [PP369] [AutoTrade] USTC → SHORT (Score: +3.3đ) tại $0.005496 
+2026-07-22 09:15:43: [PP369] [AutoTrade] USTC SHORT có Score = 3.3đ < 6đ — bỏ qua 
+2026-07-22 09:16:13: [PP369] [AutoTrade] USTC → SHORT (Score: +3.3đ) tại $0.005496 
+2026-07-22 09:16:13: [PP369] [AutoTrade] USTC SHORT có Score = 3.3đ < 6đ — bỏ qua 
+2026-07-22 09:16:43: [PP369] [AutoTrade] USTC → SHORT (Score: +3.3đ) tại $0.005496 
+2026-07-22 09:16:43: [PP369] [AutoTrade] USTC SHORT có Score = 3.3đ < 6đ — bỏ qua 
+2026-07-22 09:16:51: [PP369] [Binance] Đã đồng bộ giờ: offset = 99822ms (Giờ server: 2026-07-22T02:18:30.939Z) 
+2026-07-22 09:16:52: [PP369] [AutoTrade] [CoinRefresh] Tái kiểm tra danh sách: 452 → 449 coin hợp lệ theo giá hiện tại. 
+2026-07-22 09:19:13: [PP369] [AutoTrade] 1000XEC → SHORT (Score: +2.8đ) tại $0.00778 
+2026-07-22 09:19:13: [PP369] [AutoTrade] 1000XEC SHORT không đạt Tiêu chí 2 (Biến động H1/M15 an toàn) — bỏ qua 
+2026-07-22 09:20:43: [PP369] [AutoTrade] USTC → SHORT (Score: +3.3đ) tại $0.005496 
+2026-07-22 09:20:43: [PP369] [AutoTrade] USTC SHORT có Score = 3.3đ < 6đ — bỏ qua 
+2026-07-22 09:21:13: [PP369] [AutoTrade] USTC → SHORT (Score: +3.3đ) tại $0.005496 
+2026-07-22 09:21:13: [PP369] [AutoTrade] USTC SHORT có Score = 3.3đ < 6đ — bỏ qua 
+2026-07-22 09:21:43: [PP369] [AutoTrade] USTC → SHORT (Score: +3.3đ) tại $0.005496 
+2026-07-22 09:21:43: [PP369] [AutoTrade] USTC SHORT có Score = 3.3đ < 6đ — bỏ qua 
+2026-07-22 09:22:13: [PP369] [AutoTrade] USTC → SHORT (Score: +3.3đ) tại $0.005496 
+2026-07-22 09:22:13: [PP369] [AutoTrade] USTC SHORT có Score = 3.3đ < 6đ — bỏ qua 
+2026-07-22 09:22:43: [PP369] [AutoTrade] USTC → SHORT (Score: +3.3đ) tại $0.005496 
+2026-07-22 09:22:43: [PP369] [AutoTrade] USTC SHORT có Score = 3.3đ < 6đ — bỏ qua 
+2026-07-22 09:23:13: [PP369] [AutoTrade] USTC → SHORT (Score: +3.3đ) tại $0.005496 
+2026-07-22 09:23:13: [PP369] [AutoTrade] USTC SHORT có Score = 3.3đ < 6đ — bỏ qua 
+2026-07-22 09:23:44: [PP369] [AutoTrade] USTC → SHORT (Score: +3.3đ) tại $0.005496 
+2026-07-22 09:23:44: [PP369] [AutoTrade] USTC SHORT có Score = 3.3đ < 6đ — bỏ qua 
+2026-07-22 09:24:43: [PP369] [AutoTrade] USTC → SHORT (Score: +3.3đ) tại $0.005496 
+2026-07-22 09:24:43: [PP369] [AutoTrade] USTC SHORT có Score = 3.3đ < 6đ — bỏ qua 
+2026-07-22 09:25:13: [PP369] [AutoTrade] USTC → SHORT (Score: +3.3đ) tại $0.005496 
+2026-07-22 09:25:13: [PP369] [AutoTrade] USTC SHORT có Score = 3.3đ < 6đ — bỏ qua 
+2026-07-22 09:25:14: [PP369] [AutoTrade] PIEVERSE → SHORT (Score: +2.5đ) tại $0.6976 
+2026-07-22 09:25:14: [PP369] [AutoTrade] PIEVERSE SHORT có Score = 2.5đ < 6đ — bỏ qua 
+2026-07-22 09:25:43: [PP369] [AutoTrade] USTC → SHORT (Score: +3.3đ) tại $0.005496 
+2026-07-22 09:25:43: [PP369] [AutoTrade] USTC SHORT có Score = 3.3đ < 6đ — bỏ qua 
+2026-07-22 09:25:43: [PP369] [AutoTrade] PIEVERSE → SHORT (Score: +2.5đ) tại $0.6976 
+2026-07-22 09:25:43: [PP369] [AutoTrade] PIEVERSE SHORT có Score = 2.5đ < 6đ — bỏ qua 
+2026-07-22 09:26:13: [PP369] [AutoTrade] USTC → SHORT (Score: +3.3đ) tại $0.005496 
+2026-07-22 09:26:13: [PP369] [AutoTrade] USTC SHORT có Score = 3.3đ < 6đ — bỏ qua 
+2026-07-22 09:26:13: [PP369] [AutoTrade] PIEVERSE → SHORT (Score: +2.5đ) tại $0.6976 
+2026-07-22 09:26:13: [PP369] [AutoTrade] PIEVERSE SHORT có Score = 2.5đ < 6đ — bỏ qua 
+2026-07-22 09:26:43: [PP369] [AutoTrade] USTC → SHORT (Score: +3.3đ) tại $0.005496 
+2026-07-22 09:26:43: [PP369] [AutoTrade] USTC SHORT có Score = 3.3đ < 6đ — bỏ qua 
+2026-07-22 09:27:13: [PP369] [AutoTrade] USTC → SHORT (Score: +3.3đ) tại $0.005496 
+2026-07-22 09:27:13: [PP369] [AutoTrade] USTC SHORT có Score = 3.3đ < 6đ — bỏ qua 
+2026-07-22 09:27:43: [PP369] [AutoTrade] USTC → SHORT (Score: +3.3đ) tại $0.005496 
+2026-07-22 09:27:43: [PP369] [AutoTrade] USTC SHORT có Score = 3.3đ < 6đ — bỏ qua 
+2026-07-22 09:29:13: [PP369] [AutoTrade] USTC → SHORT (Score: +3.3đ) tại $0.005496 
+2026-07-22 09:29:13: [PP369] [AutoTrade] USTC SHORT có Score = 3.3đ < 6đ — bỏ qua 
+2026-07-22 09:29:43: [PP369] [AutoTrade] USTC → SHORT (Score: +3.3đ) tại $0.005496 
+2026-07-22 09:29:43: [PP369] [AutoTrade] USTC SHORT có Score = 3.3đ < 6đ — bỏ qua 
+2026-07-22 09:30:13: [PP369] [AutoTrade] USTC → SHORT (Score: +3.3đ) tại $0.005496 
+2026-07-22 09:30:13: [PP369] [AutoTrade] USTC SHORT có Score = 3.3đ < 6đ — bỏ qua 
+2026-07-22 09:30:43: [PP369] [AutoTrade] USTC → SHORT (Score: +3.3đ) tại $0.005496 
+2026-07-22 09:30:43: [PP369] [AutoTrade] USTC SHORT có Score = 3.3đ < 6đ — bỏ qua 
+2026-07-22 09:31:13: [PP369] [AutoTrade] USTC → SHORT (Score: +3.3đ) tại $0.005496 
+2026-07-22 09:31:13: [PP369] [AutoTrade] USTC SHORT có Score = 3.3đ < 6đ — bỏ qua 
+2026-07-22 09:31:43: [PP369] [AutoTrade] USTC → SHORT (Score: +3.3đ) tại $0.005496 
+2026-07-22 09:31:43: [PP369] [AutoTrade] USTC SHORT có Score = 3.3đ < 6đ — bỏ qua 
+2026-07-22 09:32:13: [PP369] [AutoTrade] USTC → SHORT (Score: +3.3đ) tại $0.005496 
+2026-07-22 09:32:13: [PP369] [AutoTrade] USTC SHORT có Score = 3.3đ < 6đ — bỏ qua 
+2026-07-22 09:32:43: [PP369] [AutoTrade] USTC → SHORT (Score: +3.3đ) tại $0.005496 
+2026-07-22 09:32:43: [PP369] [AutoTrade] USTC SHORT có Score = 3.3đ < 6đ — bỏ qua 
+2026-07-22 09:33:13: [PP369] [AutoTrade] USTC → SHORT (Score: +3.3đ) tại $0.005496 
+2026-07-22 09:33:13: [PP369] [AutoTrade] USTC SHORT có Score = 3.3đ < 6đ — bỏ qua 
+2026-07-22 09:46:51: [PP369] [Binance] Đã đồng bộ giờ: offset = 99997ms (Giờ server: 2026-07-22T02:48:31.083Z) 
+2026-07-22 09:53:13: [PP369] [AutoTrade] EPIC → LONG (Score: +6.199999999999999đ) tại $0.5285 
+2026-07-22 09:53:13: [PP369] [AutoTrade] Set leverage EPICUSDT = 9x (Lưới: 5.53% → tính được 9x, giới hạn: 20x | Ký quỹ mục tiêu: $10) 
+2026-07-22 09:53:13: [PP369] [AutoTrade] ✓ EPIC BUY 170.2 @ $0.5285 orderId=1638134581 status=NEW 
+2026-07-22 09:54:00: [PP369] [AutoTrade] ✓ Đặt TP EPIC @ $0.534400 (đối ứng SELL) orderId=1000002466989414 
+2026-07-22 09:54:00: [PP369] [AutoTrade] ✓ Đặt SL EPIC @ $0.522600 (đối ứng SELL) orderId=1000002466989415 
+2026-07-22 09:57:13: [PP369] [AutoTrade] RIF → LONG (Score: +5.5đ) tại $0.06468 
+2026-07-22 09:57:13: [PP369] [AutoTrade] RIF LONG không đạt Tiêu chí 2 (Biến động H1/M15 an toàn) — bỏ qua 
+2026-07-22 09:57:41: [PP369] [AutoTrade] Trailing SL: EPIC đạt ROI 5.29% -> Dịch SL trên sàn về entry + 1% ROI ($0.5291) [Mức: Hòa vốn] 
+2026-07-22 09:57:42: [PP369] [AutoTrade] Đã hủy SL cũ của EPIC (orderId=1000002466989415) 
+2026-07-22 09:57:42: [PP369] [AutoTrade] ✓ Đã dịch SL mới cho EPIC @ $0.529100 (orderId=1000002466994305) 
+2026-07-22 10:09:44: [PP369] [AutoTrade] VIRTUAL → LONG (Score: +6.1đ) tại $0.6467 
+2026-07-22 10:09:44: [PP369] [AutoTrade] Set leverage VIRTUALUSDT = 11x (Lưới: 4.36% → tính được 11x, giới hạn: 75x | Ký quỹ mục tiêu: $10) 
+2026-07-22 10:09:44: [PP369] [AutoTrade] ✓ VIRTUAL BUY 170 @ $0.6467 orderId=7613946735 status=NEW 
+2026-07-22 10:14:42: [PP369] [AutoTrade] Lệnh LIMIT của VIRTUAL đã treo quá 3 phút (3.3 phút) -> Tiến hành hủy... 
+2026-07-22 10:14:42: [PP369] [AutoTrade] ✓ Đã hủy thành công lệnh LIMIT treo của VIRTUAL 
+2026-07-22 10:14:43: [PP369] [AutoTrade] VIRTUAL → LONG (Score: +6.1đ) tại $0.6467 
+2026-07-22 10:14:43: [PP369] [AutoTrade] VIRTUAL LONG đã đặt gần đây — bỏ qua 
+2026-07-22 10:15:13: [PP369] [AutoTrade] VIRTUAL → LONG (Score: +6.1đ) tại $0.6467 
+2026-07-22 10:15:13: [PP369] [AutoTrade] Set leverage VIRTUALUSDT = 11x (Lưới: 4.36% → tính được 11x, giới hạn: 75x | Ký quỹ mục tiêu: $10) 
+2026-07-22 10:15:13: [PP369] [AutoTrade] ✓ VIRTUAL BUY 170 @ $0.6467 orderId=7613979763 status=NEW 
+2026-07-22 10:16:51: [PP369] [Binance] Đã đồng bộ giờ: offset = 100173ms (Giờ server: 2026-07-22T03:18:31.258Z) 
+2026-07-22 10:20:12: [PP369] [AutoTrade] Lệnh LIMIT của VIRTUAL đã treo quá 3 phút (3.3 phút) -> Tiến hành hủy... 
+2026-07-22 10:20:12: [PP369] [AutoTrade] ✓ Đã hủy thành công lệnh LIMIT treo của VIRTUAL 
+2026-07-22 10:45:13: [PP369] [AutoTrade] RIF → LONG (Score: +5.5đ) tại $0.06168 
+2026-07-22 10:45:13: [PP369] [AutoTrade] RIF LONG không đạt Tiêu chí 2 (Biến động H1/M15 an toàn) — bỏ qua 
+2026-07-22 10:46:51: [PP369] [Binance] Đã đồng bộ giờ: offset = 100348ms (Giờ server: 2026-07-22T03:48:31.433Z) 
+2026-07-22 11:05:14: [PP369] [AutoTrade] AIOT → SHORT (Score: +2.9đ) tại $0.0523 
+2026-07-22 11:05:14: [PP369] [AutoTrade] AIOT SHORT có Score = 2.9đ < 6đ — bỏ qua 
+2026-07-22 11:16:51: [PP369] [Binance] Đã đồng bộ giờ: offset = 100523ms (Giờ server: 2026-07-22T04:18:31.607Z) 
+2026-07-22 11:30:14: [PP369] [AutoTrade] SOPH → LONG (Score: +7.5đ) tại $0.004598 
+2026-07-22 11:30:14: [PP369] [AutoTrade] Set leverage SOPHUSDT = 8x (Lưới: 5.72% → tính được 8x, giới hạn: 25x | Ký quỹ mục tiêu: $15) 
+2026-07-22 11:30:14: [PP369] [AutoTrade] ✓ SOPH BUY 26098 @ $0.004598 orderId=1737062968 status=NEW 
+2026-07-22 11:31:14: [PP369] [AutoTrade] AIN → SHORT (Score: +2.9999999999999996đ) tại $0.08465 
+2026-07-22 11:31:14: [PP369] [AutoTrade] AIN SHORT có Score = 2.9999999999999996đ < 6đ — bỏ qua 
+2026-07-22 11:34:14: [PP369] [AutoTrade] BROCCOLIF3B → SHORT (Score: +4.1đ) tại $0.005987 
+2026-07-22 11:34:14: [PP369] [AutoTrade] BROCCOLIF3B SHORT không đạt Tiêu chí 2 (Biến động H1/M15 an toàn) — bỏ qua 
+2026-07-22 11:35:12: [PP369] [AutoTrade] Lệnh LIMIT của SOPH đã treo quá 3 phút (3.3 phút) -> Tiến hành hủy... 
+2026-07-22 11:35:12: [PP369] [AutoTrade] ✓ Đã hủy thành công lệnh LIMIT treo của SOPH 
