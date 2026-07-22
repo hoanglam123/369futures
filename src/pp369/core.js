@@ -121,8 +121,15 @@ const _d1HistCache = {};
 // M1 current H1 period cache: { symbol: { h1Start, candles: [], cursor } } — reset mỗi khi H1 mới mở
 const _m1CurrCache = {};
 
-// Level cache: { symbol: { longEntry, shortEntry } } — dùng cho WebSocket proximity filter
+// Level cache: { symbol: { longEntry, shortEntry, lastSideOverride } } — dùng cho WebSocket proximity filter & level lock
 const _levelCache = {};
+
+function overrideLevelLastSide(symbol, lastSide) {
+  if (!_levelCache[symbol]) {
+    _levelCache[symbol] = {};
+  }
+  _levelCache[symbol].lastSideOverride = lastSide;
+}
 
 // ─── Tính bước giá tự động theo price ────────────────────────────────────────
 
@@ -843,6 +850,16 @@ async function get369Signal(symbol, currentPrice = null) {
     const { lowerCount, upperCount, lastSide } =
       analyzeRoundtrips(done, pairLow, pairHigh);
 
+    let effectiveLastSide = lastSide;
+    if (_levelCache[symbol]?.lastSideOverride) {
+      const override = _levelCache[symbol].lastSideOverride;
+      if ((override === 'lower' && lastSide === 'upper') || (override === 'upper' && lastSide === 'lower')) {
+        delete _levelCache[symbol].lastSideOverride;
+      } else {
+        effectiveLastSide = override;
+      }
+    }
+
     const touchCountLong = lowerCount;
     const touchCountShort = upperCount;
 
@@ -857,7 +874,7 @@ async function get369Signal(symbol, currentPrice = null) {
     let touchCount = 0;
     let reason = '';
 
-    if (nearLong && lastSide === 'upper') {
+    if (nearLong && effectiveLastSide === 'upper') {
       signal = 'LONG';
       strength = touchCountLong === 0 ? 'strong' : touchCountLong === 1 ? 'medium' : 'weak';
       touchCount = touchCountLong;
@@ -866,7 +883,7 @@ async function get369Signal(symbol, currentPrice = null) {
       reason = `[369] LONG lần ${touchCountLong + 1} tại ${longEntry.value} ← từ ${shortEntry.value} (${strength})`;
     }
 
-    if (nearShort && lastSide === 'lower' && signal === 'NONE') {
+    if (nearShort && effectiveLastSide === 'lower' && signal === 'NONE') {
       signal = 'SHORT';
       strength = touchCountShort === 0 ? 'strong' : touchCountShort === 1 ? 'medium' : 'weak';
       touchCount = touchCountShort;
@@ -2021,7 +2038,7 @@ async function initH4Cache(symbols) {
 
 module.exports = {
   get369Signal, get369SignalsForCoins, score369Method, format369ForPrompt,
-  getLevelCache, PROXIMITY_PCT, getDecimals, getStep,
+  getLevelCache, overrideLevelLastSide, PROXIMITY_PCT, getDecimals, getStep,
   initH4Cache, YEAR_START_MS,
   getGridStepPct, isGridWidthValid, GRID_MIN_PCT, GRID_MIN_PCT_TOP100, GRID_MAX_PCT, getMinGridPct, isTop100Symbol,
 };
