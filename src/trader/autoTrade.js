@@ -849,7 +849,12 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
           const tpId = tpOrder.orderId || tpOrder.algoId || 'unknown';
           log.system(`[AutoTrade] ✓ Đặt TP ${sym} @ $${tpOrder.stopPrice || tpOrder.triggerPrice || tpPrice} (đối ứng ${oppositeSide}) orderId=${tpId}`);
         } catch (e) {
-          log.error(`[AutoTrade] Đặt TP ${sym} thất bại: ${_binanceErr(e)}`);
+          const errStr = _binanceErr(e);
+          if (errStr.includes('-4509')) {
+            log.system(`[AutoTrade] Vị thế ${sym} đã đóng trên sàn (TP/SL đã khớp trước đó). Bỏ qua.`);
+            continue; // Vị thế đã đóng, không tiếp tục xử lý SL cho coin này nữa
+          }
+          log.error(`[AutoTrade] Đặt TP ${sym} thất bại: ${errStr}`);
         }
       }
 
@@ -944,7 +949,12 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
               const stopPriceStr = newSl.stopPrice || newSl.triggerPrice || roundedTargetSl;
               log.system(`[AutoTrade] ✓ Đã dịch SL mới cho ${sym} @ $${stopPriceStr} (orderId=${orderIdStr})`);
             } catch (e) {
-              log.warn(`[AutoTrade] Đặt SL mới trên sàn thất bại: ${e.message} -> Sẽ quản lý Virtual SL từ lượt tiếp theo.`);
+              const errStr = _binanceErr(e);
+              if (errStr.includes('-4509')) {
+                log.system(`[AutoTrade] Vị thế ${sym} đã đóng trên sàn trong khi dịch SL.`);
+              } else {
+                log.warn(`[AutoTrade] Đặt SL mới trên sàn thất bại: ${e.message} -> Sẽ quản lý Virtual SL từ lượt tiếp theo.`);
+              }
             }
           }
         }
@@ -973,7 +983,12 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
             const slId = slOrder.orderId || slOrder.algoId || 'unknown';
             log.system(`[AutoTrade] ✓ Đặt SL ${sym} @ $${slOrder.stopPrice || slOrder.triggerPrice || roundedTargetSl} (đối ứng ${oppositeSide}) orderId=${slId}`);
           } catch (e) {
-            log.error(`[AutoTrade] Đặt SL ${sym} thất bại: ${_binanceErr(e)}`);
+            const errStr = _binanceErr(e);
+            if (errStr.includes('-4509')) {
+              log.system(`[AutoTrade] Vị thế ${sym} đã đóng trên sàn (TP/SL đã khớp trước đó). Bỏ qua.`);
+            } else {
+              log.error(`[AutoTrade] Đặt SL ${sym} thất bại: ${errStr}`);
+            }
           }
         }
       }
@@ -988,39 +1003,52 @@ async function notifyRealClose(client, sym, prevPos) {
     // Chờ 1.5 giây để Binance Futures cập nhật đầy đủ lịch sử giao dịch đóng vị thế
     await new Promise(resolve => setTimeout(resolve, 1500));
 
-    // Lấy 5 giao dịch cá nhân gần nhất của symbol này
-    const trades = await client.getUserTrades(sym, 5);
-    if (!trades || !trades.length) return;
+    let closePrice = null;
+    let realizedProfit = 0;
+    let roi = 0;
+    let hasTradeData = false;
 
-    // Lọc các giao dịch đóng vị thế (có side ngược với hướng vị thế của prevPos)
-    const oppositeSide = prevPos.isLong ? 'SELL' : 'BUY';
-    const closeTrades = trades.filter(t => t.side === oppositeSide);
-    if (!closeTrades.length) return;
+    try {
+      // Lấy 5 giao dịch cá nhân gần nhất của symbol này
+      const trades = await client.getUserTrades(sym, 5);
+      if (trades && trades.length > 0) {
+        const oppositeSide = prevPos.isLong ? 'SELL' : 'BUY';
+        const closeTrades = trades.filter(t => t.side === oppositeSide);
+        if (closeTrades.length > 0) {
+          closeTrades.sort((a, b) => b.time - a.time);
+          const lastTrade = closeTrades[0];
 
-    // Lấy giao dịch đóng mới nhất
-    closeTrades.sort((a, b) => b.time - a.time);
-    const lastTrade = closeTrades[0];
-
-    const closePrice = parseFloat(lastTrade.price);
-    const realizedProfit = parseFloat(lastTrade.realizedPnl || lastTrade.realizedProfit || '0');
-    const timeStr = new Date(lastTrade.time).toLocaleString('vi-VN');
-
-    // Tính toán tỷ lệ ROI thực tế khi đóng vị thế
-    const priceDiff = prevPos.isLong ? (closePrice - prevPos.entryPrice) : (prevPos.entryPrice - closePrice);
-    const roi = (priceDiff / prevPos.entryPrice) * prevPos.leverage * 100;
+          closePrice = parseFloat(lastTrade.price);
+          realizedProfit = parseFloat(lastTrade.realizedPnl || lastTrade.realizedProfit || '0');
+          const priceDiff = prevPos.isLong ? (closePrice - prevPos.entryPrice) : (prevPos.entryPrice - closePrice);
+          roi = (priceDiff / prevPos.entryPrice) * prevPos.leverage * 100;
+          hasTradeData = true;
+        }
+      }
+    } catch (tradeErr) {
+      log.warn(`[AutoTrade] Lỗi lấy userTrades cho ${sym}: ${tradeErr.message}`);
+    }
 
     // Phân loại lý do đóng
-    let label = 'Đóng vị thế';
-    if (realizedProfit > 0) {
-      label = '🎯 Take Profit';
-    } else if (realizedProfit < 0) {
-      label = '🛡️ Stop Loss';
+    let label = '🛡️ Đóng vị thế (Sàn khớp)';
+    if (hasTradeData) {
+      if (realizedProfit < 0) {
+        label = '🛡️ Stop Loss';
+      } else if (roi >= 15) {
+        label = '🎯 Take Profit';
+      } else if (roi >= 4) {
+        label = '🛡️ Trailing SL (Khóa lãi)';
+      } else {
+        label = '🛡️ Trailing SL (Hòa vốn)';
+      }
     }
+
+    const roiStr = hasTradeData ? `\n• ROI đạt: <b>${roi.toFixed(2)}%</b>` : '';
 
     await sendTelegram(
       `<b>${label}</b>\n` +
-      `• Coin: <b>${sym}</b>\n` +
-      `• ROI đạt: <b>${roi.toFixed(2)}%</b>`
+      `• Coin: <b>${sym}</b>` +
+      roiStr
     );
   } catch (e) {
     log.warn(`[AutoTrade] Lỗi gửi thông báo đóng vị thế ${sym}: ${e.message}`);
