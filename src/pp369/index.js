@@ -34,6 +34,7 @@ module.exports = {
   score369Method:        core.score369Method,
   format369ForPrompt:    core.format369ForPrompt,
   getLevelCache:         core.getLevelCache,
+  overrideLevelLastSide: core.overrideLevelLastSide,
   initH4Cache:           core.initH4Cache,
   YEAR_START_MS:         core.YEAR_START_MS,
   PROXIMITY_PCT:         core.PROXIMITY_PCT,

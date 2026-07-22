@@ -16,6 +16,7 @@ const { createClient, loadStepSizes, calcQuantity } = require('./binance');
 const {
   get369Signal,
   getLevelCache,
+  overrideLevelLastSide,
   logSignal369,
   start369Stream,
   getMarkPrice,
@@ -221,7 +222,7 @@ async function startAutoTrade(coins) {
             const entryPrice = parseFloat(order.price);
             const stepPct = meta.gridStepPct;
             const touchThresholdPct = 0.07;             // fixed 0.07% — khoảng cách tuyệt đối từ entry (không phụ thuộc grid)
-            const bouncePct = stepPct / 5;            // ví dụ 3.7/5  = 0.74%
+            const bouncePct = stepPct / 5.5;          // ví dụ 3.7/5.5 = 0.67%
 
             if (order.side === 'BUY') {
               // LONG: touch zone là [entry, entry*(1 + touchThreshold%)]
@@ -236,6 +237,7 @@ async function startAutoTrade(coins) {
                   log.system(`[AutoTrade] [BounceCancel] ${sym} LONG: giá chạm ${meta.touchLow.toFixed(6)} rồi bật lên ${markPrice.toFixed(6)} (+${bouncePct.toFixed(2)}% từ đáy) → Hủy LIMIT stale`);
                   try {
                     await client.cancelOrder(sym, order.orderId);
+                    overrideLevelLastSide(sym, 'lower'); // Khóa mốc LONG cho đến khi giá chạm mốc trên
                     sendTelegram(
                       `🔄 <b>[AutoTrade] Hủy LIMIT (Bounce Cancel)</b>\n` +
                       `• Coin: <b>${sym} LONG</b>\n` +
@@ -268,6 +270,7 @@ async function startAutoTrade(coins) {
                   log.system(`[AutoTrade] [BounceCancel] ${sym} SHORT: giá chạm ${meta.touchHigh.toFixed(6)} rồi bật xuống ${markPrice.toFixed(6)} (-${bouncePct.toFixed(2)}% từ đỉnh) → Hủy LIMIT stale`);
                   try {
                     await client.cancelOrder(sym, order.orderId);
+                    overrideLevelLastSide(sym, 'upper'); // Khóa mốc SHORT cho đến khi giá chạm mốc dưới
                     sendTelegram(
                       `🔄 <b>[AutoTrade] Hủy LIMIT (Bounce Cancel)</b>\n` +
                       `• Coin: <b>${sym} SHORT</b>\n` +
@@ -546,7 +549,7 @@ function _binanceErr(e) {
  */
 async function checkPendingLimits(client, activeSymbols) {
   // Ngưỡng: giá phải bounce ra bao nhiêu % từ entry mới coi là bounce thật
-  // Dùng gridStepPct/5 (giống BounceCancel L1) — ví dụ grid 3.7% → bouncePct = 0.74%
+  // Dùng gridStepPct/5.5 — ví dụ grid 3.7% → bouncePct = 0.67%
   const TOUCH_THRESHOLD_PCT = 0.15; // % tính từ entry — nếu giá về trong mức này → coi là "sắp fill lại"
 
   for (const [sym, meta] of Object.entries(activeTradesMetadata)) {
@@ -565,7 +568,7 @@ async function checkPendingLimits(client, activeSymbols) {
     if (!markPrice || !meta.entryPrice || !meta.gridStepPct) continue;
 
     const entry = meta.entryPrice;
-    const bouncePct = meta.gridStepPct / 5; // ngưỡng bounce tối thiểu để ghi nhận
+    const bouncePct = meta.gridStepPct / 5.5; // ngưỡng bounce tối thiểu để ghi nhận
 
     if (meta.side === 'BUY') {
       // ── LONG: giá tốt khi đi LÊN khỏi entry ──────────────────────────────
@@ -587,6 +590,7 @@ async function checkPendingLimits(client, activeSymbols) {
         );
         try {
           await client.cancelOrder(sym, meta.orderId);
+          overrideLevelLastSide(sym, 'lower'); // Khóa mốc LONG cho đến khi giá chạm mốc trên
           sendTelegram(
             `🔄 <b>[AutoTrade] Hủy LIMIT (Return Cancel)</b>\n` +
             `• Coin: <b>${sym} LONG</b>\n` +
@@ -621,6 +625,7 @@ async function checkPendingLimits(client, activeSymbols) {
         );
         try {
           await client.cancelOrder(sym, meta.orderId);
+          overrideLevelLastSide(sym, 'upper'); // Khóa mốc SHORT cho đến khi giá chạm mốc dưới
           sendTelegram(
             `🔄 <b>[AutoTrade] Hủy LIMIT (Return Cancel)</b>\n` +
             `• Coin: <b>${sym} SHORT</b>\n` +
