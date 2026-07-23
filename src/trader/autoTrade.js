@@ -373,13 +373,13 @@ async function startAutoTrade(coins) {
         log.system(`[AutoTrade] ${sym} ${sig.signal} có Score = ${sig.score}đ < 5.5đ — bỏ qua`);
         continue;
       } else if (score >= 9.0) {
-        tradeAmount = 35; // Lệnh Siêu phẩm (Top 1%): Margin $35
+        tradeAmount = 50; // Lệnh Siêu phẩm (Top 1%): Margin $50
       } else if (score >= 8.0) {
-        tradeAmount = 25; // Lệnh Rất đẹp: Margin $25
+        tradeAmount = 40; // Lệnh Rất đẹp: Margin $40
       } else if (score >= 7.0) {
-        tradeAmount = 15; // Lệnh Khá đẹp: Margin $15
+        tradeAmount = 30; // Lệnh Khá đẹp: Margin $30
       } else if (score >= 5.5) {
-        tradeAmount = 10; // Lệnh Tiêu chuẩn: Margin $10
+        tradeAmount = 20; // Lệnh Tiêu chuẩn: Margin $20
       }
 
       // Dow & Trendline đóng vai trò tiêu chí phụ trợ (+0đ đến +2đ). 
@@ -413,7 +413,7 @@ async function startAutoTrade(coins) {
       sig.leverage = effectiveLeverage; // Gán vào signal để formatter hiển thị đòn bẩy chính xác trên Telegram
       sig.margin = tradeAmount; // Gán để ghi log signal
 
-      // 2. Tính Notional động để cố định ký quỹ (Margin) = tradeAmount (10$ hoặc 20$)
+      // 2. Tính Notional động để cố định ký quỹ (Margin) = tradeAmount (20$ đến 50$)
       const currentNotional = tradeAmount * effectiveLeverage;
 
       // 3. Tính quantity dựa trên currentNotional và giá kích hoạt targetLevel

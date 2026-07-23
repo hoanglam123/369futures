@@ -336,10 +336,10 @@ async function runSafeM1Backtest() {
       const stepPct = (step / targetLevel) * 100;
       const leverage = Math.min(20, Math.max(5, Math.floor(50 / stepPct)));
 
-      let margin = 10;
-      if (score >= 9.0) margin = 35;
-      else if (score >= 8.0) margin = 25;
-      else if (score >= 7.0) margin = 15;
+      let margin = 20;
+      if (score >= 9.0) margin = 50;
+      else if (score >= 8.0) margin = 40;
+      else if (score >= 7.0) margin = 30;
 
       let tpPct = 10;
       let slPct = -10;
