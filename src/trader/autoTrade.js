@@ -601,7 +601,12 @@ async function checkPendingLimits(client, activeSymbols) {
           delete activeTradesMetadata[sym];
           saveActiveTradesMetadata();
         } catch (e) {
-          log.warn(`[AutoTrade] [ReturnCancel] Không hủy được LIMIT ${sym}: ${_binanceErr(e)}`);
+          const errStr = _binanceErr(e);
+          log.warn(`[AutoTrade] [ReturnCancel] Không hủy được LIMIT ${sym}: ${errStr}`);
+          if (errStr.includes('-2011') || errStr.includes('Unknown order')) {
+            delete activeTradesMetadata[sym];
+            saveActiveTradesMetadata();
+          }
         }
       }
 
@@ -636,7 +641,12 @@ async function checkPendingLimits(client, activeSymbols) {
           delete activeTradesMetadata[sym];
           saveActiveTradesMetadata();
         } catch (e) {
-          log.warn(`[AutoTrade] [ReturnCancel] Không hủy được LIMIT ${sym}: ${_binanceErr(e)}`);
+          const errStr = _binanceErr(e);
+          log.warn(`[AutoTrade] [ReturnCancel] Không hủy được LIMIT ${sym}: ${errStr}`);
+          if (errStr.includes('-2011') || errStr.includes('Unknown order')) {
+            delete activeTradesMetadata[sym];
+            saveActiveTradesMetadata();
+          }
         }
       }
     }
