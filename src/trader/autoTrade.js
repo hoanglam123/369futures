@@ -369,8 +369,8 @@ async function startAutoTrade(coins) {
       // Phân bổ ký quỹ (Margin) theo trần Max Score = 10.5đ
       const score = sig.score;
       let tradeAmount = 0;
-      if (score < 6.0) {
-        log.system(`[AutoTrade] ${sym} ${sig.signal} có Score = ${sig.score}đ < 6đ — bỏ qua`);
+      if (score < 5.5) {
+        log.system(`[AutoTrade] ${sym} ${sig.signal} có Score = ${sig.score}đ < 5.5đ — bỏ qua`);
         continue;
       } else if (score >= 9.0) {
         tradeAmount = 35; // Lệnh Siêu phẩm (Top 1%): Margin $35
@@ -378,12 +378,12 @@ async function startAutoTrade(coins) {
         tradeAmount = 25; // Lệnh Rất đẹp: Margin $25
       } else if (score >= 7.0) {
         tradeAmount = 15; // Lệnh Khá đẹp: Margin $15
-      } else if (score >= 6.0) {
+      } else if (score >= 5.5) {
         tradeAmount = 10; // Lệnh Tiêu chuẩn: Margin $10
       }
 
       // Dow & Trendline đóng vai trò tiêu chí phụ trợ (+0đ đến +2đ). 
-      // Quyết định vào lệnh hoàn toàn phụ thuộc vào tổng điểm Scorer PP369 (Score >= 6.0đ).
+      // Quyết định vào lệnh hoàn toàn phụ thuộc vào tổng điểm Scorer PP369 (Score >= 5.5đ).
 
 
       // Kiểm tra debounce
