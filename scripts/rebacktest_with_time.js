@@ -46,11 +46,11 @@ async function rebacktest() {
     const entryPrice = parseFloat(item.entry.replace('$', '').replace(/,/g, ''));
     const scoreVal = parseFloat(item.score.replace('+', '').replace('đ', ''));
 
-    let marginVal = 10;
-    if (scoreVal >= 9.0) marginVal = 35;
-    else if (scoreVal >= 8.0) marginVal = 25;
-    else if (scoreVal >= 7.0) marginVal = 15;
-    else marginVal = 10;
+    let marginVal = 20;
+    if (scoreVal >= 9.0) marginVal = 50;
+    else if (scoreVal >= 8.0) marginVal = 40;
+    else if (scoreVal >= 7.0) marginVal = 30;
+    else marginVal = 20;
 
     const leverage = 10;
     let roiStr = '0%';
