@@ -221,7 +221,7 @@ async function startAutoTrade(coins) {
           if (meta && markPrice && meta.gridStepPct) {
             const entryPrice = parseFloat(order.price);
             const stepPct = meta.gridStepPct;
-            const touchThresholdPct = 0.07;             // fixed 0.07% — khoảng cách tuyệt đối từ entry (không phụ thuộc grid)
+            const touchThresholdPct = 0.12;             // fixed 0.12% — khoảng cách tuyệt đối từ entry (không phụ thuộc grid)
             const bouncePct = stepPct / 5.5;          // ví dụ 3.7/5.5 = 0.67%
 
             if (order.side === 'BUY') {
