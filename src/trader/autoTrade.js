@@ -359,17 +359,19 @@ async function startAutoTrade(coins) {
 
       log.system(`[AutoTrade] ${sym} → ${sig.signal} (Score: +${sig.score}đ) tại $${sig.targetLevel}`);
 
-      // Bắt buộc phải có Tiêu chí 2 (Biến động H1/M15 an toàn - không có khung nào bị điểm cộng (+0đ))
+      const isBtc = sym === 'BTC';
+
+      // Bắt buộc phải có Tiêu chí 2 (Biến động H1/M15 an toàn - không có khung nào bị điểm cộng (+0đ)). Riêng BTC bỏ qua.
       const hasCriterion2 = sig.scoreReasons && sig.scoreReasons.some(r => r.includes('[Biến động H1/M15]') && !r.includes('(+0đ)'));
-      if (!hasCriterion2) {
+      if (!isBtc && !hasCriterion2) {
         log.system(`[AutoTrade] ${sym} ${sig.signal} không đạt Tiêu chí 2 (Biến động H1/M15 an toàn) — bỏ qua`);
         continue;
       }
 
-      // Phân bổ ký quỹ (Margin) theo trần Max Score = 10.5đ
-      const score = sig.score;
-      let tradeAmount = 0;
-      if (score < 5.5) {
+      // Phân bổ ký quỹ (Margin) theo trần Max Score = 10.5đ (Riêng BTC vào lệnh không quan tâm điểm số, dùng Margin mặc định $20 khi < 5.5đ)
+      const score = sig.score ?? 0;
+      let tradeAmount = 20;
+      if (!isBtc && score < 5.5) {
         log.system(`[AutoTrade] ${sym} ${sig.signal} có Score = ${sig.score}đ < 5.5đ — bỏ qua`);
         continue;
       } else if (score >= 9.0) {
@@ -378,8 +380,8 @@ async function startAutoTrade(coins) {
         tradeAmount = 40; // Lệnh Rất đẹp: Margin $40
       } else if (score >= 7.0) {
         tradeAmount = 30; // Lệnh Khá đẹp: Margin $30
-      } else if (score >= 5.5) {
-        tradeAmount = 20; // Lệnh Tiêu chuẩn: Margin $20
+      } else {
+        tradeAmount = 20; // Lệnh Tiêu chuẩn / BTC: Margin $20
       }
 
       // Dow & Trendline đóng vai trò tiêu chí phụ trợ (+0đ đến +2đ). 
