@@ -155,3 +155,4 @@
 {"ts":"2026-07-21T15:09:02","symbol":"1000XEC","signal":"LONG","price":0.006932,"leverage":13,"score":6,"margin":10}
 {"ts":"2026-07-21T15:22:31","symbol":"TOWNS","signal":"LONG","price":0.002135,"leverage":4,"score":6.8,"margin":10}
 {"ts":"2026-07-21T15:27:32","symbol":"TOWNS","signal":"LONG","price":0.00213234,"leverage":4,"score":6.8,"margin":10}
+{"ts":"2026-07-24T09:32:19","symbol":"DASH","signal":"LONG","price":32.71,"leverage":6,"score":5.6,"margin":20}
