@@ -13607,6 +13607,16 @@
       "failed": true,
       "reason": "Không có nến H4 ngày 01/01/2026 (Nến đầu: 2026-07-09T12:00:00.000Z)",
       "updatedAt": 1783659793202
+    },
+    "SYSUSDT": {
+      "yearStart": 1767225600000,
+      "failed": true,
+      "reason": "Status 400"
+    },
+    "CYSUSDT": {
+      "yearStart": 1767225600000,
+      "failed": true,
+      "reason": "Status 400"
     }
   },
   "tickSizes": {
