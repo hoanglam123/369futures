@@ -925,6 +925,7 @@ async function get369Signal(symbol, currentPrice = null) {
       nearLevels: grid
         .filter(l => Math.abs(l.value - price) < step * 5.5)
         .map(l => ({ value: l.value, type: l.type, tier: l.tier })),
+      recentM1Candles: hybridCandles.slice(-30),
     };
 
   } catch (err) {
