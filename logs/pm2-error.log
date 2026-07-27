@@ -113,3 +113,6 @@
 2026-07-23 09:47:08: [PP369 WARN] [AutoTrade] [ReturnCancel] Không hủy được LIMIT SOPH: [-2011] Unknown order sent. 
 2026-07-23 09:47:11: [PP369 WARN] [AutoTrade] [ReturnCancel] Không hủy được LIMIT SOPH: [-2011] Unknown order sent. 
 2026-07-23 10:02:52: [PP369 WARN] [AutoTrade] [ReturnCancel] Không hủy được LIMIT SOPH: [-2011] Unknown order sent. 
+2026-07-25 20:23:23: [PP369 WARN] [Binance API] Lỗi lấy Top Traders L/S ratio cho INJ: getaddrinfo ENOTFOUND fapi.binance.com 
+2026-07-26 02:27:58: [PP369 WARN] [AutoTrade] Lỗi đồng bộ activeSymbols: timeout of 10000ms exceeded 
+2026-07-27 00:23:00: [PP369 WARN] [AutoTrade] Lỗi kiểm tra virtual TP/SL: timeout of 10000ms exceeded 
