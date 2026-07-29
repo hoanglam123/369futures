@@ -136,6 +136,81 @@ function isGridWidthValid(h1Entry, currentPrice, symbol) {
   return pct >= minPct && pct <= GRID_MAX_PCT;
 }
 
+// ─── Quản lý Blacklist 7 ngày cho mốc hẹp (x*2 > y) ───────────────────────────
+const GRID_BLACKLIST_FILE = path.join(process.cwd(), 'data', 'grid_blacklist.json');
+const BLACKLIST_DURATION_MS = 7 * 24 * 60 * 60 * 1000; // 7 ngày
+
+function _loadGridBlacklist() {
+  try {
+    if (fs.existsSync(GRID_BLACKLIST_FILE)) {
+      const content = fs.readFileSync(GRID_BLACKLIST_FILE, 'utf8');
+      return JSON.parse(content) || {};
+    }
+  } catch (e) {
+    log.warn(`[GridBlacklist] Lỗi đọc file grid_blacklist.json: ${e.message}`);
+  }
+  return {};
+}
+
+function _saveGridBlacklist(listObj) {
+  try {
+    const dir = path.dirname(GRID_BLACKLIST_FILE);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(GRID_BLACKLIST_FILE, JSON.stringify(listObj, null, 2), 'utf8');
+  } catch (e) {
+    log.warn(`[GridBlacklist] Lỗi ghi file grid_blacklist.json: ${e.message}`);
+  }
+}
+
+function isSymbolInGridBlacklist(symbol) {
+  if (!symbol) return false;
+  const cleanSym = symbol.toUpperCase().replace(/USDT$/, '');
+  const blacklist = _loadGridBlacklist();
+  const item = blacklist[cleanSym];
+  if (!item) return false;
+
+  const now = Date.now();
+  if (now >= item.expiresAt) {
+    delete blacklist[cleanSym];
+    _saveGridBlacklist(blacklist);
+    log.system(`[GridBlacklist] Đã tự động giải phóng ${cleanSym} khỏi Blacklist sau 1 tuần.`);
+    return false;
+  }
+  return true;
+}
+
+function getGridBlacklistInfo(symbol) {
+  if (!symbol) return null;
+  const cleanSym = symbol.toUpperCase().replace(/USDT$/, '');
+  const blacklist = _loadGridBlacklist();
+  return blacklist[cleanSym] || null;
+}
+
+function addToGridBlacklist(symbol, reason, xVal, yVal) {
+  if (!symbol) return;
+  const cleanSym = symbol.toUpperCase().replace(/USDT$/, '');
+  const blacklist = _loadGridBlacklist();
+  const now = Date.now();
+  const expiresAt = now + BLACKLIST_DURATION_MS;
+
+  if (!blacklist[cleanSym]) {
+    log.system(`[GridBlacklist] ĐÃ THÊM ${cleanSym} VÀO BLACKLIST 7 NGÀY (Lý do: ${reason}). Sẽ tự động giải phóng sau 7 ngày.`);
+  }
+
+  blacklist[cleanSym] = {
+    symbol: cleanSym,
+    addedAt: now,
+    addedAtStr: new Date(now + 7 * 3600000).toISOString().replace('T', ' ').substring(0, 19),
+    expiresAt: expiresAt,
+    expiresAtStr: new Date(expiresAt + 7 * 3600000).toISOString().replace('T', ' ').substring(0, 19),
+    reason: reason || 'x*2 > y (Khung kẹp hẹp / mốc chèn ép)',
+    xPct: xVal ? parseFloat((xVal * 2).toFixed(2)) : undefined,
+    yPct: yVal ? parseFloat(yVal.toFixed(2)) : undefined,
+  };
+
+  _saveGridBlacklist(blacklist);
+}
+
 // ─── In-memory cache ──────────────────────────────────────────────────────────
 
 // H4 reference cache (yearly): { symbol: { yearStart, openPrice, closePrice, step, decimals, upperPrice, lowerPrice } }
@@ -789,6 +864,14 @@ function analyzeRoundtrips(candles, lowerLevel, upperLevel) {
 async function get369Signal(symbol, currentPrice = null) {
   const month = yearLabel(); // Dùng nhãn năm 2026 thay vì tháng
 
+  if (isSymbolInGridBlacklist(symbol)) {
+    const info = getGridBlacklistInfo(symbol);
+    return {
+      signal: 'NONE', symbol, month, openPrice: null, closePrice: null, step: null,
+      reason: `[GridBlacklist 7d] Mã ${symbol} bị khóa 7 ngày do khung hẹp x*2 > y (Hết hạn lúc ${info?.expiresAtStr || 'chưa rõ'})`
+    };
+  }
+
   try {
     // Lấy nến H4 đầu năm 2026 làm mốc gốc (thay H1 đầu tháng)
     const h1 = await fetchH4Reference(symbol);
@@ -812,13 +895,24 @@ async function get369Signal(symbol, currentPrice = null) {
       const shortEntry = grid.find(l => l.type === 'duoi' && l.value > currentPrice);
 
       if (longEntry && shortEntry) {
-        const currentGridPct = ((shortEntry.value - longEntry.value) / longEntry.value) * 100;
+        const y = ((shortEntry.value - longEntry.value) / longEntry.value) * 100; // % Khung kẹp giá trực tiếp
+        const x = (Math.abs(openPrice - closePrice) / longEntry.value) * 100;    // % Chênh lệch Open & Close cùng Tier
         const minGridPct = getMinGridPct(symbol);
-        if (currentGridPct < minGridPct || currentGridPct > GRID_MAX_PCT) {
+
+        if (y < minGridPct || y > GRID_MAX_PCT) {
           _levelCache[symbol] = { longEntry: longEntry.value, shortEntry: shortEntry.value, step: step };
           return {
             signal: 'NONE', symbol, month, openPrice, closePrice, step: step,
-            reason: `Khoảng cách giữa 2 mốc gần nhất (${currentGridPct.toFixed(2)}%) không đạt yêu cầu ${minGridPct}-${GRID_MAX_PCT}%`
+            reason: `Khoảng cách giữa 2 mốc kẹp y=${y.toFixed(2)}% không đạt yêu cầu ${minGridPct}-${GRID_MAX_PCT}%`
+          };
+        }
+
+        if (x * 2 > y) {
+          addToGridBlacklist(symbol, `x*2 (${(x * 2).toFixed(2)}%) > y (${y.toFixed(2)}%)`, x, y);
+          _levelCache[symbol] = { longEntry: longEntry.value, shortEntry: shortEntry.value, step: step };
+          return {
+            signal: 'NONE', symbol, month, openPrice, closePrice, step: step,
+            reason: `[GridBlacklist 7d] Đã cho ${symbol} vào Blacklist 7 ngày: x*2 (${(x * 2).toFixed(2)}%) > y (${y.toFixed(2)}%)`
           };
         }
 
@@ -867,13 +961,22 @@ async function get369Signal(symbol, currentPrice = null) {
 
     const pairLow = longEntry.value;
     const pairHigh = shortEntry.value;
-    const currentGridPct = ((pairHigh - pairLow) / pairLow) * 100;
+    const y = ((pairHigh - pairLow) / pairLow) * 100;
+    const x = (Math.abs(openPrice - closePrice) / pairLow) * 100;
 
     const minGridPct = getMinGridPct(symbol);
-    if (currentGridPct < minGridPct || currentGridPct > GRID_MAX_PCT) {
+    if (y < minGridPct || y > GRID_MAX_PCT) {
       return {
         signal: 'NONE', symbol, month, openPrice, closePrice, step: step,
-        reason: `Khoảng cách giữa 2 mốc gần nhất (${currentGridPct.toFixed(2)}%) không đạt yêu cầu ${minGridPct}-${GRID_MAX_PCT}%`
+        reason: `Khoảng cách giữa 2 mốc kẹp y=${y.toFixed(2)}% không đạt yêu cầu ${minGridPct}-${GRID_MAX_PCT}%`
+      };
+    }
+
+    if (x * 2 > y) {
+      addToGridBlacklist(symbol, `x*2 (${(x * 2).toFixed(2)}%) > y (${y.toFixed(2)}%)`, x, y);
+      return {
+        signal: 'NONE', symbol, month, openPrice, closePrice, step: step,
+        reason: `[GridBlacklist 7d] Đã cho ${symbol} vào Blacklist 7 ngày: x*2 (${(x * 2).toFixed(2)}%) > y (${y.toFixed(2)}%)`
       };
     }
 
@@ -2098,4 +2201,5 @@ module.exports = {
   getLevelCache, overrideLevelLastSide, PROXIMITY_PCT, getDecimals, getStep,
   initH4Cache, YEAR_START_MS,
   getGridStepPct, isGridWidthValid, GRID_MIN_PCT, GRID_MIN_PCT_TOP100, GRID_MAX_PCT, getMinGridPct, isTop100Symbol, getMarketCapRank,
+  isSymbolInGridBlacklist, getGridBlacklistInfo, addToGridBlacklist,
 };

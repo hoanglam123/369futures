@@ -61,6 +61,9 @@ module.exports = {
   getMinGridPct:         core.getMinGridPct,
   isTop100Symbol:        core.isTop100Symbol,
   getMarketCapRank:      core.getMarketCapRank,
+  isSymbolInGridBlacklist: core.isSymbolInGridBlacklist,
+  getGridBlacklistInfo:    core.getGridBlacklistInfo,
+  addToGridBlacklist:      core.addToGridBlacklist,
 
   // ── WebSocket stream ─────────────────────────────────────────────────────
   start369Stream:   stream.start369Stream,

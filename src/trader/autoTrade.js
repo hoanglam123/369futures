@@ -507,22 +507,32 @@ async function startAutoTrade(coins) {
 
       // 1. Tính đòn bẩy động theo khoảng cách thực tế giữa mốc LONG dưới và SHORT trên
       const gridWidth = Math.abs(sig.condLevel - sig.targetLevel);
-      const pct = (gridWidth / Math.min(sig.targetLevel, sig.condLevel)) * 100;
+      const pct = (gridWidth / Math.min(sig.targetLevel, sig.condLevel)) * 100; // % Khung kẹp giá
 
-      // Pre-entry Bounce Check: Quét 150 nến M1 gần nhất xem giá có từng gần chạm mốc rồi nảy lên đỉnh cao nhất (LONG) / nảy xuống đáy thấp nhất (SHORT) tiếp theo chưa
-      const preEntryBouncePct = pct / 5.5; // pct là grid step %
-      const touchThresholdPct = 0.12;      // khoảng cách tiệm cận 0.12%
+      // Pre-entry Bounce Check: Quét nến 1M từ lúc giá vừa chạm condLevel đến nay.
+      // Nếu đã từng xát mốc entry (targetLevel) rồi nảy quá % Khung / 5.0 => Hủy LIMIT stale.
+      const preEntryBouncePct = pct / 5.0; // Ngưỡng % Khung / 5.0 theo quy tắc 369
+      const touchThresholdPct = 0.12;      // Tiệm cận 0.12% xát mốc
       let maxRecentBouncePct = null;      // Giá trị bounce tối đa ghi nhận cho dataset
 
       if (sig.recentM1Candles && sig.recentM1Candles.length > 0) {
         const recentM1 = sig.recentM1Candles;
         if (sig.signal === 'LONG') {
+          // Bắt đầu quét từ thời điểm giá vừa chạm mốc Short trên (sig.condLevel) gần nhất
+          let startIdx = 0;
+          for (let i = recentM1.length - 1; i >= 0; i--) {
+            if (recentM1[i].high >= sig.condLevel) {
+              startIdx = i;
+              break;
+            }
+          }
+
           const touchZoneUpper = sig.targetLevel * (1 + touchThresholdPct / 100);
           let maxBouncePct = 0;
           let bestTouchLow = 0;
           let bestPeakHigh = 0;
 
-          for (let i = 0; i < recentM1.length; i++) {
+          for (let i = startIdx; i < recentM1.length; i++) {
             const candle = recentM1[i];
             if (candle.low <= touchZoneUpper) {
               const touchLow = candle.low;
@@ -543,20 +553,29 @@ async function startAutoTrade(coins) {
 
           if (maxBouncePct >= preEntryBouncePct) {
             log.system(
-              `[AutoTrade] ${sym} LONG: Trong 150 nến M1 gần nhất đã từng chạm mốc ($${bestTouchLow.toFixed(6)}) ` +
-              `rồi nảy lên đỉnh $${bestPeakHigh.toFixed(6)} (+${maxBouncePct.toFixed(2)}% >= ${preEntryBouncePct.toFixed(2)}%) — bỏ qua không đặt lệnh LIMIT stale.`
+              `[AutoTrade] ${sym} LONG: Từ khi chạm mốc Short ($${sig.condLevel}), nến M1 đã xát mốc entry LONG ($${bestTouchLow.toFixed(6)}) ` +
+              `rồi nảy lên đỉnh $${bestPeakHigh.toFixed(6)} (+${maxBouncePct.toFixed(2)}% >= ${preEntryBouncePct.toFixed(2)}% Khung/5) — HỦY LIMIT stale.`
             );
             continue;
           }
           // Record max bounce for dataset if trade is allowed
           maxRecentBouncePct = maxBouncePct;
         } else if (sig.signal === 'SHORT') {
+          // Bắt đầu quét từ thời điểm giá vừa chạm mốc Long dưới (sig.condLevel) gần nhất
+          let startIdx = 0;
+          for (let i = recentM1.length - 1; i >= 0; i--) {
+            if (recentM1[i].low <= sig.condLevel) {
+              startIdx = i;
+              break;
+            }
+          }
+
           const touchZoneLower = sig.targetLevel * (1 - touchThresholdPct / 100);
           let maxDropPct = 0;
           let bestTouchHigh = 0;
           let bestTroughLow = 0;
 
-          for (let i = 0; i < recentM1.length; i++) {
+          for (let i = startIdx; i < recentM1.length; i++) {
             const candle = recentM1[i];
             if (candle.high >= touchZoneLower) {
               const touchHigh = candle.high;
@@ -577,8 +596,8 @@ async function startAutoTrade(coins) {
 
           if (maxDropPct >= preEntryBouncePct) {
             log.system(
-              `[AutoTrade] ${sym} SHORT: Trong 150 nến M1 gần nhất đã từng chạm mốc ($${bestTouchHigh.toFixed(6)}) ` +
-              `rồi nảy xuống đáy $${bestTroughLow.toFixed(6)} (-${maxDropPct.toFixed(2)}% >= ${preEntryBouncePct.toFixed(2)}%) — bỏ qua không đặt lệnh LIMIT stale.`
+              `[AutoTrade] ${sym} SHORT: Từ khi chạm mốc Long ($${sig.condLevel}), nến M1 đã xát mốc entry SHORT ($${bestTouchHigh.toFixed(6)}) ` +
+              `rồi nảy xuống đáy $${bestTroughLow.toFixed(6)} (-${maxDropPct.toFixed(2)}% >= ${preEntryBouncePct.toFixed(2)}% Khung/5) — HỦY LIMIT stale.`
             );
             continue;
           }
