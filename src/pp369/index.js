@@ -22,11 +22,18 @@ const stream         = require('./stream');
 const signalLog      = require('./signalLog');
 const formatter      = require('./formatter');
 const telegram       = require('./telegram');
+const datasetCollector = require('./datasetCollector');
 
 module.exports = {
   // ── Cấu hình (optional) ──────────────────────────────────────────────────
   setLogger,                             // override logger (mặc định: console)
   setDataDir: signalLog.setDataDir,      // override thư mục lưu signal log
+  setDatasetLogger: datasetCollector.setLogger, // override dataset collector logger
+
+  // ── AI Trade Dataset ─────────────────────────────────────────────────────
+  recordTradeEntry:   datasetCollector.recordTradeEntry,
+  recordTradeExit:    datasetCollector.recordTradeExit,
+  getDatasetStats:    datasetCollector.getDatasetStats,
 
   // ── Core strategy ────────────────────────────────────────────────────────
   get369Signal:          core.get369Signal,

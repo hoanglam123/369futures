@@ -1393,7 +1393,11 @@ async function score369Method(sig369, direction) {
     }
 
     let isM15HigherLow = false;
+    let isM15HigherHigh = false;
     let isM15LowerHigh = false;
+    let isM15LowerLow = false;
+    let isM15PerfectLong = false;
+    let isM15PerfectShort = false;
     if (m15Data && m15Data.length >= 20) {
       const m15Sample = m15Data.slice(-288);
       const m15Lows = [];
@@ -1410,8 +1414,13 @@ async function score369Method(sig369, direction) {
         if (isH) m15Highs.push(cH);
         if (isL) m15Lows.push(cL);
       }
-      if (m15Lows.length >= 2) isM15HigherLow = m15Lows[m15Lows.length - 1] > m15Lows[m15Lows.length - 2];
-      if (m15Highs.length >= 2) isM15LowerHigh = m15Highs[m15Highs.length - 1] < m15Highs[m15Highs.length - 2];
+      // M15 chỉ được tính khi đủ ĐỦ ĐIỀU KIỆN: HH + HL (LONG) hoặc LH + LL (SHORT)
+      isM15HigherLow = m15Lows.length >= 2 && m15Lows[m15Lows.length - 1] > m15Lows[m15Lows.length - 2];
+      isM15HigherHigh = m15Highs.length >= 2 && m15Highs[m15Highs.length - 1] > m15Highs[m15Highs.length - 2];
+      isM15LowerHigh = m15Highs.length >= 2 && m15Highs[m15Highs.length - 1] < m15Highs[m15Highs.length - 2];
+      isM15LowerLow = m15Lows.length >= 2 && m15Lows[m15Lows.length - 1] < m15Lows[m15Lows.length - 2];
+      isM15PerfectLong = isM15HigherLow && isM15HigherHigh;
+      isM15PerfectShort = isM15LowerHigh && isM15LowerLow;
     }
 
     if (h1Data && h1Data.length >= 20) {
@@ -1482,10 +1491,15 @@ async function score369Method(sig369, direction) {
           trendReasons.push(
             `Cấu trúc Dow LONG H1 3 ngày (HL & HH) (${adxText}) (+${trendScore.toFixed(1)}đ)`
           );
-        } else if (isM15HigherLow) {
+        } else if (isM15PerfectLong && isLong) {
           trendScore = 0.5;
           trendReasons.push(
-            `H1 Sideway nhưng M15 có xu hướng LONG ngắn hạn (Higher Low M15) (+0.5đ)`
+            `H1 Sideway nhưng M15 có cấu trúc LONG hoàn chỉnh (HH + HL M15) (+0.5đ)`
+          );
+        } else if (isM15PerfectShort && !isLong) {
+          trendScore = 0.5;
+          trendReasons.push(
+            `H1 Sideway nhưng M15 có cấu trúc SHORT hoàn chỉnh (LH + LL M15) (+0.5đ)`
           );
         } else if (isEmaBullish && !isHigherLow && !isHigherHigh) {
           trendScore = 0.5;
@@ -1511,10 +1525,10 @@ async function score369Method(sig369, direction) {
           trendReasons.push(
             `Cấu trúc Dow SHORT H1 3 ngày (LH & LL) (${adxText}) (+${trendScore.toFixed(1)}đ)`
           );
-        } else if (isM15LowerHigh) {
+        } else if (isM15PerfectShort && !isLong) {
           trendScore = 0.5;
           trendReasons.push(
-            `H1 Sideway nhưng M15 có xu hướng SHORT ngắn hạn (Lower High M15) (+0.5đ)`
+            `H1 Sideway nhưng M15 có cấu trúc SHORT hoàn chỉnh (LH + LL M15) (+0.5đ)`
           );
         } else if (isEmaBearish && !isLowerHigh && !isLowerLow) {
           trendScore = 0.5;

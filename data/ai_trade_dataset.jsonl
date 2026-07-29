@@ -1,0 +1,2 @@
+{"type":"ENTRY","tradeId":"TEST001","orderId":"O123","symbol":"BTC","signal":"LONG","entryPrice":95000,"markPrice":95100,"timestamp":1785306921293,"score":8.5,"scoreReasons":["[Xu hướng H4/H1] H4 ngược","[Biến động H1/M15] H1 tăng (+0đ)"],"marketCapRank":1,"gridWidthPct":3.5,"maxRecentBouncePct":0.6,"leverage":10,"margin":50}
+{"type":"EXIT","tradeId":"TEST001","orderId":"O123","symbol":"BTC","exitPrice":97000,"exitTimestamp":1785306921294,"exitType":"TP","pnlPercent":21.05,"pnlUsd":10.52,"holdingDurationMinutes":120,"isWin":true}

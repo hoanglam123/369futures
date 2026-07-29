@@ -30,6 +30,8 @@ const {
   isGridWidthValid,
   YEAR_START_MS,
   getMarketCapRank,
+  recordTradeEntry,
+  recordTradeExit,
 } = require('../pp369');
 const { log } = require('../pp369/_logger');
 
@@ -209,6 +211,24 @@ async function startAutoTrade(coins) {
               `• Số lượng: <b>${order.origQty}</b>\n` +
               `• Đã chờ: <b>${((now - order.time) / 60000).toFixed(1)} phút</b>`
             ).catch(() => { });
+
+            // ── Record trade exit for AI Dataset (LIMIT_TIMEOUT) ──
+            const meta = activeTradesMetadata[sym];
+            if (meta) {
+              const holdingDurationMinutes = (Date.now() - (meta.time || Date.now())) / 60000;
+              recordTradeExit({
+                tradeId: `${sym}-${meta.orderId || 'timeout'}`,
+                orderId: String(meta.orderId || ''),
+                symbol: sym,
+                exitPrice: parseFloat(order.price),
+                exitTimestamp: Date.now(),
+                exitType: 'LIMIT_TIMEOUT',
+                pnlPercent: 0,
+                pnlUsd: 0,
+                holdingDurationMinutes: holdingDurationMinutes,
+                isWin: false,
+              });
+            }
           } catch (e) {
             log.warn(`[AutoTrade] Không thể hủy lệnh LIMIT của ${sym}: ${_binanceErr(e)}`);
             remainingOrders.push(order); // Giữ lại nếu hủy thất bại
@@ -251,7 +271,22 @@ async function startAutoTrade(coins) {
                     `• Giá hiện tại: <b>$${markPrice.toFixed(6)}</b> (+${bounceDisplayPct.toFixed(2)}%)\n` +
                     `• Giá đã nảy xa mốc → Hủy lệnh ngay lập tức`
                   ).catch(() => { });
+                  // ── Record trade exit for AI Dataset (BOUNCE_CANCEL) ──
                   if (activeTradesMetadata[sym]) {
+                    const metaCancel = activeTradesMetadata[sym];
+                    const holdingDurationMinutes = (Date.now() - (metaCancel.time || Date.now())) / 60000;
+                    recordTradeExit({
+                      tradeId: `${sym}-${metaCancel.orderId || 'bounce'}`,
+                      orderId: String(metaCancel.orderId || ''),
+                      symbol: sym,
+                      exitPrice: markPrice,
+                      exitTimestamp: Date.now(),
+                      exitType: 'BOUNCE_CANCEL',
+                      pnlPercent: 0,
+                      pnlUsd: 0,
+                      holdingDurationMinutes: holdingDurationMinutes,
+                      isWin: false,
+                    });
                     delete activeTradesMetadata[sym];
                     saveActiveTradesMetadata();
                   }
@@ -287,7 +322,22 @@ async function startAutoTrade(coins) {
                     `• Giá hiện tại: <b>$${markPrice.toFixed(6)}</b> (-${bounceDisplayPct.toFixed(2)}%)\n` +
                     `• Giá đã nảy xa mốc → Hủy lệnh ngay lập tức`
                   ).catch(() => { });
+                  // ── Record trade exit for AI Dataset (BOUNCE_CANCEL) ──
                   if (activeTradesMetadata[sym]) {
+                    const metaCancel = activeTradesMetadata[sym];
+                    const holdingDurationMinutes = (Date.now() - (metaCancel.time || Date.now())) / 60000;
+                    recordTradeExit({
+                      tradeId: `${sym}-${metaCancel.orderId || 'bounce'}`,
+                      orderId: String(metaCancel.orderId || ''),
+                      symbol: sym,
+                      exitPrice: markPrice,
+                      exitTimestamp: Date.now(),
+                      exitType: 'BOUNCE_CANCEL',
+                      pnlPercent: 0,
+                      pnlUsd: 0,
+                      holdingDurationMinutes: holdingDurationMinutes,
+                      isWin: false,
+                    });
                     delete activeTradesMetadata[sym];
                     saveActiveTradesMetadata();
                   }
@@ -377,27 +427,27 @@ async function startAutoTrade(coins) {
 
       // Phân bổ ký quỹ (Margin): Kết hợp Thang điểm Scorer PP369 + Thưởng Rank MarketCap
       const score = sig.score ?? 0;
-      let baseMargin = 20;
+      let baseMargin = 30;
       if (!isBtc && score < 5.5) {
         log.system(`[AutoTrade] ${sym} ${sig.signal} có Score = ${sig.score}đ < 5.5đ — bỏ qua`);
         continue;
       } else if (score >= 9.0) {
-        baseMargin = 50; // Lệnh Siêu phẩm (Top 1%): Base Margin $50
+        baseMargin = 60; // Lệnh Siêu phẩm (Top 1%): Base Margin $60
       } else if (score >= 8.0) {
-        baseMargin = 40; // Lệnh Rất đẹp: Base Margin $40
+        baseMargin = 50; // Lệnh Rất đẹp: Base Margin $50
       } else if (score >= 7.0) {
-        baseMargin = 30; // Lệnh Khá đẹp: Base Margin $30
+        baseMargin = 40; // Lệnh Khá đẹp: Base Margin $40
       } else {
-        baseMargin = 20; // Lệnh Tiêu chuẩn / BTC: Base Margin $20
+        baseMargin = 30; // Lệnh Tiêu chuẩn / BTC: Base Margin $30
       }
 
       // Thưởng thêm Ký quỹ (Bonus Margin) theo Xếp hạng vốn hóa MarketCap Rank
       const rank = getMarketCapRank ? getMarketCapRank(sym) : 999;
       let rankBonusMargin = 0;
       if (rank <= 10) {
-        rankBonusMargin = 20; // Top 1-10 (BTC, ETH, BNB, SOL, XRP, DOGE...): +$20
+        rankBonusMargin = 30; // Top 1-10 (BTC, ETH, BNB, SOL, XRP, DOGE...): +$30
       } else if (rank <= 30) {
-        rankBonusMargin = 10; // Top 11-30 (ADA, LINK, SUI, AVAX, NEAR...): +$10
+        rankBonusMargin = 15; // Top 11-30 (ADA, LINK, SUI, AVAX, NEAR...): +$15
       }
 
       const tradeAmount = baseMargin + rankBonusMargin;
@@ -430,6 +480,7 @@ async function startAutoTrade(coins) {
       // Pre-entry Bounce Check: Quét 150 nến M1 gần nhất xem giá có từng gần chạm mốc rồi nảy lên đỉnh cao nhất (LONG) / nảy xuống đáy thấp nhất (SHORT) tiếp theo chưa
       const preEntryBouncePct = pct / 5.5; // pct là grid step %
       const touchThresholdPct = 0.12;      // khoảng cách tiệm cận 0.12%
+      let maxRecentBouncePct = null;      // Giá trị bounce tối đa ghi nhận cho dataset
 
       if (sig.recentM1Candles && sig.recentM1Candles.length > 0) {
         const recentM1 = sig.recentM1Candles;
@@ -465,6 +516,8 @@ async function startAutoTrade(coins) {
             );
             continue;
           }
+          // Record max bounce for dataset if trade is allowed
+          maxRecentBouncePct = maxBouncePct;
         } else if (sig.signal === 'SHORT') {
           const touchZoneLower = sig.targetLevel * (1 - touchThresholdPct / 100);
           let maxDropPct = 0;
@@ -497,6 +550,8 @@ async function startAutoTrade(coins) {
             );
             continue;
           }
+          // Record max bounce for dataset if trade is allowed
+          maxRecentBouncePct = maxDropPct;
         }
       } else {
         // Fallback: So sánh trực tiếp markPrice với targetLevel nếu chưa có nến M1
@@ -571,9 +626,33 @@ async function startAutoTrade(coins) {
           gridStepPct: (sig.step / sig.targetLevel) * 100, // % grid theo giá entry
           orderId: order.orderId ?? null,  // Luồng 3: dùng để cancel đúng lệnh
           maxFavorablePrice: null,         // Luồng 3: giá xa nhất đúng chiều từ sau khi đặt lệnh
-          time: Date.now()
+          time: Date.now(),
+          // ── Dataset Collector ──
+          markPrice: markPrice,
+          scoreReasons: sig.scoreReasons,
+          marketCapRank: rank,
+          leverage: effectiveLeverage,
+          margin: tradeAmount,
+          maxRecentBouncePct: maxRecentBouncePct ?? null, // Calculated in pre-entry bounce check
         };
         saveActiveTradesMetadata();
+
+        // ── Record trade entry for AI Dataset ──
+        recordTradeEntry({
+          tradeId: `${sym}-${order.orderId || Date.now()}`,
+          orderId: String(order.orderId || ''),
+          symbol: sym,
+          signal: sig.signal,
+          entryPrice: sig.targetLevel,
+          markPrice: markPrice,
+          score: sig.score,
+          scoreReasons: sig.scoreReasons,
+          marketCapRank: rank,
+          gridWidthPct: pct,
+          maxRecentBouncePct: maxRecentBouncePct ?? null,
+          leverage: effectiveLeverage,
+          margin: tradeAmount,
+        });
 
         _markFired(sig); // Đánh dấu debounce sau khi đặt lệnh thành công
         notifySignals([sig]).catch(() => { }); // Gửi Telegram thông báo lệnh đã đặt thành công
@@ -705,6 +784,20 @@ async function checkPendingLimits(client, activeSymbols) {
             `• Giá hiện tại: <b>$${markPrice.toFixed(6)}</b> (+${displayPct.toFixed(2)}%)\n` +
             `• Giá đã nảy xa mốc → Hủy lệnh ngay lập tức`
           ).catch(() => { });
+          // ── Record trade exit for AI Dataset (BOUNCE_CANCEL) ──
+          const holdingDurationMinutes = (Date.now() - (meta.time || Date.now())) / 60000;
+          recordTradeExit({
+            tradeId: `${sym}-${meta.orderId || 'bounce'}`,
+            orderId: String(meta.orderId || ''),
+            symbol: sym,
+            exitPrice: markPrice,
+            exitTimestamp: Date.now(),
+            exitType: 'BOUNCE_CANCEL',
+            pnlPercent: 0,
+            pnlUsd: 0,
+            holdingDurationMinutes: holdingDurationMinutes,
+            isWin: false,
+          });
           delete activeTradesMetadata[sym];
           saveActiveTradesMetadata();
         } catch (e) {
@@ -744,6 +837,20 @@ async function checkPendingLimits(client, activeSymbols) {
             `• Giá hiện tại: <b>$${markPrice.toFixed(6)}</b> (-${displayPct.toFixed(2)}%)\n` +
             `• Giá đã nảy xa mốc → Hủy lệnh ngay lập tức`
           ).catch(() => { });
+          // ── Record trade exit for AI Dataset (BOUNCE_CANCEL) ──
+          const holdingDurationMinutes = (Date.now() - (meta.time || Date.now())) / 60000;
+          recordTradeExit({
+            tradeId: `${sym}-${meta.orderId || 'bounce'}`,
+            orderId: String(meta.orderId || ''),
+            symbol: sym,
+            exitPrice: markPrice,
+            exitTimestamp: Date.now(),
+            exitType: 'BOUNCE_CANCEL',
+            pnlPercent: 0,
+            pnlUsd: 0,
+            holdingDurationMinutes: holdingDurationMinutes,
+            isWin: false,
+          });
           delete activeTradesMetadata[sym];
           saveActiveTradesMetadata();
         } catch (e) {
@@ -793,7 +900,10 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
     for (const [prevSym, prevPos] of lastActivePositions.entries()) {
       const isStillOpen = positions.some(p => p.symbol === `${prevSym}USDT`);
       if (!isStillOpen) {
-        partialClosedSymbols.delete(prevSym); // Giải phóng trạng thái chốt lời một phần
+        partialClosedSymbols.delete(prevSym);
+
+        // Get metadata before deleting
+        const meta = activeTradesMetadata[prevSym];
 
         // Xóa metadata của vị thế đã đóng
         if (activeTradesMetadata[prevSym]) {
@@ -804,7 +914,7 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
         if (justClosedByBot.has(prevSym)) {
           justClosedByBot.delete(prevSym); // Bỏ qua vì bot đã chủ động gửi thông báo Virtual TP/SL rồi
         } else {
-          notifyRealClose(client, prevSym, prevPos).catch(() => { });
+          notifyRealClose(client, prevSym, prevPos, meta).catch(() => { });
         }
       }
     }
@@ -947,6 +1057,22 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
           justClosedByBot.add(sym);
           await client.placeMarket(sym, oppositeSide, absAmt);
           await sendTelegram(`🎯 <b>Take Profit (Virtual)</b>\n• Coin: <b>${sym}</b>\n• ROI đạt: <b>${roi.toFixed(2)}%</b>`);
+          // ── Record trade exit for AI Dataset ──
+          if (meta) {
+            const holdingDurationMinutes = (Date.now() - (meta.time || Date.now())) / 60000;
+            recordTradeExit({
+              tradeId: `${sym}-${meta.orderId || 'vTP'}`,
+              orderId: String(meta.orderId || ''),
+              symbol: sym,
+              exitPrice: markPrice,
+              exitTimestamp: Date.now(),
+              exitType: 'TP',
+              pnlPercent: roi,
+              pnlUsd: (roi / 100) * (meta.margin || 0),
+              holdingDurationMinutes: holdingDurationMinutes,
+              isWin: true,
+            });
+          }
         } catch (e) {
           justClosedByBot.delete(sym);
           log.error(`[AutoTrade] [Virtual TP] Lỗi đóng vị thế ${sym}: ${e.message}`);
@@ -1088,6 +1214,22 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
             justClosedByBot.add(sym);
             await client.placeMarket(sym, oppositeSide, absAmt);
             await sendTelegram(`🛡️ <b>${typeLabel} (Virtual)</b>\n• Coin: <b>${sym}</b>\n• ROI đạt: <b>${roi.toFixed(2)}%</b>`);
+            // ── Record trade exit for AI Dataset ──
+            if (meta) {
+              const holdingDurationMinutes = (Date.now() - (meta.time || Date.now())) / 60000;
+              recordTradeExit({
+                tradeId: `${sym}-${meta.orderId || 'vSL'}`,
+                orderId: String(meta.orderId || ''),
+                symbol: sym,
+                exitPrice: markPrice,
+                exitTimestamp: Date.now(),
+                exitType: typeLabel === 'Trailing SL' ? 'TRAILING_SL' : 'SL',
+                pnlPercent: roi,
+                pnlUsd: (roi / 100) * (meta.margin || 0),
+                holdingDurationMinutes: holdingDurationMinutes,
+                isWin: false,
+              });
+            }
           } catch (e) {
             justClosedByBot.delete(sym);
             log.error(`[AutoTrade] [${typeLabel}] Lỗi đóng vị thế ${sym}: ${e.message}`);
@@ -1114,7 +1256,7 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
   }
 }
 
-async function notifyRealClose(client, sym, prevPos) {
+async function notifyRealClose(client, sym, prevPos, meta) {
   try {
     // Chờ 1.5 giây để Binance Futures cập nhật đầy đủ lịch sử giao dịch đóng vị thế
     await new Promise(resolve => setTimeout(resolve, 1500));
@@ -1147,16 +1289,38 @@ async function notifyRealClose(client, sym, prevPos) {
 
     // Phân loại lý do đóng
     let label = '🛡️ Đóng vị thế (Sàn khớp)';
+    let exitType = 'SL';
     if (hasTradeData) {
       if (realizedProfit < 0) {
         label = '🛡️ Stop Loss';
+        exitType = 'SL';
       } else if (roi >= 15) {
         label = '🎯 Take Profit';
+        exitType = 'TP';
       } else if (roi >= 4) {
         label = '🛡️ Trailing SL (Khóa lãi)';
+        exitType = 'TRAILING_SL';
       } else {
         label = '🛡️ Trailing SL (Hòa vốn)';
+        exitType = 'TRAILING_SL';
       }
+    }
+
+    // ── Record trade exit for AI Dataset ──
+    if (meta) {
+      const holdingDurationMinutes = (Date.now() - (meta.time || Date.now())) / 60000;
+      recordTradeExit({
+        tradeId: `${sym}-${meta.orderId || 'real'}`,
+        orderId: String(meta.orderId || ''),
+        symbol: sym,
+        exitPrice: closePrice || markPrice,
+        exitTimestamp: Date.now(),
+        exitType: exitType,
+        pnlPercent: roi,
+        pnlUsd: realizedProfit,
+        holdingDurationMinutes: holdingDurationMinutes,
+        isWin: hasTradeData && realizedProfit >= 0,
+      });
     }
 
     const roiStr = hasTradeData ? `\n• ROI đạt: <b>${roi.toFixed(2)}%</b>` : '';
