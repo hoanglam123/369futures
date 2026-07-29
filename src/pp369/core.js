@@ -43,6 +43,38 @@ const GRID_MAX_PCT = 25;         // 25%
 
 let _top100SymbolsCache = null;
 let _top100CacheTime = 0;
+let _marketCapRankMapCache = null;
+let _marketCapRankCacheTime = 0;
+
+function getMarketCapRankMapSync() {
+  const now = Date.now();
+  if (_marketCapRankMapCache && (now - _marketCapRankCacheTime < 60 * 60 * 1000)) {
+    return _marketCapRankMapCache;
+  }
+  const map = new Map();
+  try {
+    const filePath = path.join(process.cwd(), 'data', 'market_cap_top.json');
+    if (fs.existsSync(filePath)) {
+      const content = fs.readFileSync(filePath, 'utf8');
+      const data = JSON.parse(content);
+      if (Array.isArray(data.symbols)) {
+        data.symbols.forEach((sym, idx) => {
+          map.set(sym.toUpperCase(), idx + 1);
+        });
+      }
+    }
+  } catch (_) {}
+  _marketCapRankMapCache = map;
+  _marketCapRankCacheTime = now;
+  return map;
+}
+
+function getMarketCapRank(symbol) {
+  if (!symbol) return 999;
+  const cleanSym = symbol.toUpperCase().replace(/USDT$/, '');
+  const rankMap = getMarketCapRankMapSync();
+  return rankMap.get(cleanSym) ?? 999;
+}
 
 function getTop100SymbolsSync() {
   const now = Date.now();
@@ -2051,5 +2083,5 @@ module.exports = {
   get369Signal, get369SignalsForCoins, score369Method, format369ForPrompt,
   getLevelCache, overrideLevelLastSide, PROXIMITY_PCT, getDecimals, getStep,
   initH4Cache, YEAR_START_MS,
-  getGridStepPct, isGridWidthValid, GRID_MIN_PCT, GRID_MIN_PCT_TOP100, GRID_MAX_PCT, getMinGridPct, isTop100Symbol,
+  getGridStepPct, isGridWidthValid, GRID_MIN_PCT, GRID_MIN_PCT_TOP100, GRID_MAX_PCT, getMinGridPct, isTop100Symbol, getMarketCapRank,
 };
