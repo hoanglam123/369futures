@@ -29,6 +29,7 @@ const {
   score369Method,
   isGridWidthValid,
   YEAR_START_MS,
+  getMarketCapRank,
 } = require('../pp369');
 const { log } = require('../pp369/_logger');
 
@@ -374,21 +375,32 @@ async function startAutoTrade(coins) {
         continue;
       }
 
-      // Phân bổ ký quỹ (Margin) theo trần Max Score = 10.5đ (Riêng BTC vào lệnh không quan tâm điểm số, dùng Margin mặc định $20 khi < 5.5đ)
+      // Phân bổ ký quỹ (Margin): Kết hợp Thang điểm Scorer PP369 + Thưởng Rank MarketCap
       const score = sig.score ?? 0;
-      let tradeAmount = 20;
+      let baseMargin = 20;
       if (!isBtc && score < 5.5) {
         log.system(`[AutoTrade] ${sym} ${sig.signal} có Score = ${sig.score}đ < 5.5đ — bỏ qua`);
         continue;
       } else if (score >= 9.0) {
-        tradeAmount = 50; // Lệnh Siêu phẩm (Top 1%): Margin $50
+        baseMargin = 50; // Lệnh Siêu phẩm (Top 1%): Base Margin $50
       } else if (score >= 8.0) {
-        tradeAmount = 40; // Lệnh Rất đẹp: Margin $40
+        baseMargin = 40; // Lệnh Rất đẹp: Base Margin $40
       } else if (score >= 7.0) {
-        tradeAmount = 30; // Lệnh Khá đẹp: Margin $30
+        baseMargin = 30; // Lệnh Khá đẹp: Base Margin $30
       } else {
-        tradeAmount = 20; // Lệnh Tiêu chuẩn / BTC: Margin $20
+        baseMargin = 20; // Lệnh Tiêu chuẩn / BTC: Base Margin $20
       }
+
+      // Thưởng thêm Ký quỹ (Bonus Margin) theo Xếp hạng vốn hóa MarketCap Rank
+      const rank = getMarketCapRank ? getMarketCapRank(sym) : 999;
+      let rankBonusMargin = 0;
+      if (rank <= 10) {
+        rankBonusMargin = 20; // Top 1-10 (BTC, ETH, BNB, SOL, XRP, DOGE...): +$20
+      } else if (rank <= 30) {
+        rankBonusMargin = 10; // Top 11-30 (ADA, LINK, SUI, AVAX, NEAR...): +$10
+      }
+
+      const tradeAmount = baseMargin + rankBonusMargin;
 
       // Dow & Trendline đóng vai trò tiêu chí phụ trợ (+0đ đến +2đ). 
       // Quyết định vào lệnh hoàn toàn phụ thuộc vào tổng điểm Scorer PP369 (Score >= 5.5đ).

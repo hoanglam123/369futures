@@ -47,6 +47,7 @@ module.exports = {
   GRID_MAX_PCT:          core.GRID_MAX_PCT,
   getMinGridPct:         core.getMinGridPct,
   isTop100Symbol:        core.isTop100Symbol,
+  getMarketCapRank:      core.getMarketCapRank,
 
   // ── WebSocket stream ─────────────────────────────────────────────────────
   start369Stream:   stream.start369Stream,
