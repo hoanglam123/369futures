@@ -431,7 +431,7 @@ async function startAutoTrade(coins) {
           scoreReasons: sig.scoreReasons || [],
           skipReason: 'NO_VOLATILITY_FILTER',
           markPrice: markPrice,
-          marketCapRank: rank,
+          marketCapRank: getMarketCapRank ? getMarketCapRank(sym) : 999,
         });
         continue;
       }
@@ -450,7 +450,7 @@ async function startAutoTrade(coins) {
           scoreReasons: sig.scoreReasons || [],
           skipReason: 'SCORE_TOO_LOW',
           markPrice: markPrice,
-          marketCapRank: rank,
+          marketCapRank: getMarketCapRank ? getMarketCapRank(sym) : 999,
         });
         continue;
       } else if (score >= 9.0) {
