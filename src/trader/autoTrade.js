@@ -415,7 +415,7 @@ async function startAutoTrade(coins) {
       const gridWidth = Math.abs(sig.condLevel - sig.targetLevel);
       const pct = (gridWidth / Math.min(sig.targetLevel, sig.condLevel)) * 100;
 
-      // Pre-entry Bounce Check: Kiểm tra lại các nến M1 gần đây (30 nến M1 mới nhất) xem giá đã gần chạm mốc rồi nảy lên/xuống chưa
+      // Pre-entry Bounce Check: Quét 150 nến M1 gần nhất xem giá có từng gần chạm mốc rồi nảy lên đỉnh cao nhất (LONG) / nảy xuống đáy thấp nhất (SHORT) tiếp theo chưa
       const preEntryBouncePct = pct / 5.5; // pct là grid step %
       const touchThresholdPct = 0.12;      // khoảng cách tiệm cận 0.12%
 
@@ -423,31 +423,67 @@ async function startAutoTrade(coins) {
         const recentM1 = sig.recentM1Candles;
         if (sig.signal === 'LONG') {
           const touchZoneUpper = sig.targetLevel * (1 + touchThresholdPct / 100);
-          const touchedCandles = recentM1.filter(c => c.low <= touchZoneUpper);
-          if (touchedCandles.length > 0) {
-            const minTouchedLow = Math.min(...touchedCandles.map(c => c.low));
-            const bouncedAwayPct = ((markPrice - minTouchedLow) / minTouchedLow) * 100;
-            if (bouncedAwayPct >= preEntryBouncePct) {
-              log.system(
-                `[AutoTrade] ${sym} LONG: Nến M1 gần đây đã gần chạm mốc (thấp nhất $${minTouchedLow.toFixed(6)}) ` +
-                `rồi nảy lên $${markPrice.toFixed(6)} (+${bouncedAwayPct.toFixed(2)}% >= ${preEntryBouncePct.toFixed(2)}%) — bỏ qua không đặt lệnh LIMIT stale.`
-              );
-              continue;
+          let maxBouncePct = 0;
+          let bestTouchLow = 0;
+          let bestPeakHigh = 0;
+
+          for (let i = 0; i < recentM1.length; i++) {
+            const candle = recentM1[i];
+            if (candle.low <= touchZoneUpper) {
+              const touchLow = candle.low;
+              let peakHigh = markPrice;
+              for (let j = i; j < recentM1.length; j++) {
+                if (recentM1[j].high > peakHigh) {
+                  peakHigh = recentM1[j].high;
+                }
+              }
+              const bouncePct = ((peakHigh - touchLow) / touchLow) * 100;
+              if (bouncePct > maxBouncePct) {
+                maxBouncePct = bouncePct;
+                bestTouchLow = touchLow;
+                bestPeakHigh = peakHigh;
+              }
             }
+          }
+
+          if (maxBouncePct >= preEntryBouncePct) {
+            log.system(
+              `[AutoTrade] ${sym} LONG: Trong 150 nến M1 gần nhất đã từng chạm mốc ($${bestTouchLow.toFixed(6)}) ` +
+              `rồi nảy lên đỉnh $${bestPeakHigh.toFixed(6)} (+${maxBouncePct.toFixed(2)}% >= ${preEntryBouncePct.toFixed(2)}%) — bỏ qua không đặt lệnh LIMIT stale.`
+            );
+            continue;
           }
         } else if (sig.signal === 'SHORT') {
           const touchZoneLower = sig.targetLevel * (1 - touchThresholdPct / 100);
-          const touchedCandles = recentM1.filter(c => c.high >= touchZoneLower);
-          if (touchedCandles.length > 0) {
-            const maxTouchedHigh = Math.max(...touchedCandles.map(c => c.high));
-            const bouncedAwayPct = ((maxTouchedHigh - markPrice) / maxTouchedHigh) * 100;
-            if (bouncedAwayPct >= preEntryBouncePct) {
-              log.system(
-                `[AutoTrade] ${sym} SHORT: Nến M1 gần đây đã gần chạm mốc (cao nhất $${maxTouchedHigh.toFixed(6)}) ` +
-                `rồi nảy xuống $${markPrice.toFixed(6)} (-${bouncedAwayPct.toFixed(2)}% >= ${preEntryBouncePct.toFixed(2)}%) — bỏ qua không đặt lệnh LIMIT stale.`
-              );
-              continue;
+          let maxDropPct = 0;
+          let bestTouchHigh = 0;
+          let bestTroughLow = 0;
+
+          for (let i = 0; i < recentM1.length; i++) {
+            const candle = recentM1[i];
+            if (candle.high >= touchZoneLower) {
+              const touchHigh = candle.high;
+              let troughLow = markPrice;
+              for (let j = i; j < recentM1.length; j++) {
+                if (recentM1[j].low < troughLow) {
+                  troughLow = recentM1[j].low;
+                }
+              }
+              const dropPct = ((touchHigh - troughLow) / touchHigh) * 100;
+              if (dropPct > maxDropPct) {
+                maxDropPct = dropPct;
+                bestTouchHigh = touchHigh;
+                bestTroughLow = troughLow;
+              }
             }
+          }
+
+          if (maxDropPct >= preEntryBouncePct) {
+            log.system(
+              `[AutoTrade] ${sym} SHORT: Trong 150 nến M1 gần nhất đã từng chạm mốc ($${bestTouchHigh.toFixed(6)}) ` +
+              `rồi nảy xuống đáy $${bestTroughLow.toFixed(6)} (-${maxDropPct.toFixed(2)}% >= ${preEntryBouncePct.toFixed(2)}%) — bỏ qua không đặt lệnh LIMIT stale.`
+            );
+            continue;
           }
         }
       } else {
