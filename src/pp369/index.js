@@ -23,6 +23,7 @@ const signalLog      = require('./signalLog');
 const formatter      = require('./formatter');
 const telegram       = require('./telegram');
 const datasetCollector = require('./datasetCollector');
+const signalTracker   = require('./signalTracker');
 
 module.exports = {
   // ── Cấu hình (optional) ──────────────────────────────────────────────────
@@ -34,6 +35,11 @@ module.exports = {
   recordTradeEntry:   datasetCollector.recordTradeEntry,
   recordTradeExit:    datasetCollector.recordTradeExit,
   getDatasetStats:    datasetCollector.getDatasetStats,
+
+  // ── Skipped Signals Tracker ─────────────────────────────────────────────
+  recordSkippedSignal:   signalTracker.recordSkippedSignal,
+  getSkippedSignalsStats: signalTracker.getSkippedSignalsStats,
+  setSignalTrackerLogger: signalTracker.setLogger,
 
   // ── Core strategy ────────────────────────────────────────────────────────
   get369Signal:          core.get369Signal,
