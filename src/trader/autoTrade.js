@@ -32,6 +32,7 @@ const {
   getMarketCapRank,
   recordTradeEntry,
   recordTradeExit,
+  recordSkippedSignal,
 } = require('../pp369');
 const { log } = require('../pp369/_logger');
 
@@ -422,6 +423,16 @@ async function startAutoTrade(coins) {
       const hasCriterion2 = sig.scoreReasons && sig.scoreReasons.some(r => r.includes('[Biến động H1/M15]') && !r.includes('(+0đ)'));
       if (!isBtc && !hasCriterion2) {
         log.system(`[AutoTrade] ${sym} ${sig.signal} không đạt Tiêu chí 2 (Biến động H1/M15 an toàn) — bỏ qua`);
+        recordSkippedSignal({
+          symbol: sym,
+          signal: sig.signal,
+          signalPrice: sig.targetLevel,
+          score: sig.score ?? 0,
+          scoreReasons: sig.scoreReasons || [],
+          skipReason: 'NO_VOLATILITY_FILTER',
+          markPrice: markPrice,
+          marketCapRank: rank,
+        });
         continue;
       }
 
@@ -430,6 +441,17 @@ async function startAutoTrade(coins) {
       let baseMargin = 30;
       if (!isBtc && score < 5.5) {
         log.system(`[AutoTrade] ${sym} ${sig.signal} có Score = ${sig.score}đ < 5.5đ — bỏ qua`);
+        // Ghi log để backfill phân tích (không ảnh hưởng hiệu năng)
+        recordSkippedSignal({
+          symbol: sym,
+          signal: sig.signal,
+          signalPrice: sig.targetLevel,
+          score: sig.score,
+          scoreReasons: sig.scoreReasons || [],
+          skipReason: 'SCORE_TOO_LOW',
+          markPrice: markPrice,
+          marketCapRank: rank,
+        });
         continue;
       } else if (score >= 9.0) {
         baseMargin = 60; // Lệnh Siêu phẩm (Top 1%): Base Margin $60
@@ -445,9 +467,9 @@ async function startAutoTrade(coins) {
       const rank = getMarketCapRank ? getMarketCapRank(sym) : 999;
       let rankBonusMargin = 0;
       if (rank <= 10) {
-        rankBonusMargin = 30; // Top 1-10 (BTC, ETH, BNB, SOL, XRP, DOGE...): +$30
+        rankBonusMargin = 20; // Top 1-10 (BTC, ETH, BNB, SOL, XRP, DOGE...): +$20
       } else if (rank <= 30) {
-        rankBonusMargin = 15; // Top 11-30 (ADA, LINK, SUI, AVAX, NEAR...): +$15
+        rankBonusMargin = 10; // Top 11-30 (ADA, LINK, SUI, AVAX, NEAR...): +$10
       }
 
       const tradeAmount = baseMargin + rankBonusMargin;
@@ -459,6 +481,16 @@ async function startAutoTrade(coins) {
       // Kiểm tra debounce
       if (_isDebounced(sig)) {
         log.system(`[AutoTrade] ${sym} ${sig.signal} đã đặt gần đây — bỏ qua`);
+        recordSkippedSignal({
+          symbol: sym,
+          signal: sig.signal,
+          signalPrice: sig.targetLevel,
+          score: sig.score ?? 0,
+          scoreReasons: sig.scoreReasons || [],
+          skipReason: 'DEBOUNCED',
+          markPrice: markPrice,
+          marketCapRank: rank,
+        });
         continue;
       }
 
