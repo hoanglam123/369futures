@@ -237,6 +237,13 @@ async function startAutoTrade(coins) {
         } else {
           // ── Bounce Cancel: phát hiện giá đã chạm vùng entry rồi bật ra mạnh ───
           const sym = order.symbol.replace('USDT', '');
+          const hasOpenPosition = currentPos.some(p => p.symbol === `${sym}USDT` && parseFloat(p.positionAmt) !== 0);
+          if (hasOpenPosition) {
+            // Nếu đã có vị thế mở trên sàn -> Không Bounce Cancel và KHÔNG xóa metadata vị thế!
+            remainingOrders.push(order);
+            continue;
+          }
+
           const meta = activeTradesMetadata[sym];
           const markPrice = getMarkPrice(sym);
 
@@ -849,14 +856,22 @@ async function checkPendingLimits(client, activeSymbols) {
             holdingDurationMinutes: holdingDurationMinutes,
             isWin: false,
           });
-          delete activeTradesMetadata[sym];
-          saveActiveTradesMetadata();
+          if (!lastActivePositions.has(sym)) {
+            delete activeTradesMetadata[sym];
+            saveActiveTradesMetadata();
+          } else {
+            meta.orderId = null;
+          }
         } catch (e) {
           const errStr = _binanceErr(e);
           log.warn(`[AutoTrade] [BounceCancel] Không hủy được LIMIT ${sym}: ${errStr}`);
           if (errStr.includes('-2011') || errStr.includes('Unknown order')) {
-            delete activeTradesMetadata[sym];
-            saveActiveTradesMetadata();
+            if (!lastActivePositions.has(sym)) {
+              delete activeTradesMetadata[sym];
+              saveActiveTradesMetadata();
+            } else {
+              meta.orderId = null;
+            }
           }
         }
       }
@@ -902,14 +917,22 @@ async function checkPendingLimits(client, activeSymbols) {
             holdingDurationMinutes: holdingDurationMinutes,
             isWin: false,
           });
-          delete activeTradesMetadata[sym];
-          saveActiveTradesMetadata();
+          if (!lastActivePositions.has(sym)) {
+            delete activeTradesMetadata[sym];
+            saveActiveTradesMetadata();
+          } else {
+            meta.orderId = null;
+          }
         } catch (e) {
           const errStr = _binanceErr(e);
           log.warn(`[AutoTrade] [BounceCancel] Không hủy được LIMIT ${sym}: ${errStr}`);
           if (errStr.includes('-2011') || errStr.includes('Unknown order')) {
-            delete activeTradesMetadata[sym];
-            saveActiveTradesMetadata();
+            if (!lastActivePositions.has(sym)) {
+              delete activeTradesMetadata[sym];
+              saveActiveTradesMetadata();
+            } else {
+              meta.orderId = null;
+            }
           }
         }
       }
@@ -1075,9 +1098,9 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
           trailTrigger = 5;
           trailSlRoi = 1;
         } else if (score < 7) {
-          // Lệnh điểm thấp (dưới 7đ, tức là [6.0 - 7.0)) và thuận xu hướng: TP=10%, SL 10%, lãi 5% dịch SL về mức hòa vốn (ROI +1%)
-          tpPct = 10;
-          slPct = -10;
+          // Lệnh điểm thấp (dưới 7đ, tức là [6.0 - 7.0)) và thuận xu hướng: TP=13%, SL 13%, lãi 5% dịch SL về mức hòa vốn (ROI +1%)
+          tpPct = 13;
+          slPct = -13;
           trailTrigger = 5;
           trailSlRoi = 1;
         } else if (score < 8) {
