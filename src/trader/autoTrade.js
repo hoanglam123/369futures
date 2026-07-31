@@ -848,9 +848,11 @@ async function checkPendingLimits(client, activeSymbols) {
       const maxFav = meta.maxFavorablePrice;
       const maxBouncedPct = ((maxFav - entry) / entry) * 100;
       const currentBouncedPct = ((markPrice - entry) / entry) * 100;
+      const maxBouncedRoi = maxBouncedPct * (meta.leverage || 1);
+      const currentBouncedRoi = currentBouncedPct * (meta.leverage || 1);
 
-      // Hủy ngay lập tức khi giá đã nảy xa khỏi entry (hiện tại hoặc đỉnh điểm >= bouncePct)
-      if (currentBouncedPct >= bouncePct || maxBouncedPct >= bouncePct) {
+      // Hủy ngay lập tức khi giá đã nảy xa khỏi entry (hiện tại hoặc đỉnh điểm >= bouncePct hoặc ROI >= 5%)
+      if (currentBouncedPct >= bouncePct || maxBouncedPct >= bouncePct || currentBouncedRoi >= 5.0 || maxBouncedRoi >= 5.0) {
         const displayPct = currentBouncedPct >= bouncePct ? currentBouncedPct : maxBouncedPct;
         log.system(
           `[AutoTrade] [BounceCancel] ${sym} LONG: ` +
@@ -909,9 +911,11 @@ async function checkPendingLimits(client, activeSymbols) {
       const minFav = meta.maxFavorablePrice;
       const maxBouncedPct = ((entry - minFav) / entry) * 100;
       const currentBouncedPct = ((entry - markPrice) / entry) * 100;
+      const maxBouncedRoi = maxBouncedPct * (meta.leverage || 1);
+      const currentBouncedRoi = currentBouncedPct * (meta.leverage || 1);
 
-      // Hủy ngay lập tức khi giá đã nảy xa khỏi entry (hiện tại hoặc đáy điểm >= bouncePct)
-      if (currentBouncedPct >= bouncePct || maxBouncedPct >= bouncePct) {
+      // Hủy ngay lập tức khi giá đã nảy xa khỏi entry (hiện tại hoặc đáy điểm >= bouncePct hoặc ROI >= 5%)
+      if (currentBouncedPct >= bouncePct || maxBouncedPct >= bouncePct || currentBouncedRoi >= 5.0 || maxBouncedRoi >= 5.0) {
         const displayPct = currentBouncedPct >= bouncePct ? currentBouncedPct : maxBouncedPct;
         log.system(
           `[AutoTrade] [BounceCancel] ${sym} SHORT: ` +
@@ -1098,12 +1102,21 @@ async function checkH1RetestSignals(client) {
       const tradeAmount = 20; // Margin cơ bản $20 cho lệnh Retest H1
       const notional = tradeAmount * leverage;
       const { qty } = calcQuantity(sym, notional, targetLevel);
+      const dec = getDecimals(targetLevel);
 
-      if (qty > 0) {
-        try { await client.setLeverage(sym, leverage); } catch (_) {}
+      if (qty <= 0) {
+        log.warn(`[H1Retest] ${sym}: quantity calculation <= 0 — bỏ qua không đặt limit`);
+        delete lowScoreWatchlist[sym];
+        continue;
+      }
 
-        const limitOrder = await client.placeLimitOrder(sym, side, qty, targetLevel);
+      try {
+        try { await client.setLeverage(sym, leverage); } catch (_) { }
+
+        const limitOrder = await client.placeLimit(sym, side, qty, targetLevel, dec);
         const limitId = limitOrder.orderId || limitOrder.id || 'unknown';
+
+        log.system(`[H1Retest] ✓ Đã đặt thành công lệnh LIMIT Retest H1 cho ${sym} ${side} ${qty} @ $${targetLevel} (orderId=${limitId})`);
 
         // Đưa thông tin vào activeTradesMetadata để luồng Trailing SL và Bounce Cancel tự động quản lý!
         activeTradesMetadata[sym] = {
@@ -1123,15 +1136,21 @@ async function checkH1RetestSignals(client) {
         };
         saveActiveTradesMetadata();
 
-        // Xóa khỏi watchlist vì đã đặt lệnh
+        // Xóa khỏi watchlist vì đã đặt lệnh thành công
         delete lowScoreWatchlist[sym];
 
+        // Bắn thông báo Telegram
         await sendTelegram(
-          `🎯 <b>[H1 Retest] Đặt lệnh LIMIT Retest H1</b>\n` +
-          `• Coin: <b>${sym} ${signal}</b>\n` +
-          `• Entry Limit: <b>$${targetLevel}</b> (Đòn bẩy: <b>${leverage}x</b>)\n` +
-          `• Score gốc: <b>${watchData.score}đ</b> (Nến H1 đóng rút chân chuẩn tại Entry, chưa nảy đủ 5% ROI)`
+          `🎯 <b>[AutoTrade] Lệnh LIMIT Retest H1</b>\n` +
+          `• Coin: <b>${sym}USDT (${signal})</b>\n` +
+          `• Giá Entry: <b>$${targetLevel}</b>\n` +
+          `• Đòn bẩy: <b>${leverage}x</b> (Ký quỹ: $${tradeAmount})\n` +
+          `• Score gốc: <b>${watchData.score}đ</b>\n` +
+          `• Lý do: Nến H1 đóng rút chân chuẩn tại Entry, chưa nảy đủ 5% ROI (Max ROI: +${maxFavorableRoi.toFixed(2)}%)`
         );
+      } catch (err) {
+        log.error(`[H1Retest] Lỗi đặt lệnh LIMIT cho ${sym}: ${err.message}`);
+        delete lowScoreWatchlist[sym];
       }
     } catch (e) {
       log.error(`[H1Retest] Lỗi xử lý ${sym}: ${e.message}`);
