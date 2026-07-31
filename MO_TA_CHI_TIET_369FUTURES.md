@@ -245,6 +245,19 @@ Chạy mỗi 5 giây (`checkTrailingSL`):
 - Luồng `checkPendingOrders` và `checkPendingLimits` được trang bị bộ kiểm tra `hasOpenPosition` / `lastActivePositions.has(sym)`.
 - Nếu vị thế đã khớp và đang mở trên Binance, luồng Bounce Cancel **tuyệt đối không được xóa** `activeTradesMetadata[sym]`, đảm bảo luồng Trailing SL giữ nguyên Score gốc và chạy đúng mốc trigger $+5\%$ ROI.
 
+### 5.6. Chiến Lược H1 Retest Cho Các Mã Score Thấp (`lowScoreWatchlist`)
+
+Nhằm không bỏ lỡ cơ hội ở các mã có điểm Scorer chưa đủ lớn ($\text{Score} < 5.5$đ):
+
+1. **Watchlist theo dõi**: Các mã bị loại ban đầu do điểm thấp được đưa vào `lowScoreWatchlist`.
+2. **Kiểm tra Nến H1 Đóng Cửa (Phút 00 mỗi giờ - `checkH1RetestSignals`)**:
+   - Tải 60 nến 1M của giờ H1 vừa đóng.
+   - Kiểm tra nến H1 rút chân/rút râu tại Entry ($\text{Low} \le \text{Entry}$ VÀ $\text{Close} > \text{Entry}$ với LONG).
+   - Quét chuỗi nến 1M từ thời điểm chạm Entry đầu tiên:
+     - Nếu đã phản ứng nảy $\text{ROI} \ge +5\%$ $\rightarrow$ Bỏ qua (sóng đã chạy).
+     - Nếu chưa nảy đủ $+5\%$ ROI $\rightarrow$ **ĐẶT LỆNH LIMIT TẠI ENTRY** (Ký quỹ $\$20$).
+3. **Hủy Lệnh Chờ**: Nếu lệnh LIMIT đang chờ mà giá chạy vọt $\text{ROI} \ge +5\%$ mà chưa khớp $\rightarrow$ Luồng Bounce Cancel tự động hủy lệnh LIMIT ngay lập tức.
+
 ---
 
 ## 6. HỆ THỐNG THU THẬP DỮ LIỆU AI (DATASET COLLECTOR)
