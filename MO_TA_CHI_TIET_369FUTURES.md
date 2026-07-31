@@ -200,8 +200,8 @@ Mỗi tín hiệu phát ra được chấm điểm theo thang tổng hợp (Scor
 
 ### 5.2. Tính Đòn bẩy & Ký quỹ Mục tiêu (Dynamic Margin & Leverage)
 
-- **Đòn bẩy Động (`effectiveLeverage`)**:
-  $$\text{Calculated Leverage} = \lfloor \frac{50}{\text{GridStepPct}} \rfloor$$
+- **Đòn bẩy Động (`effectiveLeverage`)**: Đảm bảo khoảng cách SL $= 1 \text{ Unit} = \frac{\text{Step}}{3}$ luôn bằng đúng **$-13\%$ Margin**:
+  $$\text{Calculated Leverage} = \lfloor \frac{39}{\text{GridStepPct}} \rfloor$$
   $$\text{Effective Leverage} = \max(1, \min(\text{Calculated Leverage}, \text{Max Allowed by Binance}))$$
 - **Ký quỹ Mục tiêu (Target Margin)** theo Điểm Score:
   - Score $\ge 9.0$đ: Ký quỹ **$50 USDT**.
@@ -223,17 +223,18 @@ Mỗi tín hiệu phát ra được chấm điểm theo thang tổng hợp (Scor
 
 Chạy mỗi 5 giây (`checkTrailingSL`):
 
-#### Quyết định Tỷ lệ TP / SL theo Metadata Vị Thế:
+#### Quy tắc TP / SL / Trailing SL theo Đơn Vị Bước Giá ($\text{Unit} = \frac{\text{Step}}{3}$):
 
-- **Lệnh Ngược Trend H4**: $\text{TP} = 10\%$ ROI, $\text{SL} = -8\%$ ROI, $\text{TrailTrigger} = 5\%$ ROI.
-- **Lệnh Điểm Thấp ($\text{Score} < 7.0$đ)**: $\text{TP} = 13\%$ ROI, $\text{SL} = -13\%$ ROI, $\text{TrailTrigger} = 5\%$ ROI.
-- **Lệnh Điểm Trung Bình ($7.0 \le \text{Score} < 8.0$đ)**: $\text{TP} = 20\%$ ROI, $\text{SL} = -13\%$ ROI, $\text{TrailTrigger} = 9\%$ ROI.
-- **Lệnh Điểm Cao ($\text{Score} \ge 8.0$đ)**: $\text{TP} = 25\%$ ROI, $\text{SL} = -15\%$ ROI, $\text{TrailTrigger} = 9\%$ ROI.
-
-#### Cơ chế Trailing SL (Dời Stop Loss):
-Khi $\text{ROI} \ge \text{TrailTrigger}$ (ví dụ $+5\%$ ROI):
-- Bot hủy lệnh SL cũ trên sàn.
-- Phát lệnh `STOP_MARKET` mới lên sàn tại mốc: $\text{Entry} + 1\%$ ROI (tương đương dời về mốc Hòa vốn + bảo vệ phí).
+- **Đơn vị cơ sở**: $\text{Unit} = \frac{\text{Step}}{3}$ (Ví dụ: giá $\$5.086$ có $\text{Step} = 0.300 \rightarrow \text{Unit} = 0.100$).
+- **Mốc Stop Loss (SL)**: 
+  * $\text{SL Price} = \text{Entry} \pm \text{Unit}$ (Giữ nguyên cho mọi tầng điểm, chuẩn **$-13\%$ Margin** với đòn bẩy $\lfloor \frac{39}{\text{GridStepPct}} \rfloor$).
+- **Mốc Take Profit (TP)** theo 3 Tầng Điểm Score:
+  * **Score $< 7.0$đ (hoặc Ngược Trend)**: $\text{TP Distance} = \text{Unit} \times 0.9$ (90 ticks khi step=300, ví dụ $+0.090 \rightarrow \text{TP} = 5.176$).
+  * **Score $< 8.0$đ ($7.0 - 7.9$đ)**: $\text{TP Distance} = \text{Unit} \times 1.2$ (120 ticks khi step=300, ví dụ $+0.120 \rightarrow \text{TP} = 5.206$).
+  * **Score $\ge 8.0$đ ($\ge 8.0$đ)**: $\text{TP Distance} = \text{Unit} \times 1.5$ (150 ticks khi step=300, ví dụ $+0.150 \rightarrow \text{TP} = 5.236$).
+- **Mốc Dời Trailing SL (Hòa vốn)**:
+  * $\text{Trail Trigger Distance} = \text{Unit} \times 0.45$ (**Cố định 45 ticks** khi step=300 cho **tất cả các thang điểm Score**, ví dụ $+0.045$ với giá $5.086 \rightarrow \text{Trigger} = 5.131$).
+  * Khi giá chạm mốc này, Bot lập tức dời SL trên sàn về mốc **Entry $+ 1\%$ ROI** (Bảo vệ hòa vốn + phí).
 
 #### Cơ chế Virtual TP & Virtual SL (Bảo vệ Kép):
 - Trong mọi chu kỳ quét WebSocket, nếu ROI vượt quá `tpPct` hoặc sụt quá `slPct`, Bot tự động đóng vị thế bằng lệnh **MARKET** ngay lập tức, phòng trường hợp sàn Binance bị nghẽn API hoặc giá quét nhanh rút râu.

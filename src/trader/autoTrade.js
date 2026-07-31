@@ -22,6 +22,7 @@ const {
   getMarkPrice,
   getNearbySymbols,
   getDecimals,
+  getStep,
   updatePricesRest,
   syncWebSocketSubscriptions,
   notifySignals,
@@ -627,7 +628,8 @@ async function startAutoTrade(coins) {
           }
         }
       }
-      const calculatedLeverage = Math.floor(50 / pct);
+      // Đòn bẩy tính theo quy định SL = unit (step / 3) tương đương đúng -13% Margin
+      const calculatedLeverage = Math.floor(39 / pct); // 13% * 3 / pct
       const maxAllowed = leverageInfo[sym] ?? leverage; // leverage mặc định từ .env làm fallback
       const effectiveLeverage = Math.max(1, Math.min(calculatedLeverage, maxAllowed));
 
@@ -1078,59 +1080,68 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
       ];
 
       // ----------------------------------------------------
-      // Lấy cấu hình TP/SL dựa trên metadata của lệnh
+      // Lấy cấu hình TP/SL dựa trên Quy Tắc Bước Giá (Unit = Step / 3)
       // ----------------------------------------------------
       const meta = activeTradesMetadata[sym];
 
-      let tpPct = 20;        // ROI % chốt lời (mặc định)
-      let slPct = -13;       // ROI % cắt lỗ (mặc định)
-      let trailTrigger = 9;  // ROI % để bắt đầu dời SL về entry
-      let trailSlRoi = 1;    // ROI % sau khi dời SL (entry + 1%)
+      // 1. Xác định Bước giá (Step) & Đơn vị (Unit = Step / 3)
+      const currentStep = meta?.step || getStep(entryPrice);
+      const unit = currentStep / 3;
 
+      // 2. Quyết định Tỷ lệ TP theo Score (với step=300 -> unit=100):
+      //    - Score < 7đ (hoặc Ngược Trend): TP = 90 ticks  -> tpMultiplier = 0.9
+      //    - Score < 8đ (7.0 - 7.9đ):       TP = 120 ticks -> tpMultiplier = 1.2
+      //    - Score >= 8đ (>= 8.0đ):         TP = 150 ticks -> tpMultiplier = 1.5
+      let tpMultiplier = 0.9;
       if (meta) {
         const isCounter = meta.isCounterTrend;
         const score = meta.score;
 
-        if (isCounter) {
-          // Lệnh ngược xu hướng: TP 10%, SL 8%, lãi ROI +5% dịch SL về mức hòa vốn (ROI +1%)
-          tpPct = 10;
-          slPct = -8;
-          trailTrigger = 5;
-          trailSlRoi = 1;
-        } else if (score < 7) {
-          // Lệnh điểm thấp (dưới 7đ, tức là [6.0 - 7.0)) và thuận xu hướng: TP=13%, SL 13%, lãi 5% dịch SL về mức hòa vốn (ROI +1%)
-          tpPct = 13;
-          slPct = -13;
-          trailTrigger = 5;
-          trailSlRoi = 1;
+        if (isCounter || score < 7) {
+          tpMultiplier = 0.9;  // 90 ticks (với step=300)
         } else if (score < 8) {
-          // Lệnh điểm trung bình (dưới 8đ, tức là [7.0 - 8.0)) và thuận xu hướng: TP 20%, SL 13%, dịch SL về ROI +1% khi TP đạt 9%
-          tpPct = 20;
-          slPct = -13;
-          trailTrigger = 9;
-          trailSlRoi = 1;
+          tpMultiplier = 1.2;  // 120 ticks (với step=300)
         } else {
-          // Lệnh thuận xu hướng & Điểm cao (>= 8đ): TP 25%, SL 15%, dịch SL về ROI +1% khi TP đạt 9%
-          tpPct = 25;
-          slPct = -15;
-          trailTrigger = 9;
-          trailSlRoi = 1;
+          tpMultiplier = 1.5;  // 150 ticks (với step=300)
         }
       }
+
+      // 3. Tính khoảng cách giá tuyệt đối:
+      //    SL = entry +/- unit (tương đương đúng -13% Margin với đòn bẩy = 39 / gridStepPct)
+      //    TP = entry +/- (unit * tpMultiplier) -> 90, 120, 150 ticks với step=300
+      //    Trail Trigger = entry +/- (unit * 0.45) -> CỐ ĐỊNH 45 ticks với step=300 cho TẤT CẢ các thang điểm!
+      const tpDistance = unit * tpMultiplier;
+      const trailDistance = unit * 0.45; // Cố định 45 ticks (0.45 * unit) cho mọi thang điểm
+
+      let targetSlPriceExact, targetTpPriceExact, trailTriggerPriceExact;
+      if (isLong) {
+        targetSlPriceExact = entryPrice - unit;
+        targetTpPriceExact = entryPrice + tpDistance;
+        trailTriggerPriceExact = entryPrice + trailDistance;
+      } else {
+        targetSlPriceExact = entryPrice + unit;
+        targetTpPriceExact = entryPrice - tpDistance;
+        trailTriggerPriceExact = entryPrice - trailDistance;
+      }
+
+      // Đổi sang ROI % tương đương để logging / telegram / dataset
+      const slPct = -13;
+      const tpPct = parseFloat(((tpDistance / entryPrice) * leverageVal * 100).toFixed(2));
+      const trailTrigger = parseFloat(((trailDistance / entryPrice) * leverageVal * 100).toFixed(2));
+      const trailSlRoi = 1; // ROI +1% khi dời SL hòa vốn
 
       // ----------------------------------------------------
       // 1. Quản lý TAKE PROFIT (Virtual & Real)
       // ----------------------------------------------------
 
-      // 1a. Virtual TP — luôn chạy độc lập, là tuyến phòng thủ cuối cùng.
-      //     Đảm bảo chốt lời ngay cả khi algo TP đã đặt nhưng Binance không trigger
-      //     (ví dụ: giá spike nhanh vượt trigger rồi rút về, mark vs last price lệch nhỏ).
-      if (roi >= tpPct) {
-        log.system(`[AutoTrade] [Virtual TP] Kích hoạt cho ${sym}: ROI = ${roi.toFixed(2)}% (>= ${tpPct}%). Đóng vị thế bằng lệnh MARKET.`);
+      // 1a. Virtual TP — đóng vị thế ngay khi giá chạm mốc TP mục tiêu
+      const isTpReached = isLong ? (markPrice >= targetTpPriceExact) : (markPrice <= targetTpPriceExact);
+      if (isTpReached) {
+        log.system(`[AutoTrade] [Virtual TP] Kích hoạt cho ${sym}: Giá $${markPrice} chạm TP $${targetTpPriceExact.toFixed(5)} (ROI ~${roi.toFixed(2)}%). Đóng vị thế MARKET.`);
         try {
           justClosedByBot.add(sym);
           await client.placeMarket(sym, oppositeSide, absAmt);
-          await sendTelegram(`🎯 <b>Take Profit (Virtual)</b>\n• Coin: <b>${sym}</b>\n• ROI đạt: <b>${roi.toFixed(2)}%</b>`);
+          await sendTelegram(`🎯 <b>Take Profit (Virtual)</b>\n• Coin: <b>${sym}</b>\n• Giá chạm: <b>$${markPrice}</b> (TP: $${targetTpPriceExact.toFixed(5)})\n• ROI đạt: <b>${roi.toFixed(2)}%</b>`);
           // ── Record trade exit for AI Dataset ──
           if (meta) {
             const holdingDurationMinutes = (Date.now() - (meta.time || Date.now())) / 60000;
@@ -1154,21 +1165,17 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
         continue; // Bỏ qua check SL cho coin này trong lượt này
       }
 
-      // 1b. Đặt algo TP lên sàn (chỉ khi chưa có)
+      // 1b. Đặt algo TP lên sàn tại mốc targetTpPriceExact (chỉ khi chưa có)
       if (realTpOrders.length === 0) {
-        const tpPrice = isLong
-          ? entryPrice * (1 + (tpPct / 100) / leverageVal)
-          : entryPrice * (1 - (tpPct / 100) / leverageVal);
-
         try {
-          const tpOrder = await client.placeStopOrder(sym, oppositeSide, 'TAKE_PROFIT_MARKET', tpPrice);
+          const tpOrder = await client.placeStopOrder(sym, oppositeSide, 'TAKE_PROFIT_MARKET', targetTpPriceExact);
           const tpId = tpOrder.orderId || tpOrder.algoId || 'unknown';
-          log.system(`[AutoTrade] ✓ Đặt TP ${sym} @ $${tpOrder.stopPrice || tpOrder.triggerPrice || tpPrice} (đối ứng ${oppositeSide}) orderId=${tpId}`);
+          log.system(`[AutoTrade] ✓ Đặt TP ${sym} @ $${tpOrder.stopPrice || tpOrder.triggerPrice || targetTpPriceExact.toFixed(5)} (đối ứng ${oppositeSide}) orderId=${tpId}`);
         } catch (e) {
           const errStr = _binanceErr(e);
           if (errStr.includes('-4509')) {
             log.system(`[AutoTrade] Vị thế ${sym} đã đóng trên sàn (TP/SL đã khớp trước đó). Bỏ qua.`);
-            continue; // Vị thế đã đóng, không tiếp tục xử lý SL cho coin này nữa
+            continue;
           }
           log.error(`[AutoTrade] Đặt TP ${sym} thất bại: ${errStr}`);
         }
@@ -1178,22 +1185,17 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
       // ----------------------------------------------------
       // 2. Quản lý STOP LOSS (Virtual & Real, Trailing SL)
       // ----------------------------------------------------
-      // Tính mức SL mục tiêu dựa trên trailing trigger 2 tầng (Bảo vệ lãi khi đạt 75% quãng đường)
+      const isTrailTriggerReached = isLong ? (markPrice >= trailTriggerPriceExact) : (markPrice <= trailTriggerPriceExact);
+
+      let targetSlPrice = targetSlPriceExact;
       let currentSlPct = slPct;
 
-      // Tầng 2: Khóa lãi khi giá chạy được 75% quãng đường tới TP
-      const trailTrigger2 = tpPct >= 20 ? (tpPct === 20 ? 15 : 18) : null;
-      const trailSlRoi2 = tpPct >= 20 ? (tpPct === 20 ? 8 : 10) : null;
-
-      if (trailTrigger2 !== null && roi >= trailTrigger2) {
-        currentSlPct = trailSlRoi2; // Khóa lãi (ví dụ +8% hoặc +10% ROI)
-      } else if (roi >= trailTrigger) {
-        currentSlPct = trailSlRoi;  // Hòa vốn (ví dụ +1% ROI)
+      if (isTrailTriggerReached) {
+        currentSlPct = trailSlRoi; // Dời SL về entry + 1% ROI (Hòa vốn)
+        targetSlPrice = isLong
+          ? entryPrice * (1 + (trailSlRoi / 100) / leverageVal)
+          : entryPrice * (1 - (trailSlRoi / 100) / leverageVal);
       }
-
-      const targetSlPrice = isLong
-        ? entryPrice * (1 + (currentSlPct / 100) / leverageVal)
-        : entryPrice * (1 - (currentSlPct / 100) / leverageVal);
 
       // Lấy tickSize từ cache để định dạng giá chính xác
       let tickSize = null;
