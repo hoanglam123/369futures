@@ -851,8 +851,11 @@ async function checkPendingLimits(client, activeSymbols) {
       const maxBouncedRoi = maxBouncedPct * (meta.leverage || 1);
       const currentBouncedRoi = currentBouncedPct * (meta.leverage || 1);
 
-      // Hủy ngay lập tức khi giá đã nảy xa khỏi entry (hiện tại hoặc đỉnh điểm >= bouncePct hoặc ROI >= 5%)
-      if (currentBouncedPct >= bouncePct || maxBouncedPct >= bouncePct || currentBouncedRoi >= 5.0 || maxBouncedRoi >= 5.0) {
+      // Lệnh H1 Retest: Hủy khi ROI >= 5%. Lệnh thường: Hủy khi giá nảy >= bouncePct (gridStepPct / 5.5 ~7-8% ROI)
+      const isRetestCancel = meta.isH1Retest && (currentBouncedRoi >= 5.0 || maxBouncedRoi >= 5.0);
+      const isRegularCancel = currentBouncedPct >= bouncePct || maxBouncedPct >= bouncePct;
+
+      if (isRetestCancel || isRegularCancel) {
         const displayPct = currentBouncedPct >= bouncePct ? currentBouncedPct : maxBouncedPct;
         log.system(
           `[AutoTrade] [BounceCancel] ${sym} LONG: ` +
@@ -914,8 +917,11 @@ async function checkPendingLimits(client, activeSymbols) {
       const maxBouncedRoi = maxBouncedPct * (meta.leverage || 1);
       const currentBouncedRoi = currentBouncedPct * (meta.leverage || 1);
 
-      // Hủy ngay lập tức khi giá đã nảy xa khỏi entry (hiện tại hoặc đáy điểm >= bouncePct hoặc ROI >= 5%)
-      if (currentBouncedPct >= bouncePct || maxBouncedPct >= bouncePct || currentBouncedRoi >= 5.0 || maxBouncedRoi >= 5.0) {
+      // Lệnh H1 Retest: Hủy khi ROI >= 5%. Lệnh thường: Hủy khi giá nảy >= bouncePct (gridStepPct / 5.5 ~7-8% ROI)
+      const isRetestCancel = meta.isH1Retest && (currentBouncedRoi >= 5.0 || maxBouncedRoi >= 5.0);
+      const isRegularCancel = currentBouncedPct >= bouncePct || maxBouncedPct >= bouncePct;
+
+      if (isRetestCancel || isRegularCancel) {
         const displayPct = currentBouncedPct >= bouncePct ? currentBouncedPct : maxBouncedPct;
         log.system(
           `[AutoTrade] [BounceCancel] ${sym} SHORT: ` +
