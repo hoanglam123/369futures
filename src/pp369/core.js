@@ -2199,7 +2199,7 @@ async function initH4Cache(symbols) {
 module.exports = {
   get369Signal, get369SignalsForCoins, score369Method, format369ForPrompt,
   getLevelCache, overrideLevelLastSide, PROXIMITY_PCT, getDecimals, getStep,
-  initH4Cache, YEAR_START_MS,
+  initH4Cache, YEAR_START_MS, fetchBinanceKlines,
   getGridStepPct, isGridWidthValid, GRID_MIN_PCT, GRID_MIN_PCT_TOP100, GRID_MAX_PCT, getMinGridPct, isTop100Symbol, getMarketCapRank,
   isSymbolInGridBlacklist, getGridBlacklistInfo, addToGridBlacklist,
 };

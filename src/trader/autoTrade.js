@@ -23,6 +23,7 @@ const {
   getNearbySymbols,
   getDecimals,
   getStep,
+  fetchBinanceKlines,
   updatePricesRest,
   syncWebSocketSubscriptions,
   notifySignals,
@@ -50,6 +51,10 @@ const _fired = new Map();
 const justClosedByBot = new Set();
 const lastActivePositions = new Map(); // sym -> { entryPrice, leverage, amt, isLong }
 const partialClosedSymbols = new Set(); // sym -> true (đã chốt lời 50% tại 13% ROI)
+
+// Watchlist cho các mã Score < 5.5đ để chờ check Retest nến H1
+const lowScoreWatchlist = {}; // sym -> { symbol, signal, targetLevel, score, step, isCounterTrend, timestamp }
+let lastCheckedH1Time = 0;
 
 // Cache lưu metadata của vị thế đang chạy
 const METADATA_PATH = path.join(process.cwd(), 'data', 'active_trades.json');
@@ -448,7 +453,16 @@ async function startAutoTrade(coins) {
       const score = sig.score ?? 0;
       let baseMargin = 30;
       if (!isBtc && score < 5.5) {
-        log.system(`[AutoTrade] ${sym} ${sig.signal} có Score = ${sig.score}đ < 5.5đ — bỏ qua`);
+        log.system(`[AutoTrade] ${sym} ${sig.signal} có Score = ${sig.score}đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1`);
+        lowScoreWatchlist[sym] = {
+          symbol: sym,
+          signal: sig.signal,
+          targetLevel: sig.targetLevel,
+          score: sig.score,
+          step: sig.step || getStep(markPrice),
+          isCounterTrend: sig.isCounterTrend,
+          timestamp: Date.now()
+        };
         // Ghi log để backfill phân tích (không ảnh hưởng hiệu năng)
         recordSkippedSignal({
           symbol: sym,
@@ -764,11 +778,19 @@ async function startAutoTrade(coins) {
     });
   }, MONITOR_LIMIT_INTERVAL_MS);
 
+  // Luồng 4: Check Retest nến H1 cho các mã trong Watchlist (Mỗi 10s kiểm tra xem H1 vừa đóng chưa)
+  const h1RetestTimer = setInterval(() => {
+    checkH1RetestSignals(client).catch(err => {
+      log.warn(`[AutoTrade] Lỗi luồng Check H1 Retest: ${err.message}`);
+    });
+  }, 10000);
+
   // Trả về hàm stop để caller có thể dừng nếu cần
   return function stop() {
     clearInterval(timer);
     clearInterval(trailingSlTimer);
     clearInterval(monitorLimitTimer);
+    clearInterval(h1RetestTimer);
     log.system('[AutoTrade] Đã dừng.');
   };
 }
@@ -963,6 +985,157 @@ async function markSymbolFailed(sym, reason) {
     }
   } catch (err) {
     log.warn(`[AutoTrade] Lỗi cập nhật step_sizes.json khi đánh dấu lỗi ${sym}: ${err.message}`);
+  }
+}
+
+/**
+ * Luồng 4: Check Retest nến H1 cho các mã trong Watchlist (Chạy ở phút 00 của mỗi giờ)
+ */
+async function checkH1RetestSignals(client) {
+  const currentH1Time = Math.floor(Date.now() / 3600000) * 3600000;
+  if (currentH1Time === lastCheckedH1Time) return;
+  lastCheckedH1Time = currentH1Time;
+
+  const symbolsToWatch = Object.keys(lowScoreWatchlist);
+  if (symbolsToWatch.length === 0) return;
+
+  log.system(`[H1Retest] === Kiểm tra Retest nến H1 vừa đóng cho ${symbolsToWatch.length} coin trong Watchlist ===`);
+
+  const prevH1Start = currentH1Time - 3600000;
+
+  for (const sym of symbolsToWatch) {
+    const watchData = lowScoreWatchlist[sym];
+    if (!watchData) continue;
+
+    // Hết hạn sau 24h nếu không có retest
+    if (Date.now() - watchData.timestamp > 24 * 3600 * 1000) {
+      delete lowScoreWatchlist[sym];
+      continue;
+    }
+
+    try {
+      // Kiểm tra nếu đã có vị thế mở hoặc lệnh chờ -> Bỏ qua
+      const hasPos = await client.hasOpenPosition(sym);
+      if (hasPos) {
+        delete lowScoreWatchlist[sym];
+        continue;
+      }
+
+      // Tải 60 nến 1M của giờ H1 vừa trôi qua
+      const m1Candles = await fetchBinanceKlines(sym, '1m', prevH1Start, 60);
+      if (!m1Candles || m1Candles.length === 0) continue;
+
+      const { signal, targetLevel, step } = watchData;
+      const isLong = signal === 'LONG';
+
+      // Lấy giá Open/Close/High/Low tổng quan của cả nến H1
+      const h1Close = m1Candles[m1Candles.length - 1].close;
+      const h1MinLow = Math.min(...m1Candles.map(c => c.low));
+      const h1MaxHigh = Math.max(...m1Candles.map(c => c.high));
+
+      // 1. Check nến H1 có rút chân/rút râu tại Entry không:
+      let isRutChan = false;
+      if (isLong) {
+        // LONG: chạm/vượt mốc entry (minLow <= targetLevel) VÀ đóng nến trên entry (h1Close > targetLevel)
+        isRutChan = h1MinLow <= targetLevel && h1Close > targetLevel;
+      } else {
+        // SHORT: chạm/vượt mốc entry (maxHigh >= targetLevel) VÀ đóng nến dưới entry (h1Close < targetLevel)
+        isRutChan = h1MaxHigh >= targetLevel && h1Close < targetLevel;
+      }
+
+      if (!isRutChan) continue; // Nến H1 chưa đóng rút chân tại entry
+
+      // 2. Tìm thời điểm (index) chạm entry lần đầu tiên trong chuỗi nến 1M
+      let touchIndex = -1;
+      for (let i = 0; i < m1Candles.length; i++) {
+        const c = m1Candles[i];
+        if (isLong && c.low <= targetLevel) {
+          touchIndex = i;
+          break;
+        } else if (!isLong && c.high >= targetLevel) {
+          touchIndex = i;
+          break;
+        }
+      }
+
+      if (touchIndex === -1) continue;
+
+      // 3. Tính Mức Nẩy ROI Tối Đa từ nến 1M (sau thời điểm touchIndex)
+      let maxFavorableMovePct = 0;
+      if (isLong) {
+        let maxHighAfterTouch = targetLevel;
+        for (let i = touchIndex; i < m1Candles.length; i++) {
+          if (m1Candles[i].high > maxHighAfterTouch) {
+            maxHighAfterTouch = m1Candles[i].high;
+          }
+        }
+        maxFavorableMovePct = ((maxHighAfterTouch - targetLevel) / targetLevel) * 100;
+      } else {
+        let minLowAfterTouch = targetLevel;
+        for (let i = touchIndex; i < m1Candles.length; i++) {
+          if (m1Candles[i].low < minLowAfterTouch) {
+            minLowAfterTouch = m1Candles[i].low;
+          }
+        }
+        maxFavorableMovePct = ((targetLevel - minLowAfterTouch) / targetLevel) * 100;
+      }
+
+      // Tính đòn bẩy động
+      const gridStepPct = (step / targetLevel) * 100;
+      const leverage = Math.max(1, Math.floor(39 / gridStepPct));
+      const maxFavorableRoi = maxFavorableMovePct * leverage;
+
+      if (maxFavorableRoi >= 5.0) {
+        log.system(`[H1Retest] ${sym} ${signal} nến H1 rút chân nhưng ĐÃ PHẢN ỨNG NẢY ROI = +${maxFavorableRoi.toFixed(2)}% (>= 5.0%) sau khi chạm entry. Bỏ qua không đặt limit.`);
+        delete lowScoreWatchlist[sym];
+        continue;
+      }
+
+      // CHƯA PHẢN ỨNG ĐỦ 5% ROI -> Tiến hành ĐẶT LỆNH LIMIT NGAY TẠI MỐC ENTRY!
+      log.system(`[H1Retest] 🎯 ${sym} ${signal} H1 đóng rút chân chuẩn tại Entry $${targetLevel}, chưa nảy đủ 5% ROI (Max ROI: +${maxFavorableRoi.toFixed(2)}%). ĐẶT LỆNH LIMIT TẠI ENTRY!`);
+
+      const side = isLong ? 'BUY' : 'SELL';
+      const tradeAmount = 20; // Margin cơ bản $20 cho lệnh Retest H1
+      const notional = tradeAmount * leverage;
+      const { qty } = calcQuantity(sym, notional, targetLevel);
+
+      if (qty > 0) {
+        try { await client.setLeverage(sym, leverage); } catch (_) {}
+
+        const limitOrder = await client.placeLimitOrder(sym, side, qty, targetLevel);
+        const limitId = limitOrder.orderId || limitOrder.id || 'unknown';
+
+        // Đưa thông tin vào activeTradesMetadata để luồng Trailing SL và Bounce Cancel tự động quản lý!
+        activeTradesMetadata[sym] = {
+          symbol: sym,
+          side: side,
+          entryPrice: targetLevel,
+          orderId: String(limitId),
+          time: Date.now(),
+          score: watchData.score,
+          isCounterTrend: watchData.isCounterTrend,
+          leverage: leverage,
+          step: step,
+          gridStepPct: gridStepPct,
+          margin: tradeAmount,
+          maxFavorablePrice: null,
+          isH1Retest: true
+        };
+        saveActiveTradesMetadata();
+
+        // Xóa khỏi watchlist vì đã đặt lệnh
+        delete lowScoreWatchlist[sym];
+
+        await sendTelegram(
+          `🎯 <b>[H1 Retest] Đặt lệnh LIMIT Retest H1</b>\n` +
+          `• Coin: <b>${sym} ${signal}</b>\n` +
+          `• Entry Limit: <b>$${targetLevel}</b> (Đòn bẩy: <b>${leverage}x</b>)\n` +
+          `• Score gốc: <b>${watchData.score}đ</b> (Nến H1 đóng rút chân chuẩn tại Entry, chưa nảy đủ 5% ROI)`
+        );
+      }
+    } catch (e) {
+      log.error(`[H1Retest] Lỗi xử lý ${sym}: ${e.message}`);
+    }
   }
 }
 

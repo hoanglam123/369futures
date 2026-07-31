@@ -50,6 +50,7 @@ module.exports = {
   overrideLevelLastSide: core.overrideLevelLastSide,
   initH4Cache:           core.initH4Cache,
   YEAR_START_MS:         core.YEAR_START_MS,
+  fetchBinanceKlines:    core.fetchBinanceKlines,
   PROXIMITY_PCT:         core.PROXIMITY_PCT,
   getDecimals:           core.getDecimals,
   getStep:               core.getStep,
