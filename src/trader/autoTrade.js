@@ -119,6 +119,10 @@ async function startAutoTrade(coins) {
   const notional = amount * leverage;
   const limitTimeoutMinutes = parseInt(process.env.LIMIT_TIMEOUT_MINUTES || '15', 10);
   const limitTimeoutMs = limitTimeoutMinutes * 60_000;
+  const h1RetestLimitTimeoutMinutes = parseInt(process.env.H1_RETEST_LIMIT_TIMEOUT_MINUTES || '60', 10);
+  const h1RetestLimitTimeoutMs = h1RetestLimitTimeoutMinutes * 60_000;
+  const limitTouchedTimeoutMinutes = parseInt(process.env.LIMIT_TOUCHED_TIMEOUT_MINUTES || '5', 10);
+  const limitTouchedTimeoutMs = limitTouchedTimeoutMinutes * 60_000;
 
   const activeSymbols = new Set();
 
@@ -198,44 +202,78 @@ async function startAutoTrade(coins) {
       const now = Date.now();
       const remainingOrders = [];
       for (const order of currentOrders) {
-        if (order.type === 'LIMIT' && (now - order.time) > limitTimeoutMs) {
-          const sym = order.symbol.replace('USDT', '');
-          log.system(`[AutoTrade] Lệnh LIMIT của ${sym} đã treo quá ${limitTimeoutMinutes} phút (${((now - order.time) / 60000).toFixed(1)} phút) -> Tiến hành hủy...`);
+        const sym = order.symbol.replace('USDT', '');
+        const meta = activeTradesMetadata[sym];
+        const isH1Retest = meta?.isH1Retest === true;
+        const curTimeoutMs = isH1Retest ? h1RetestLimitTimeoutMs : limitTimeoutMs;
+        const curTimeoutMinutes = isH1Retest ? h1RetestLimitTimeoutMinutes : limitTimeoutMinutes;
+        const entryPrice = parseFloat(order.price);
+        const markPrice = getMarkPrice(sym);
+
+        // Đánh dấu nếu giá hiện tại đã chạm hoặc vượt mốc Entry
+        if (meta && markPrice && entryPrice) {
+          const isTouchLong = order.side === 'BUY' && markPrice <= entryPrice * 1.0012;
+          const isTouchShort = order.side === 'SELL' && markPrice >= entryPrice * 0.9988;
+          if (isTouchLong || isTouchShort) {
+            if (!meta.hasTouchedEntry) {
+              meta.hasTouchedEntry = true;
+              meta.touchedTime = Date.now();
+              saveActiveTradesMetadata();
+            }
+          }
+        }
+
+        const isTouchedTimeout = meta?.hasTouchedEntry === true && (now - (meta.touchedTime || order.time)) > limitTouchedTimeoutMs;
+        const isNormalTimeout = (now - order.time) > curTimeoutMs;
+
+        if (order.type === 'LIMIT' && (isNormalTimeout || isTouchedTimeout)) {
+          const exitType = isTouchedTimeout ? 'LIMIT_TOUCHED_TIMEOUT' : 'LIMIT_TIMEOUT';
+          const typeLabel = isTouchedTimeout
+            ? `đã chạm/vượt Entry ($${entryPrice}) quá ${limitTouchedTimeoutMinutes} phút không khớp`
+            : (isH1Retest ? `Retest H1 treo quá ${curTimeoutMinutes} phút` : `thường treo quá ${curTimeoutMinutes} phút`);
+
+          log.system(`[AutoTrade] Lệnh LIMIT của ${sym} ${typeLabel} (${((now - (isTouchedTimeout ? meta.touchedTime : order.time)) / 60000).toFixed(1)} phút) -> Tiến hành hủy...`);
           try {
             await client.cancelOrder(sym, order.orderId);
             log.system(`[AutoTrade] ✓ Đã hủy thành công lệnh LIMIT treo của ${sym}`);
 
-            if (activeTradesMetadata[sym]) {
-              delete activeTradesMetadata[sym];
-              saveActiveTradesMetadata();
-            }
-
-            sendTelegram(
-              `⚠️ <b>[AutoTrade] Hủy lệnh Limit treo quá hạn</b>\n` +
-              `• Coin: <b>${sym}</b>\n` +
-              `• Hướng: <b>${order.side}</b>\n` +
-              `• Giá đặt: <b>$${order.price}</b>\n` +
-              `• Số lượng: <b>${order.origQty}</b>\n` +
-              `• Đã chờ: <b>${((now - order.time) / 60000).toFixed(1)} phút</b>`
-            ).catch(() => { });
-
-            // ── Record trade exit for AI Dataset (LIMIT_TIMEOUT) ──
-            const meta = activeTradesMetadata[sym];
+            // ── Record trade exit for AI Dataset trước khi xóa metadata ──
             if (meta) {
               const holdingDurationMinutes = (Date.now() - (meta.time || Date.now())) / 60000;
               recordTradeExit({
                 tradeId: `${sym}-${meta.orderId || 'timeout'}`,
                 orderId: String(meta.orderId || ''),
                 symbol: sym,
-                exitPrice: parseFloat(order.price),
+                exitPrice: markPrice || parseFloat(order.price),
                 exitTimestamp: Date.now(),
-                exitType: 'LIMIT_TIMEOUT',
+                exitType: exitType,
                 pnlPercent: 0,
                 pnlUsd: 0,
                 holdingDurationMinutes: holdingDurationMinutes,
                 isWin: false,
               });
+
+              delete activeTradesMetadata[sym];
+              saveActiveTradesMetadata();
             }
+
+            const telegramTitle = isTouchedTimeout
+              ? `⚠️ <b>[AutoTrade] Hủy lệnh Limit đã chạm Entry nhưng không khớp</b>`
+              : `⚠️ <b>[AutoTrade] Hủy lệnh Limit ${isH1Retest ? 'Retest H1 ' : ''}treo quá hạn</b>`;
+
+            const telegramWaitStr = isTouchedTimeout
+              ? `• Đã chờ từ khi chạm: <b>${((now - (meta?.touchedTime || order.time)) / 60000).toFixed(1)} phút</b>`
+              : `• Đã chờ: <b>${((now - order.time) / 60000).toFixed(1)} phút</b>`;
+
+            sendTelegram(
+              `${telegramTitle}\n` +
+              `• Coin: <b>${sym}</b>\n` +
+              `• Hướng: <b>${order.side}</b>\n` +
+              `• Giá đặt: <b>$${order.price}</b>\n` +
+              (markPrice ? `• Giá hiện tại: <b>$${markPrice}</b>\n` : '') +
+              `• Số lượng: <b>${order.origQty}</b>\n` +
+              telegramWaitStr
+            ).catch(() => { });
           } catch (e) {
             log.warn(`[AutoTrade] Không thể hủy lệnh LIMIT của ${sym}: ${_binanceErr(e)}`);
             remainingOrders.push(order); // Giữ lại nếu hủy thất bại
@@ -841,6 +879,14 @@ async function checkPendingLimits(client, activeSymbols) {
 
     if (meta.side === 'BUY') {
       // ── LONG: giá tốt khi đi LÊN khỏi entry ──────────────────────────────
+      if (markPrice <= entry * 1.0012) {
+        if (!meta.hasTouchedEntry) {
+          meta.hasTouchedEntry = true;
+          meta.touchedTime = Date.now();
+          saveActiveTradesMetadata();
+        }
+      }
+
       if (meta.maxFavorablePrice === null || markPrice > meta.maxFavorablePrice) {
         meta.maxFavorablePrice = markPrice;
       }
@@ -907,6 +953,14 @@ async function checkPendingLimits(client, activeSymbols) {
 
     } else if (meta.side === 'SELL') {
       // ── SHORT: giá tốt khi đi XUỐNG khỏi entry ───────────────────────────
+      if (markPrice >= entry * 0.9988) {
+        if (!meta.hasTouchedEntry) {
+          meta.hasTouchedEntry = true;
+          meta.touchedTime = Date.now();
+          saveActiveTradesMetadata();
+        }
+      }
+
       if (meta.maxFavorablePrice === null || markPrice < meta.maxFavorablePrice) {
         meta.maxFavorablePrice = markPrice;
       }
