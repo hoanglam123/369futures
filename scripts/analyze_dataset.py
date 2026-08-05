@@ -8,9 +8,10 @@ from collections import defaultdict
 if sys.platform == 'win32':
     sys.stdout.reconfigure(encoding='utf-8')
 
-DATASET_PATH = r"f:\LamDH\Project\369futures\data\data\ai_trade_dataset.jsonl"
-SKIPPED_PATH = r"f:\LamDH\Project\369futures\data\data\skipped_signals.jsonl"
-STEP_SIZES_PATH = r"f:\LamDH\Project\369futures\data\data\step_sizes.json"
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+DATASET_PATH = os.path.join(BASE_DIR, "data", "ai_trade_dataset.jsonl")
+SKIPPED_PATH = os.path.join(BASE_DIR, "data", "skipped_signals.jsonl")
+STEP_SIZES_PATH = os.path.join(BASE_DIR, "data", "step_sizes.json")
 
 def load_grid_steps():
     if os.path.exists(STEP_SIZES_PATH):
