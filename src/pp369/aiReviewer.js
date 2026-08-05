@@ -6,8 +6,8 @@ const { log } = require('./_logger');
 
 const { exec } = require('child_process');
 
-const MODEL_PATH = path.join(process.cwd(), 'data', 'data', 'ai_rule_config.json');
-const AI_EVALUATIONS_FILE = path.join(process.cwd(), 'data', 'data', 'ai_evaluations.jsonl');
+const MODEL_PATH = path.join(process.cwd(), 'data', 'ai_rule_config.json');
+const AI_EVALUATIONS_FILE = path.join(process.cwd(), 'data', 'ai_evaluations.jsonl');
 const RETRAIN_INTERVAL_MS = 3 * 24 * 60 * 60 * 1000; // Tự động re-train mỗi 3 ngày
 
 let _modelConfig = null;

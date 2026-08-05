@@ -704,7 +704,7 @@ async function startAutoTrade(coins) {
       sig.marketCapRank = rank;
       sig.gridWidthPct = pct;
       const aiEval = evaluateSignalWithAI(sig);
-      recordAIEvaluation(sig, aiEval); // Ghi nhận đánh giá ra file data/data/ai_evaluations.jsonl
+      recordAIEvaluation(sig, aiEval); // Ghi nhận đánh giá ra file data/ai_evaluations.jsonl
 
       if (aiEval.isApproved) {
         log.system(`[AI Reviewer (Shadow)] 🟢 Khuyên NÊN ĐẶT LỆNH ${sym} (${sig.signal}) - ${aiEval.reason}`);
