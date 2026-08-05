@@ -39,7 +39,7 @@ const {
 const { log } = require('../pp369/_logger');
 
 const SCAN_INTERVAL_MS = 30_000;   // scan mỗi 30 giây
-const TRAILING_SL_INTERVAL_MS = 1_500; // kiểm tra vị thế để dịch SL mỗi 1.5 giây (đã tối ưu 280 weight/min, an toàn 100%)
+const TRAILING_SL_INTERVAL_MS = 3_000; // kiểm tra vị thế để dịch SL mỗi 3 giây
 const MONITOR_LIMIT_INTERVAL_MS = 3_000; // Luồng 3: monitor lệnh LIMIT đang chờ mỗi 3 giây
 const DEBOUNCE_MS = 5 * 60_000; // 5 phút / tín hiệu
 const COIN_REFRESH_INTERVAL_MS = 4 * 60 * 60_000; // Tái kiểm tra danh sách coin mỗi 4 giờ
