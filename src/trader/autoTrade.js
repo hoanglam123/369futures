@@ -35,6 +35,8 @@ const {
   recordTradeEntry,
   recordTradeExit,
   recordSkippedSignal,
+  evaluateSignalWithAI,
+  recordAIEvaluation,
 } = require('../pp369');
 const { log } = require('../pp369/_logger');
 
@@ -697,6 +699,20 @@ async function startAutoTrade(coins) {
           }
         }
       }
+
+      // ── Online AI Inference Reviewer (Shadow Test Mode — Không chặn lệnh) ──
+      sig.marketCapRank = rank;
+      sig.gridWidthPct = pct;
+      const aiEval = evaluateSignalWithAI(sig);
+      recordAIEvaluation(sig, aiEval); // Ghi nhận đánh giá ra file data/data/ai_evaluations.jsonl
+
+      if (aiEval.isApproved) {
+        log.system(`[AI Reviewer (Shadow)] 🟢 Khuyên NÊN ĐẶT LỆNH ${sym} (${sig.signal}) - ${aiEval.reason}`);
+      } else {
+        log.system(`[AI Reviewer (Shadow)] 🟡 Khuyên BỎ QUA ${sym} (${sig.signal}) - ${aiEval.reason}`);
+      }
+      // Không chặn lệnh - Vẫn tiếp tục xuống tiền bình thường trên Binance để phục vụ theo dõi thử nghiệm
+
       // Đòn bẩy tính theo quy định SL = unit (step / 3) tương đương đúng -13% Margin
       const calculatedLeverage = Math.floor(39 / pct); // 13% * 3 / pct
       const maxAllowed = leverageInfo[sym] ?? leverage; // leverage mặc định từ .env làm fallback

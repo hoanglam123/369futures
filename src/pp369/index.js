@@ -24,8 +24,13 @@ const formatter      = require('./formatter');
 const telegram       = require('./telegram');
 const datasetCollector = require('./datasetCollector');
 const signalTracker   = require('./signalTracker');
+const aiReviewer      = require('./aiReviewer');
 
 module.exports = {
+  // ── AI Reviewer & Inference Engine ──────────────────────────────────────
+  evaluateSignalWithAI: aiReviewer.evaluateSignalWithAI,
+  recordAIEvaluation:   aiReviewer.recordAIEvaluation,
+  loadAIModel:          aiReviewer.loadAIModel,
   // ── Cấu hình (optional) ──────────────────────────────────────────────────
   setLogger,                             // override logger (mặc định: console)
   setDataDir: signalLog.setDataDir,      // override thư mục lưu signal log
