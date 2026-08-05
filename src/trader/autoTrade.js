@@ -871,8 +871,13 @@ function _binanceErr(e) {
  * Không gọi API: dùng getMarkPrice() từ WebSocket cache.
  * Chỉ gọi API cancelOrder khi thực sự cần cancel.
  */
+let isCheckingPendingLimits = false;
+
 async function checkPendingLimits(client, activeSymbols) {
-  // Ngưỡng: giá phải bounce ra bao nhiêu % từ entry mới coi là bounce thật
+  if (isCheckingPendingLimits) return;
+  isCheckingPendingLimits = true;
+  try {
+    // Ngưỡng: giá phải bounce ra bao nhiêu % từ entry mới coi là bounce thật
   // Dùng gridStepPct/5.5 — ví dụ grid 3.7% → bouncePct = 0.67%
   const TOUCH_THRESHOLD_PCT = 0.15; // % tính từ entry — nếu giá về trong mức này → coi là "sắp fill lại"
 
@@ -1042,6 +1047,11 @@ async function checkPendingLimits(client, activeSymbols) {
         }
       }
     }
+  }
+  } catch (err) {
+    log.warn(`[AutoTrade] Lỗi luồng checkPendingLimits: ${err.message}`);
+  } finally {
+    isCheckingPendingLimits = false;
   }
 }
 
@@ -1245,7 +1255,11 @@ async function checkH1RetestSignals(client) {
   }
 }
 
+let isCheckingTrailingSL = false;
+
 async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymbols) {
+  if (isCheckingTrailingSL) return;
+  isCheckingTrailingSL = true;
   try {
     if (!activeSymbols || activeSymbols.size === 0) return;
 
@@ -1599,6 +1613,8 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
     }
   } catch (err) {
     log.warn(`[AutoTrade] Lỗi kiểm tra virtual TP/SL: ${err.message}`);
+  } finally {
+    isCheckingTrailingSL = false;
   }
 }
 
