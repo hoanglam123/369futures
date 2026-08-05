@@ -65,6 +65,8 @@ try {
   }
 } catch (err) {
   log.warn(`[AutoTrade] Lỗi đọc active_trades.json: ${err.message}`);
+}
+
 let tickSizesCache = null;
 function getTickSizeCached(sym) {
   if (!tickSizesCache) {
