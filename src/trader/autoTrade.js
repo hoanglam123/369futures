@@ -1560,8 +1560,8 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
       const targetSlStr = roundedTargetSl.toFixed(dec);
 
       if (realSlOrders.length > 0) {
-        // Có lệnh SL trên sàn -> Chỉ thực hiện khi cần dịch chuyển Trailing SL (ROI >= trailTrigger)
-        if (roi >= trailTrigger) {
+        // Có lệnh SL trên sàn -> Thực hiện dịch chuyển Trailing SL khi giá đã từng chạm mốc 45 ticks (isTrailTriggerReached)
+        if (isTrailTriggerReached) {
           let alreadyMoved = false;
           let betterOrEqualExists = false;
 
