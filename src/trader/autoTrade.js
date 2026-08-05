@@ -1354,6 +1354,18 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
       const wsMark = getMarkPrice(sym);
       const markPrice = (wsMark && wsMark > 0) ? wsMark : parseFloat(p.markPrice);
 
+      // ── Theo dõi maxFavorablePrice: Giá đỉnh/đáy tốt nhất từ khi vào lệnh ──
+      // Cập nhật mỗi 3 giây để tránh bỏ lỡ spike ngắn dưới 3 giây giữa hai lần poll.
+      // Một khi maxFavorablePrice đã vượt ngưỡng trail trigger, trạng thái này được giữ nguyên
+      // cho đến khi vị thế đóng — đảm bảo SL luôn được dời về hòa vốn khi đã đủ điều kiện.
+      const metaForPeak = activeTradesMetadata[sym];
+      if (metaForPeak) {
+        if (isLong) {
+          metaForPeak.maxFavorablePrice = Math.max(metaForPeak.maxFavorablePrice || markPrice, markPrice);
+        } else {
+          metaForPeak.maxFavorablePrice = Math.min(metaForPeak.maxFavorablePrice || markPrice, markPrice);
+        }
+      }
 
       // ROI % = % thay đổi giá * leverage
       const roi = isLong
@@ -1494,7 +1506,13 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
       // ----------------------------------------------------
       // 2. Quản lý STOP LOSS (Virtual & Real, Trailing SL)
       // ----------------------------------------------------
-      const isTrailTriggerReached = isLong ? (markPrice >= trailTriggerPriceExact) : (markPrice <= trailTriggerPriceExact);
+      // Dùng peakPrice (giá đỉnh/đáy tốt nhất được theo dõi liên tục) thay vì chỉ markPrice hiện tại.
+      // Điều này đảm bảo: một khi giá đã từng chạm trail trigger (dù trong khoảng <3s giữa 2 poll),
+      // trạng thái trailing luôn được DUY TRÌ và SL sẽ không bao giờ bị trả về -13% nguyên thủy.
+      const peakPrice = meta?.maxFavorablePrice || markPrice;
+      const isTrailTriggerReached = isLong
+        ? (peakPrice >= trailTriggerPriceExact)
+        : (peakPrice <= trailTriggerPriceExact);
 
       let targetSlPrice = targetSlPriceExact;
       let currentSlPct = slPct;
