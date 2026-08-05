@@ -516,6 +516,7 @@ async function startAutoTrade(coins) {
           signal: sig.signal,
           targetLevel: sig.targetLevel,
           score: sig.score,
+          scoreReasons: sig.scoreReasons || [],
           step: sig.step || getStep(markPrice),
           isCounterTrend: sig.isCounterTrend,
           timestamp: Date.now()
@@ -1222,6 +1223,25 @@ async function checkH1RetestSignals(client) {
         log.warn(`[H1Retest] ${sym}: quantity calculation <= 0 — bỏ qua không đặt limit`);
         delete lowScoreWatchlist[sym];
         continue;
+      }
+
+      // ── Online AI Inference Reviewer (Shadow Test Mode — Lệnh Retest H1) ──
+      const sigForAI = {
+        symbol: sym,
+        signal: signal,
+        targetLevel: targetLevel,
+        score: watchData.score,
+        scoreReasons: watchData.scoreReasons || [],
+        marketCapRank: rank,
+        gridWidthPct: gridStepPct,
+      };
+      const aiEval = evaluateSignalWithAI(sigForAI);
+      recordAIEvaluation(sigForAI, aiEval);
+
+      if (aiEval.isApproved) {
+        log.system(`[AI Reviewer (Shadow Retest H1)] 🟢 Khuyên NÊN ĐẶT LỆNH ${sym} (${signal}) - ${aiEval.reason}`);
+      } else {
+        log.system(`[AI Reviewer (Shadow Retest H1)] 🟡 Khuyên BỎ QUA ${sym} (${signal}) - ${aiEval.reason}`);
       }
 
       try {
