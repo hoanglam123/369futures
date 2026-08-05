@@ -39,7 +39,7 @@ const {
 const { log } = require('../pp369/_logger');
 
 const SCAN_INTERVAL_MS = 30_000;   // scan mỗi 30 giây
-const TRAILING_SL_INTERVAL_MS = 3_000; // kiểm tra vị thế để dịch SL mỗi 3 giây (tăng interval để tránh rate limit)
+const TRAILING_SL_INTERVAL_MS = 1_500; // kiểm tra vị thế để dịch SL mỗi 1.5 giây (đã tối ưu 280 weight/min, an toàn 100%)
 const MONITOR_LIMIT_INTERVAL_MS = 3_000; // Luồng 3: monitor lệnh LIMIT đang chờ mỗi 3 giây
 const DEBOUNCE_MS = 5 * 60_000; // 5 phút / tín hiệu
 const COIN_REFRESH_INTERVAL_MS = 4 * 60 * 60_000; // Tái kiểm tra danh sách coin mỗi 4 giờ
@@ -65,6 +65,23 @@ try {
   }
 } catch (err) {
   log.warn(`[AutoTrade] Lỗi đọc active_trades.json: ${err.message}`);
+}
+
+let tickSizesCache = null;
+function getTickSizeCached(sym) {
+  if (!tickSizesCache) {
+    try {
+      const filePath = path.join(process.cwd(), 'data', 'step_sizes.json');
+      if (fs.existsSync(filePath)) {
+        const content = fs.readFileSync(filePath, 'utf8');
+        const data = JSON.parse(content);
+        tickSizesCache = data.tickSizes ?? {};
+      }
+    } catch (_) {
+      tickSizesCache = {};
+    }
+  }
+  return tickSizesCache[`${sym}USDT`] ?? null;
 }
 
 function saveActiveTradesMetadata() {
@@ -1093,21 +1110,24 @@ async function checkH1RetestSignals(client) {
       const isLong = signal === 'LONG';
 
       // Lấy giá Open/Close/High/Low tổng quan của cả nến H1
+      const h1Open = m1Candles[0].open;
       const h1Close = m1Candles[m1Candles.length - 1].close;
       const h1MinLow = Math.min(...m1Candles.map(c => c.low));
       const h1MaxHigh = Math.max(...m1Candles.map(c => c.high));
 
-      // 1. Check nến H1 có rút chân/rút râu tại Entry không:
+      // 1. Check nến H1 có rút chân/rút râu thực sự tại Entry không:
       let isRutChan = false;
       if (isLong) {
-        // LONG: chạm/vượt mốc entry (minLow <= targetLevel) VÀ đóng nến trên entry (h1Close > targetLevel)
-        isRutChan = h1MinLow <= targetLevel && h1Close > targetLevel;
+        // LONG: Mở nến trên/tại mốc (h1Open >= targetLevel), nhúng đâm qua mốc (h1MinLow <= targetLevel)
+        // VÀ rút chân chốt nến tại/trên mốc (h1Close >= targetLevel)
+        isRutChan = h1Open >= targetLevel && h1MinLow <= targetLevel && h1Close >= targetLevel;
       } else {
-        // SHORT: chạm/vượt mốc entry (maxHigh >= targetLevel) VÀ đóng nến dưới entry (h1Close < targetLevel)
-        isRutChan = h1MaxHigh >= targetLevel && h1Close < targetLevel;
+        // SHORT: Mở nến dưới/tại mốc (h1Open <= targetLevel), đẩy trồi qua mốc (h1MaxHigh >= targetLevel)
+        // VÀ rút râu chốt nến tại/dưới mốc (h1Close <= targetLevel)
+        isRutChan = h1Open <= targetLevel && h1MaxHigh >= targetLevel && h1Close <= targetLevel;
       }
 
-      if (!isRutChan) continue; // Nến H1 chưa đóng rút chân tại entry
+      if (!isRutChan) continue; // Nến H1 chưa đóng rút chân/rút râu tại entry
 
       // 2. Tìm thời điểm (index) chạm entry lần đầu tiên trong chuỗi nến 1M
       let touchIndex = -1;
@@ -1159,7 +1179,14 @@ async function checkH1RetestSignals(client) {
       log.system(`[H1Retest] 🎯 ${sym} ${signal} H1 đóng rút chân chuẩn tại Entry $${targetLevel}, chưa nảy đủ 5% ROI (Max ROI: +${maxFavorableRoi.toFixed(2)}%). ĐẶT LỆNH LIMIT TẠI ENTRY!`);
 
       const side = isLong ? 'BUY' : 'SELL';
-      const tradeAmount = 20; // Margin cơ bản $20 cho lệnh Retest H1
+      const rank = getMarketCapRank ? getMarketCapRank(sym) : 999;
+      let rankBonusMargin = 0;
+      if (rank <= 10) {
+        rankBonusMargin = 20; // Top 1-10 (BTC, ETH, BNB, SOL, XRP, DOGE...): +$20
+      } else if (rank <= 30) {
+        rankBonusMargin = 10; // Top 11-30 (ADA, LINK, SUI, AVAX, NEAR...): +$10
+      }
+      const tradeAmount = 30 + rankBonusMargin; // Base Margin $30 cho Retest H1 + bonus rank
       const notional = tradeAmount * leverage;
       const { qty } = calcQuantity(sym, notional, targetLevel);
       const dec = getDecimals(targetLevel);
@@ -1449,17 +1476,8 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
           : entryPrice * (1 - (trailSlRoi / 100) / leverageVal);
       }
 
-      // Lấy tickSize từ cache để định dạng giá chính xác
-      let tickSize = null;
-      try {
-        const filePath = path.join(process.cwd(), 'data', 'step_sizes.json');
-        if (fs.existsSync(filePath)) {
-          const content = fs.readFileSync(filePath, 'utf8');
-          const data = JSON.parse(content);
-          const tickSizes = data.tickSizes ?? {};
-          tickSize = tickSizes[`${sym}USDT`] ?? null;
-        }
-      } catch (_) { }
+      // Lấy tickSize từ cache RAM để định dạng giá chính xác
+      const tickSize = getTickSizeCached(sym);
 
       let roundedTargetSl;
       let dec;
