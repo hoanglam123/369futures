@@ -1,0 +1,16 @@
+{
+  "rule_modifiers": {
+    "price_action:PA_4_LEVELS": 1.1,
+    "price_action:PA_3_LEVELS": 1.08,
+    "trend:TREND_PERFECT": 1.15,
+    "trend:TREND_EMA": 1.08,
+    "btc_wave:BTC_ALIGNED": 1.12,
+    "volume:VOL_SURGE": 1.1,
+    "ls_flow:LS_DIVERGENCE": 0.8,
+    "funding:FUNDING_SQUEEZE": 1.12,
+    "volatility:VOL_ULTRA": 1.15,
+    "ls_flow:LS_GOLD": 1.2
+  },
+  "rules_count": 56,
+  "extracted_at": "2026-08-05 15:43:32"
+}

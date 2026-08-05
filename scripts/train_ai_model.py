@@ -259,6 +259,30 @@ def train_and_export_model():
             "multiplier": round(weight_mult, 4)
         }
 
+    # Import & nạp quy tắc bóc tách từ tài liệu kiến thức cục bộ
+    try:
+        from extract_local_knowledge import parse_knowledge_rules
+        knowledge_res = parse_knowledge_rules()
+        rule_mods = knowledge_res.get("rule_modifiers", {})
+        if rule_mods:
+            print(f"📖 Đã nạp thêm {len(rule_mods)} điều chỉnh trọng số từ tài liệu kiến thức cục bộ:")
+            for k, mod in rule_mods.items():
+                if k in feature_weights:
+                    old_mult = feature_weights[k]["multiplier"]
+                    new_mult = round(old_mult * mod, 4)
+                    feature_weights[k]["multiplier"] = new_mult
+                    print(f"   • {k}: {old_mult} -> {new_mult} (Thấu hiểu từ tài liệu)")
+                else:
+                    feature_weights[k] = {
+                        "winCount": 0,
+                        "lossCount": 0,
+                        "winProb": round(prior_win * mod, 4),
+                        "multiplier": round(mod, 4)
+                    }
+                    print(f"   • {k}: x{mod} (Quy tắc mới từ tài liệu)")
+    except Exception as e:
+        print(f"⚠️ Không thể nạp tài liệu kiến thức: {e}")
+
     model_output = {
         "version": "1.0.0",
         "trainedAt": time.strftime("%Y-%m-%d %H:%M:%S"),
@@ -271,7 +295,7 @@ def train_and_export_model():
     with open(OUTPUT_MODEL_PATH, 'w', encoding='utf-8') as f:
         json.dump(model_output, f, indent=2, ensure_ascii=False)
 
-    print(f"✅ Đã xuất mô hình AI Reviewer thành công tại: {OUTPUT_MODEL_PATH}")
+    print(f"\n✅ Đã xuất mô hình AI Reviewer Offline thành công tại: {OUTPUT_MODEL_PATH}")
 
 if __name__ == "__main__":
     train_and_export_model()

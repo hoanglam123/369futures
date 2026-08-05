@@ -34,7 +34,6 @@ const {
   getMarketCapRank,
   recordTradeEntry,
   recordTradeExit,
-  recordSkippedSignal,
   evaluateSignalWithAI,
   recordAIEvaluation,
 } = require('../pp369');
@@ -701,12 +700,13 @@ async function startAutoTrade(coins) {
         }
       }
 
-      // ── Online AI Inference Reviewer (Shadow Test Mode — Không chặn lệnh) ──
+      // ── AI Reviewer Machine Learning Offline (Shadow Test Mode — 0ms, 100% Cục bộ) ──
       const gridStepPct = (sig.step / sig.targetLevel) * 100;
       sig.marketCapRank = rank;
       sig.gridWidthPct = gridStepPct;
+
       const aiEval = evaluateSignalWithAI(sig);
-      recordAIEvaluation(sig, aiEval); // Ghi nhận đánh giá ra file data/ai_evaluations.jsonl
+      recordAIEvaluation(sig, aiEval); // Ghi nhận đánh giá ML ra file data/ai_evaluations.jsonl
 
       if (aiEval.isApproved) {
         log.system(`[AI Reviewer (Shadow)] 🟢 Khuyên NÊN ĐẶT LỆNH ${sym} (${sig.signal}) - ${aiEval.reason}`);
@@ -1225,7 +1225,7 @@ async function checkH1RetestSignals(client) {
         continue;
       }
 
-      // ── Online AI Inference Reviewer (Shadow Test Mode — Lệnh Retest H1) ──
+      // ── AI Reviewer Machine Learning Offline (Shadow Retest H1 — 0ms, 100% Cục bộ) ──
       const sigForAI = {
         symbol: sym,
         signal: signal,

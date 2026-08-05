@@ -160,9 +160,9 @@ function evaluateSignalWithAI(sig) {
       const mult = weights[key].multiplier;
       combinedMultiplier *= mult;
 
-      if (mult >= 1.08) {
+      if (mult >= 1.03) {
         keyFactors.push(`+ ${val} (x${mult})`);
-      } else if (mult <= 0.92) {
+      } else if (mult <= 0.97) {
         keyFactors.push(`- ${val} (x${mult})`);
       }
     }
