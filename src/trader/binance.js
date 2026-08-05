@@ -28,9 +28,9 @@ async function syncTimeOffset() {
 }
 
 // Chạy đồng bộ giờ ngay khi load module
-syncTimeOffset().catch(() => {});
+syncTimeOffset().catch(() => { });
 // Đồng bộ lại thời gian mỗi 30 phút để tránh drift kéo dài
-setInterval(() => syncTimeOffset().catch(() => {}), 30 * 60 * 1000);
+setInterval(() => syncTimeOffset().catch(() => { }), 30 * 60 * 1000);
 
 function _buildBody(params) {
   const timestamp = Date.now() + timeOffset;
@@ -250,7 +250,7 @@ function createClient(apiKey, secret) {
           const tickSizes = data.tickSizes ?? {};
           tickSize = tickSizes[`${symbol}USDT`] ?? null;
         }
-      } catch (_) {}
+      } catch (_) { }
 
       let finalPriceStr;
       if (tickSize) {
@@ -297,7 +297,7 @@ function createClient(apiKey, secret) {
           const tickSizes = data.tickSizes ?? {};
           tickSize = tickSizes[`${symbol}USDT`] ?? null;
         }
-      } catch (_) {}
+      } catch (_) { }
 
       let finalStopPriceStr;
       if (tickSize) {
