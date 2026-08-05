@@ -59,10 +59,9 @@ function format369Alert(signals) {
     lines.push(`${emoji} <b>${sig.symbol}</b> → <b>${sig.signal}${scoreStr}</b>`);
 
     let sigLeverage = sig.leverage;
-    if (sigLeverage == null && sig.condLevel && sig.targetLevel) {
-      const gridWidth = Math.abs(sig.condLevel - sig.targetLevel);
-      const pct = (gridWidth / Math.min(sig.targetLevel, sig.condLevel)) * 100;
-      const calculatedLeverage = Math.floor(50 / pct);
+    if (sigLeverage == null && sig.step && sig.targetLevel) {
+      const gridStepPct = (sig.step / sig.targetLevel) * 100;
+      const calculatedLeverage = Math.floor(39 / gridStepPct);
       let maxAllowed = 10;
       try {
         const envLeverage = parseInt(process.env.LEVERAGE || '10', 10);
