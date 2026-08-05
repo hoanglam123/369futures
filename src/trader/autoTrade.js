@@ -36,6 +36,7 @@ const {
   recordTradeExit,
   evaluateSignalWithAI,
   recordAIEvaluation,
+  recordSkippedSignal,
 } = require('../pp369');
 const { log } = require('../pp369/_logger');
 
