@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "trainedAt": "2026-08-06 09:32:56",
+  "trainedAt": "2026-08-06 10:10:19",
   "totalSamples": 69,
   "priorWinProb": 0.6812,
   "thresholdApprovalPct": 65.0,
@@ -81,7 +81,7 @@
       "winCount": 12,
       "lossCount": 3,
       "winProb": 0.7587,
-      "multiplier": 1.3143
+      "multiplier": 1.2809
     },
     "rsi:RSI_NEAR": {
       "winCount": 16,

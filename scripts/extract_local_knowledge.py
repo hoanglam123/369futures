@@ -48,6 +48,17 @@ def read_file_content(file_path):
             print(f"⚠️ Thiếu thư viện python-docx để đọc file Word {file_path}. Hãy cài: pip install python-docx")
         except Exception as e:
             print(f"⚠️ Lỗi đọc file docx {file_path}: {e}")
+
+    elif ext in ['.jpg', '.jpeg', '.png']:
+        try:
+            import easyocr
+            global _easyocr_reader
+            if '_easyocr_reader' not in globals() or _easyocr_reader is None:
+                _easyocr_reader = easyocr.Reader(['vi', 'en'], gpu=False)
+            results = _easyocr_reader.readtext(file_path, detail=0)
+            text = "\n".join(results)
+        except Exception as e:
+            print(f"⚠️ Lỗi OCR đọc file ảnh {file_path}: {e}")
             
     return text
 
