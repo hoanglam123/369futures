@@ -1196,6 +1196,9 @@ async function checkH1RetestSignals(client) {
         if (isTouchedH1) {
           log.system(`[H1Retest] ${sym} ${signal} nến H1 đã chạm mốc $${targetLevel} nhưng đâm thủng mốc (Close: $${h1Close}) — XÓA KHỎI WATCHLIST`);
           delete lowScoreWatchlist[sym];
+        } else {
+          const reachedPriceStr = isLong ? `Low: $${h1MinLow}` : `High: $${h1MaxHigh}`;
+          log.system(`[H1Retest] ${sym} ${signal} nến H1 chưa chạm mốc $${targetLevel} (${reachedPriceStr}) — Tiếp tục giữ trong Watchlist`);
         }
         continue; // Nến H1 chưa đóng rút chân/rút râu tại entry hoặc chưa chạm mốc
       }
