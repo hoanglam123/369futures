@@ -1014,8 +1014,8 @@ async function get369Signal(symbol, currentPrice = null) {
     let touchCount = 0;
     let reason = '';
 
-    const isLongValid = effectiveLastSide === 'upper' || prevLastSide === 'upper';
-    const isShortValid = effectiveLastSide === 'lower' || prevLastSide === 'lower';
+    const isLongValid = effectiveLastSide === 'upper';
+    const isShortValid = effectiveLastSide === 'lower';
 
     if (nearLong && isLongValid) {
       signal = 'LONG';
