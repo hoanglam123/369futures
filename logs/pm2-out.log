@@ -16591,3 +16591,1113 @@
 2026-08-05 10:34:14: [PP369] [AutoTrade] Bắt đầu scan... 
 2026-08-05 10:37:21: [PP369] [AutoTrade] Lệnh LIMIT của INJ thường treo quá 3 phút (3.4 phút) -> Tiến hành hủy... 
 2026-08-05 10:37:21: [PP369] [AutoTrade] ✓ Đã hủy thành công lệnh LIMIT treo của INJ 
+2026-08-05 10:49:44: ◇ injected env (10) from .env // tip: ⌘ multiple files { path: ['.env.local', '.env'] }
+2026-08-05 10:49:45: [PP369] [AI Reviewer] ✓ Đã nạp thành công mô hình AI (v1.0.0, mẫu N=62) 
+2026-08-05 10:49:45: [PP369] [Binance] Đã đồng bộ giờ: offset = 218122ms (Giờ server: 2026-08-05T03:53:23.642Z) 
+2026-08-05 10:49:46: [PP369] [Binance] Đang lấy leverage brackets cho 10 coin... 
+2026-08-05 10:49:46: [PP369] [AutoTrade] Khởi động: 10 coin | margin=$10 | 10x | type=LIMIT 
+2026-08-05 10:49:46: [PP369] [Binance] Loaded and saved step/tick sizes to file: 852 symbols 
+2026-08-05 10:49:46: [PP369] [AutoTrade] Đã nạp leverageInfo cho 0 coin từ cache. 
+2026-08-05 10:49:46: [PP369] [PP369Stream] Kết nối WebSocket thành công (market/stream) 
+2026-08-05 10:49:50: [PP369] [AutoTrade] Bắt đầu scan... 
+2026-08-05 11:19:44: [PP369] [Binance] Đã đồng bộ giờ: offset = 218305ms (Giờ server: 2026-08-05T04:23:22.765Z) 
+2026-08-05 11:49:44: [PP369] [Binance] Đã đồng bộ giờ: offset = 218479ms (Giờ server: 2026-08-05T04:53:22.941Z) 
+2026-08-05 12:19:44: [PP369] [Binance] Đã đồng bộ giờ: offset = 218655ms (Giờ server: 2026-08-05T05:23:23.117Z) 
+2026-08-05 12:49:44: [PP369] [Binance] Đã đồng bộ giờ: offset = 218831ms (Giờ server: 2026-08-05T05:53:23.313Z) 
+2026-08-05 13:02:03: ◇ injected env (10) from .env // tip: ◈ secrets for agents [www.dotenvx.com]
+2026-08-05 13:02:05: [PP369] [AI Reviewer] ✓ Đã nạp thành công mô hình AI (v1.0.0, mẫu N=62) 
+2026-08-05 13:02:05: [PP369] [369] initH4Cache: Cần nạp H4 cho 793/803 coin (delay 200ms/coin)... 
+2026-08-05 13:02:05: [PP369] [Binance] Đã đồng bộ giờ: offset = 218895ms (Giờ server: 2026-08-05T06:05:44.340Z) 
+2026-08-05 13:05:05: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho XAG. 
+2026-08-05 13:05:05: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho ZAMA. 
+2026-08-05 13:05:05: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho FOGO. 
+2026-08-05 13:05:06: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho FRAX. 
+2026-08-05 13:05:06: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho SPORTFUN. 
+2026-08-05 13:05:06: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho AIA. 
+2026-08-05 13:05:07: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho ACU. 
+2026-08-05 13:05:07: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho 我踏马来了. 
+2026-08-05 13:05:07: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho ELSA. 
+2026-08-05 13:05:08: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho SKR. 
+2026-08-05 13:05:08: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho SPACE. 
+2026-08-05 13:05:08: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho FIGHT. 
+2026-08-05 13:05:08: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho TSLA. 
+2026-08-05 13:05:09: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho BIRB. 
+2026-08-05 13:05:09: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho GWEI. 
+2026-08-05 13:05:09: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho XPT. 
+2026-08-05 13:05:10: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho XPD. 
+2026-08-05 13:05:10: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho MEGA. 
+2026-08-05 13:05:10: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho INX. 
+2026-08-05 13:05:11: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho INTC. 
+2026-08-05 13:05:11: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho HOOD. 
+2026-08-05 13:05:11: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho TRIA. 
+2026-08-05 13:05:12: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho MSTR. 
+2026-08-05 13:05:12: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho AMZN. 
+2026-08-05 13:05:12: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho CRCL. 
+2026-08-05 13:05:13: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho COIN. 
+2026-08-05 13:05:13: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho PLTR. 
+2026-08-05 13:05:13: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho ESP. 
+2026-08-05 13:05:13: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho AZTEC. 
+2026-08-05 13:05:14: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho OPN. 
+2026-08-05 13:05:14: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho ROBO. 
+2026-08-05 13:05:14: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho KAT. 
+2026-08-05 13:05:15: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho MANTRA. 
+2026-08-05 13:05:15: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho COPPER. 
+2026-08-05 13:05:15: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho 龙虾. 
+2026-08-05 13:05:16: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho EWY. 
+2026-08-05 13:05:16: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho CFG. 
+2026-08-05 13:05:16: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho EWJ. 
+2026-08-05 13:05:16: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho EDGE. 
+2026-08-05 13:05:17: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho PAYP. 
+2026-08-05 13:05:17: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho META. 
+2026-08-05 13:05:17: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho NVDA. 
+2026-08-05 13:05:18: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho GOOGL. 
+2026-08-05 13:05:18: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho BSB. 
+2026-08-05 13:05:18: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho XAUT. 
+2026-08-05 13:05:19: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho BASED. 
+2026-08-05 13:05:19: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho CL. 
+2026-08-05 13:05:19: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho BZ. 
+2026-08-05 13:05:19: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho NATGAS. 
+2026-08-05 13:05:20: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho PRL. 
+2026-08-05 13:05:20: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho QQQ. 
+2026-08-05 13:05:20: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho SPY. 
+2026-08-05 13:05:21: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho AAPL. 
+2026-08-05 13:05:21: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho TSM. 
+2026-08-05 13:05:21: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho MU. 
+2026-08-05 13:05:22: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho SNDK. 
+2026-08-05 13:05:22: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho GENIUS. 
+2026-08-05 13:05:22: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho CHIP. 
+2026-08-05 13:05:22: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho MSFT. 
+2026-08-05 13:05:23: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho AVGO. 
+2026-08-05 13:05:23: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho BABA. 
+2026-08-05 13:05:23: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho OPG. 
+2026-08-05 13:05:24: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho AIGENSYN. 
+2026-08-05 13:05:24: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho AMD. 
+2026-08-05 13:05:24: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho QCOM. 
+2026-08-05 13:05:25: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho USAR. 
+2026-08-05 13:05:25: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho BILL. 
+2026-08-05 13:05:25: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho PHAROS. 
+2026-08-05 13:05:26: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho STAR. 
+2026-08-05 13:05:26: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho LITE. 
+2026-08-05 13:05:26: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho ORCL. 
+2026-08-05 13:05:26: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho DIS. 
+2026-08-05 13:05:27: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho UBER. 
+2026-08-05 13:05:27: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho CSCO. 
+2026-08-05 13:05:27: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho HD. 
+2026-08-05 13:05:28: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho SOXL. 
+2026-08-05 13:05:28: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho MRVL. 
+2026-08-05 13:05:28: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho CRWV. 
+2026-08-05 13:05:29: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho WMT. 
+2026-08-05 13:05:29: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho JPM. 
+2026-08-05 13:05:29: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho V. 
+2026-08-05 13:05:30: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho BRKB. 
+2026-08-05 13:05:30: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho FLNC. 
+2026-08-05 13:05:30: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho DRAM. 
+2026-08-05 13:05:31: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho RKLB. 
+2026-08-05 13:05:31: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho CBRS. 
+2026-08-05 13:05:31: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho SPCX. 
+2026-08-05 13:05:31: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho OPENAI. 
+2026-08-05 13:05:32: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho NBIS. 
+2026-08-05 13:05:32: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho WDC. 
+2026-08-05 13:05:32: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho ARM. 
+2026-08-05 13:05:33: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho BE. 
+2026-08-05 13:05:33: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho COHR. 
+2026-08-05 13:05:33: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho CTR. 
+2026-08-05 13:05:34: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho QNTX. 
+2026-08-05 13:05:34: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho SLX. 
+2026-08-05 13:05:34: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho LLY. 
+2026-08-05 13:05:34: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho NVO. 
+2026-08-05 13:05:35: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho BBX. 
+2026-08-05 13:05:35: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho NOK. 
+2026-08-05 13:05:35: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho EWT. 
+2026-08-05 13:05:36: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho ASTS. 
+2026-08-05 13:05:36: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho SKHYNIX. 
+2026-08-05 13:05:36: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho SAMSUNG. 
+2026-08-05 13:05:37: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho HYUNDAI. 
+2026-08-05 13:05:37: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho ANTHROPIC. 
+2026-08-05 13:05:37: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho DELL. 
+2026-08-05 13:05:38: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho IBM. 
+2026-08-05 13:05:38: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho NOW. 
+2026-08-05 13:05:38: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho CRM. 
+2026-08-05 13:05:38: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho IREN. 
+2026-08-05 13:05:39: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho ONDS. 
+2026-08-05 13:05:39: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho ZEST. 
+2026-08-05 13:05:39: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho BTW. 
+2026-08-05 13:05:40: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho BX. 
+2026-08-05 13:05:40: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho HPE. 
+2026-08-05 13:05:40: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho AMAT. 
+2026-08-05 13:05:41: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho CRWD. 
+2026-08-05 13:05:41: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho CRDO. 
+2026-08-05 13:05:41: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho AAOI. 
+2026-08-05 13:05:41: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho IWM. 
+2026-08-05 13:05:42: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho AXTI. 
+2026-08-05 13:05:42: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho NFLX. 
+2026-08-05 13:05:42: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho COST. 
+2026-08-05 13:05:43: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho URNM. 
+2026-08-05 13:05:43: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho HIMS. 
+2026-08-05 13:05:43: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho EBAY. 
+2026-08-05 13:05:44: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho ZM. 
+2026-08-05 13:05:44: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho DKNG. 
+2026-08-05 13:05:44: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho RIVN. 
+2026-08-05 13:05:45: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho GME. 
+2026-08-05 13:05:45: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho XLE. 
+2026-08-05 13:05:45: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho EWZ. 
+2026-08-05 13:05:45: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho BMNR. 
+2026-08-05 13:05:46: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho UVXY. 
+2026-08-05 13:05:46: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho ADBE. 
+2026-08-05 13:05:47: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho GLW. 
+2026-08-05 13:05:47: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho STXX. 
+2026-08-05 13:05:47: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho ASML. 
+2026-08-05 13:05:47: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho RE. 
+2026-08-05 13:05:48: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho LRCX. 
+2026-08-05 13:05:48: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho KLAC. 
+2026-08-05 13:05:48: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho ALAB. 
+2026-08-05 13:05:49: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho SMCI. 
+2026-08-05 13:05:49: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho CIEN. 
+2026-08-05 13:05:49: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho KORU. 
+2026-08-05 13:05:50: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho SONY. 
+2026-08-05 13:05:50: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho ARX. 
+2026-08-05 13:05:50: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho MVLL. 
+2026-08-05 13:05:50: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho TQQQ. 
+2026-08-05 13:05:51: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho SQQQ. 
+2026-08-05 13:05:51: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho O. 
+2026-08-05 13:05:51: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho CAP. 
+2026-08-05 13:05:52: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho GRAM. 
+2026-08-05 13:05:52: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho STRC. 
+2026-08-05 13:05:52: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho CAT. 
+2026-08-05 13:05:53: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho TXN. 
+2026-08-05 13:05:53: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho FLEX. 
+2026-08-05 13:05:53: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho TER. 
+2026-08-05 13:05:53: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho TTWO. 
+2026-08-05 13:05:54: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho KSTR. 
+2026-08-05 13:05:54: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho BSP. 
+2026-08-05 13:05:54: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho DATAIP. 
+2026-08-05 13:05:55: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho BOT. 
+2026-08-05 13:05:55: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho WEN. 
+2026-08-05 13:05:55: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho INTW. 
+2026-08-05 13:05:56: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho SNXX. 
+2026-08-05 13:05:56: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho XBI. 
+2026-08-05 13:05:56: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho BNC. 
+2026-08-05 13:05:57: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho FWDI. 
+2026-08-05 13:05:57: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho GEV. 
+2026-08-05 13:05:57: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho VRT. 
+2026-08-05 13:05:58: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho SNOW. 
+2026-08-05 13:05:58: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho APP. 
+2026-08-05 13:05:58: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho SKHY. 
+2026-08-05 13:05:58: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho MUU. 
+2026-08-05 13:05:59: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho SOXS. 
+2026-08-05 13:05:59: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho TZA. 
+2026-08-05 13:05:59: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho MINIMAX. 
+2026-08-05 13:06:00: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho ZHIPU. 
+2026-08-05 13:06:00: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho HK0700. 
+2026-08-05 13:06:00: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho HK1810. 
+2026-08-05 13:06:01: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho TENCENT. 
+2026-08-05 13:06:01: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho SHAZ. 
+2026-08-05 13:06:01: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho SOFI. 
+2026-08-05 13:06:02: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho PANW. 
+2026-08-05 13:06:02: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho PENG. 
+2026-08-05 13:06:02: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho POPMART. 
+2026-08-05 13:06:02: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho TMF. 
+2026-08-05 13:06:03: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho TBT. 
+2026-08-05 13:06:03: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho BITO. 
+2026-08-05 13:06:03: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho PYPL. 
+2026-08-05 13:06:04: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho GS. 
+2026-08-05 13:06:04: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho SMH. 
+2026-08-05 13:06:04: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho GRVT. 
+2026-08-05 13:06:05: [PP369] [369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho GIGADEV. 
+2026-08-05 13:06:05: [PP369] [369] Hoàn tất initH4Cache. 
+2026-08-05 13:06:05: [AutoTrade] Bỏ qua 156 coin có grid ngoài khoảng 3–25% (theo giá hiện tại): XRP(28.1%), ETC(45.9%), LINK(36.7%), BAT(43.9%), QTUM(46.3%), KNC(29.1%), DOT(35.5%), SOL(40.5%), AVAX(44.8%), AAVE(32.7%), FIL(41.9%), ALICE(2.6%), NKN(2.6%), DGB(1.6%), ATA(1.8%), DYDX(2.6%), KLAY(2.4%), IMX(27.1%), APE(2.3%), WOO(26.1%), DAR(2.1%), OP(34.0%), STG(2.5%), SPELL(37.9%), APT(51.7%), FET(2.0%), CKB(36.5%), USDC(30.0%), AMB(2.5%), LEVER(26.7%), RDNT(2.9%), SUI(43.4%), MAV(36.5%), DODOX(1.6%), ARK(32.1%), BOND(28.1%), GAS(32.4%), SUPER(36.6%), 1000SATS(315.8%), ACE(43.8%), MOVR(25.9%), JUP(1.6%), GLM(32.3%), PORTAL(2.7%), MYRO(3.0%), W(35.9%), IO(2.4%), ZK(38.3%), ZRO(38.4%), RARE(25.1%), SYN(2.4%), SYS(1.7%), ALPACA(25.2%), SUN(1.7%), DOGS(85.8%), BSW(2.5%), QUICK(2.3%), NEIRO(48.5%), FIO(2.5%), GHST(1.8%), LOKA(2.6%), COS(2.5%), DIA(27.1%), SANTOS(63.0%), COW(27.5%), 1000000MOG(29.7%), ACT(33.3%), HIPPO(2.9%), DEGEN(2.9%), 1000WHY(197.4%), THE(56.7%), ORCA(27.7%), MOVE(40.5%), KOMA(2.4%), VELODROME(1.8%), MOCA(38.6%), VANA(36.1%), USUAL(36.9%), DF(2.6%), COOKIE(36.0%), D(2.2%), PIPPIN(173.7%), TST(3.0%), HEI(1.7%), RED(34.6%), EPIC(2.8%), MUBARAK(2.3%), TUT(1.2%), BROCCOLI714(2.2%), BR(2.1%), PLUME(2.7%), FUN(1.7%), BABY(2.9%), SIGN(45.4%), PUNDIX(39.8%), CTK(29.6%), SXT(40.4%), ASR(34.8%), MILK(3.0%), OG(119.4%), AGT(2.0%), B(1.7%), MERL(173.7%), PORT3(2.5%), 1000000BOB(1.9%), LA(66.8%), PUMPBTC(29.2%), MYX(383.8%), DMC(2.3%), OL(1.7%), SAHARA(37.3%), ICNT(28.3%), M(25.0%), TANSSI(2.4%), PUMP(1.2%), VELVET(0.6%), ZORA(51.4%), TAG(2.5%), ESPORTS(166.1%), A2Z(2.1%), YALA(1.8%), SOMI(35.4%), BAS(1.1%), Q(1.4%), PTB(35.2%), OPEN(1.5%), AVNT(35.8%), UB(2.4%), TOSHI(29.1%), BARD(26.7%), TRADOOR(54.6%), BLESS(1.9%), HANA(0.9%), AKE(0.7%), LIGHT(213.5%), XAN(2.2%), TRUTH(2.3%), YB(43.1%), ZBT(2.8%), LAB(2.0%), RIVER(118.5%), 币安人生(0.6%), BLUAI(2.4%), APR(1.4%), ON(1.2%), AT(2.2%), UAI(1.2%), STABLE(0.9%), JCT(0.7%), ALLO(1.2%), BOB(2.8%), RLS(2.8%), POWER(34.4%), US(0.6%), BREV(42.3%), MAGMA(1.1%)
+2026-08-05 13:06:06: [PP369] [Binance] Đang lấy leverage brackets cho 450 coin... 
+2026-08-05 13:06:06: [PP369] [Binance] Đã lưu leverage cho 450 coin vào step_sizes.json 
+2026-08-05 13:06:06: [PP369] [AutoTrade] Khởi động: 450 coin | margin=$10 | 10x | type=LIMIT 
+2026-08-05 13:06:06: [PP369] [Binance] Loaded step and tick sizes from existing file: 852 symbols 
+2026-08-05 13:06:06: [PP369] [AutoTrade] Đã nạp leverageInfo cho 450 coin từ cache. 
+2026-08-05 13:06:07: [PP369] [PP369Stream] Kết nối WebSocket thành công (market/stream) 
+2026-08-05 13:06:11: [PP369] [AutoTrade] Bắt đầu scan... 
+2026-08-05 13:07:00: [PP369] [AutoTrade] FF → LONG (Score: +5.3đ) tại $0.0622 
+2026-08-05 13:07:00: [PP369] [AutoTrade] FF LONG có Score = 5.3đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-05 13:07:27: [PP369] [AutoTrade] FF → LONG (Score: +5.3đ) tại $0.0622 
+2026-08-05 13:07:27: [PP369] [AutoTrade] FF LONG có Score = 5.3đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-05 13:07:56: [PP369] [AutoTrade] FF → LONG (Score: +5.3đ) tại $0.0622 
+2026-08-05 13:07:56: [PP369] [AutoTrade] FF LONG có Score = 5.3đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-05 13:08:26: [PP369] [AutoTrade] FF → LONG (Score: +5.3đ) tại $0.0622 
+2026-08-05 13:08:26: [PP369] [AutoTrade] FF LONG có Score = 5.3đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-05 13:08:56: [PP369] [AutoTrade] FF → LONG (Score: +5.3đ) tại $0.0622 
+2026-08-05 13:08:56: [PP369] [AutoTrade] FF LONG có Score = 5.3đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-05 13:09:26: [PP369] [AutoTrade] FF → LONG (Score: +5.3đ) tại $0.0622 
+2026-08-05 13:09:26: [PP369] [AutoTrade] FF LONG có Score = 5.3đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-05 13:09:56: [PP369] [AutoTrade] FF → LONG (Score: +5.3đ) tại $0.0622 
+2026-08-05 13:09:56: [PP369] [AutoTrade] FF LONG có Score = 5.3đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-05 13:16:57: [PP369] [AutoTrade] PIXEL → SHORT (Score: +3.8đ) tại $0.00434 
+2026-08-05 13:16:57: [PP369] [AutoTrade] PIXEL SHORT có Score = 3.8đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-05 13:32:03: [PP369] [Binance] Đã đồng bộ giờ: offset = 219078ms (Giờ server: 2026-08-05T06:35:42.727Z) 
+2026-08-05 13:36:27: [PP369] [AutoTrade] AKT → SHORT (Score: +3.6999999999999997đ) tại $0.53 
+2026-08-05 13:36:27: [PP369] [AutoTrade] AKT SHORT có Score = 3.6999999999999997đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-05 13:36:56: [PP369] [AutoTrade] AKT → SHORT (Score: +3.6999999999999997đ) tại $0.53 
+2026-08-05 13:36:56: [PP369] [AutoTrade] AKT SHORT có Score = 3.6999999999999997đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-05 13:37:56: [PP369] [AutoTrade] AKT → SHORT (Score: +3.9đ) tại $0.53 
+2026-08-05 13:37:56: [PP369] [AutoTrade] AKT SHORT có Score = 3.9đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-05 13:46:57: [PP369] [AutoTrade] AIN → SHORT (Score: +2.6đ) tại $0.06965 
+2026-08-05 13:46:57: [PP369] [AutoTrade] AIN SHORT có Score = 2.6đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-05 13:47:56: [PP369] [AutoTrade] AIN → SHORT (Score: +2.6đ) tại $0.06965 
+2026-08-05 13:47:56: [PP369] [AutoTrade] AIN SHORT có Score = 2.6đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-05 14:00:05: [PP369] [H1Retest] === Kiểm tra Retest nến H1 vừa đóng cho 4 coin trong Watchlist === 
+2026-08-05 14:00:05: [PP369] [H1Retest] 🎯 FF LONG H1 đóng rút chân chuẩn tại Entry $0.0622, chưa nảy đủ 5% ROI (Max ROI: +2.19%). ĐẶT LỆNH LIMIT TẠI ENTRY! 
+2026-08-05 14:00:05: [PP369] [H1Retest] ✓ Đã đặt thành công lệnh LIMIT Retest H1 cho FF BUY 3858 @ $0.0622 (orderId=1273797952) 
+2026-08-05 14:00:06: [PP369] [H1Retest] AKT SHORT nến H1 rút chân nhưng ĐÃ PHẢN ỨNG NẢY ROI = +10.53% (>= 5.0%) sau khi chạm entry. Bỏ qua không đặt limit. 
+2026-08-05 14:02:03: [PP369] [Binance] Đã đồng bộ giờ: offset = 219252ms (Giờ server: 2026-08-05T07:05:42.903Z) 
+2026-08-05 14:10:07: [PP369] [Binance] Lỗi -1021 (Timestamp outside recvWindow). Đang tự động đồng bộ lại giờ và thử lại... 
+2026-08-05 14:10:07: [PP369] [Binance] Đã đồng bộ giờ: offset = 551ms (Giờ server: 2026-08-05T07:10:08.107Z) 
+2026-08-05 14:28:37: [PP369] [AutoTrade] KAITO → SHORT (Score: +1.4đ) tại $0.9562 
+2026-08-05 14:28:37: [PP369] [AutoTrade] KAITO SHORT không đạt Tiêu chí 2 (Biến động H1/M15 an toàn) — bỏ qua 
+2026-08-05 14:29:14: ◇ injected env (10) from .env // tip: ⌁ auth for agents [www.vestauth.com]
+2026-08-05 14:29:16: [PP369] [AI Reviewer] ✓ Đã nạp thành công mô hình AI (v1.0.0, mẫu N=62) 
+2026-08-05 14:29:16: [PP369] [369] initH4Cache: Tất cả 803 coin đã có nến H4 đầu năm. 
+2026-08-05 14:29:16: [PP369] [Binance] Đã đồng bộ giờ: offset = 657ms (Giờ server: 2026-08-05T07:29:16.996Z) 
+2026-08-05 14:29:16: [AutoTrade] Bỏ qua 157 coin có grid ngoài khoảng 3–25% (theo giá hiện tại): XRP(28.2%), ETC(46.2%), LINK(36.9%), BAT(44.1%), QTUM(46.4%), KNC(29.1%), DOT(35.2%), SOL(40.7%), AVAX(45.0%), AAVE(32.8%), FIL(42.0%), ALICE(2.6%), NKN(2.6%), DGB(1.6%), ATA(1.8%), DYDX(2.6%), KLAY(2.4%), IMX(27.3%), APE(2.3%), WOO(26.2%), DAR(2.1%), OP(33.9%), STG(2.5%), SPELL(38.3%), APT(51.8%), FET(2.0%), CKB(36.5%), USDC(30.0%), AMB(2.5%), LEVER(26.7%), RDNT(2.9%), SUI(43.5%), MAV(36.5%), DODOX(1.6%), ARK(32.1%), BOND(28.1%), GAS(32.5%), SUPER(36.5%), 1000SATS(314.8%), ACE(43.3%), MOVR(26.0%), JUP(1.6%), GLM(32.5%), PORTAL(2.8%), MYRO(3.0%), W(35.7%), IO(2.4%), ZK(38.2%), ZRO(37.9%), RARE(25.2%), SYN(2.3%), SYS(1.7%), ALPACA(25.2%), SUN(1.7%), DOGS(86.1%), BSW(2.5%), QUICK(2.3%), NEIRO(48.3%), FIO(2.5%), GHST(1.8%), LOKA(2.6%), COS(2.5%), DIA(27.0%), SANTOS(63.4%), COW(27.6%), 1000000MOG(29.9%), ACT(33.0%), HIPPO(2.9%), DEGEN(2.9%), 1000WHY(197.4%), THE(56.9%), ORCA(27.6%), MOVE(40.5%), KOMA(2.4%), VELODROME(1.8%), MOCA(39.0%), VANA(35.8%), USUAL(36.9%), DF(2.6%), COOKIE(36.4%), D(2.2%), PIPPIN(174.2%), TST(3.0%), HEI(2.0%), RED(34.7%), EPIC(2.9%), MUBARAK(2.2%), TUT(1.2%), BROCCOLI714(2.2%), BR(2.1%), PLUME(2.7%), FUN(1.7%), BABY(2.9%), SIGN(44.8%), PUNDIX(39.8%), CTK(29.4%), SXT(40.2%), ASR(35.0%), MILK(3.0%), OG(119.5%), AGT(2.0%), B(1.7%), MERL(175.0%), PORT3(2.5%), 1000000BOB(1.9%), LA(66.6%), PUMPBTC(29.3%), MYX(389.2%), DMC(2.3%), OL(1.7%), SAHARA(37.1%), ICNT(28.0%), M(25.1%), TANSSI(2.4%), PUMP(1.2%), VELVET(0.6%), ZORA(51.6%), TAG(2.4%), ESPORTS(166.2%), A2Z(2.1%), YALA(1.8%), SOMI(35.5%), BAS(1.1%), Q(1.4%), PTB(35.1%), OPEN(1.5%), AVNT(36.3%), UB(2.8%), TOSHI(29.4%), BARD(26.6%), TRADOOR(54.5%), BLESS(1.8%), HANA(0.9%), AKE(0.7%), LIGHT(213.8%), XAN(2.2%), TRUTH(2.3%), YB(43.0%), ZBT(2.8%), LAB(2.1%), RIVER(119.0%), 币安人生(0.6%), BLUAI(2.4%), APR(1.4%), ON(1.2%), KITE(3.0%), AT(2.2%), UAI(1.1%), STABLE(0.9%), JCT(0.7%), ALLO(1.1%), BOB(2.8%), RLS(2.8%), POWER(34.9%), US(0.6%), BREV(42.3%), MAGMA(1.1%)
+2026-08-05 14:29:17: [PP369] [Binance] Đang lấy leverage brackets cho 449 coin... 
+2026-08-05 14:29:17: [PP369] [Binance] Đã lưu leverage cho 449 coin vào step_sizes.json 
+2026-08-05 14:29:17: [PP369] [AutoTrade] Khởi động: 449 coin | margin=$10 | 10x | type=LIMIT 
+2026-08-05 14:29:17: [PP369] [Binance] Loaded step and tick sizes from existing file: 852 symbols 
+2026-08-05 14:29:17: [PP369] [AutoTrade] Đã nạp leverageInfo cho 449 coin từ cache. 
+2026-08-05 14:29:17: [PP369] [PP369Stream] Kết nối WebSocket thành công (market/stream) 
+2026-08-05 14:29:21: [PP369] [AutoTrade] Bắt đầu scan... 
+2026-08-05 14:31:38: [PP369] [AutoTrade] [BounceCancel] FF LONG: entry=$0.0622, current=$0.062590 (+0.63% >= 0.88%) → Hủy LIMIT ngay lập tức 
+2026-08-05 14:39:45: ◇ injected env (10) from .env // tip: ⌘ override existing { override: true }
+2026-08-05 14:39:46: [PP369] [AI Reviewer] ✓ Đã nạp thành công mô hình AI (v1.0.0, mẫu N=62) 
+2026-08-05 14:39:46: [PP369] [369] initH4Cache: Tất cả 803 coin đã có nến H4 đầu năm. 
+2026-08-05 14:39:46: [PP369] [Binance] Đã đồng bộ giờ: offset = 720ms (Giờ server: 2026-08-05T07:39:47.521Z) 
+2026-08-05 14:39:46: [AutoTrade] Bỏ qua 156 coin có grid ngoài khoảng 3–25% (theo giá hiện tại): XRP(28.2%), ETC(46.3%), LINK(36.8%), BAT(44.1%), QTUM(46.5%), KNC(29.1%), DOT(35.2%), SOL(40.7%), AVAX(45.0%), AAVE(32.7%), FIL(42.0%), ALICE(2.6%), NKN(2.6%), DGB(1.6%), ATA(1.8%), DYDX(2.6%), KLAY(2.4%), IMX(27.2%), APE(2.3%), WOO(26.1%), DAR(2.1%), OP(33.9%), STG(2.5%), SPELL(38.3%), APT(51.8%), FET(2.0%), CKB(36.6%), USDC(30.0%), AMB(2.5%), LEVER(26.7%), RDNT(2.9%), SUI(43.5%), MAV(36.4%), DODOX(1.6%), ARK(32.2%), BOND(28.1%), GAS(32.5%), SUPER(36.5%), 1000SATS(313.5%), ACE(42.9%), MOVR(25.9%), JUP(1.6%), GLM(32.5%), PORTAL(2.8%), MYRO(3.0%), W(35.7%), IO(2.4%), ZK(38.2%), ZRO(37.8%), RARE(25.2%), SYN(2.3%), SYS(1.7%), ALPACA(25.2%), SUN(1.7%), DOGS(86.2%), BSW(2.5%), QUICK(2.3%), NEIRO(48.4%), FIO(2.5%), GHST(1.8%), LOKA(2.6%), COS(2.5%), DIA(26.8%), SANTOS(63.3%), COW(27.6%), 1000000MOG(29.9%), ACT(32.9%), HIPPO(2.9%), DEGEN(2.9%), 1000WHY(197.4%), THE(56.9%), ORCA(27.5%), MOVE(40.6%), KOMA(2.4%), VELODROME(1.8%), MOCA(38.9%), VANA(35.5%), USUAL(36.9%), DF(2.6%), COOKIE(36.4%), D(2.2%), PIPPIN(173.5%), TST(3.0%), HEI(2.0%), RED(34.7%), EPIC(2.9%), MUBARAK(2.2%), TUT(1.2%), BROCCOLI714(2.2%), BR(2.1%), PLUME(2.7%), FUN(1.7%), BABY(2.9%), SIGN(44.8%), PUNDIX(39.7%), CTK(29.5%), SXT(40.0%), ASR(35.0%), MILK(3.0%), OG(119.5%), AGT(2.0%), B(1.7%), MERL(174.9%), PORT3(2.5%), 1000000BOB(1.9%), LA(66.6%), PUMPBTC(29.6%), MYX(393.9%), DMC(2.3%), OL(1.7%), SAHARA(37.2%), ICNT(28.1%), TANSSI(2.4%), PUMP(1.2%), VELVET(0.7%), ZORA(50.7%), TAG(2.4%), ESPORTS(166.1%), A2Z(2.1%), YALA(1.8%), SOMI(35.5%), BAS(1.1%), Q(1.4%), PTB(34.7%), OPEN(1.5%), AVNT(36.2%), UB(2.6%), TOSHI(29.4%), BARD(26.7%), TRADOOR(54.5%), BLESS(1.8%), HANA(0.9%), AKE(0.7%), LIGHT(214.1%), XAN(2.2%), TRUTH(2.3%), YB(43.1%), ZBT(2.8%), LAB(2.1%), RIVER(118.9%), 币安人生(0.6%), BLUAI(2.4%), APR(1.4%), ON(1.2%), KITE(3.0%), AT(2.2%), UAI(1.1%), STABLE(0.9%), JCT(0.7%), ALLO(1.1%), BOB(2.8%), RLS(2.8%), POWER(34.8%), US(0.6%), BREV(42.0%), MAGMA(1.1%)
+2026-08-05 14:39:47: [PP369] [Binance] Đang lấy leverage brackets cho 450 coin... 
+2026-08-05 14:39:47: [PP369] [Binance] Đã lưu leverage cho 450 coin vào step_sizes.json 
+2026-08-05 14:39:47: [PP369] [AutoTrade] Khởi động: 450 coin | margin=$10 | 10x | type=LIMIT 
+2026-08-05 14:39:47: [PP369] [Binance] Loaded step and tick sizes from existing file: 852 symbols 
+2026-08-05 14:39:47: [PP369] [AutoTrade] Đã nạp leverageInfo cho 450 coin từ cache. 
+2026-08-05 14:39:48: [PP369] [PP369Stream] Kết nối WebSocket thành công (market/stream) 
+2026-08-05 14:39:52: [PP369] [AutoTrade] Bắt đầu scan... 
+2026-08-05 14:40:27: [PP369] [AutoTrade] CATI → SHORT (Score: +3.1999999999999997đ) tại $0.03995 
+2026-08-05 14:40:27: [PP369] [AutoTrade] CATI SHORT có Score = 3.1999999999999997đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-05 14:40:28: [PP369] [AutoTrade] BAN → SHORT (Score: +2.8đ) tại $0.07543 
+2026-08-05 14:40:28: [PP369] [AutoTrade] BAN SHORT có Score = 2.8đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-05 14:40:56: [PP369] [AutoTrade] CATI → SHORT (Score: +3.1999999999999997đ) tại $0.03995 
+2026-08-05 14:40:56: [PP369] [AutoTrade] CATI SHORT có Score = 3.1999999999999997đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-05 14:42:57: [PP369] [AutoTrade] VIC → LONG (Score: +4.6đ) tại $0.0362 
+2026-08-05 14:42:57: [PP369] [AutoTrade] VIC LONG không đạt Tiêu chí 2 (Biến động H1/M15 an toàn) — bỏ qua 
+2026-08-05 14:44:56: [PP369] [AutoTrade] VIC → LONG (Score: +4.6đ) tại $0.0362 
+2026-08-05 14:44:56: [PP369] [AutoTrade] VIC LONG không đạt Tiêu chí 2 (Biến động H1/M15 an toàn) — bỏ qua 
+2026-08-05 14:45:26: [PP369] [AutoTrade] VIC → LONG (Score: +4.6đ) tại $0.0362 
+2026-08-05 14:45:26: [PP369] [AutoTrade] VIC LONG không đạt Tiêu chí 2 (Biến động H1/M15 an toàn) — bỏ qua 
+2026-08-05 14:47:57: [PP369] [AutoTrade] AIN → SHORT (Score: +4.1đ) tại $0.06965 
+2026-08-05 14:47:57: [PP369] [AutoTrade] AIN SHORT có Score = 4.1đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-05 14:48:26: [PP369] [AutoTrade] AIN → SHORT (Score: +4.1đ) tại $0.06965 
+2026-08-05 14:48:26: [PP369] [AutoTrade] AIN SHORT có Score = 4.1đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-05 14:48:55: [PP369] [AutoTrade] AIN → SHORT (Score: +4.1đ) tại $0.06965 
+2026-08-05 14:48:55: [PP369] [AutoTrade] AIN SHORT có Score = 4.1đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-05 14:49:25: [PP369] [AutoTrade] AIN → SHORT (Score: +3.8999999999999995đ) tại $0.06965 
+2026-08-05 14:49:25: [PP369] [AutoTrade] AIN SHORT có Score = 3.8999999999999995đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-05 14:49:55: [PP369] [AutoTrade] AIN → SHORT (Score: +3.8999999999999995đ) tại $0.06965 
+2026-08-05 14:49:55: [PP369] [AutoTrade] AIN SHORT có Score = 3.8999999999999995đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-05 14:50:25: [PP369] [AutoTrade] AIN → SHORT (Score: +3.8999999999999995đ) tại $0.06965 
+2026-08-05 14:50:25: [PP369] [AutoTrade] AIN SHORT có Score = 3.8999999999999995đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-05 14:50:55: [PP369] [AutoTrade] AIN → SHORT (Score: +3.8999999999999995đ) tại $0.06965 
+2026-08-05 14:50:55: [PP369] [AutoTrade] AIN SHORT có Score = 3.8999999999999995đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-05 14:51:26: [PP369] [AutoTrade] AIN → SHORT (Score: +4.1đ) tại $0.06965 
+2026-08-05 14:51:26: [PP369] [AutoTrade] AIN SHORT có Score = 4.1đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-05 14:51:56: [PP369] [AutoTrade] AIN → SHORT (Score: +4.1đ) tại $0.06965 
+2026-08-05 14:51:56: [PP369] [AutoTrade] AIN SHORT có Score = 4.1đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-05 14:53:56: [PP369] [AutoTrade] AIN → SHORT (Score: +4.1đ) tại $0.06965 
+2026-08-05 14:53:56: [PP369] [AutoTrade] AIN SHORT có Score = 4.1đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-05 14:54:25: [PP369] [AutoTrade] AIN → SHORT (Score: +4.1đ) tại $0.06965 
+2026-08-05 14:54:25: [PP369] [AutoTrade] AIN SHORT có Score = 4.1đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-05 14:54:56: [PP369] [AutoTrade] AIN → SHORT (Score: +4.1đ) tại $0.06965 
+2026-08-05 14:54:56: [PP369] [AutoTrade] AIN SHORT có Score = 4.1đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-05 14:55:26: [PP369] [AutoTrade] AIN → SHORT (Score: +4.1đ) tại $0.06965 
+2026-08-05 14:55:26: [PP369] [AutoTrade] AIN SHORT có Score = 4.1đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-05 14:55:56: [PP369] [AutoTrade] AIN → SHORT (Score: +4.1đ) tại $0.06965 
+2026-08-05 14:55:56: [PP369] [AutoTrade] AIN SHORT có Score = 4.1đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-05 14:56:25: [PP369] [AutoTrade] AIN → SHORT (Score: +4.1đ) tại $0.06965 
+2026-08-05 14:56:25: [PP369] [AutoTrade] AIN SHORT có Score = 4.1đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-05 14:59:56: [PP369] [AutoTrade] AIN → SHORT (Score: +4.1đ) tại $0.06965 
+2026-08-05 14:59:56: [PP369] [AutoTrade] AIN SHORT có Score = 4.1đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-05 15:00:04: [PP369] [H1Retest] === Kiểm tra Retest nến H1 vừa đóng cho 3 coin trong Watchlist === 
+2026-08-05 15:00:04: [PP369] [H1Retest] 🎯 CATI SHORT H1 đóng rút chân chuẩn tại Entry $0.03995, chưa nảy đủ 5% ROI (Max ROI: +2.13%). ĐẶT LỆNH LIMIT TẠI ENTRY! 
+2026-08-05 15:00:04: [PP369] [AI Reviewer (Shadow Retest H1)] 🟢 Khuyên NÊN ĐẶT LỆNH CATI (SHORT) - Xác suất thắng 72.6% >= 65% (+ LS_DIVERGENCE (x1.1574), + PA_1_LEVEL (x1.1083), - VOL_DRY (x0.9081), + BTC_COUNTER (x1.15)) 
+2026-08-05 15:00:04: [PP369] [H1Retest] ✓ Đã đặt thành công lệnh LIMIT Retest H1 cho CATI SELL 3754 @ $0.03995 (orderId=1954358519) 
+2026-08-05 15:00:05: [PP369] [H1Retest] BAN SHORT nến H1 rút chân nhưng ĐÃ PHẢN ỨNG NẢY ROI = +12.89% (>= 5.0%) sau khi chạm entry. Bỏ qua không đặt limit. 
+2026-08-05 15:00:30: [PP369] [AutoTrade] AIN → SHORT (Score: +4.6đ) tại $0.06965 
+2026-08-05 15:00:30: [PP369] [AutoTrade] AIN SHORT có Score = 4.6đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-05 15:00:56: [PP369] [AutoTrade] ACX → LONG (Score: +5.3đ) tại $0.04204 
+2026-08-05 15:00:56: [PP369] [AutoTrade] ACX LONG không đạt Tiêu chí 2 (Biến động H1/M15 an toàn) — bỏ qua 
+2026-08-05 15:01:51: [PP369] [AutoTrade] ✓ Đặt TP CATI @ $0.0390500 (đối ứng BUY) orderId=1000002491136635 
+2026-08-05 15:01:51: [PP369] [AutoTrade] ✓ Đặt SL CATI @ $0.0409500 (đối ứng BUY) orderId=1000002491136638 
+2026-08-05 15:02:55: [PP369] [AutoTrade] AIN → SHORT (Score: +4.6đ) tại $0.06965 
+2026-08-05 15:02:55: [PP369] [AutoTrade] AIN SHORT có Score = 4.6đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-05 15:07:56: [PP369] [AutoTrade] 1000RATS → SHORT (Score: +3.8999999999999995đ) tại $0.0463 
+2026-08-05 15:07:56: [PP369] [AutoTrade] 1000RATS SHORT không đạt Tiêu chí 2 (Biến động H1/M15 an toàn) — bỏ qua 
+2026-08-05 15:08:26: [PP369] [AutoTrade] SKYAI → LONG (Score: +3.8đ) tại $0.05309 
+2026-08-05 15:08:26: [PP369] [AutoTrade] SKYAI LONG không đạt Tiêu chí 2 (Biến động H1/M15 an toàn) — bỏ qua 
+2026-08-05 15:08:55: [PP369] [AutoTrade] SKYAI → LONG (Score: +3.8đ) tại $0.05309 
+2026-08-05 15:08:55: [PP369] [AutoTrade] SKYAI LONG không đạt Tiêu chí 2 (Biến động H1/M15 an toàn) — bỏ qua 
+2026-08-05 15:09:45: [PP369] [Binance] Đã đồng bộ giờ: offset = 900ms (Giờ server: 2026-08-05T08:09:46.721Z) 
+2026-08-05 15:37:57: [PP369] [AutoTrade] KAITO → LONG (Score: +4.4đ) tại $0.9263 
+2026-08-05 15:37:57: [PP369] [AutoTrade] KAITO LONG có Score = 4.4đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-05 15:38:25: [PP369] [AutoTrade] KAITO → LONG (Score: +4.4đ) tại $0.9263 
+2026-08-05 15:38:25: [PP369] [AutoTrade] KAITO LONG có Score = 4.4đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-05 15:39:45: [PP369] [Binance] Đã đồng bộ giờ: offset = 1076ms (Giờ server: 2026-08-05T08:39:46.893Z) 
+2026-08-05 15:39:55: [PP369] [AutoTrade] KAITO → LONG (Score: +4.4đ) tại $0.9263 
+2026-08-05 15:39:55: [PP369] [AutoTrade] KAITO LONG có Score = 4.4đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-05 15:46:25: [PP369] [AutoTrade] KAITO → LONG (Score: +4.6đ) tại $0.9263 
+2026-08-05 15:46:25: [PP369] [AutoTrade] KAITO LONG có Score = 4.6đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-05 15:46:55: [PP369] [AutoTrade] KAITO → LONG (Score: +4.6đ) tại $0.9263 
+2026-08-05 15:46:55: [PP369] [AutoTrade] KAITO LONG có Score = 4.6đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-05 15:47:25: [PP369] [AutoTrade] KAITO → LONG (Score: +4.6đ) tại $0.9263 
+2026-08-05 15:47:25: [PP369] [AutoTrade] KAITO LONG có Score = 4.6đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-05 15:51:20: ◇ injected env (10) from .env // tip: ⌘ custom filepath { path: '/custom/path/.env' }
+2026-08-05 15:51:21: [PP369] [AI Reviewer] ✓ Đã nạp thành công mô hình AI (v1.0.0, mẫu N=69) 
+2026-08-05 15:51:21: [PP369] [369] initH4Cache: Tất cả 803 coin đã có nến H4 đầu năm. 
+2026-08-05 15:51:21: [PP369] [Binance] Đã đồng bộ giờ: offset = 1140ms (Giờ server: 2026-08-05T08:51:22.731Z) 
+2026-08-05 15:51:21: [AutoTrade] Bỏ qua 157 coin có grid ngoài khoảng 3–25% (theo giá hiện tại): XRP(28.2%), ETC(46.3%), LINK(36.7%), BAT(44.8%), QTUM(46.5%), KNC(29.2%), DOT(35.2%), SOL(40.5%), AVAX(45.0%), AAVE(32.8%), FIL(42.2%), ALICE(2.6%), NKN(2.6%), DGB(1.6%), ATA(1.8%), DYDX(2.6%), KLAY(2.4%), IMX(27.2%), APE(2.3%), WOO(26.1%), DAR(2.1%), OP(33.9%), STG(2.5%), SPELL(38.3%), APT(51.6%), FET(2.0%), CKB(36.6%), USDC(30.0%), AMB(2.5%), LEVER(26.7%), RDNT(2.9%), SUI(43.4%), MAV(36.9%), DODOX(1.6%), ARK(32.2%), BOND(28.1%), GAS(32.4%), SUPER(36.5%), 1000SATS(313.5%), ACE(42.2%), MOVR(26.0%), JUP(1.6%), GLM(32.6%), PORTAL(2.7%), MYRO(3.0%), W(35.6%), IO(2.4%), ZK(38.3%), ZRO(38.2%), RARE(25.3%), SYN(2.5%), SYS(1.7%), ALPACA(25.2%), SUN(1.7%), DOGS(86.1%), BSW(2.5%), QUICK(2.3%), NEIRO(48.6%), FIO(2.5%), GHST(1.8%), LOKA(2.6%), COS(2.5%), DIA(26.8%), SANTOS(63.0%), COW(27.5%), 1000000MOG(29.8%), ACT(32.9%), HIPPO(2.9%), DEGEN(2.9%), 1000WHY(197.4%), THE(57.1%), ORCA(27.4%), MOVE(40.9%), KOMA(2.4%), VELODROME(1.8%), MOCA(39.4%), VANA(35.8%), USUAL(36.9%), DF(2.6%), COOKIE(36.7%), D(2.2%), PIPPIN(176.3%), HEI(2.1%), RED(34.8%), EPIC(2.9%), MUBARAK(2.2%), TUT(1.2%), BROCCOLI714(2.2%), BR(2.1%), PLUME(2.7%), FUN(1.7%), BABY(2.8%), SIGN(45.4%), PUNDIX(39.6%), CTK(29.9%), SXT(39.8%), ASR(35.1%), MILK(3.0%), OG(119.5%), AGT(2.0%), B(1.7%), MERL(175.7%), PORT3(2.5%), 1000000BOB(1.9%), LA(66.3%), PUMPBTC(29.4%), MYX(394.5%), DMC(2.3%), OL(1.7%), SAHARA(37.0%), ICNT(28.1%), M(25.2%), TANSSI(2.4%), PUMP(1.2%), VELVET(0.6%), ZORA(52.3%), TAG(2.4%), ESPORTS(165.1%), A2Z(2.1%), YALA(1.8%), SOMI(35.1%), BAS(1.1%), Q(1.4%), PTB(32.2%), OPEN(1.5%), AVNT(36.1%), UB(2.1%), TOSHI(29.3%), BARD(26.7%), TRADOOR(54.2%), BLESS(1.7%), HANA(0.9%), AKE(0.7%), LIGHT(212.6%), XAN(2.2%), TRUTH(2.3%), YB(43.3%), CLO(25.0%), ZBT(2.9%), LAB(2.1%), RIVER(118.5%), 币安人生(0.6%), BLUAI(2.4%), APR(1.5%), ON(1.2%), KITE(3.0%), AT(2.2%), UAI(1.1%), STABLE(0.9%), JCT(0.7%), ALLO(1.2%), BOB(2.8%), RLS(2.8%), POWER(34.8%), US(0.6%), BREV(42.4%), MAGMA(1.1%)
+2026-08-05 15:51:22: [PP369] [Binance] Đang lấy leverage brackets cho 449 coin... 
+2026-08-05 15:51:22: [PP369] [Binance] Đã lưu leverage cho 449 coin vào step_sizes.json 
+2026-08-05 15:51:22: [PP369] [AutoTrade] Khởi động: 449 coin | margin=$10 | 10x | type=LIMIT 
+2026-08-05 15:51:22: [PP369] [Binance] Loaded step and tick sizes from existing file: 852 symbols 
+2026-08-05 15:51:22: [PP369] [AutoTrade] Đã nạp leverageInfo cho 449 coin từ cache. 
+2026-08-05 15:51:23: [PP369] [PP369Stream] Kết nối WebSocket thành công (market/stream) 
+2026-08-05 15:51:26: [PP369] [AutoTrade] Bắt đầu scan... 
+2026-08-05 15:51:31: [PP369] [GridBlacklist] ĐÃ THÊM PROM VÀO BLACKLIST 7 NGÀY (Lý do: x*2 (15.07%) > y (7.34%)). Sẽ tự động giải phóng sau 7 ngày. 
+2026-08-05 15:55:09: ◇ injected env (10) from .env // tip: ⌁ auth for agents [www.vestauth.com]
+2026-08-05 15:55:10: [PP369] [AI Reviewer] ✓ Đã nạp thành công mô hình AI (v1.0.0, mẫu N=69) 
+2026-08-05 15:55:10: [PP369] [369] initH4Cache: Tất cả 803 coin đã có nến H4 đầu năm. 
+2026-08-05 15:55:11: [AutoTrade] Bỏ qua 156 coin có grid ngoài khoảng 3–25% (theo giá hiện tại): XRP(28.2%), ETC(46.4%), LINK(36.7%), BAT(44.8%), QTUM(46.5%), KNC(29.2%), DOT(35.1%), SOL(40.5%), AVAX(45.0%), AAVE(32.9%), FIL(42.2%), ALICE(2.6%), NKN(2.6%), DGB(1.6%), ATA(1.8%), DYDX(2.6%), KLAY(2.4%), IMX(27.3%), APE(2.3%), WOO(26.1%), DAR(2.1%), OP(33.9%), STG(2.5%), SPELL(38.3%), APT(51.6%), FET(2.0%), CKB(36.7%), USDC(30.0%), AMB(2.5%), LEVER(26.7%), RDNT(2.9%), SUI(43.4%), MAV(36.9%), DODOX(1.6%), ARK(32.2%), BOND(28.1%), GAS(32.4%), SUPER(36.5%), 1000SATS(313.5%), ACE(42.0%), MOVR(26.0%), JUP(1.6%), GLM(32.6%), PORTAL(2.7%), MYRO(3.0%), W(35.7%), IO(2.4%), ZK(38.3%), ZRO(38.1%), RARE(25.3%), SYN(2.5%), SYS(1.7%), ALPACA(25.2%), SUN(1.7%), DOGS(86.1%), BSW(2.5%), QUICK(2.3%), NEIRO(48.6%), FIO(2.5%), GHST(1.8%), LOKA(2.6%), COS(2.5%), DIA(26.8%), SANTOS(63.1%), COW(27.6%), 1000000MOG(29.8%), ACT(32.9%), HIPPO(2.9%), DEGEN(2.9%), 1000WHY(197.4%), THE(57.1%), ORCA(27.4%), MOVE(40.8%), KOMA(2.4%), VELODROME(1.8%), MOCA(39.4%), VANA(35.8%), USUAL(36.9%), DF(2.6%), COOKIE(36.7%), D(2.2%), PIPPIN(176.5%), HEI(2.1%), RED(34.8%), EPIC(2.9%), MUBARAK(2.2%), TUT(1.2%), BROCCOLI714(2.2%), BR(2.1%), PLUME(2.7%), FUN(1.7%), BABY(2.8%), SIGN(45.1%), PUNDIX(39.7%), CTK(29.9%), SXT(39.8%), ASR(35.0%), MILK(3.0%), OG(119.7%), AGT(2.0%), B(1.7%), MERL(175.8%), PORT3(2.5%), 1000000BOB(1.9%), LA(66.4%), PUMPBTC(29.6%), MYX(395.2%), DMC(2.3%), OL(1.7%), SAHARA(36.9%), ICNT(28.1%), M(25.2%), TANSSI(2.4%), PUMP(1.2%), VELVET(0.6%), ZORA(52.3%), TAG(2.4%), ESPORTS(165.8%), A2Z(2.1%), YALA(1.8%), SOMI(35.1%), BAS(1.1%), Q(1.4%), PTB(32.8%), OPEN(1.5%), AVNT(36.1%), UB(2.1%), TOSHI(29.4%), BARD(26.7%), TRADOOR(54.2%), BLESS(1.6%), HANA(0.9%), AKE(0.7%), LIGHT(212.6%), XAN(2.2%), TRUTH(2.4%), YB(43.4%), ZBT(2.9%), LAB(2.1%), RIVER(118.6%), 币安人生(0.6%), BLUAI(2.4%), APR(1.5%), ON(1.2%), KITE(3.0%), AT(2.2%), UAI(1.1%), STABLE(0.9%), JCT(0.7%), ALLO(1.1%), BOB(2.8%), RLS(2.8%), POWER(34.8%), US(0.6%), BREV(42.4%), MAGMA(1.1%)
+2026-08-05 15:55:11: [PP369] [Binance] Đã đồng bộ giờ: offset = 1074ms (Giờ server: 2026-08-05T08:55:12.124Z) 
+2026-08-05 15:55:11: [PP369] [Binance] Đang lấy leverage brackets cho 450 coin... 
+2026-08-05 15:55:12: [PP369] [Binance] Đã lưu leverage cho 450 coin vào step_sizes.json 
+2026-08-05 15:55:12: [PP369] [AutoTrade] Khởi động: 450 coin | margin=$10 | 10x | type=LIMIT 
+2026-08-05 15:55:12: [PP369] [Binance] Loaded step and tick sizes from existing file: 852 symbols 
+2026-08-05 15:55:12: [PP369] [AutoTrade] Đã nạp leverageInfo cho 450 coin từ cache. 
+2026-08-05 15:55:12: [PP369] [PP369Stream] Kết nối WebSocket thành công (market/stream) 
+2026-08-05 15:55:16: [PP369] [AutoTrade] Bắt đầu scan... 
+2026-08-05 15:58:52: [PP369] [AutoTrade] KAITO → LONG (Score: +4.6đ) tại $0.9263 
+2026-08-05 15:58:52: [PP369] [AutoTrade] KAITO LONG có Score = 4.6đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-05 16:00:00: [PP369] [H1Retest] === Kiểm tra Retest nến H1 vừa đóng cho 1 coin trong Watchlist === 
+2026-08-05 16:00:30: [PP369] [AutoTrade] KAITO → LONG (Score: +4.3999999999999995đ) tại $0.9263 
+2026-08-05 16:00:30: [PP369] [AutoTrade] KAITO LONG có Score = 4.3999999999999995đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-05 16:00:54: [PP369] [AutoTrade] KAITO → LONG (Score: +4.3999999999999995đ) tại $0.9263 
+2026-08-05 16:00:54: [PP369] [AutoTrade] KAITO LONG có Score = 4.3999999999999995đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-05 16:01:22: [PP369] [AutoTrade] KAITO → LONG (Score: +4.199999999999999đ) tại $0.9263 
+2026-08-05 16:01:22: [PP369] [AutoTrade] KAITO LONG có Score = 4.199999999999999đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-05 16:01:53: [PP369] [AutoTrade] KAITO → LONG (Score: +4.199999999999999đ) tại $0.9263 
+2026-08-05 16:01:53: [PP369] [AutoTrade] KAITO LONG có Score = 4.199999999999999đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-05 16:03:46: ◇ injected env (10) from .env // tip: ⌘ custom filepath { path: '/custom/path/.env' }
+2026-08-05 16:03:48: [PP369] [AI Reviewer] ✓ Đã nạp thành công mô hình AI (v1.0.0, mẫu N=69) 
+2026-08-05 16:03:48: [PP369] [369] initH4Cache: Tất cả 803 coin đã có nến H4 đầu năm. 
+2026-08-05 16:03:48: [PP369] [Binance] Đã đồng bộ giờ: offset = 1212ms (Giờ server: 2026-08-05T09:03:49.487Z) 
+2026-08-05 16:03:48: [AutoTrade] Bỏ qua 158 coin có grid ngoài khoảng 3–25% (theo giá hiện tại): XRP(28.2%), ETC(46.4%), LINK(36.7%), BAT(44.8%), QTUM(46.5%), KNC(29.2%), DOT(35.1%), SOL(40.5%), AVAX(45.0%), AAVE(32.9%), FIL(42.2%), ALICE(2.6%), NKN(2.6%), DGB(1.6%), ATA(1.8%), DYDX(2.6%), KLAY(2.4%), IMX(27.3%), APE(2.3%), WOO(26.1%), DAR(2.1%), OP(34.0%), STG(2.5%), SPELL(38.4%), APT(51.6%), FET(2.0%), CKB(36.7%), USDC(30.0%), AMB(2.5%), LEVER(26.7%), RDNT(2.9%), SUI(43.4%), MAV(36.8%), DODOX(1.6%), ARK(32.1%), BOND(28.1%), GAS(32.4%), SUPER(36.5%), 1000SATS(313.5%), ACE(41.8%), MOVR(26.0%), JUP(1.6%), GLM(32.6%), PORTAL(2.7%), MYRO(3.0%), W(35.8%), IO(2.4%), ZK(38.3%), ZRO(38.1%), RARE(25.3%), SYN(2.5%), SYS(1.7%), ALPACA(25.2%), SUN(1.7%), DOGS(86.1%), BSW(2.5%), QUICK(2.3%), NEIRO(48.6%), FIO(2.5%), GHST(1.8%), LOKA(2.6%), COS(2.5%), DIA(26.8%), SANTOS(63.1%), COW(27.6%), 1000000MOG(29.9%), ACT(32.5%), HIPPO(2.9%), DEGEN(2.9%), 1000WHY(197.4%), THE(57.2%), ORCA(27.4%), MOVE(40.9%), KOMA(2.4%), VELODROME(1.8%), MOCA(39.4%), VANA(35.7%), USUAL(36.8%), DF(2.6%), COOKIE(36.4%), D(2.2%), PIPPIN(176.5%), TST(3.0%), HEI(2.0%), RED(34.8%), EPIC(2.9%), MUBARAK(2.2%), TUT(1.2%), BROCCOLI714(2.2%), BR(2.1%), PLUME(2.7%), FUN(1.7%), BABY(2.8%), SIGN(45.0%), PUNDIX(39.7%), CTK(29.9%), SXT(39.7%), ASR(35.1%), MILK(3.0%), OG(119.5%), AGT(2.0%), B(1.7%), MERL(175.6%), PORT3(2.5%), 1000000BOB(1.9%), LA(66.3%), HOME(3.0%), PUMPBTC(29.6%), MYX(395.1%), DMC(2.3%), OL(1.7%), SAHARA(36.9%), ICNT(28.2%), M(25.3%), TANSSI(2.4%), PUMP(1.2%), VELVET(0.6%), ZORA(51.8%), TAG(2.4%), ESPORTS(165.2%), A2Z(2.1%), YALA(1.8%), SOMI(35.2%), BAS(1.1%), Q(1.4%), PTB(33.1%), OPEN(1.5%), AVNT(35.9%), UB(2.1%), TOSHI(29.4%), BARD(26.7%), TRADOOR(53.9%), BLESS(1.7%), HANA(0.9%), AKE(0.7%), LIGHT(213.4%), XAN(2.2%), TRUTH(2.3%), YB(43.3%), ZBT(2.9%), LAB(2.0%), RIVER(118.9%), 币安人生(0.6%), BLUAI(2.4%), APR(1.5%), ON(1.2%), KITE(3.0%), AT(2.2%), UAI(1.1%), STABLE(0.9%), JCT(0.7%), ALLO(1.2%), BOB(2.8%), RLS(2.8%), POWER(34.9%), US(0.6%), BREV(42.4%), MAGMA(1.1%)
+2026-08-05 16:03:49: [PP369] [Binance] Đang lấy leverage brackets cho 448 coin... 
+2026-08-05 16:03:49: [PP369] [Binance] Đã lưu leverage cho 448 coin vào step_sizes.json 
+2026-08-05 16:03:49: [PP369] [AutoTrade] Khởi động: 448 coin | margin=$10 | 10x | type=LIMIT 
+2026-08-05 16:03:49: [PP369] [Binance] Loaded step and tick sizes from existing file: 852 symbols 
+2026-08-05 16:03:49: [PP369] [AutoTrade] Đã nạp leverageInfo cho 448 coin từ cache. 
+2026-08-05 16:03:49: [PP369] [PP369Stream] Kết nối WebSocket thành công (market/stream) 
+2026-08-05 16:03:53: [PP369] [AutoTrade] Bắt đầu scan... 
+2026-08-05 16:12:06: [PP369] [AutoTrade] SWARMS → SHORT (Score: +4.4đ) tại $0.00708 
+2026-08-05 16:12:06: [PP369] [AutoTrade] SWARMS SHORT có Score = 4.4đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-05 16:12:33: [PP369] [AutoTrade] SWARMS → SHORT (Score: +4.4đ) tại $0.00708 
+2026-08-05 16:12:33: [PP369] [AutoTrade] SWARMS SHORT có Score = 4.4đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-05 16:13:03: [PP369] [AutoTrade] SWARMS → SHORT (Score: +4.4đ) tại $0.00708 
+2026-08-05 16:13:03: [PP369] [AutoTrade] SWARMS SHORT có Score = 4.4đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-05 16:13:33: [PP369] [AutoTrade] SWARMS → SHORT (Score: +4.6đ) tại $0.00708 
+2026-08-05 16:13:33: [PP369] [AutoTrade] SWARMS SHORT có Score = 4.6đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-05 16:14:03: [PP369] [AutoTrade] SWARMS → SHORT (Score: +4.6đ) tại $0.00708 
+2026-08-05 16:14:03: [PP369] [AutoTrade] SWARMS SHORT có Score = 4.6đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-05 16:14:33: [PP369] [AutoTrade] SWARMS → SHORT (Score: +4.6đ) tại $0.00708 
+2026-08-05 16:14:33: [PP369] [AutoTrade] SWARMS SHORT có Score = 4.6đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-05 16:33:47: [PP369] [Binance] Đã đồng bộ giờ: offset = 1392ms (Giờ server: 2026-08-05T09:33:48.648Z) 
+2026-08-05 17:00:02: [PP369] [H1Retest] === Kiểm tra Retest nến H1 vừa đóng cho 1 coin trong Watchlist === 
+2026-08-05 17:00:02: [PP369] [H1Retest] SWARMS SHORT nến H1 rút chân nhưng ĐÃ PHẢN ỨNG NẢY ROI = +7.63% (>= 5.0%) sau khi chạm entry. Bỏ qua không đặt limit. 
+2026-08-05 17:00:09: [PP369] [AutoTrade] PIXEL → SHORT (Score: +3.5999999999999996đ) tại $0.00434 
+2026-08-05 17:00:09: [PP369] [AutoTrade] PIXEL SHORT có Score = 3.5999999999999996đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-05 17:01:03: [PP369] [AutoTrade] PIXEL → SHORT (Score: +3.5999999999999996đ) tại $0.00434 
+2026-08-05 17:01:03: [PP369] [AutoTrade] PIXEL SHORT có Score = 3.5999999999999996đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-05 17:01:33: [PP369] [AutoTrade] PIXEL → SHORT (Score: +3.5999999999999996đ) tại $0.00434 
+2026-08-05 17:01:33: [PP369] [AutoTrade] PIXEL SHORT có Score = 3.5999999999999996đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-05 17:02:03: [PP369] [AutoTrade] PIXEL → SHORT (Score: +3.5999999999999996đ) tại $0.00434 
+2026-08-05 17:02:03: [PP369] [AutoTrade] PIXEL SHORT có Score = 3.5999999999999996đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-05 17:02:33: [PP369] [AutoTrade] PIXEL → SHORT (Score: +3.5999999999999996đ) tại $0.00434 
+2026-08-05 17:02:33: [PP369] [AutoTrade] PIXEL SHORT có Score = 3.5999999999999996đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-05 17:03:47: [PP369] [Binance] Đã đồng bộ giờ: offset = 1568ms (Giờ server: 2026-08-05T10:03:48.829Z) 
+2026-08-05 17:04:33: [PP369] [AutoTrade] PIXEL → SHORT (Score: +3.5999999999999996đ) tại $0.00434 
+2026-08-05 17:04:33: [PP369] [AutoTrade] PIXEL SHORT có Score = 3.5999999999999996đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-05 17:05:03: [PP369] [AutoTrade] PIXEL → SHORT (Score: +3.5999999999999996đ) tại $0.00434 
+2026-08-05 17:05:03: [PP369] [AutoTrade] PIXEL SHORT có Score = 3.5999999999999996đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-05 17:07:34: [PP369] [AutoTrade] BAN → LONG (Score: +2.9999999999999996đ) tại $0.07298 
+2026-08-05 17:07:34: [PP369] [AutoTrade] BAN LONG có Score = 2.9999999999999996đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-05 17:08:03: [PP369] [AutoTrade] BAN → LONG (Score: +2.9999999999999996đ) tại $0.07298 
+2026-08-05 17:08:03: [PP369] [AutoTrade] BAN LONG có Score = 2.9999999999999996đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-05 17:08:33: [PP369] [AutoTrade] BAN → LONG (Score: +2.9999999999999996đ) tại $0.07298 
+2026-08-05 17:08:33: [PP369] [AutoTrade] BAN LONG có Score = 2.9999999999999996đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-05 17:12:02: [PP369] [GridBlacklist] Đã tự động giải phóng ACH khỏi Blacklist sau 1 tuần. 
+2026-08-05 17:33:47: [PP369] [Binance] Đã đồng bộ giờ: offset = 1743ms (Giờ server: 2026-08-05T10:33:48.999Z) 
+2026-08-05 17:35:02: [PP369] [GridBlacklist] Đã tự động giải phóng ONT khỏi Blacklist sau 1 tuần. 
+2026-08-05 17:35:02: [PP369] [GridBlacklist] ĐÃ THÊM ONT VÀO BLACKLIST 7 NGÀY (Lý do: x*2 (25.84%) > y (12.36%)). Sẽ tự động giải phóng sau 7 ngày. 
+2026-08-05 17:35:02: [PP369] [GridBlacklist] Đã tự động giải phóng STORJ khỏi Blacklist sau 1 tuần. 
+2026-08-05 17:35:02: [PP369] [GridBlacklist] ĐÃ THÊM STORJ VÀO BLACKLIST 7 NGÀY (Lý do: x*2 (5.48%) > y (4.11%)). Sẽ tự động giải phóng sau 7 ngày. 
+2026-08-05 17:35:02: [PP369] [GridBlacklist] Đã tự động giải phóng SKL khỏi Blacklist sau 1 tuần. 
+2026-08-05 17:35:02: [PP369] [GridBlacklist] ĐÃ THÊM SKL VÀO BLACKLIST 7 NGÀY (Lý do: x*2 (7.98%) > y (4.56%)). Sẽ tự động giải phóng sau 7 ngày. 
+2026-08-05 17:35:32: [PP369] [GridBlacklist] Đã tự động giải phóng GMT khỏi Blacklist sau 1 tuần. 
+2026-08-05 17:35:32: [PP369] [GridBlacklist] ĐÃ THÊM GMT VÀO BLACKLIST 7 NGÀY (Lý do: x*2 (10.89%) > y (3.89%)). Sẽ tự động giải phóng sau 7 ngày. 
+2026-08-05 17:35:32: [PP369] [GridBlacklist] Đã tự động giải phóng LQTY khỏi Blacklist sau 1 tuần. 
+2026-08-05 17:35:32: [PP369] [GridBlacklist] Đã tự động giải phóng ID khỏi Blacklist sau 1 tuần. 
+2026-08-05 17:35:32: [PP369] [GridBlacklist] ĐÃ THÊM ID VÀO BLACKLIST 7 NGÀY (Lý do: x*2 (25.88%) > y (10.52%)). Sẽ tự động giải phóng sau 7 ngày. 
+2026-08-05 17:35:32: [PP369] [GridBlacklist] Đã tự động giải phóng CYBER khỏi Blacklist sau 1 tuần. 
+2026-08-05 17:35:32: [PP369] [GridBlacklist] ĐÃ THÊM CYBER VÀO BLACKLIST 7 NGÀY (Lý do: x*2 (36.14%) > y (13.88%)). Sẽ tự động giải phóng sau 7 ngày. 
+2026-08-05 17:35:32: [PP369] [GridBlacklist] Đã tự động giải phóng POLYX khỏi Blacklist sau 1 tuần. 
+2026-08-05 17:35:32: [PP369] [GridBlacklist] ĐÃ THÊM POLYX VÀO BLACKLIST 7 NGÀY (Lý do: x*2 (15.53%) > y (12.23%)). Sẽ tự động giải phóng sau 7 ngày. 
+2026-08-05 17:35:32: [PP369] [GridBlacklist] Đã tự động giải phóng MEME khỏi Blacklist sau 1 tuần. 
+2026-08-05 17:35:32: [PP369] [GridBlacklist] ĐÃ THÊM MEME VÀO BLACKLIST 7 NGÀY (Lý do: x*2 (5.31%) > y (3.47%)). Sẽ tự động giải phóng sau 7 ngày. 
+2026-08-05 17:35:32: [PP369] [GridBlacklist] Đã tự động giải phóng ONG khỏi Blacklist sau 1 tuần. 
+2026-08-05 17:35:32: [PP369] [GridBlacklist] ĐÃ THÊM ONG VÀO BLACKLIST 7 NGÀY (Lý do: x*2 (7.94%) > y (3.43%)). Sẽ tự động giải phóng sau 7 ngày. 
+2026-08-05 17:35:32: [PP369] [GridBlacklist] Đã tự động giải phóng XAI khỏi Blacklist sau 1 tuần. 
+2026-08-05 17:35:32: [PP369] [GridBlacklist] ĐÃ THÊM XAI VÀO BLACKLIST 7 NGÀY (Lý do: x*2 (12.17%) > y (3.78%)). Sẽ tự động giải phóng sau 7 ngày. 
+2026-08-05 17:35:32: [PP369] [GridBlacklist] Đã tự động giải phóng REZ khỏi Blacklist sau 1 tuần. 
+2026-08-05 17:35:32: [PP369] [GridBlacklist] ĐÃ THÊM REZ VÀO BLACKLIST 7 NGÀY (Lý do: x*2 (10.63%) > y (6.59%)). Sẽ tự động giải phóng sau 7 ngày. 
+2026-08-05 17:35:32: [PP369] [GridBlacklist] Đã tự động giải phóng SCRT khỏi Blacklist sau 1 tuần. 
+2026-08-05 17:35:32: [PP369] [GridBlacklist] ĐÃ THÊM SCRT VÀO BLACKLIST 7 NGÀY (Lý do: x*2 (7.03%) > y (6.07%)). Sẽ tự động giải phóng sau 7 ngày. 
+2026-08-05 17:35:32: [PP369] [GridBlacklist] Đã tự động giải phóng HIVE khỏi Blacklist sau 1 tuần. 
+2026-08-05 17:35:32: [PP369] [GridBlacklist] Đã tự động giải phóng SONIC khỏi Blacklist sau 1 tuần. 
+2026-08-05 17:35:32: [PP369] [GridBlacklist] Đã tự động giải phóng GPS khỏi Blacklist sau 1 tuần. 
+2026-08-05 17:35:32: [PP369] [GridBlacklist] ĐÃ THÊM GPS VÀO BLACKLIST 7 NGÀY (Lý do: x*2 (5.21%) > y (3.91%)). Sẽ tự động giải phóng sau 7 ngày. 
+2026-08-05 17:35:32: [PP369] [GridBlacklist] Đã tự động giải phóng WAL khỏi Blacklist sau 1 tuần. 
+2026-08-05 17:35:32: [PP369] [GridBlacklist] ĐÃ THÊM WAL VÀO BLACKLIST 7 NGÀY (Lý do: x*2 (17.54%) > y (17.54%)). Sẽ tự động giải phóng sau 7 ngày. 
+2026-08-05 17:35:32: [PP369] [GridBlacklist] Đã tự động giải phóng FHE khỏi Blacklist sau 1 tuần. 
+2026-08-05 17:35:32: [PP369] [GridBlacklist] Đã tự động giải phóng BULLA khỏi Blacklist sau 1 tuần. 
+2026-08-05 17:35:32: [PP369] [GridBlacklist] Đã tự động giải phóng CARV khỏi Blacklist sau 1 tuần. 
+2026-08-05 17:35:32: [PP369] [GridBlacklist] ĐÃ THÊM CARV VÀO BLACKLIST 7 NGÀY (Lý do: x*2 (18.75%) > y (14.06%)). Sẽ tự động giải phóng sau 7 ngày. 
+2026-08-05 17:35:32: [PP369] [GridBlacklist] Đã tự động giải phóng AIO khỏi Blacklist sau 1 tuần. 
+2026-08-05 17:35:32: [PP369] [GridBlacklist] ĐÃ THÊM AIO VÀO BLACKLIST 7 NGÀY (Lý do: x*2 (10.81%) > y (10.19%)). Sẽ tự động giải phóng sau 7 ngày. 
+2026-08-05 17:35:32: [PP369] [GridBlacklist] Đã tự động giải phóng MITO khỏi Blacklist sau 1 tuần. 
+2026-08-05 17:35:32: [PP369] [GridBlacklist] Đã tự động giải phóng TAKE khỏi Blacklist sau 1 tuần. 
+2026-08-05 17:35:32: [PP369] [GridBlacklist] ĐÃ THÊM TAKE VÀO BLACKLIST 7 NGÀY (Lý do: x*2 (12.69%) > y (7.75%)). Sẽ tự động giải phóng sau 7 ngày. 
+2026-08-05 17:35:32: [PP369] [GridBlacklist] Đã tự động giải phóng CLO khỏi Blacklist sau 1 tuần. 
+2026-08-05 17:35:32: [PP369] [GridBlacklist] ĐÃ THÊM CLO VÀO BLACKLIST 7 NGÀY (Lý do: x*2 (79.55%) > y (16.25%)). Sẽ tự động giải phóng sau 7 ngày. 
+2026-08-05 17:35:32: [PP369] [GridBlacklist] Đã tự động giải phóng NIGHT khỏi Blacklist sau 1 tuần. 
+2026-08-05 17:35:32: [PP369] [GridBlacklist] ĐÃ THÊM NIGHT VÀO BLACKLIST 7 NGÀY (Lý do: x*2 (30.92%) > y (20.08%)). Sẽ tự động giải phóng sau 7 ngày. 
+2026-08-05 17:35:32: [PP369] [GridBlacklist] Đã tự động giải phóng RAVE khỏi Blacklist sau 1 tuần. 
+2026-08-05 17:35:32: [PP369] [GridBlacklist] ĐÃ THÊM RAVE VÀO BLACKLIST 7 NGÀY (Lý do: x*2 (10.37%) > y (5.82%)). Sẽ tự động giải phóng sau 7 ngày. 
+2026-08-05 17:35:32: [PP369] [GridBlacklist] Đã tự động giải phóng COLLECT khỏi Blacklist sau 1 tuần. 
+2026-08-05 18:00:02: [PP369] [H1Retest] === Kiểm tra Retest nến H1 vừa đóng cho 2 coin trong Watchlist === 
+2026-08-05 18:02:05: [PP369] [AutoTrade] SKYAI → SHORT (Score: +1.9đ) tại $0.05586 
+2026-08-05 18:02:05: [PP369] [AutoTrade] SKYAI SHORT không đạt Tiêu chí 2 (Biến động H1/M15 an toàn) — bỏ qua 
+2026-08-05 18:03:47: [PP369] [Binance] Đã đồng bộ giờ: offset = 1920ms (Giờ server: 2026-08-05T11:03:49.184Z) 
+2026-08-05 18:11:34: [PP369] [AutoTrade] PIXEL → SHORT (Score: +3.5999999999999996đ) tại $0.00434 
+2026-08-05 18:11:34: [PP369] [AutoTrade] PIXEL SHORT có Score = 3.5999999999999996đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-05 18:12:03: [PP369] [AutoTrade] PIXEL → SHORT (Score: +3.5999999999999996đ) tại $0.00434 
+2026-08-05 18:12:03: [PP369] [AutoTrade] PIXEL SHORT có Score = 3.5999999999999996đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-05 18:33:47: [PP369] [Binance] Đã đồng bộ giờ: offset = 2095ms (Giờ server: 2026-08-05T11:33:49.333Z) 
+2026-08-05 19:00:02: [PP369] [H1Retest] === Kiểm tra Retest nến H1 vừa đóng cho 2 coin trong Watchlist === 
+2026-08-05 19:00:02: [PP369] [H1Retest] 🎯 PIXEL SHORT H1 đóng rút chân chuẩn tại Entry $0.00434, chưa nảy đủ 5% ROI (Max ROI: +4.84%). ĐẶT LỆNH LIMIT TẠI ENTRY! 
+2026-08-05 19:00:02: [PP369] [AI Reviewer (Shadow Retest H1)] 🟢 Khuyên NÊN ĐẶT LỆNH PIXEL (SHORT) - Xác suất thắng 70.5% >= 65% (- TREND_CONFLICT (x0.894), + VOL_ULTRA (x1.1395), - RSI_NEAR (x0.9542), - LS_PARTIAL (x0.9399), + OI_STABLE (x1.0709), - VOL_DRY (x0.9262), + FUNDING_NORMAL (x1.0314), + BTC_NEUTRAL (x1.191), - GRID_WIDE (x0.9619)) 
+2026-08-05 19:00:03: [PP369] [H1Retest] ✓ Đã đặt thành công lệnh LIMIT Retest H1 cho PIXEL SELL 34562 @ $0.00434 (orderId=3427185667) 
+2026-08-05 19:03:47: [PP369] [Binance] Đã đồng bộ giờ: offset = 2272ms (Giờ server: 2026-08-05T12:03:49.481Z) 
+2026-08-05 19:30:05: [PP369] [AutoTrade] [BounceCancel] PIXEL SHORT: entry=$0.00434, current=$0.004294 (-1.06% >= 1.26%) → Hủy LIMIT ngay lập tức 
+2026-08-05 19:33:47: [PP369] [Binance] Đã đồng bộ giờ: offset = 2447ms (Giờ server: 2026-08-05T12:33:49.703Z) 
+2026-08-05 19:41:05: [PP369] [AutoTrade] HOLO → SHORT (Score: +3.3đ) tại $0.06783 
+2026-08-05 19:41:05: [PP369] [AutoTrade] HOLO SHORT có Score = 3.3đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-05 19:41:33: [PP369] [AutoTrade] HOLO → SHORT (Score: +3.3đ) tại $0.06783 
+2026-08-05 19:41:33: [PP369] [AutoTrade] HOLO SHORT có Score = 3.3đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-05 20:00:02: [PP369] [H1Retest] === Kiểm tra Retest nến H1 vừa đóng cho 2 coin trong Watchlist === 
+2026-08-05 20:03:47: [PP369] [Binance] Đã đồng bộ giờ: offset = 2621ms (Giờ server: 2026-08-05T13:03:49.890Z) 
+2026-08-05 20:03:49: [PP369] [AutoTrade] [CoinRefresh] Tái kiểm tra danh sách: 448 → 451 coin hợp lệ theo giá hiện tại. 
+2026-08-05 20:32:37: [PP369] [AutoTrade] SAFE → LONG (Score: +3.1đ) tại $0.0841 
+2026-08-05 20:32:37: [PP369] [AutoTrade] SAFE LONG có Score = 3.1đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-05 20:33:33: [PP369] [AutoTrade] SAFE → LONG (Score: +2.9000000000000004đ) tại $0.0841 
+2026-08-05 20:33:33: [PP369] [AutoTrade] SAFE LONG có Score = 2.9000000000000004đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-05 20:33:47: [PP369] [Binance] Đã đồng bộ giờ: offset = 2802ms (Giờ server: 2026-08-05T13:33:50.095Z) 
+2026-08-05 20:34:03: [PP369] [AutoTrade] SAFE → LONG (Score: +2.9000000000000004đ) tại $0.0841 
+2026-08-05 20:34:03: [PP369] [AutoTrade] SAFE LONG có Score = 2.9000000000000004đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-05 20:35:35: [PP369] [AutoTrade] XTZ → LONG (Score: +4.8đ) tại $0.195 
+2026-08-05 20:35:35: [PP369] [AutoTrade] XTZ LONG có Score = 4.8đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-05 20:36:03: [PP369] [AutoTrade] XTZ → LONG (Score: +4.8đ) tại $0.195 
+2026-08-05 20:36:03: [PP369] [AutoTrade] XTZ LONG có Score = 4.8đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-05 20:36:04: [PP369] [AutoTrade] SAFE → LONG (Score: +2.9000000000000004đ) tại $0.0841 
+2026-08-05 20:36:04: [PP369] [AutoTrade] SAFE LONG có Score = 2.9000000000000004đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-05 20:36:35: [PP369] [AutoTrade] XTZ → LONG (Score: +4.8đ) tại $0.195 
+2026-08-05 20:36:35: [PP369] [AutoTrade] XTZ LONG có Score = 4.8đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-05 20:37:03: [PP369] [AutoTrade] XTZ → LONG (Score: +4.8đ) tại $0.195 
+2026-08-05 20:37:03: [PP369] [AutoTrade] XTZ LONG có Score = 4.8đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-05 21:00:04: [PP369] [H1Retest] === Kiểm tra Retest nến H1 vừa đóng cho 4 coin trong Watchlist === 
+2026-08-05 21:03:47: [PP369] [Binance] Đã đồng bộ giờ: offset = 2978ms (Giờ server: 2026-08-05T14:03:50.275Z) 
+2026-08-05 21:30:35: [PP369] [AutoTrade] FF → SHORT (Score: +2.6đ) tại $0.06519 
+2026-08-05 21:30:35: [PP369] [AutoTrade] FF SHORT không đạt Tiêu chí 2 (Biến động H1/M15 an toàn) — bỏ qua 
+2026-08-05 21:33:35: [PP369] [AutoTrade] TAC → SHORT (Score: +2.6đ) tại $0.003512 
+2026-08-05 21:33:35: [PP369] [AutoTrade] TAC SHORT không đạt Tiêu chí 2 (Biến động H1/M15 an toàn) — bỏ qua 
+2026-08-05 21:33:47: [PP369] [Binance] Đã đồng bộ giờ: offset = 3152ms (Giờ server: 2026-08-05T14:33:50.469Z) 
+2026-08-05 22:00:04: [PP369] [H1Retest] === Kiểm tra Retest nến H1 vừa đóng cho 4 coin trong Watchlist === 
+2026-08-05 22:00:04: [PP369] [H1Retest] HOLO SHORT nến H1 rút chân nhưng ĐÃ PHẢN ỨNG NẢY ROI = +14.51% (>= 5.0%) sau khi chạm entry. Bỏ qua không đặt limit. 
+2026-08-05 22:03:47: [PP369] [Binance] Đã đồng bộ giờ: offset = 3325ms (Giờ server: 2026-08-05T15:03:50.670Z) 
+2026-08-05 22:07:36: [PP369] [AutoTrade] UNI → SHORT (Score: +5.9đ) tại $4.138 
+2026-08-05 22:07:36: [PP369] [AI Reviewer (Shadow)] 🟢 Khuyên NÊN ĐẶT LỆNH UNI (SHORT) - Xác suất thắng 71.5% >= 65% (- RANK_MIDCAP_150 (x0.9113), - TREND_CONFLICT (x0.894), + VOL_ULTRA (x1.1395), - RSI_EXTREME (x0.9642), - LS_PARTIAL (x0.9399), + PA_1_LEVEL (x1.0674), + VOL_SURGE (x1.1206), + FUNDING_NORMAL (x1.0314), + BTC_NEUTRAL (x1.191), - GRID_WIDE (x0.9619)) 
+2026-08-05 22:07:36: [PP369] [AutoTrade] Set leverage UNIUSDT = 5x (Bước 300đ: 7.25% → tính được 5x, giới hạn: 75x | Ký quỹ mục tiêu: $30) 
+2026-08-05 22:07:36: [PP369] [AutoTrade] ✓ UNI SELL 36 @ $4.138 orderId=32278267790 status=NEW 
+2026-08-05 22:09:23: [PP369] [AutoTrade] ✓ Đặt TP UNI @ $4.0480 (đối ứng BUY) orderId=1000002491755351 
+2026-08-05 22:09:23: [PP369] [AutoTrade] ✓ Đặt SL UNI @ $4.2380 (đối ứng BUY) orderId=1000002491755354 
+2026-08-05 22:16:34: [PP369] [AutoTrade] AKT → LONG (Score: +3.4đ) tại $0.5025 
+2026-08-05 22:16:34: [PP369] [AutoTrade] AKT LONG có Score = 3.4đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-05 22:18:33: [PP369] [AutoTrade] AKT → LONG (Score: +3.4đ) tại $0.5025 
+2026-08-05 22:18:33: [PP369] [AutoTrade] AKT LONG có Score = 3.4đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-05 22:23:33: [PP369] [AutoTrade] AKT → LONG (Score: +3.4đ) tại $0.5025 
+2026-08-05 22:23:33: [PP369] [AutoTrade] AKT LONG có Score = 3.4đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-05 22:24:03: [PP369] [AutoTrade] AKT → LONG (Score: +3.4đ) tại $0.5025 
+2026-08-05 22:24:03: [PP369] [AutoTrade] AKT LONG có Score = 3.4đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-05 22:24:33: [PP369] [AutoTrade] AKT → LONG (Score: +3.4đ) tại $0.5025 
+2026-08-05 22:24:33: [PP369] [AutoTrade] AKT LONG có Score = 3.4đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-05 22:25:03: [PP369] [AutoTrade] AKT → LONG (Score: +3.4đ) tại $0.5025 
+2026-08-05 22:25:03: [PP369] [AutoTrade] AKT LONG có Score = 3.4đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-05 22:25:05: [PP369] [AutoTrade] Trailing SL: UNI đạt ROI 5.44% -> Dịch SL trên sàn về entry + 1% ROI ($4.130) [Mức: Hòa vốn] 
+2026-08-05 22:25:05: [PP369] [AutoTrade] Đã hủy SL cũ của UNI (orderId=1000002491755354) 
+2026-08-05 22:25:05: [PP369] [AutoTrade] ✓ Đã dịch SL mới cho UNI @ $4.1300 (orderId=1000002491785782) 
+2026-08-05 22:25:33: [PP369] [AutoTrade] AKT → LONG (Score: +3.4đ) tại $0.5025 
+2026-08-05 22:25:33: [PP369] [AutoTrade] AKT LONG có Score = 3.4đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-05 22:26:03: [PP369] [AutoTrade] AKT → LONG (Score: +3.4đ) tại $0.5025 
+2026-08-05 22:26:03: [PP369] [AutoTrade] AKT LONG có Score = 3.4đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-05 22:26:35: [PP369] [AutoTrade] EPIC → LONG (Score: +3.1đ) tại $0.9185 
+2026-08-05 22:26:35: [PP369] [AutoTrade] EPIC LONG không đạt Tiêu chí 2 (Biến động H1/M15 an toàn) — bỏ qua 
+2026-08-05 22:33:47: [PP369] [Binance] Đã đồng bộ giờ: offset = 3490ms (Giờ server: 2026-08-05T15:33:50.711Z) 
+2026-08-05 22:43:05: [PP369] [AutoTrade] C → SHORT (Score: +4.199999999999999đ) tại $0.05549 
+2026-08-05 22:43:05: [PP369] [AutoTrade] C SHORT có Score = 4.199999999999999đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-05 22:43:33: [PP369] [AutoTrade] C → SHORT (Score: +4.199999999999999đ) tại $0.05549 
+2026-08-05 22:43:33: [PP369] [AutoTrade] C SHORT có Score = 4.199999999999999đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-05 22:44:04: [PP369] [AutoTrade] C → SHORT (Score: +4.199999999999999đ) tại $0.05549 
+2026-08-05 22:44:04: [PP369] [AutoTrade] C SHORT có Score = 4.199999999999999đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-05 22:46:03: [PP369] [AutoTrade] C → SHORT (Score: +4.199999999999999đ) tại $0.05549 
+2026-08-05 22:46:03: [PP369] [AutoTrade] C SHORT có Score = 4.199999999999999đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-05 22:46:33: [PP369] [AutoTrade] C → SHORT (Score: +4.199999999999999đ) tại $0.05549 
+2026-08-05 22:46:33: [PP369] [AutoTrade] C SHORT có Score = 4.199999999999999đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-05 22:47:03: [PP369] [AutoTrade] C → SHORT (Score: +4.199999999999999đ) tại $0.05549 
+2026-08-05 22:47:03: [PP369] [AutoTrade] C SHORT có Score = 4.199999999999999đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-05 22:47:33: [PP369] [AutoTrade] C → SHORT (Score: +4.199999999999999đ) tại $0.05549 
+2026-08-05 22:47:33: [PP369] [AutoTrade] C SHORT có Score = 4.199999999999999đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-05 22:53:34: [PP369] [AutoTrade] SKYAI → SHORT (Score: +1.8đ) tại $0.06186 
+2026-08-05 22:53:34: [PP369] [AutoTrade] SKYAI SHORT không đạt Tiêu chí 2 (Biến động H1/M15 an toàn) — bỏ qua 
+2026-08-05 23:00:04: [PP369] [H1Retest] === Kiểm tra Retest nến H1 vừa đóng cho 5 coin trong Watchlist === 
+2026-08-05 23:00:05: [PP369] [H1Retest] 🎯 C SHORT H1 đóng rút chân chuẩn tại Entry $0.05549, chưa nảy đủ 5% ROI (Max ROI: +4.16%). ĐẶT LỆNH LIMIT TẠI ENTRY! 
+2026-08-05 23:00:05: [PP369] [AI Reviewer (Shadow Retest H1)] 🟢 Khuyên NÊN ĐẶT LỆNH C (SHORT) - Xác suất thắng 73.3% >= 65% (- TREND_CONFLICT (x0.894), + VOL_ULTRA (x1.1395), + RSI_NEUTRAL (x1.0605), - LS_PARTIAL (x0.9399), - PA_2_LEVELS (x0.9642), + VOL_SURGE (x1.1206), + FUNDING_NORMAL (x1.0314), + BTC_NEUTRAL (x1.191), - GRID_WIDE (x0.9619)) 
+2026-08-05 23:00:05: [PP369] [H1Retest] ✓ Đã đặt thành công lệnh LIMIT Retest H1 cho C SELL 3784 @ $0.05549 (orderId=1540605694) 
+2026-08-05 23:03:47: [PP369] [Binance] Đã đồng bộ giờ: offset = 3671ms (Giờ server: 2026-08-05T16:03:50.889Z) 
+2026-08-05 23:08:35: [PP369] [AutoTrade] [BounceCancel] C SHORT: entry=$0.05549, current=$0.055030 (-0.83% >= 0.98%) → Hủy LIMIT ngay lập tức 
+2026-08-05 23:22:36: [PP369] [AutoTrade] GUA → SHORT (Score: +4.6đ) tại $0.04915 
+2026-08-05 23:22:36: [PP369] [AutoTrade] GUA SHORT có Score = 4.6đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-05 23:33:47: [PP369] [Binance] Đã đồng bộ giờ: offset = 3849ms (Giờ server: 2026-08-05T16:33:51.113Z) 
+2026-08-05 23:48:33: [PP369] [GridBlacklist] Đã tự động giải phóng QNT khỏi Blacklist sau 1 tuần. 
+2026-08-06 00:00:05: [PP369] [H1Retest] === Kiểm tra Retest nến H1 vừa đóng cho 5 coin trong Watchlist === 
+2026-08-06 00:01:36: [PP369] [AutoTrade] LDO → SHORT (Score: +4đ) tại $0.3058 
+2026-08-06 00:01:36: [PP369] [AutoTrade] LDO SHORT có Score = 4đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-06 00:02:03: [PP369] [AutoTrade] LDO → SHORT (Score: +4đ) tại $0.3058 
+2026-08-06 00:02:03: [PP369] [AutoTrade] LDO SHORT có Score = 4đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-06 00:03:35: [PP369] [AutoTrade] INIT → SHORT (Score: +3.9999999999999996đ) tại $0.0518 
+2026-08-06 00:03:35: [PP369] [AutoTrade] INIT SHORT có Score = 3.9999999999999996đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-06 00:03:47: [PP369] [Binance] Đã đồng bộ giờ: offset = 4024ms (Giờ server: 2026-08-05T17:03:51.283Z) 
+2026-08-06 00:03:49: [PP369] [AutoTrade] [CoinRefresh] Tái kiểm tra danh sách: 451 → 448 coin hợp lệ theo giá hiện tại. 
+2026-08-06 00:04:03: [PP369] [AutoTrade] INIT → SHORT (Score: +3.9999999999999996đ) tại $0.0518 
+2026-08-06 00:04:03: [PP369] [AutoTrade] INIT SHORT có Score = 3.9999999999999996đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-06 00:04:33: [PP369] [AutoTrade] INIT → SHORT (Score: +3.9999999999999996đ) tại $0.0518 
+2026-08-06 00:04:33: [PP369] [AutoTrade] INIT SHORT có Score = 3.9999999999999996đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-06 00:13:35: [PP369] [AutoTrade] XNY → LONG (Score: +3.3đ) tại $0.006802 
+2026-08-06 00:13:35: [PP369] [AutoTrade] XNY LONG không đạt Tiêu chí 2 (Biến động H1/M15 an toàn) — bỏ qua 
+2026-08-06 00:14:04: [PP369] [AutoTrade] XNY → LONG (Score: +3.1đ) tại $0.006802 
+2026-08-06 00:14:04: [PP369] [AutoTrade] XNY LONG không đạt Tiêu chí 2 (Biến động H1/M15 an toàn) — bỏ qua 
+2026-08-06 00:15:05: [PP369] [AutoTrade] XNY → LONG (Score: +3.1đ) tại $0.006802 
+2026-08-06 00:15:05: [PP369] [AutoTrade] XNY LONG không đạt Tiêu chí 2 (Biến động H1/M15 an toàn) — bỏ qua 
+2026-08-06 00:33:47: [PP369] [Binance] Đã đồng bộ giờ: offset = 4199ms (Giờ server: 2026-08-05T17:33:51.452Z) 
+2026-08-06 00:46:35: [PP369] [AutoTrade] PIEVERSE → SHORT (Score: +2.9000000000000004đ) tại $0.8176 
+2026-08-06 00:46:35: [PP369] [AutoTrade] PIEVERSE SHORT có Score = 2.9000000000000004đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-06 00:58:33: [PP369] [GridBlacklist] Đã tự động giải phóng BROCCOLIF3B khỏi Blacklist sau 1 tuần. 
+2026-08-06 00:58:33: [PP369] [GridBlacklist] ĐÃ THÊM BROCCOLIF3B VÀO BLACKLIST 7 NGÀY (Lý do: x*2 (11.79%) > y (3.54%)). Sẽ tự động giải phóng sau 7 ngày. 
+2026-08-06 01:00:06: [PP369] [H1Retest] === Kiểm tra Retest nến H1 vừa đóng cho 8 coin trong Watchlist === 
+2026-08-06 01:02:35: [PP369] [AutoTrade] SKYAI → SHORT (Score: +2.3đ) tại $0.06486 
+2026-08-06 01:02:35: [PP369] [AutoTrade] SKYAI SHORT không đạt Tiêu chí 2 (Biến động H1/M15 an toàn) — bỏ qua 
+2026-08-06 01:03:47: [PP369] [Binance] Đã đồng bộ giờ: offset = 4375ms (Giờ server: 2026-08-05T18:03:51.630Z) 
+2026-08-06 01:24:35: [PP369] [AutoTrade] GUA → SHORT (Score: +5.3đ) tại $0.05215 
+2026-08-06 01:24:35: [PP369] [AutoTrade] GUA SHORT có Score = 5.3đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-06 01:25:04: [PP369] [AutoTrade] GUA → SHORT (Score: +5.1đ) tại $0.05215 
+2026-08-06 01:25:04: [PP369] [AutoTrade] GUA SHORT có Score = 5.1đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-06 01:25:33: [PP369] [AutoTrade] GUA → SHORT (Score: +5.1đ) tại $0.05215 
+2026-08-06 01:25:33: [PP369] [AutoTrade] GUA SHORT có Score = 5.1đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-06 01:33:47: [PP369] [Binance] Đã đồng bộ giờ: offset = 4550ms (Giờ server: 2026-08-05T18:33:51.798Z) 
+2026-08-06 02:00:06: [PP369] [H1Retest] === Kiểm tra Retest nến H1 vừa đóng cho 8 coin trong Watchlist === 
+2026-08-06 02:00:07: [PP369] [H1Retest] GUA SHORT nến H1 rút chân nhưng ĐÃ PHẢN ỨNG NẢY ROI = +20.59% (>= 5.0%) sau khi chạm entry. Bỏ qua không đặt limit. 
+2026-08-06 02:03:47: [PP369] [Binance] Đã đồng bộ giờ: offset = 4725ms (Giờ server: 2026-08-05T19:03:51.995Z) 
+2026-08-06 02:24:05: [PP369] [AutoTrade] SKYAI → LONG (Score: +3.3đ) tại $0.06209 
+2026-08-06 02:24:05: [PP369] [AutoTrade] SKYAI LONG không đạt Tiêu chí 2 (Biến động H1/M15 an toàn) — bỏ qua 
+2026-08-06 02:25:03: [PP369] [AutoTrade] SKYAI → LONG (Score: +3.3đ) tại $0.06209 
+2026-08-06 02:25:03: [PP369] [AutoTrade] SKYAI LONG không đạt Tiêu chí 2 (Biến động H1/M15 an toàn) — bỏ qua 
+2026-08-06 02:25:34: [PP369] [AutoTrade] SKYAI → LONG (Score: +3.3đ) tại $0.06209 
+2026-08-06 02:25:34: [PP369] [AutoTrade] SKYAI LONG không đạt Tiêu chí 2 (Biến động H1/M15 an toàn) — bỏ qua 
+2026-08-06 02:33:47: [PP369] [Binance] Đã đồng bộ giờ: offset = 4899ms (Giờ server: 2026-08-05T19:33:52.212Z) 
+2026-08-06 02:37:05: [PP369] [AutoTrade] AKT → LONG (Score: +4.199999999999999đ) tại $0.5025 
+2026-08-06 02:37:05: [PP369] [AutoTrade] AKT LONG có Score = 4.199999999999999đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-06 02:37:33: [PP369] [AutoTrade] AKT → LONG (Score: +4.199999999999999đ) tại $0.5025 
+2026-08-06 02:37:33: [PP369] [AutoTrade] AKT LONG có Score = 4.199999999999999đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-06 02:38:03: [PP369] [AutoTrade] AKT → LONG (Score: +4.199999999999999đ) tại $0.5025 
+2026-08-06 02:38:03: [PP369] [AutoTrade] AKT LONG có Score = 4.199999999999999đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-06 02:38:33: [PP369] [AutoTrade] AKT → LONG (Score: +4.199999999999999đ) tại $0.5025 
+2026-08-06 02:38:33: [PP369] [AutoTrade] AKT LONG có Score = 4.199999999999999đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-06 02:39:03: [PP369] [AutoTrade] AKT → LONG (Score: +4.199999999999999đ) tại $0.5025 
+2026-08-06 02:39:03: [PP369] [AutoTrade] AKT LONG có Score = 4.199999999999999đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-06 02:39:33: [PP369] [AutoTrade] AKT → LONG (Score: +4.199999999999999đ) tại $0.5025 
+2026-08-06 02:39:33: [PP369] [AutoTrade] AKT LONG có Score = 4.199999999999999đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-06 02:40:04: [PP369] [AutoTrade] AKT → LONG (Score: +4.199999999999999đ) tại $0.5025 
+2026-08-06 02:40:04: [PP369] [AutoTrade] AKT LONG có Score = 4.199999999999999đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-06 02:40:33: [PP369] [AutoTrade] AKT → LONG (Score: +4.199999999999999đ) tại $0.5025 
+2026-08-06 02:40:33: [PP369] [AutoTrade] AKT LONG có Score = 4.199999999999999đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-06 02:41:03: [PP369] [AutoTrade] AKT → LONG (Score: +4.199999999999999đ) tại $0.5025 
+2026-08-06 02:41:03: [PP369] [AutoTrade] AKT LONG có Score = 4.199999999999999đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-06 02:41:33: [PP369] [AutoTrade] AKT → LONG (Score: +4.199999999999999đ) tại $0.5025 
+2026-08-06 02:41:33: [PP369] [AutoTrade] AKT LONG có Score = 4.199999999999999đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-06 02:42:03: [PP369] [AutoTrade] AKT → LONG (Score: +4.199999999999999đ) tại $0.5025 
+2026-08-06 02:42:03: [PP369] [AutoTrade] AKT LONG có Score = 4.199999999999999đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-06 02:42:33: [PP369] [AutoTrade] AKT → LONG (Score: +4.199999999999999đ) tại $0.5025 
+2026-08-06 02:42:33: [PP369] [AutoTrade] AKT LONG có Score = 4.199999999999999đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-06 02:43:03: [PP369] [AutoTrade] AKT → LONG (Score: +4.199999999999999đ) tại $0.5025 
+2026-08-06 02:43:03: [PP369] [AutoTrade] AKT LONG có Score = 4.199999999999999đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-06 02:43:33: [PP369] [AutoTrade] AKT → LONG (Score: +4.199999999999999đ) tại $0.5025 
+2026-08-06 02:43:33: [PP369] [AutoTrade] AKT LONG có Score = 4.199999999999999đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-06 02:44:03: [PP369] [AutoTrade] AKT → LONG (Score: +4.199999999999999đ) tại $0.5025 
+2026-08-06 02:44:03: [PP369] [AutoTrade] AKT LONG có Score = 4.199999999999999đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-06 02:44:33: [PP369] [AutoTrade] AKT → LONG (Score: +4.199999999999999đ) tại $0.5025 
+2026-08-06 02:44:33: [PP369] [AutoTrade] AKT LONG có Score = 4.199999999999999đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-06 02:45:03: [PP369] [AutoTrade] AKT → LONG (Score: +4.199999999999999đ) tại $0.5025 
+2026-08-06 02:45:03: [PP369] [AutoTrade] AKT LONG có Score = 4.199999999999999đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-06 02:46:04: [PP369] [AutoTrade] AKT → LONG (Score: +4.199999999999999đ) tại $0.5025 
+2026-08-06 02:46:04: [PP369] [AutoTrade] AKT LONG có Score = 4.199999999999999đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-06 02:46:33: [PP369] [AutoTrade] AKT → LONG (Score: +4.199999999999999đ) tại $0.5025 
+2026-08-06 02:46:33: [PP369] [AutoTrade] AKT LONG có Score = 4.199999999999999đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-06 02:47:03: [PP369] [AutoTrade] AKT → LONG (Score: +4.199999999999999đ) tại $0.5025 
+2026-08-06 02:47:03: [PP369] [AutoTrade] AKT LONG có Score = 4.199999999999999đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-06 02:47:33: [PP369] [AutoTrade] AKT → LONG (Score: +4.199999999999999đ) tại $0.5025 
+2026-08-06 02:47:33: [PP369] [AutoTrade] AKT LONG có Score = 4.199999999999999đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-06 02:48:03: [PP369] [AutoTrade] AKT → LONG (Score: +4.199999999999999đ) tại $0.5025 
+2026-08-06 02:48:03: [PP369] [AutoTrade] AKT LONG có Score = 4.199999999999999đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-06 02:49:04: [PP369] [AutoTrade] AKT → LONG (Score: +4.199999999999999đ) tại $0.5025 
+2026-08-06 02:49:04: [PP369] [AutoTrade] AKT LONG có Score = 4.199999999999999đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-06 02:49:33: [PP369] [AutoTrade] AKT → LONG (Score: +4.199999999999999đ) tại $0.5025 
+2026-08-06 02:49:33: [PP369] [AutoTrade] AKT LONG có Score = 4.199999999999999đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-06 02:50:03: [PP369] [AutoTrade] AKT → LONG (Score: +4.199999999999999đ) tại $0.5025 
+2026-08-06 02:50:03: [PP369] [AutoTrade] AKT LONG có Score = 4.199999999999999đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-06 02:50:33: [PP369] [AutoTrade] AKT → LONG (Score: +4.199999999999999đ) tại $0.5025 
+2026-08-06 02:50:33: [PP369] [AutoTrade] AKT LONG có Score = 4.199999999999999đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-06 02:51:03: [PP369] [AutoTrade] AKT → LONG (Score: +4.199999999999999đ) tại $0.5025 
+2026-08-06 02:51:03: [PP369] [AutoTrade] AKT LONG có Score = 4.199999999999999đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-06 02:51:33: [PP369] [AutoTrade] AKT → LONG (Score: +4.199999999999999đ) tại $0.5025 
+2026-08-06 02:51:33: [PP369] [AutoTrade] AKT LONG có Score = 4.199999999999999đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-06 02:52:03: [PP369] [AutoTrade] AKT → LONG (Score: +4.199999999999999đ) tại $0.5025 
+2026-08-06 02:52:03: [PP369] [AutoTrade] AKT LONG có Score = 4.199999999999999đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-06 02:54:03: [PP369] [AutoTrade] AKT → LONG (Score: +4.199999999999999đ) tại $0.5025 
+2026-08-06 02:54:03: [PP369] [AutoTrade] AKT LONG có Score = 4.199999999999999đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-06 02:54:33: [PP369] [AutoTrade] AKT → LONG (Score: +4.199999999999999đ) tại $0.5025 
+2026-08-06 02:54:33: [PP369] [AutoTrade] AKT LONG có Score = 4.199999999999999đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-06 02:55:04: [PP369] [AutoTrade] AKT → LONG (Score: +4.199999999999999đ) tại $0.5025 
+2026-08-06 02:55:04: [PP369] [AutoTrade] AKT LONG có Score = 4.199999999999999đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-06 02:55:34: [PP369] [AutoTrade] AKT → LONG (Score: +4.199999999999999đ) tại $0.5025 
+2026-08-06 02:55:34: [PP369] [AutoTrade] AKT LONG có Score = 4.199999999999999đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-06 02:56:03: [PP369] [AutoTrade] AKT → LONG (Score: +4.199999999999999đ) tại $0.5025 
+2026-08-06 02:56:03: [PP369] [AutoTrade] AKT LONG có Score = 4.199999999999999đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-06 02:56:34: [PP369] [AutoTrade] AKT → LONG (Score: +4.199999999999999đ) tại $0.5025 
+2026-08-06 02:56:34: [PP369] [AutoTrade] AKT LONG có Score = 4.199999999999999đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-06 02:57:34: [PP369] [AutoTrade] AKT → LONG (Score: +4.199999999999999đ) tại $0.5025 
+2026-08-06 02:57:34: [PP369] [AutoTrade] AKT LONG có Score = 4.199999999999999đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-06 02:58:03: [PP369] [AutoTrade] AKT → LONG (Score: +4.199999999999999đ) tại $0.5025 
+2026-08-06 02:58:03: [PP369] [AutoTrade] AKT LONG có Score = 4.199999999999999đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-06 03:00:07: [PP369] [AutoTrade] AKT → LONG (Score: +4.199999999999999đ) tại $0.5025 
+2026-08-06 03:00:07: [PP369] [AutoTrade] AKT LONG có Score = 4.199999999999999đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-06 03:00:08: [PP369] [H1Retest] === Kiểm tra Retest nến H1 vừa đóng cho 7 coin trong Watchlist === 
+2026-08-06 03:00:33: [PP369] [AutoTrade] AKT → LONG (Score: +4.199999999999999đ) tại $0.5025 
+2026-08-06 03:00:33: [PP369] [AutoTrade] AKT LONG có Score = 4.199999999999999đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-06 03:01:03: [PP369] [AutoTrade] AKT → LONG (Score: +4.199999999999999đ) tại $0.5025 
+2026-08-06 03:01:03: [PP369] [AutoTrade] AKT LONG có Score = 4.199999999999999đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-06 03:01:33: [PP369] [AutoTrade] AKT → LONG (Score: +4.199999999999999đ) tại $0.5025 
+2026-08-06 03:01:33: [PP369] [AutoTrade] AKT LONG có Score = 4.199999999999999đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-06 03:02:03: [PP369] [AutoTrade] AKT → LONG (Score: +4.199999999999999đ) tại $0.5025 
+2026-08-06 03:02:03: [PP369] [AutoTrade] AKT LONG có Score = 4.199999999999999đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-06 03:02:33: [PP369] [AutoTrade] AKT → LONG (Score: +4.199999999999999đ) tại $0.5025 
+2026-08-06 03:02:33: [PP369] [AutoTrade] AKT LONG có Score = 4.199999999999999đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-06 03:03:04: [PP369] [AutoTrade] AKT → LONG (Score: +4.199999999999999đ) tại $0.5025 
+2026-08-06 03:03:04: [PP369] [AutoTrade] AKT LONG có Score = 4.199999999999999đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-06 03:03:34: [PP369] [AutoTrade] AKT → LONG (Score: +4.199999999999999đ) tại $0.5025 
+2026-08-06 03:03:34: [PP369] [AutoTrade] AKT LONG có Score = 4.199999999999999đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-06 03:03:47: [PP369] [Binance] Đã đồng bộ giờ: offset = 5075ms (Giờ server: 2026-08-05T20:03:52.324Z) 
+2026-08-06 03:04:03: [PP369] [AutoTrade] AKT → LONG (Score: +4.199999999999999đ) tại $0.5025 
+2026-08-06 03:04:03: [PP369] [AutoTrade] AKT LONG có Score = 4.199999999999999đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-06 03:04:34: [PP369] [AutoTrade] AKT → LONG (Score: +4.199999999999999đ) tại $0.5025 
+2026-08-06 03:04:34: [PP369] [AutoTrade] AKT LONG có Score = 4.199999999999999đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-06 03:05:05: [PP369] [AutoTrade] PROVE → LONG (Score: +4.6đ) tại $0.1576 
+2026-08-06 03:05:05: [PP369] [AutoTrade] PROVE LONG có Score = 4.6đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-06 03:05:34: [PP369] [AutoTrade] PROVE → LONG (Score: +4.6đ) tại $0.1576 
+2026-08-06 03:05:34: [PP369] [AutoTrade] PROVE LONG có Score = 4.6đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-06 03:06:04: [PP369] [AutoTrade] PROVE → LONG (Score: +4.6đ) tại $0.1576 
+2026-08-06 03:06:04: [PP369] [AutoTrade] PROVE LONG có Score = 4.6đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-06 03:09:03: [PP369] [GridBlacklist] Đã tự động giải phóng TURTLE khỏi Blacklist sau 1 tuần. 
+2026-08-06 03:09:03: [PP369] [GridBlacklist] ĐÃ THÊM TURTLE VÀO BLACKLIST 7 NGÀY (Lý do: x*2 (5.11%) > y (4.54%)). Sẽ tự động giải phóng sau 7 ngày. 
+2026-08-06 03:18:35: [PP369] [AutoTrade] SKYAI → SHORT (Score: +1.3đ) tại $0.06486 
+2026-08-06 03:18:35: [PP369] [AutoTrade] SKYAI SHORT không đạt Tiêu chí 2 (Biến động H1/M15 an toàn) — bỏ qua 
+2026-08-06 03:33:47: [PP369] [Binance] Đã đồng bộ giờ: offset = 5250ms (Giờ server: 2026-08-05T20:33:52.510Z) 
+2026-08-06 04:00:08: [PP369] [H1Retest] === Kiểm tra Retest nến H1 vừa đóng cho 8 coin trong Watchlist === 
+2026-08-06 04:00:12: [PP369] [H1Retest] 🎯 PROVE LONG H1 đóng rút chân chuẩn tại Entry $0.1576, chưa nảy đủ 5% ROI (Max ROI: +2.16%). ĐẶT LỆNH LIMIT TẠI ENTRY! 
+2026-08-06 04:00:12: [PP369] [AI Reviewer (Shadow Retest H1)] 🟡 Khuyên BỎ QUA PROVE (LONG) - Xác suất thắng 63.6% < 65% (- TREND_CONFLICT (x0.894), + VOL_ULTRA (x1.1395), - RSI_EXTREME (x0.9642), - LS_PARTIAL (x0.9399), + OI_STABLE (x1.0709), - VOL_DRY (x0.9262), + FUNDING_NORMAL (x1.0314), - BTC_ALIGNED (x0.8602), - GRID_WIDE (x0.9619)) 
+2026-08-06 04:00:13: [PP369] [H1Retest] ✓ Đã đặt thành công lệnh LIMIT Retest H1 cho PROVE BUY 380.7 @ $0.1576 (orderId=1077159915) 
+2026-08-06 04:03:47: [PP369] [Binance] Đã đồng bộ giờ: offset = 5426ms (Giờ server: 2026-08-05T21:03:52.651Z) 
+2026-08-06 04:03:49: [PP369] [AutoTrade] [CoinRefresh] Tái kiểm tra danh sách: 448 → 451 coin hợp lệ theo giá hiện tại. 
+2026-08-06 04:28:36: [PP369] [AutoTrade] EPIC → LONG (Score: +4.3999999999999995đ) tại $0.9185 
+2026-08-06 04:28:36: [PP369] [AutoTrade] EPIC LONG không đạt Tiêu chí 2 (Biến động H1/M15 an toàn) — bỏ qua 
+2026-08-06 04:30:00: [PP369] [AutoTrade] ✓ Đặt TP PROVE @ $0.166600 (đối ứng SELL) orderId=1000002492260925 
+2026-08-06 04:30:00: [PP369] [AutoTrade] ✓ Đặt SL PROVE @ $0.147600 (đối ứng SELL) orderId=1000002492260926 
+2026-08-06 04:30:04: [PP369] [AutoTrade] EPIC → LONG (Score: +4.3999999999999995đ) tại $0.9185 
+2026-08-06 04:30:04: [PP369] [AutoTrade] EPIC LONG không đạt Tiêu chí 2 (Biến động H1/M15 an toàn) — bỏ qua 
+2026-08-06 04:33:47: [PP369] [Binance] Đã đồng bộ giờ: offset = 5602ms (Giờ server: 2026-08-05T21:33:52.821Z) 
+2026-08-06 04:37:35: [PP369] [AutoTrade] BAN → LONG (Score: +5đ) tại $0.07298 
+2026-08-06 04:37:35: [PP369] [AutoTrade] BAN LONG có Score = 5đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-06 04:38:03: [PP369] [AutoTrade] BAN → LONG (Score: +5đ) tại $0.07298 
+2026-08-06 04:38:03: [PP369] [AutoTrade] BAN LONG có Score = 5đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-06 04:39:04: [PP369] [AutoTrade] BAN → LONG (Score: +5đ) tại $0.07298 
+2026-08-06 04:39:04: [PP369] [AutoTrade] BAN LONG có Score = 5đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-06 04:39:34: [PP369] [AutoTrade] BAN → LONG (Score: +5đ) tại $0.07298 
+2026-08-06 04:39:34: [PP369] [AutoTrade] BAN LONG có Score = 5đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-06 04:40:05: [PP369] [AutoTrade] BAN → LONG (Score: +5đ) tại $0.07298 
+2026-08-06 04:40:05: [PP369] [AutoTrade] BAN LONG có Score = 5đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-06 04:40:34: [PP369] [AutoTrade] BAN → LONG (Score: +5đ) tại $0.07298 
+2026-08-06 04:40:34: [PP369] [AutoTrade] BAN LONG có Score = 5đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-06 04:41:04: [PP369] [AutoTrade] BAN → LONG (Score: +5đ) tại $0.07298 
+2026-08-06 04:41:04: [PP369] [AutoTrade] BAN LONG có Score = 5đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-06 04:41:34: [PP369] [AutoTrade] BAN → LONG (Score: +5đ) tại $0.07298 
+2026-08-06 04:41:34: [PP369] [AutoTrade] BAN LONG có Score = 5đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-06 04:44:04: [PP369] [AutoTrade] BAN → LONG (Score: +5đ) tại $0.07298 
+2026-08-06 04:44:04: [PP369] [AutoTrade] BAN LONG có Score = 5đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-06 04:44:34: [PP369] [AutoTrade] BAN → LONG (Score: +5đ) tại $0.07298 
+2026-08-06 04:44:34: [PP369] [AutoTrade] BAN LONG có Score = 5đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-06 04:47:33: [PP369] [AutoTrade] BAN → LONG (Score: +5đ) tại $0.07298 
+2026-08-06 04:47:33: [PP369] [AutoTrade] BAN LONG có Score = 5đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-06 04:48:04: [PP369] [AutoTrade] BAN → LONG (Score: +5đ) tại $0.07298 
+2026-08-06 04:48:04: [PP369] [AutoTrade] BAN LONG có Score = 5đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-06 04:49:04: [PP369] [AutoTrade] BAN → LONG (Score: +5đ) tại $0.07298 
+2026-08-06 04:49:04: [PP369] [AutoTrade] BAN LONG có Score = 5đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-06 04:50:03: [PP369] [AutoTrade] BAN → LONG (Score: +5đ) tại $0.07298 
+2026-08-06 04:50:04: [PP369] [AutoTrade] BAN LONG có Score = 5đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-06 04:51:04: [PP369] [AutoTrade] BAN → LONG (Score: +5đ) tại $0.07298 
+2026-08-06 04:51:04: [PP369] [AutoTrade] BAN LONG có Score = 5đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-06 04:52:34: [PP369] [AutoTrade] BAN → LONG (Score: +5đ) tại $0.07298 
+2026-08-06 04:52:34: [PP369] [AutoTrade] BAN LONG có Score = 5đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-06 04:53:04: [PP369] [AutoTrade] BAN → LONG (Score: +5đ) tại $0.07298 
+2026-08-06 04:53:04: [PP369] [AutoTrade] BAN LONG có Score = 5đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-06 04:53:34: [PP369] [AutoTrade] BAN → LONG (Score: +5đ) tại $0.07298 
+2026-08-06 04:53:34: [PP369] [AutoTrade] BAN LONG có Score = 5đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-06 04:54:04: [PP369] [AutoTrade] BAN → LONG (Score: +5đ) tại $0.07298 
+2026-08-06 04:54:04: [PP369] [AutoTrade] BAN LONG có Score = 5đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-06 04:54:34: [PP369] [AutoTrade] BAN → LONG (Score: +5đ) tại $0.07298 
+2026-08-06 04:54:34: [PP369] [AutoTrade] BAN LONG có Score = 5đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-06 04:55:04: [PP369] [AutoTrade] BAN → LONG (Score: +5đ) tại $0.07298 
+2026-08-06 04:55:04: [PP369] [AutoTrade] BAN LONG có Score = 5đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-06 04:55:34: [PP369] [AutoTrade] BAN → LONG (Score: +5đ) tại $0.07298 
+2026-08-06 04:55:34: [PP369] [AutoTrade] BAN LONG có Score = 5đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-06 05:00:08: [PP369] [H1Retest] === Kiểm tra Retest nến H1 vừa đóng cho 7 coin trong Watchlist === 
+2026-08-06 05:00:09: [PP369] [H1Retest] 🎯 BAN LONG H1 đóng rút chân chuẩn tại Entry $0.07298, chưa nảy đủ 5% ROI (Max ROI: +1.85%). ĐẶT LỆNH LIMIT TẠI ENTRY! 
+2026-08-06 05:00:09: [PP369] [AI Reviewer (Shadow Retest H1)] 🟢 Khuyên NÊN ĐẶT LỆNH BAN (LONG) - Xác suất thắng 74.3% >= 65% (+ TREND_PERFECT (x1.2809), + VOL_ULTRA (x1.1395), + RSI_NEUTRAL (x1.0605), - LS_PARTIAL (x0.9399), - PA_2_LEVELS (x0.9642), + OI_STABLE (x1.0709), - VOL_DRY (x0.9262), + FUNDING_DANGER (x1.08), - BTC_ALIGNED (x0.8602)) 
+2026-08-06 05:00:09: [PP369] [H1Retest] ✓ Đã đặt thành công lệnh LIMIT Retest H1 cho BAN BUY 3699 @ $0.07298 (orderId=1915974033) 
+2026-08-06 05:00:50: [PP369] [AutoTrade] ✓ Đặt TP BAN @ $0.0738800 (đối ứng SELL) orderId=1000002492289970 
+2026-08-06 05:00:50: [PP369] [AutoTrade] ✓ Đặt SL BAN @ $0.0719800 (đối ứng SELL) orderId=1000002492289973 
+2026-08-06 05:03:47: [PP369] [Binance] Đã đồng bộ giờ: offset = 5777ms (Giờ server: 2026-08-05T22:03:52.997Z) 
+2026-08-06 05:11:36: [PP369] [AutoTrade] HYPER → SHORT (Score: +4.3đ) tại $0.0607 
+2026-08-06 05:11:36: [PP369] [AutoTrade] HYPER SHORT có Score = 4.3đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-06 05:15:34: [PP369] [AutoTrade] HYPER → SHORT (Score: +4.3đ) tại $0.0607 
+2026-08-06 05:15:34: [PP369] [AutoTrade] HYPER SHORT có Score = 4.3đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-06 05:16:04: [PP369] [AutoTrade] HYPER → SHORT (Score: +4.3đ) tại $0.0607 
+2026-08-06 05:16:04: [PP369] [AutoTrade] HYPER SHORT có Score = 4.3đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-06 05:16:34: [PP369] [AutoTrade] HYPER → SHORT (Score: +4.3đ) tại $0.0607 
+2026-08-06 05:16:34: [PP369] [AutoTrade] HYPER SHORT có Score = 4.3đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-06 05:17:04: [PP369] [AutoTrade] HYPER → SHORT (Score: +4.3đ) tại $0.0607 
+2026-08-06 05:17:04: [PP369] [AutoTrade] HYPER SHORT có Score = 4.3đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-06 05:17:34: [PP369] [AutoTrade] HYPER → SHORT (Score: +4.3đ) tại $0.0607 
+2026-08-06 05:17:34: [PP369] [AutoTrade] HYPER SHORT có Score = 4.3đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-06 05:33:47: [PP369] [Binance] Đã đồng bộ giờ: offset = 5951ms (Giờ server: 2026-08-05T22:33:53.171Z) 
+2026-08-06 05:50:35: [PP369] [AutoTrade] NXPC → LONG (Score: +3.5đ) tại $0.2353 
+2026-08-06 05:50:35: [PP369] [AutoTrade] NXPC LONG có Score = 3.5đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-06 06:00:09: [PP369] [H1Retest] === Kiểm tra Retest nến H1 vừa đóng cho 8 coin trong Watchlist === 
+2026-08-06 06:00:23: [PP369] [H1Retest] HYPER SHORT nến H1 rút chân nhưng ĐÃ PHẢN ỨNG NẢY ROI = +5.42% (>= 5.0%) sau khi chạm entry. Bỏ qua không đặt limit. 
+2026-08-06 06:00:24: [PP369] [H1Retest] 🎯 NXPC LONG H1 đóng rút chân chuẩn tại Entry $0.2353, chưa nảy đủ 5% ROI (Max ROI: +1.66%). ĐẶT LỆNH LIMIT TẠI ENTRY! 
+2026-08-06 06:00:24: [PP369] [AI Reviewer (Shadow Retest H1)] 🟡 Khuyên BỎ QUA NXPC (LONG) - Xác suất thắng 63.6% < 65% (- TREND_CONFLICT (x0.894), + VOL_ULTRA (x1.1395), + RSI_NEUTRAL (x1.0605), - LS_DIVERGENCE (x0.9092), - PA_2_LEVELS (x0.9642), + OI_STABLE (x1.0709), - VOL_DRY (x0.9262), + FUNDING_NORMAL (x1.0314), - BTC_ALIGNED (x0.8602), - GRID_WIDE (x0.9619)) 
+2026-08-06 06:00:24: [PP369] [H1Retest] ✓ Đã đặt thành công lệnh LIMIT Retest H1 cho NXPC BUY 382 @ $0.2353 (orderId=1781393135) 
+2026-08-06 06:03:47: [PP369] [Binance] Đã đồng bộ giờ: offset = 6120ms (Giờ server: 2026-08-05T23:03:53.348Z) 
+2026-08-06 06:22:36: [PP369] [AutoTrade] SKYAI → SHORT (Score: +1.6đ) tại $0.06786 
+2026-08-06 06:22:36: [PP369] [AutoTrade] SKYAI SHORT không đạt Tiêu chí 2 (Biến động H1/M15 an toàn) — bỏ qua 
+2026-08-06 06:31:35: [PP369] [AutoTrade] EPIC → LONG (Score: +4.699999999999999đ) tại $0.8885 
+2026-08-06 06:31:35: [PP369] [AutoTrade] EPIC LONG có Score = 4.699999999999999đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-06 06:33:47: [PP369] [Binance] Đã đồng bộ giờ: offset = 6302ms (Giờ server: 2026-08-05T23:33:53.523Z) 
+2026-08-06 07:00:09: [PP369] [H1Retest] === Kiểm tra Retest nến H1 vừa đóng cho 7 coin trong Watchlist === 
+2026-08-06 07:00:33: [PP369] [AutoTrade] Lệnh LIMIT của NXPC Retest H1 treo quá 60 phút (60.1 phút) -> Tiến hành hủy... 
+2026-08-06 07:00:33: [PP369] [AutoTrade] ✓ Đã hủy thành công lệnh LIMIT treo của NXPC 
+2026-08-06 07:03:47: [PP369] [Binance] Đã đồng bộ giờ: offset = 6475ms (Giờ server: 2026-08-06T00:03:53.703Z) 
+2026-08-06 07:08:03: [PP369] [GridBlacklist] ĐÃ THÊM ACH VÀO BLACKLIST 7 NGÀY (Lý do: x*2 (7.27%) > y (3.31%)). Sẽ tự động giải phóng sau 7 ngày. 
+2026-08-06 07:10:33: [PP369] [GridBlacklist] Đã tự động giải phóng VANRY khỏi Blacklist sau 1 tuần. 
+2026-08-06 07:32:36: [PP369] [AutoTrade] BOME → SHORT (Score: +2.6đ) tại $0.000602 
+2026-08-06 07:32:36: [PP369] [AutoTrade] BOME SHORT có Score = 2.6đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-06 07:33:47: [PP369] [Binance] Đã đồng bộ giờ: offset = 6651ms (Giờ server: 2026-08-06T00:33:53.927Z) 
+2026-08-06 08:00:09: [PP369] [H1Retest] === Kiểm tra Retest nến H1 vừa đóng cho 8 coin trong Watchlist === 
+2026-08-06 08:03:47: [PP369] [Binance] Đã đồng bộ giờ: offset = 6825ms (Giờ server: 2026-08-06T01:03:54.050Z) 
+2026-08-06 08:03:49: [PP369] [AutoTrade] [CoinRefresh] Tái kiểm tra danh sách: 451 → 448 coin hợp lệ theo giá hiện tại. 
+2026-08-06 08:10:06: [PP369] [AutoTrade] INJ → LONG (Score: +6.1đ) tại $4.798 
+2026-08-06 08:10:06: [PP369] [AI Reviewer (Shadow)] 🟢 Khuyên NÊN ĐẶT LỆNH INJ (LONG) - Xác suất thắng 69.7% >= 65% (- SCORE_MID_6_TO_7 (x0.9588), - RANK_MIDCAP_150 (x0.9113), - TREND_CONFLICT (x0.894), + VOL_ULTRA (x1.1395), + RSI_NEUTRAL (x1.0605), + LS_GOLD (x1.1206), + PA_4_LEVELS (x1.203), + OI_STABLE (x1.0709), - VOL_DRY (x0.9262), + FUNDING_NORMAL (x1.0314), - BTC_ALIGNED (x0.8602), - GRID_WIDE (x0.9619)) 
+2026-08-06 08:10:06: [PP369] [AutoTrade] Set leverage INJUSDT = 6x (Bước 300đ: 6.25% → tính được 6x, giới hạn: 75x | Ký quỹ mục tiêu: $30) 
+2026-08-06 08:10:06: [PP369] [AutoTrade] ✓ INJ BUY 37.5 @ $4.798 orderId=13306769234 status=NEW 
+2026-08-06 08:12:10: ◇ injected env (10) from .env // tip: ⌘ custom filepath { path: '/custom/path/.env' }
+2026-08-06 08:12:11: [PP369] [AI Reviewer] ✓ Đã nạp thành công mô hình AI (v1.0.0, mẫu N=69) 
+2026-08-06 08:12:11: [PP369] [369] initH4Cache: Tất cả 803 coin đã có nến H4 đầu năm. 
+2026-08-06 08:12:11: [PP369] [Binance] Đã đồng bộ giờ: offset = 6868ms (Giờ server: 2026-08-06T01:12:18.852Z) 
+2026-08-06 08:12:12: [AutoTrade] Bỏ qua 157 coin có grid ngoài khoảng 3–25% (theo giá hiện tại): 4(2.8%), XRP(28.3%), ETC(45.9%), LINK(36.7%), BAT(44.6%), QTUM(46.5%), KNC(29.4%), DOT(35.6%), SOL(40.5%), AVAX(45.1%), AAVE(33.3%), FIL(41.6%), BEL(3.0%), ALICE(2.6%), NKN(2.6%), DGB(1.6%), ATA(1.8%), DYDX(2.7%), KLAY(2.4%), IMX(27.0%), APE(2.2%), WOO(26.7%), DAR(2.1%), OP(34.0%), STG(2.5%), SPELL(38.1%), APT(50.5%), FET(2.1%), CKB(36.5%), USDC(30.0%), AMB(2.5%), LEVER(26.7%), RDNT(2.9%), SUI(43.5%), MAV(37.2%), DODOX(1.1%), ARK(32.2%), BOND(28.1%), GAS(32.3%), SUPER(35.1%), 1000SATS(301.2%), ACE(42.7%), MOVR(26.1%), JUP(1.6%), GLM(32.7%), PORTAL(2.7%), MYRO(3.0%), W(36.0%), IO(2.4%), ZK(38.3%), ZRO(38.6%), RARE(25.3%), SYN(2.1%), SYS(1.7%), ALPACA(25.2%), SUN(1.7%), DOGS(85.8%), BSW(2.5%), QUICK(2.3%), NEIRO(46.6%), FIO(2.5%), GHST(1.8%), LOKA(2.6%), COS(2.5%), DIA(27.2%), SANTOS(63.2%), COW(28.2%), 1000000MOG(29.9%), ACT(31.5%), HIPPO(2.9%), DEGEN(2.9%), 1000WHY(197.4%), THE(56.8%), ORCA(27.7%), MOVE(40.4%), KOMA(2.1%), VELODROME(1.7%), MOCA(39.8%), VANA(35.4%), USUAL(36.3%), DF(2.6%), COOKIE(35.8%), D(2.2%), PIPPIN(175.7%), TST(2.9%), HEI(1.1%), RED(34.8%), MUBARAK(2.2%), TUT(1.1%), BROCCOLI714(2.1%), BR(2.1%), PLUME(2.8%), FUN(1.7%), BABY(2.8%), SIGN(45.3%), PUNDIX(39.3%), CTK(29.9%), SXT(40.5%), ASR(35.0%), MILK(3.0%), OG(119.3%), AGT(1.9%), B(1.7%), MERL(176.5%), PORT3(2.5%), 1000000BOB(1.9%), LA(65.4%), PUMPBTC(29.6%), MYX(378.2%), DMC(2.3%), OL(1.7%), SAHARA(35.7%), ICNT(28.4%), TANSSI(2.4%), PUMP(1.2%), VELVET(0.7%), ZORA(56.1%), TAG(2.3%), ESPORTS(145.5%), A2Z(2.1%), YALA(1.8%), SOMI(32.8%), BAS(1.1%), Q(1.4%), PTB(32.6%), OPEN(1.5%), AVNT(36.8%), UB(2.1%), TOSHI(29.2%), BARD(26.1%), TRADOOR(52.4%), BLESS(1.1%), HANA(1.0%), AKE(0.7%), LIGHT(194.2%), XAN(2.2%), TRUTH(2.3%), YB(44.1%), ZBT(2.4%), LAB(2.2%), RIVER(117.9%), 币安人生(0.6%), BLUAI(2.4%), APR(1.5%), ON(1.2%), KITE(3.0%), AT(2.2%), UAI(1.1%), STABLE(0.9%), JCT(0.7%), ALLO(1.1%), BOB(2.8%), RLS(2.8%), POWER(34.1%), US(0.6%), BREV(42.5%), MAGMA(1.1%)
+2026-08-06 08:12:12: [PP369] [Binance] Đang lấy leverage brackets cho 449 coin... 
+2026-08-06 08:12:13: [PP369] [Binance] Đã lưu leverage cho 449 coin vào step_sizes.json 
+2026-08-06 08:12:13: [PP369] [AutoTrade] Khởi động: 449 coin | margin=$10 | 10x | type=LIMIT 
+2026-08-06 08:12:13: [PP369] [Binance] Loaded step and tick sizes from existing file: 852 symbols 
+2026-08-06 08:12:13: [PP369] [AutoTrade] Đã nạp leverageInfo cho 449 coin từ cache. 
+2026-08-06 08:12:13: [PP369] [PP369Stream] Kết nối WebSocket thành công (market/stream) 
+2026-08-06 08:12:17: [PP369] [AutoTrade] Bắt đầu scan... 
+2026-08-06 08:12:26: [PP369] [GridBlacklist] ĐÃ THÊM HIVE VÀO BLACKLIST 7 NGÀY (Lý do: x*2 (5.91%) > y (4.14%)). Sẽ tự động giải phóng sau 7 ngày. 
+2026-08-06 08:12:27: [PP369] [GridBlacklist] ĐÃ THÊM BULLA VÀO BLACKLIST 7 NGÀY (Lý do: x*2 (23.86%) > y (8.88%)). Sẽ tự động giải phóng sau 7 ngày. 
+2026-08-06 08:12:27: [PP369] [GridBlacklist] ĐÃ THÊM MITO VÀO BLACKLIST 7 NGÀY (Lý do: x*2 (11.65%) > y (8.04%)). Sẽ tự động giải phóng sau 7 ngày. 
+2026-08-06 08:13:29: [PP369] [AutoTrade] Lệnh LIMIT của INJ thường treo quá 3 phút (3.3 phút) -> Tiến hành hủy... 
+2026-08-06 08:13:29: [PP369] [AutoTrade] ✓ Đã hủy thành công lệnh LIMIT treo của INJ 
+2026-08-06 08:16:00: [PP369] [AutoTrade] INJ → LONG (Score: +6.1đ) tại $4.798 
+2026-08-06 08:16:00: [PP369] [AI Reviewer (Shadow)] 🟢 Khuyên NÊN ĐẶT LỆNH INJ (LONG) - Xác suất thắng 69.7% >= 65% (- SCORE_MID_6_TO_7 (x0.9588), - RANK_MIDCAP_150 (x0.9113), - TREND_CONFLICT (x0.894), + VOL_ULTRA (x1.1395), + RSI_NEUTRAL (x1.0605), + LS_GOLD (x1.1206), + PA_4_LEVELS (x1.203), + OI_STABLE (x1.0709), - VOL_DRY (x0.9262), + FUNDING_NORMAL (x1.0314), - BTC_ALIGNED (x0.8602), - GRID_WIDE (x0.9619)) 
+2026-08-06 08:16:00: [PP369] [AutoTrade] Set leverage INJUSDT = 6x (Bước 300đ: 6.25% → tính được 6x, giới hạn: 75x | Ký quỹ mục tiêu: $30) 
+2026-08-06 08:16:00: [PP369] [AutoTrade] ✓ INJ BUY 37.5 @ $4.798 orderId=13306781802 status=NEW 
+2026-08-06 08:19:29: [PP369] [AutoTrade] Lệnh LIMIT của INJ thường treo quá 3 phút (3.4 phút) -> Tiến hành hủy... 
+2026-08-06 08:19:29: [PP369] [AutoTrade] ✓ Đã hủy thành công lệnh LIMIT treo của INJ 
+2026-08-06 08:22:59: [PP369] [AutoTrade] INJ → LONG (Score: +6.1đ) tại $4.798 
+2026-08-06 08:23:00: [PP369] [AI Reviewer (Shadow)] 🟢 Khuyên NÊN ĐẶT LỆNH INJ (LONG) - Xác suất thắng 69.7% >= 65% (- SCORE_MID_6_TO_7 (x0.9588), - RANK_MIDCAP_150 (x0.9113), - TREND_CONFLICT (x0.894), + VOL_ULTRA (x1.1395), + RSI_NEUTRAL (x1.0605), + LS_GOLD (x1.1206), + PA_4_LEVELS (x1.203), + OI_STABLE (x1.0709), - VOL_DRY (x0.9262), + FUNDING_NORMAL (x1.0314), - BTC_ALIGNED (x0.8602), - GRID_WIDE (x0.9619)) 
+2026-08-06 08:23:00: [PP369] [AutoTrade] Set leverage INJUSDT = 6x (Bước 300đ: 6.25% → tính được 6x, giới hạn: 75x | Ký quỹ mục tiêu: $30) 
+2026-08-06 08:23:00: [PP369] [AutoTrade] ✓ INJ BUY 37.5 @ $4.798 orderId=13306789113 status=NEW 
+2026-08-06 08:26:29: [PP369] [AutoTrade] Lệnh LIMIT của INJ thường treo quá 3 phút (3.4 phút) -> Tiến hành hủy... 
+2026-08-06 08:26:29: [PP369] [AutoTrade] ✓ Đã hủy thành công lệnh LIMIT treo của INJ 
+2026-08-06 08:26:30: [PP369] [AutoTrade] INJ → LONG (Score: +6.1đ) tại $4.798 
+2026-08-06 08:26:30: [PP369] [AutoTrade] INJ LONG đã đặt gần đây — bỏ qua 
+2026-08-06 08:27:01: [PP369] [AutoTrade] INJ → LONG (Score: +6.1đ) tại $4.798 
+2026-08-06 08:27:01: [PP369] [AutoTrade] INJ LONG đã đặt gần đây — bỏ qua 
+2026-08-06 08:27:30: [PP369] [AutoTrade] INJ → LONG (Score: +6.1đ) tại $4.798 
+2026-08-06 08:27:30: [PP369] [AutoTrade] INJ LONG đã đặt gần đây — bỏ qua 
+2026-08-06 08:28:00: [PP369] [AutoTrade] INJ → LONG (Score: +6.1đ) tại $4.798 
+2026-08-06 08:28:00: [PP369] [AutoTrade] INJ LONG đã đặt gần đây — bỏ qua 
+2026-08-06 08:28:30: [PP369] [AutoTrade] INJ → LONG (Score: +6.1đ) tại $4.798 
+2026-08-06 08:28:30: [PP369] [AI Reviewer (Shadow)] 🟢 Khuyên NÊN ĐẶT LỆNH INJ (LONG) - Xác suất thắng 69.7% >= 65% (- SCORE_MID_6_TO_7 (x0.9588), - RANK_MIDCAP_150 (x0.9113), - TREND_CONFLICT (x0.894), + VOL_ULTRA (x1.1395), + RSI_NEUTRAL (x1.0605), + LS_GOLD (x1.1206), + PA_4_LEVELS (x1.203), + OI_STABLE (x1.0709), - VOL_DRY (x0.9262), + FUNDING_NORMAL (x1.0314), - BTC_ALIGNED (x0.8602), - GRID_WIDE (x0.9619)) 
+2026-08-06 08:28:30: [PP369] [AutoTrade] Set leverage INJUSDT = 6x (Bước 300đ: 6.25% → tính được 6x, giới hạn: 75x | Ký quỹ mục tiêu: $30) 
+2026-08-06 08:28:30: [PP369] [AutoTrade] ✓ INJ BUY 37.5 @ $4.798 orderId=13306794108 status=NEW 
+2026-08-06 08:30:17: [PP369] [AutoTrade] ✓ Đặt TP INJ @ $4.888000 (đối ứng SELL) orderId=1000002492490366 
+2026-08-06 08:30:17: [PP369] [AutoTrade] ✓ Đặt SL INJ @ $4.698000 (đối ứng SELL) orderId=1000002492490371 
+2026-08-06 08:32:41: ◇ injected env (10) from .env // tip: ⌘ custom filepath { path: '/custom/path/.env' }
+2026-08-06 08:32:42: [PP369] [AI Reviewer] ✓ Đã nạp thành công mô hình AI (v1.0.0, mẫu N=69) 
+2026-08-06 08:32:42: [PP369] [369] initH4Cache: Tất cả 803 coin đã có nến H4 đầu năm. 
+2026-08-06 08:32:42: [PP369] [Binance] Đã đồng bộ giờ: offset = 6991ms (Giờ server: 2026-08-06T01:32:49.197Z) 
+2026-08-06 08:32:42: [AutoTrade] Bỏ qua 157 coin có grid ngoài khoảng 3–25% (theo giá hiện tại): 4(2.8%), XRP(28.3%), ETC(46.0%), LINK(36.8%), BAT(44.9%), QTUM(46.5%), KNC(29.5%), DOT(35.8%), SOL(40.7%), AVAX(45.3%), AAVE(33.7%), FIL(41.9%), BEL(3.0%), ALICE(2.6%), NKN(2.6%), DGB(1.6%), ATA(1.8%), DYDX(2.7%), KLAY(2.4%), IMX(27.2%), APE(2.2%), WOO(26.9%), DAR(2.1%), OP(34.1%), STG(2.5%), SPELL(38.2%), APT(50.8%), FET(2.1%), CKB(36.6%), USDC(30.0%), AMB(2.5%), LEVER(26.7%), RDNT(2.9%), SUI(43.6%), MAV(37.4%), DODOX(1.1%), ARK(32.3%), BOND(28.1%), GAS(32.4%), SUPER(35.6%), 1000SATS(304.6%), ACE(42.8%), MOVR(26.2%), JUP(1.6%), GLM(32.9%), PORTAL(2.7%), MYRO(3.0%), W(36.1%), IO(2.4%), ZK(38.4%), ZRO(38.7%), RARE(25.3%), SYN(2.1%), SYS(1.7%), ALPACA(25.2%), SUN(1.7%), DOGS(86.0%), BSW(2.5%), QUICK(2.3%), NEIRO(47.0%), FIO(2.5%), GHST(1.8%), LOKA(2.6%), COS(2.5%), DIA(27.1%), SANTOS(63.2%), COW(28.5%), 1000000MOG(29.9%), ACT(31.2%), HIPPO(2.9%), DEGEN(2.9%), 1000WHY(197.4%), THE(57.1%), ORCA(27.8%), MOVE(40.5%), KOMA(2.0%), VELODROME(1.7%), MOCA(39.9%), VANA(35.7%), USUAL(36.3%), DF(2.6%), COOKIE(35.9%), D(2.2%), PIPPIN(176.8%), TST(2.9%), HEI(1.1%), RED(34.9%), MUBARAK(2.2%), TUT(1.1%), BROCCOLI714(2.1%), BR(2.1%), PLUME(2.8%), FUN(1.7%), BABY(2.8%), SIGN(45.5%), PUNDIX(39.6%), CTK(29.9%), SXT(40.3%), ASR(35.0%), MILK(3.0%), OG(119.5%), AGT(1.9%), B(1.7%), MERL(177.1%), PORT3(2.5%), 1000000BOB(1.9%), LA(66.4%), PUMPBTC(29.6%), MYX(379.6%), DMC(2.3%), OL(1.7%), SAHARA(35.8%), ICNT(28.8%), TANSSI(2.4%), PUMP(1.2%), VELVET(0.6%), ZORA(56.3%), TAG(2.3%), ESPORTS(140.8%), A2Z(2.1%), YALA(1.8%), SOMI(33.5%), BAS(1.1%), Q(1.4%), PTB(32.4%), OPEN(1.4%), AVNT(37.0%), UB(2.0%), TOSHI(29.3%), BARD(26.2%), TRADOOR(52.0%), BLESS(1.1%), HANA(1.0%), AKE(0.8%), LIGHT(192.3%), XAN(2.1%), TRUTH(2.3%), YB(44.1%), ZBT(2.3%), LAB(2.2%), RIVER(118.4%), 币安人生(0.6%), BLUAI(2.4%), APR(1.5%), ON(1.2%), KITE(2.9%), AT(2.2%), UAI(1.2%), STABLE(0.9%), JCT(0.7%), ALLO(1.1%), BOB(2.8%), RLS(2.8%), POWER(34.1%), US(0.6%), BREV(42.6%), MAGMA(1.1%)
+2026-08-06 08:32:43: [PP369] [Binance] Đang lấy leverage brackets cho 449 coin... 
+2026-08-06 08:32:43: [PP369] [Binance] Đã lưu leverage cho 449 coin vào step_sizes.json 
+2026-08-06 08:32:43: [PP369] [AutoTrade] Khởi động: 449 coin | margin=$10 | 10x | type=LIMIT 
+2026-08-06 08:32:43: [PP369] [Binance] Loaded step and tick sizes from existing file: 852 symbols 
+2026-08-06 08:32:43: [PP369] [AutoTrade] Đã nạp leverageInfo cho 449 coin từ cache. 
+2026-08-06 08:32:43: [PP369] [PP369Stream] Kết nối WebSocket thành công (market/stream) 
+2026-08-06 08:32:47: [PP369] [AutoTrade] Bắt đầu scan... 
+2026-08-06 08:32:53: [PP369] [GridBlacklist] ĐÃ THÊM COLLECT VÀO BLACKLIST 7 NGÀY (Lý do: x*2 (18.03%) > y (7.99%)). Sẽ tự động giải phóng sau 7 ngày. 
+2026-08-06 08:38:56: [PP369] [AutoTrade] XMR → SHORT (Score: +4.8đ) tại $368.39 
+2026-08-06 08:38:56: [PP369] [AutoTrade] XMR SHORT có Score = 4.8đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-06 08:39:24: [PP369] [AutoTrade] XMR → SHORT (Score: +4.8đ) tại $368.39 
+2026-08-06 08:39:24: [PP369] [AutoTrade] XMR SHORT có Score = 4.8đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-06 08:39:54: [PP369] [AutoTrade] XMR → SHORT (Score: +4.8đ) tại $368.39 
+2026-08-06 08:39:54: [PP369] [AutoTrade] XMR SHORT có Score = 4.8đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-06 08:40:24: [PP369] [AutoTrade] XMR → SHORT (Score: +4.8đ) tại $368.39 
+2026-08-06 08:40:24: [PP369] [AutoTrade] XMR SHORT có Score = 4.8đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-06 08:41:24: [PP369] [AutoTrade] XMR → SHORT (Score: +4.8đ) tại $368.39 
+2026-08-06 08:41:24: [PP369] [AutoTrade] XMR SHORT có Score = 4.8đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-06 08:41:54: [PP369] [AutoTrade] XMR → SHORT (Score: +4.8đ) tại $368.39 
+2026-08-06 08:41:54: [PP369] [AutoTrade] XMR SHORT có Score = 4.8đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-06 08:42:24: [PP369] [AutoTrade] XMR → SHORT (Score: +4.8đ) tại $368.39 
+2026-08-06 08:42:24: [PP369] [AutoTrade] XMR SHORT có Score = 4.8đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-06 08:42:54: [PP369] [AutoTrade] XMR → SHORT (Score: +4.8đ) tại $368.39 
+2026-08-06 08:42:54: [PP369] [AutoTrade] XMR SHORT có Score = 4.8đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-06 08:43:24: [PP369] [AutoTrade] XMR → SHORT (Score: +4.8đ) tại $368.39 
+2026-08-06 08:43:24: [PP369] [AutoTrade] XMR SHORT có Score = 4.8đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-06 08:44:24: [PP369] [AutoTrade] XMR → SHORT (Score: +4.8đ) tại $368.39 
+2026-08-06 08:44:24: [PP369] [AutoTrade] XMR SHORT có Score = 4.8đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-06 08:44:54: [PP369] [AutoTrade] XMR → SHORT (Score: +4.8đ) tại $368.39 
+2026-08-06 08:44:55: [PP369] [AutoTrade] XMR SHORT có Score = 4.8đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-06 08:45:24: [PP369] [AutoTrade] XMR → SHORT (Score: +4.8đ) tại $368.39 
+2026-08-06 08:45:24: [PP369] [AutoTrade] XMR SHORT có Score = 4.8đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-06 08:45:54: [PP369] [AutoTrade] XMR → SHORT (Score: +4.8đ) tại $368.39 
+2026-08-06 08:45:54: [PP369] [AutoTrade] XMR SHORT có Score = 4.8đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-06 08:46:25: [PP369] [AutoTrade] XMR → SHORT (Score: +4.8đ) tại $368.39 
+2026-08-06 08:46:25: [PP369] [AutoTrade] XMR SHORT có Score = 4.8đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-06 08:46:54: [PP369] [AutoTrade] XMR → SHORT (Score: +4.8đ) tại $368.39 
+2026-08-06 08:46:54: [PP369] [AutoTrade] XMR SHORT có Score = 4.8đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-06 08:47:24: [PP369] [AutoTrade] XMR → SHORT (Score: +4.8đ) tại $368.39 
+2026-08-06 08:47:24: [PP369] [AutoTrade] XMR SHORT có Score = 4.8đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-06 08:47:54: [PP369] [AutoTrade] XMR → SHORT (Score: +4.8đ) tại $368.39 
+2026-08-06 08:47:54: [PP369] [AutoTrade] XMR SHORT có Score = 4.8đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-06 08:48:24: [PP369] [AutoTrade] XMR → SHORT (Score: +4.8đ) tại $368.39 
+2026-08-06 08:48:24: [PP369] [AutoTrade] XMR SHORT có Score = 4.8đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-06 08:48:54: [PP369] [AutoTrade] XMR → SHORT (Score: +4.8đ) tại $368.39 
+2026-08-06 08:48:54: [PP369] [AutoTrade] XMR SHORT có Score = 4.8đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-06 08:49:55: [PP369] [AutoTrade] XMR → SHORT (Score: +4.8đ) tại $368.39 
+2026-08-06 08:49:55: [PP369] [AutoTrade] XMR SHORT có Score = 4.8đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-06 08:50:24: [PP369] [AutoTrade] XMR → SHORT (Score: +4.8đ) tại $368.39 
+2026-08-06 08:50:24: [PP369] [AutoTrade] XMR SHORT có Score = 4.8đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-06 08:50:54: [PP369] [AutoTrade] XMR → SHORT (Score: +4.8đ) tại $368.39 
+2026-08-06 08:50:54: [PP369] [AutoTrade] XMR SHORT có Score = 4.8đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-06 08:51:54: [PP369] [AutoTrade] XMR → SHORT (Score: +4.8đ) tại $368.39 
+2026-08-06 08:51:54: [PP369] [AutoTrade] XMR SHORT có Score = 4.8đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-06 09:00:03: [PP369] [H1Retest] === Kiểm tra Retest nến H1 vừa đóng cho 1 coin trong Watchlist === 
+2026-08-06 09:01:26: [PP369] [AutoTrade] XMR → SHORT (Score: +4.8đ) tại $368.39 
+2026-08-06 09:01:26: [PP369] [AutoTrade] XMR SHORT có Score = 4.8đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-06 09:01:54: [PP369] [AutoTrade] XMR → SHORT (Score: +4.8đ) tại $368.39 
+2026-08-06 09:01:54: [PP369] [AutoTrade] XMR SHORT có Score = 4.8đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-06 09:02:41: [PP369] [Binance] Đã đồng bộ giờ: offset = 7171ms (Giờ server: 2026-08-06T02:02:48.516Z) 
+2026-08-06 09:20:26: [PP369] [AutoTrade] MAGIC → LONG (Score: +4.199999999999999đ) tại $0.0401 
+2026-08-06 09:20:26: [PP369] [AutoTrade] MAGIC LONG có Score = 4.199999999999999đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-06 09:20:54: [PP369] [AutoTrade] MAGIC → LONG (Score: +4.199999999999999đ) tại $0.0401 
+2026-08-06 09:20:54: [PP369] [AutoTrade] MAGIC LONG có Score = 4.199999999999999đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-06 09:26:54: [PP369] [GridBlacklist] Đã tự động giải phóng CYS khỏi Blacklist sau 1 tuần. 
+2026-08-06 09:32:41: [PP369] [Binance] Đã đồng bộ giờ: offset = 7348ms (Giờ server: 2026-08-06T02:32:48.692Z) 
+2026-08-06 09:50:26: [PP369] [AutoTrade] EPIC → LONG (Score: +4.6đ) tại $0.8885 
+2026-08-06 09:50:26: [PP369] [AutoTrade] EPIC LONG không đạt Tiêu chí 2 (Biến động H1/M15 an toàn) — bỏ qua 
+2026-08-06 09:58:53: [PP369] [Binance] Lỗi -1021 (Timestamp outside recvWindow). Đang tự động đồng bộ lại giờ và thử lại... 
+2026-08-06 09:58:53: [PP369] [Binance] Đã đồng bộ giờ: offset = 375ms (Giờ server: 2026-08-06T02:58:54.302Z) 
+2026-08-06 10:00:00: [PP369] [H1Retest] === Kiểm tra Retest nến H1 vừa đóng cho 2 coin trong Watchlist === 
+2026-08-06 10:02:48: [PP369] [Binance] Đã đồng bộ giờ: offset = 399ms (Giờ server: 2026-08-06T03:02:48.869Z) 
+2026-08-06 10:13:25: ◇ injected env (10) from .env // tip: ⌘ custom filepath { path: '/custom/path/.env' }
+2026-08-06 10:13:26: [PP369] [AI Reviewer] ✓ Đã nạp thành công mô hình AI (v1.0.0, mẫu N=69) 
+2026-08-06 10:13:26: [PP369] [369] initH4Cache: Tất cả 803 coin đã có nến H4 đầu năm. 
+2026-08-06 10:13:26: [PP369] [Binance] Đã đồng bộ giờ: offset = 455ms (Giờ server: 2026-08-06T03:13:27.044Z) 
+2026-08-06 10:13:26: [AutoTrade] Bỏ qua 158 coin có grid ngoài khoảng 3–25% (theo giá hiện tại): 4(2.8%), XRP(28.7%), ETC(46.2%), LINK(37.0%), BAT(45.2%), QTUM(46.5%), KNC(29.4%), DOT(35.7%), SOL(40.8%), AVAX(45.1%), AAVE(33.9%), FIL(42.3%), BEL(2.9%), ALICE(2.6%), NKN(2.6%), DGB(1.6%), ATA(1.8%), DYDX(2.6%), KLAY(2.4%), IMX(27.2%), APE(2.2%), WOO(26.8%), DAR(2.1%), OP(34.4%), STG(2.5%), SPELL(38.1%), APT(50.5%), FET(2.1%), CKB(36.5%), USDC(30.0%), AMB(2.5%), LEVER(26.7%), RDNT(2.9%), SUI(43.9%), MAV(37.4%), DODOX(1.1%), ARK(32.2%), BOND(28.1%), GAS(32.4%), SUPER(36.0%), 1000SATS(299.4%), ACE(42.2%), MOVR(26.3%), JUP(1.6%), GLM(32.9%), PORTAL(2.7%), MYRO(3.0%), W(36.2%), IO(2.5%), ZK(38.4%), ZRO(38.7%), RARE(25.3%), SYN(2.3%), SYS(1.7%), ALPACA(25.2%), SUN(1.7%), DOGS(84.5%), BSW(2.5%), QUICK(2.3%), NEIRO(46.9%), FIO(2.5%), GHST(1.8%), LOKA(2.6%), COS(2.5%), DIA(26.9%), SANTOS(62.6%), COW(28.9%), 1000000MOG(30.0%), ACT(31.7%), HIPPO(2.9%), DEGEN(2.9%), 1000WHY(197.4%), THE(56.7%), ORCA(27.9%), MOVE(40.6%), KOMA(2.1%), VELODROME(1.7%), MOCA(40.0%), VANA(35.3%), USUAL(36.5%), DF(2.6%), COOKIE(35.8%), D(2.2%), PIPPIN(176.5%), TST(2.9%), HEI(1.1%), RED(35.2%), MUBARAK(2.2%), TUT(1.0%), BROCCOLI714(2.1%), BR(2.1%), PLUME(2.8%), FUN(1.7%), BABY(2.8%), SIGN(46.5%), PUNDIX(39.4%), CTK(30.1%), SXT(40.3%), ASR(35.1%), MILK(3.0%), OG(119.0%), AGT(1.9%), B(1.7%), MERL(177.8%), PORT3(2.5%), 1000000BOB(1.9%), LA(67.3%), PUMPBTC(29.7%), MYX(372.1%), DMC(2.3%), OL(1.7%), SAHARA(35.5%), ICNT(28.5%), TANSSI(2.4%), PUMP(1.3%), VELVET(0.6%), ZORA(56.9%), TAG(2.4%), ESPORTS(146.2%), A2Z(2.1%), YALA(1.8%), SOMI(33.1%), BAS(1.1%), Q(1.4%), PTB(33.1%), OPEN(1.4%), AVNT(37.3%), UB(2.1%), TOSHI(29.4%), BARD(26.3%), TRADOOR(51.2%), BLESS(1.3%), FLUID(25.4%), HANA(0.9%), AKE(0.8%), LIGHT(202.0%), XAN(2.1%), TRUTH(2.2%), YB(44.1%), ZBT(2.3%), LAB(2.3%), RIVER(118.2%), 币安人生(0.6%), BLUAI(2.4%), APR(1.5%), ON(1.2%), KITE(2.9%), AT(2.2%), UAI(1.2%), STABLE(0.9%), JCT(0.7%), ALLO(1.1%), BOB(2.8%), RLS(2.8%), POWER(34.2%), US(0.5%), BREV(42.9%), MAGMA(1.1%)
+2026-08-06 10:13:27: [PP369] [Binance] Đang lấy leverage brackets cho 448 coin... 
+2026-08-06 10:13:27: [PP369] [Binance] Đã lưu leverage cho 448 coin vào step_sizes.json 
+2026-08-06 10:13:27: [PP369] [AutoTrade] Khởi động: 448 coin | margin=$10 | 10x | type=LIMIT 
+2026-08-06 10:13:27: [PP369] [Binance] Loaded step and tick sizes from existing file: 852 symbols 
+2026-08-06 10:13:27: [PP369] [AutoTrade] Đã nạp leverageInfo cho 448 coin từ cache. 
+2026-08-06 10:13:28: [PP369] [PP369Stream] Kết nối WebSocket thành công (market/stream) 
+2026-08-06 10:13:31: [PP369] [AutoTrade] Bắt đầu scan... 
+2026-08-06 10:13:39: [PP369] [GridBlacklist] ĐÃ THÊM SONIC VÀO BLACKLIST 7 NGÀY (Lý do: x*2 (33.67%) > y (23.41%)). Sẽ tự động giải phóng sau 7 ngày. 
+2026-08-06 10:13:39: [PP369] [GridBlacklist] ĐÃ THÊM FHE VÀO BLACKLIST 7 NGÀY (Lý do: x*2 (8.50%) > y (8.01%)). Sẽ tự động giải phóng sau 7 ngày. 
+2026-08-06 10:26:17: [PP369] [AutoTrade] SKYAI → SHORT (Score: +1.8đ) tại $0.06486 
+2026-08-06 10:26:17: [PP369] [AutoTrade] SKYAI SHORT không đạt Tiêu chí 2 (Biến động H1/M15 an toàn) — bỏ qua 
+2026-08-06 10:26:46: [PP369] [AutoTrade] SKYAI → SHORT (Score: +1.8đ) tại $0.06486 
+2026-08-06 10:26:46: [PP369] [AutoTrade] SKYAI SHORT không đạt Tiêu chí 2 (Biến động H1/M15 an toàn) — bỏ qua 
+2026-08-06 10:29:47: [PP369] [AutoTrade] MANTA → SHORT (Score: +3.8đ) tại $0.05892 
+2026-08-06 10:29:47: [PP369] [AutoTrade] MANTA SHORT có Score = 3.8đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-06 10:30:16: [PP369] [AutoTrade] MANTA → SHORT (Score: +3.8đ) tại $0.05892 
+2026-08-06 10:30:16: [PP369] [AutoTrade] MANTA SHORT có Score = 3.8đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-06 10:30:46: [PP369] [AutoTrade] MANTA → SHORT (Score: +3.8đ) tại $0.05892 
+2026-08-06 10:30:46: [PP369] [AutoTrade] MANTA SHORT có Score = 3.8đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-06 10:31:16: [PP369] [AutoTrade] MANTA → SHORT (Score: +3.8đ) tại $0.05892 
+2026-08-06 10:31:16: [PP369] [AutoTrade] MANTA SHORT có Score = 3.8đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-06 10:39:16: [PP369] [AutoTrade] 1000RATS → LONG (Score: +2.1đ) tại $0.04931 
+2026-08-06 10:39:16: [PP369] [AutoTrade] 1000RATS LONG không đạt Tiêu chí 2 (Biến động H1/M15 an toàn) — bỏ qua 
+2026-08-06 10:39:46: [PP369] [AutoTrade] 1000RATS → LONG (Score: +2.1đ) tại $0.04931 
+2026-08-06 10:39:46: [PP369] [AutoTrade] 1000RATS LONG không đạt Tiêu chí 2 (Biến động H1/M15 an toàn) — bỏ qua 
+2026-08-06 10:43:25: [PP369] [Binance] Đã đồng bộ giờ: offset = 636ms (Giờ server: 2026-08-06T03:43:26.277Z) 
+2026-08-06 11:00:05: [PP369] [H1Retest] === Kiểm tra Retest nến H1 vừa đóng cho 1 coin trong Watchlist === 
+2026-08-06 11:00:05: [PP369] [H1Retest] 🎯 MANTA SHORT H1 đóng rút chân chuẩn tại Entry $0.05892, chưa nảy đủ 5% ROI (Max ROI: +0.71%). ĐẶT LỆNH LIMIT TẠI ENTRY! 
+2026-08-06 11:00:05: [PP369] [AI Reviewer (Shadow Retest H1)] 🟢 Khuyên NÊN ĐẶT LỆNH MANTA (SHORT) - Xác suất thắng 73.9% >= 65% (- TREND_CONFLICT (x0.894), + VOL_ULTRA (x1.1395), - RSI_NEAR (x0.9542), - LS_PARTIAL (x0.9399), + PA_1_LEVEL (x1.0674), + VOL_SURGE (x1.1409), + FUNDING_NORMAL (x1.083), + BTC_COUNTER (x1.156), - GRID_WIDE (x0.9619)) 
+2026-08-06 11:00:05: [PP369] [H1Retest] ✓ Đã đặt thành công lệnh LIMIT Retest H1 cho MANTA SELL 3564.1 @ $0.05892 (orderId=4012626064) 
+2026-08-06 11:00:08: [PP369] [AutoTrade] ✓ Đặt TP MANTA @ $0.0580500 (đối ứng BUY) orderId=1000002492636791 
+2026-08-06 11:00:08: [PP369] [AutoTrade] ✓ Đặt SL MANTA @ $0.0599500 (đối ứng BUY) orderId=1000002492636793 
+2026-08-06 11:06:48: [PP369] [AutoTrade] SKYAI → SHORT (Score: +2.7đ) tại $0.07086 
+2026-08-06 11:06:48: [PP369] [AutoTrade] SKYAI SHORT không đạt Tiêu chí 2 (Biến động H1/M15 an toàn) — bỏ qua 
+2026-08-06 11:09:47: [PP369] [AutoTrade] BANK → SHORT (Score: +5.199999999999999đ) tại $0.04435 
+2026-08-06 11:09:47: [PP369] [AutoTrade] BANK SHORT có Score = 5.199999999999999đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-06 11:13:25: [PP369] [Binance] Đã đồng bộ giờ: offset = 812ms (Giờ server: 2026-08-06T04:13:26.448Z) 
+2026-08-06 11:24:18: [PP369] [AutoTrade] TAIKO → SHORT (Score: +3.6đ) tại $0.0729 
+2026-08-06 11:24:18: [PP369] [AutoTrade] TAIKO SHORT có Score = 3.6đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-06 11:24:46: [PP369] [AutoTrade] TAIKO → SHORT (Score: +3.6đ) tại $0.0729 
+2026-08-06 11:24:46: [PP369] [AutoTrade] TAIKO SHORT có Score = 3.6đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-06 11:25:47: [PP369] [AutoTrade] TAIKO → SHORT (Score: +3.6đ) tại $0.0729 
+2026-08-06 11:25:47: [PP369] [AutoTrade] TAIKO SHORT có Score = 3.6đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-06 11:33:46: [PP369] [AutoTrade] 1000RATS → SHORT (Score: +2.9000000000000004đ) tại $0.0523 
+2026-08-06 11:33:46: [PP369] [AutoTrade] 1000RATS SHORT không đạt Tiêu chí 2 (Biến động H1/M15 an toàn) — bỏ qua 
+2026-08-06 11:43:25: [PP369] [Binance] Đã đồng bộ giờ: offset = 987ms (Giờ server: 2026-08-06T04:43:26.623Z) 
+2026-08-06 11:52:46: [PP369] [AutoTrade] SKYAI → SHORT (Score: +2.1đ) tại $0.07386 
+2026-08-06 11:52:46: [PP369] [AutoTrade] SKYAI SHORT không đạt Tiêu chí 2 (Biến động H1/M15 an toàn) — bỏ qua 
+2026-08-06 11:53:17: [PP369] [AutoTrade] VIC → SHORT (Score: +3.5999999999999996đ) tại $0.0416 
+2026-08-06 11:53:17: [PP369] [AutoTrade] VIC SHORT không đạt Tiêu chí 2 (Biến động H1/M15 an toàn) — bỏ qua 
+2026-08-06 12:00:07: [PP369] [H1Retest] === Kiểm tra Retest nến H1 vừa đóng cho 2 coin trong Watchlist === 
+2026-08-06 12:00:07: [PP369] [H1Retest] BANK SHORT nến H1 rút chân nhưng ĐÃ PHẢN ỨNG NẢY ROI = +24.24% (>= 5.0%) sau khi chạm entry. Bỏ qua không đặt limit. 
+2026-08-06 12:00:07: [PP369] [H1Retest] 🎯 TAIKO SHORT H1 đóng rút chân chuẩn tại Entry $0.0729, chưa nảy đủ 5% ROI (Max ROI: +4.69%). ĐẶT LỆNH LIMIT TẠI ENTRY! 
+2026-08-06 12:00:07: [PP369] [AI Reviewer (Shadow Retest H1)] 🟢 Khuyên NÊN ĐẶT LỆNH TAIKO (SHORT) - Xác suất thắng 76.6% >= 65% (- TREND_CONFLICT (x0.894), + VOL_ULTRA (x1.1395), + RSI_NEUTRAL (x1.0605), - LS_PARTIAL (x0.9399), + VOL_SURGE (x1.1409), + FUNDING_NORMAL (x1.083), + BTC_NEUTRAL (x1.191)) 
+2026-08-06 12:00:07: [PP369] [H1Retest] ✓ Đã đặt thành công lệnh LIMIT Retest H1 cho TAIKO SELL 3703 @ $0.0729 (orderId=356402087) 
+2026-08-06 12:00:18: [PP369] [AutoTrade] 1000RATS → LONG (Score: +2.6đ) tại $0.04931 
+2026-08-06 12:00:18: [PP369] [AutoTrade] 1000RATS LONG không đạt Tiêu chí 2 (Biến động H1/M15 an toàn) — bỏ qua 
+2026-08-06 12:00:46: [PP369] [AutoTrade] 1000RATS → LONG (Score: +2.6đ) tại $0.04931 
+2026-08-06 12:00:46: [PP369] [AutoTrade] 1000RATS LONG không đạt Tiêu chí 2 (Biến động H1/M15 an toàn) — bỏ qua 
+2026-08-06 12:01:00: [PP369] [AutoTrade] ✓ Đặt TP TAIKO @ $0.0720000 (đối ứng BUY) orderId=1000002492703678 
+2026-08-06 12:01:00: [PP369] [AutoTrade] ✓ Đặt SL TAIKO @ $0.0739000 (đối ứng BUY) orderId=1000002492703682 
+2026-08-06 12:01:47: [PP369] [AutoTrade] VIC → SHORT (Score: +4.1đ) tại $0.0446 
+2026-08-06 12:01:47: [PP369] [AutoTrade] VIC SHORT không đạt Tiêu chí 2 (Biến động H1/M15 an toàn) — bỏ qua 
+2026-08-06 12:13:25: [PP369] [Binance] Đã đồng bộ giờ: offset = 1163ms (Giờ server: 2026-08-06T05:13:26.797Z) 
+2026-08-06 12:17:46: [PP369] [AutoTrade] 1000RATS → LONG (Score: +2.5đ) tại $0.04631 
+2026-08-06 12:17:46: [PP369] [AutoTrade] 1000RATS LONG không đạt Tiêu chí 2 (Biến động H1/M15 an toàn) — bỏ qua 
+2026-08-06 12:33:48: [PP369] [AutoTrade] PIEVERSE → LONG (Score: +4.3999999999999995đ) tại $0.7928 
+2026-08-06 12:33:48: [PP369] [AutoTrade] PIEVERSE LONG có Score = 4.3999999999999995đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-06 12:34:46: [PP369] [AutoTrade] PIEVERSE → LONG (Score: +4.3999999999999995đ) tại $0.7928 
+2026-08-06 12:34:46: [PP369] [AutoTrade] PIEVERSE LONG có Score = 4.3999999999999995đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-06 12:35:17: [PP369] [AutoTrade] PIEVERSE → LONG (Score: +4.3999999999999995đ) tại $0.7928 
+2026-08-06 12:35:17: [PP369] [AutoTrade] PIEVERSE LONG có Score = 4.3999999999999995đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-06 12:35:46: [PP369] [AutoTrade] PIEVERSE → LONG (Score: +4.3999999999999995đ) tại $0.7928 
+2026-08-06 12:35:46: [PP369] [AutoTrade] PIEVERSE LONG có Score = 4.3999999999999995đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-06 12:39:17: [PP369] [AutoTrade] TAC → LONG (Score: +4.1đ) tại $0.003242 
+2026-08-06 12:39:17: [PP369] [AutoTrade] TAC LONG có Score = 4.1đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-06 12:39:46: [PP369] [AutoTrade] TAC → LONG (Score: +4.1đ) tại $0.003242 
+2026-08-06 12:39:46: [PP369] [AutoTrade] TAC LONG có Score = 4.1đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-06 12:40:16: [PP369] [AutoTrade] TAC → LONG (Score: +4.1đ) tại $0.003242 
+2026-08-06 12:40:16: [PP369] [AutoTrade] TAC LONG có Score = 4.1đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-06 12:40:46: [PP369] [AutoTrade] TAC → LONG (Score: +4.1đ) tại $0.003242 
+2026-08-06 12:40:46: [PP369] [AutoTrade] TAC LONG có Score = 4.1đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-06 12:43:25: [PP369] [Binance] Đã đồng bộ giờ: offset = 1324ms (Giờ server: 2026-08-06T05:43:26.975Z) 
+2026-08-06 12:45:47: [PP369] [AutoTrade] BAN → SHORT (Score: +3.5đ) tại $0.07543 
+2026-08-06 12:45:47: [PP369] [AutoTrade] BAN SHORT không đạt Tiêu chí 2 (Biến động H1/M15 an toàn) — bỏ qua 
+2026-08-06 12:54:47: [PP369] [AutoTrade] ETHW → SHORT (Score: +5.3đ) tại $0.2473 
+2026-08-06 12:54:47: [PP369] [AutoTrade] ETHW SHORT có Score = 5.3đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-06 12:55:16: [PP369] [AutoTrade] ETHW → SHORT (Score: +5.3đ) tại $0.2473 
+2026-08-06 12:55:16: [PP369] [AutoTrade] ETHW SHORT có Score = 5.3đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-06 13:00:08: [PP369] [H1Retest] === Kiểm tra Retest nến H1 vừa đóng cho 3 coin trong Watchlist === 
+2026-08-06 13:02:45: [PP369] [GridBlacklist] Đã tự động giải phóng STRK khỏi Blacklist sau 1 tuần. 
+2026-08-06 13:02:45: [PP369] [GridBlacklist] ĐÃ THÊM STRK VÀO BLACKLIST 7 NGÀY (Lý do: x*2 (7.94%) > y (7.94%)). Sẽ tự động giải phóng sau 7 ngày. 
+2026-08-06 13:02:48: [PP369] [AutoTrade] TAC → LONG (Score: +4.6đ) tại $0.003242 
+2026-08-06 13:02:48: [PP369] [AutoTrade] TAC LONG có Score = 4.6đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-06 13:03:16: [PP369] [AutoTrade] TAC → LONG (Score: +4.6đ) tại $0.003242 
+2026-08-06 13:03:16: [PP369] [AutoTrade] TAC LONG có Score = 4.6đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-06 13:04:16: [PP369] [AutoTrade] TAC → LONG (Score: +4.6đ) tại $0.003242 
+2026-08-06 13:04:16: [PP369] [AutoTrade] TAC LONG có Score = 4.6đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-06 13:04:46: [PP369] [AutoTrade] TAC → LONG (Score: +4.6đ) tại $0.003242 
+2026-08-06 13:04:46: [PP369] [AutoTrade] TAC LONG có Score = 4.6đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-06 13:05:46: [PP369] [AutoTrade] TAC → LONG (Score: +4.6đ) tại $0.003242 
+2026-08-06 13:05:46: [PP369] [AutoTrade] TAC LONG có Score = 4.6đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-06 13:08:46: [PP369] [AutoTrade] TAC → LONG (Score: +4.6đ) tại $0.003242 
+2026-08-06 13:08:46: [PP369] [AutoTrade] TAC LONG có Score = 4.6đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-06 13:09:48: [PP369] [AutoTrade] TAC → LONG (Score: +4.6đ) tại $0.003242 
+2026-08-06 13:09:48: [PP369] [AutoTrade] TAC LONG có Score = 4.6đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-06 13:11:46: [PP369] [AutoTrade] TAC → LONG (Score: +4.6đ) tại $0.003242 
+2026-08-06 13:11:46: [PP369] [AutoTrade] TAC LONG có Score = 4.6đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-06 13:13:25: [PP369] [Binance] Đã đồng bộ giờ: offset = 1514ms (Giờ server: 2026-08-06T06:13:27.151Z) 
+2026-08-06 13:14:16: [PP369] [AutoTrade] TAC → LONG (Score: +4.6đ) tại $0.003242 
+2026-08-06 13:14:16: [PP369] [AutoTrade] TAC LONG có Score = 4.6đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-06 13:28:45: [PP369] [GridBlacklist] Đã tự động giải phóng IOTX khỏi Blacklist sau 1 tuần. 
+2026-08-06 13:28:45: [PP369] [GridBlacklist] ĐÃ THÊM IOTX VÀO BLACKLIST 7 NGÀY (Lý do: x*2 (10.05%) > y (8.68%)). Sẽ tự động giải phóng sau 7 ngày. 
+2026-08-06 13:28:45: [PP369] [GridBlacklist] Đã tự động giải phóng AUCTION khỏi Blacklist sau 1 tuần. 
+2026-08-06 13:28:45: [PP369] [GridBlacklist] ĐÃ THÊM AUCTION VÀO BLACKLIST 7 NGÀY (Lý do: x*2 (10.27%) > y (5.13%)). Sẽ tự động giải phóng sau 7 ngày. 
+2026-08-06 13:28:45: [PP369] [GridBlacklist] Đã tự động giải phóng POL khỏi Blacklist sau 1 tuần. 
+2026-08-06 13:28:45: [PP369] [GridBlacklist] ĐÃ THÊM POL VÀO BLACKLIST 7 NGÀY (Lý do: x*2 (3.57%) > y (2.30%)). Sẽ tự động giải phóng sau 7 ngày. 
+2026-08-06 13:28:45: [PP369] [GridBlacklist] Đã tự động giải phóng 1000CAT khỏi Blacklist sau 1 tuần. 
+2026-08-06 13:28:45: [PP369] [GridBlacklist] ĐÃ THÊM 1000CAT VÀO BLACKLIST 7 NGÀY (Lý do: x*2 (15.80%) > y (14.67%)). Sẽ tự động giải phóng sau 7 ngày. 
+2026-08-06 13:29:15: [PP369] [GridBlacklist] Đã tự động giải phóng DOOD khỏi Blacklist sau 1 tuần. 
+2026-08-06 13:29:15: [PP369] [GridBlacklist] ĐÃ THÊM DOOD VÀO BLACKLIST 7 NGÀY (Lý do: x*2 (25.58%) > y (12.96%)). Sẽ tự động giải phóng sau 7 ngày. 
+2026-08-06 13:29:15: [PP369] [GridBlacklist] Đã tự động giải phóng SQD khỏi Blacklist sau 1 tuần. 
+2026-08-06 13:29:15: [PP369] [GridBlacklist] ĐÃ THÊM SQD VÀO BLACKLIST 7 NGÀY (Lý do: x*2 (52.15%) > y (10.78%)). Sẽ tự động giải phóng sau 7 ngày. 
+2026-08-06 13:29:15: [PP369] [GridBlacklist] Đã tự động giải phóng F khỏi Blacklist sau 1 tuần. 
+2026-08-06 13:29:15: [PP369] [GridBlacklist] Đã tự động giải phóng H khỏi Blacklist sau 1 tuần. 
+2026-08-06 13:29:15: [PP369] [GridBlacklist] Đã tự động giải phóng WLFI khỏi Blacklist sau 1 tuần. 
+2026-08-06 13:29:15: [PP369] [GridBlacklist] Đã tự động giải phóng ARIA khỏi Blacklist sau 1 tuần. 
+2026-08-06 13:29:15: [PP369] [GridBlacklist] ĐÃ THÊM ARIA VÀO BLACKLIST 7 NGÀY (Lý do: x*2 (10.11%) > y (6.43%)). Sẽ tự động giải phóng sau 7 ngày. 
+2026-08-06 13:29:15: [PP369] [GridBlacklist] Đã tự động giải phóng FOLKS khỏi Blacklist sau 1 tuần. 
+2026-08-06 13:29:15: [PP369] [GridBlacklist] Đã tự động giải phóng ZKP khỏi Blacklist sau 1 tuần. 

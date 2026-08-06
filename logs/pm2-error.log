@@ -594,3 +594,24 @@
 2026-08-05 09:57:14: [PP369 ERR] [PP369Stream] Lỗi lấy giá REST: Request failed with status code 429 
 2026-08-05 09:57:19: [PP369 ERR] [PP369Stream] Lỗi lấy giá REST: Request failed with status code 429 
 2026-08-05 09:57:19: [PP369 WARN] [AutoTrade] Lỗi đồng bộ activeSymbols: [-1003] Too many requests; current limit of IP(103.176.179.170) is 2400 requests per minute. Please use the websocket for live updates to avoid polling the API. 
+2026-08-05 10:49:45: [AutoTrade] Lỗi đọc/ghi danh sách coin từ step_sizes.json: Expected double-quoted property name in JSON at position 155344
+2026-08-05 10:49:46: [PP369 WARN] [Binance] Lỗi ghi leverageInfo vào file: Expected double-quoted property name in JSON at position 155344 
+2026-08-05 10:49:46: [PP369 WARN] [Binance] Lỗi đọc file step_sizes.json cũ: Expected double-quoted property name in JSON at position 155344. Tiến hành tải mới. 
+2026-08-05 15:58:52: ReferenceError: recordSkippedSignal is not defined
+2026-08-05 15:58:52:     at Timeout.scan [as _onTimeout] (/root/369futures/src/trader/autoTrade.js:524:9)
+2026-08-05 15:58:52:     at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+2026-08-05 16:00:30: ReferenceError: recordSkippedSignal is not defined
+2026-08-05 16:00:30:     at Timeout.scan [as _onTimeout] (/root/369futures/src/trader/autoTrade.js:524:9)
+2026-08-05 16:00:30:     at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+2026-08-05 16:00:54: ReferenceError: recordSkippedSignal is not defined
+2026-08-05 16:00:54:     at Timeout.scan [as _onTimeout] (/root/369futures/src/trader/autoTrade.js:524:9)
+2026-08-05 16:00:54:     at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+2026-08-05 16:01:22: ReferenceError: recordSkippedSignal is not defined
+2026-08-05 16:01:22:     at Timeout.scan [as _onTimeout] (/root/369futures/src/trader/autoTrade.js:524:9)
+2026-08-05 16:01:22:     at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+2026-08-05 16:01:53: ReferenceError: recordSkippedSignal is not defined
+2026-08-05 16:01:53:     at Timeout.scan [as _onTimeout] (/root/369futures/src/trader/autoTrade.js:524:9)
+2026-08-05 16:01:53:     at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+2026-08-06 06:00:12: [PP369 WARN] [AutoTrade] Lỗi kiểm tra virtual TP/SL: timeout of 10000ms exceeded 
+2026-08-06 06:00:13: [PP369 ERR] [PP369Stream] Lỗi lấy giá REST: timeout of 10000ms exceeded 
+2026-08-06 07:00:14: [PP369 WARN] [AutoTrade] Lỗi kiểm tra virtual TP/SL: timeout of 10000ms exceeded 

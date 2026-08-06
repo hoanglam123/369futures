@@ -319,3 +319,8 @@
 {"ts":"2026-08-05T10:30:20","symbol":"INJ","signal":"LONG","price":4.81,"leverage":6,"score":6.8,"margin":30}
 =======
 >>>>>>> 10b4a60730465512e29ba2458fc01ffc5cf4525e
+{"ts":"2026-08-05T22:07:36","symbol":"UNI","signal":"SHORT","price":4.129,"leverage":5,"score":5.9,"margin":30}
+{"ts":"2026-08-06T08:10:06","symbol":"INJ","signal":"LONG","price":4.812,"leverage":6,"score":6.1,"margin":30}
+{"ts":"2026-08-06T08:16:00","symbol":"INJ","signal":"LONG","price":4.812,"leverage":6,"score":6.1,"margin":30}
+{"ts":"2026-08-06T08:23:00","symbol":"INJ","signal":"LONG","price":4.812,"leverage":6,"score":6.1,"margin":30}
+{"ts":"2026-08-06T08:28:30","symbol":"INJ","signal":"LONG","price":4.8112409,"leverage":6,"score":6.1,"margin":30}
