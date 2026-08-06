@@ -54,6 +54,19 @@ const justClosedByBot = new Set();
 const lastActivePositions = new Map(); // sym -> { entryPrice, leverage, amt, isLong }
 const partialClosedSymbols = new Set(); // sym -> true (đã chốt lời 50% tại 13% ROI)
 
+// Bộ lọc tránh in trùng lặp log scan mỗi 30s (cooldown 15 phút)
+const _signalLogCooldown = new Map();
+function _shouldLogSignal(sym, sigType, level, statusKey, cooldownMs = 15 * 60 * 1000) {
+  const key = `${sym}_${sigType}_${level}_${statusKey}`;
+  const now = Date.now();
+  const last = _signalLogCooldown.get(key) || 0;
+  if (now - last > cooldownMs) {
+    _signalLogCooldown.set(key, now);
+    return true;
+  }
+  return false;
+}
+
 // Watchlist cho các mã Score < 5.5đ để chờ check Retest nến H1
 const lowScoreWatchlist = {}; // sym -> { symbol, signal, targetLevel, score, step, isCounterTrend, timestamp }
 let lastCheckedH1Time = 0;
@@ -485,24 +498,31 @@ async function startAutoTrade(coins) {
         log.warn(`[AutoTrade] Lỗi tính score cho ${sym}: ${err.message}`);
       }
 
-      log.system(`[AutoTrade] ${sym} → ${sig.signal} (Score: +${sig.score}đ) tại $${sig.targetLevel}`);
+      const isNewSignalLog = _shouldLogSignal(sym, sig.signal, sig.targetLevel, 'detected');
+      if (isNewSignalLog) {
+        log.system(`[AutoTrade] ${sym} → ${sig.signal} (Score: +${sig.score}đ) tại $${sig.targetLevel}`);
+      }
 
       const isBtc = sym === 'BTC';
 
       // Bắt buộc phải có Tiêu chí 2 (Biến động H1/M15 an toàn - không có khung nào bị điểm cộng (+0đ)). Riêng BTC bỏ qua.
       const hasCriterion2 = sig.scoreReasons && sig.scoreReasons.some(r => r.includes('[Biến động H1/M15]') && !r.includes('(+0đ)'));
       if (!isBtc && !hasCriterion2) {
-        log.system(`[AutoTrade] ${sym} ${sig.signal} không đạt Tiêu chí 2 (Biến động H1/M15 an toàn) — bỏ qua`);
-        recordSkippedSignal({
-          symbol: sym,
-          signal: sig.signal,
-          signalPrice: sig.targetLevel,
-          score: sig.score ?? 0,
-          scoreReasons: sig.scoreReasons || [],
-          skipReason: 'NO_VOLATILITY_FILTER',
-          markPrice: markPrice,
-          marketCapRank: getMarketCapRank ? getMarketCapRank(sym) : 999,
-        });
+        if (isNewSignalLog) {
+          log.system(`[AutoTrade] ${sym} ${sig.signal} không đạt Tiêu chí 2 (Biến động H1/M15 an toàn) — bỏ qua`);
+        }
+        if (_shouldLogSignal(sym, sig.signal, sig.targetLevel, 'rec_no_volatility')) {
+          recordSkippedSignal({
+            symbol: sym,
+            signal: sig.signal,
+            signalPrice: sig.targetLevel,
+            score: sig.score ?? 0,
+            scoreReasons: sig.scoreReasons || [],
+            skipReason: 'NO_VOLATILITY_FILTER',
+            markPrice: markPrice,
+            marketCapRank: getMarketCapRank ? getMarketCapRank(sym) : 999,
+          });
+        }
         continue;
       }
 
@@ -510,7 +530,9 @@ async function startAutoTrade(coins) {
       const score = sig.score ?? 0;
       let baseMargin = 30;
       if (!isBtc && score < 5.5) {
-        log.system(`[AutoTrade] ${sym} ${sig.signal} có Score = ${sig.score}đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1`);
+        if (isNewSignalLog) {
+          log.system(`[AutoTrade] ${sym} ${sig.signal} có Score = ${sig.score}đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1`);
+        }
         lowScoreWatchlist[sym] = {
           symbol: sym,
           signal: sig.signal,
@@ -522,16 +544,18 @@ async function startAutoTrade(coins) {
           timestamp: Date.now()
         };
         // Ghi log để backfill phân tích (không ảnh hưởng hiệu năng)
-        recordSkippedSignal({
-          symbol: sym,
-          signal: sig.signal,
-          signalPrice: sig.targetLevel,
-          score: sig.score,
-          scoreReasons: sig.scoreReasons || [],
-          skipReason: 'SCORE_TOO_LOW',
-          markPrice: markPrice,
-          marketCapRank: getMarketCapRank ? getMarketCapRank(sym) : 999,
-        });
+        if (_shouldLogSignal(sym, sig.signal, sig.targetLevel, 'rec_score_too_low')) {
+          recordSkippedSignal({
+            symbol: sym,
+            signal: sig.signal,
+            signalPrice: sig.targetLevel,
+            score: sig.score,
+            scoreReasons: sig.scoreReasons || [],
+            skipReason: 'SCORE_TOO_LOW',
+            markPrice: markPrice,
+            marketCapRank: getMarketCapRank ? getMarketCapRank(sym) : 999,
+          });
+        }
         continue;
       } else if (score >= 9.0) {
         baseMargin = 60; // Lệnh Siêu phẩm (Top 1%): Base Margin $60
@@ -560,17 +584,21 @@ async function startAutoTrade(coins) {
 
       // Kiểm tra debounce
       if (_isDebounced(sig)) {
-        log.system(`[AutoTrade] ${sym} ${sig.signal} đã đặt gần đây — bỏ qua`);
-        recordSkippedSignal({
-          symbol: sym,
-          signal: sig.signal,
-          signalPrice: sig.targetLevel,
-          score: sig.score ?? 0,
-          scoreReasons: sig.scoreReasons || [],
-          skipReason: 'DEBOUNCED',
-          markPrice: markPrice,
-          marketCapRank: rank,
-        });
+        if (isNewSignalLog) {
+          log.system(`[AutoTrade] ${sym} ${sig.signal} đã đặt gần đây — bỏ qua`);
+        }
+        if (_shouldLogSignal(sym, sig.signal, sig.targetLevel, 'rec_debounced')) {
+          recordSkippedSignal({
+            symbol: sym,
+            signal: sig.signal,
+            signalPrice: sig.targetLevel,
+            score: sig.score ?? 0,
+            scoreReasons: sig.scoreReasons || [],
+            skipReason: 'DEBOUNCED',
+            markPrice: markPrice,
+            marketCapRank: rank,
+          });
+        }
         continue;
       }
 
@@ -632,10 +660,12 @@ async function startAutoTrade(coins) {
           }
 
           if (maxBouncePct >= preEntryBouncePct) {
-            log.system(
-              `[AutoTrade] ${sym} LONG: Từ khi chạm mốc Short ($${sig.condLevel}), nến M1 đã xát mốc entry LONG ($${bestTouchLow.toFixed(6)}) ` +
-              `rồi nảy lên đỉnh $${bestPeakHigh.toFixed(6)} (+${maxBouncePct.toFixed(2)}% >= ${preEntryBouncePct.toFixed(2)}% Khung/5) — HỦY LIMIT stale.`
-            );
+            if (_shouldLogSignal(sym, sig.signal, sig.targetLevel, 'stale_canceled')) {
+              log.system(
+                `[AutoTrade] ${sym} LONG: Từ khi chạm mốc Short ($${sig.condLevel}), nến M1 đã xát mốc entry LONG ($${bestTouchLow.toFixed(6)}) ` +
+                `rồi nảy lên đỉnh $${bestPeakHigh.toFixed(6)} (+${maxBouncePct.toFixed(2)}% >= ${preEntryBouncePct.toFixed(2)}% Khung/5) — HỦY LIMIT stale.`
+              );
+            }
             continue;
           }
           // Record max bounce for dataset if trade is allowed
@@ -675,10 +705,12 @@ async function startAutoTrade(coins) {
           }
 
           if (maxDropPct >= preEntryBouncePct) {
-            log.system(
-              `[AutoTrade] ${sym} SHORT: Từ khi chạm mốc Long ($${sig.condLevel}), nến M1 đã xát mốc entry SHORT ($${bestTouchHigh.toFixed(6)}) ` +
-              `rồi nảy xuống đáy $${bestTroughLow.toFixed(6)} (-${maxDropPct.toFixed(2)}% >= ${preEntryBouncePct.toFixed(2)}% Khung/5) — HỦY LIMIT stale.`
-            );
+            if (_shouldLogSignal(sym, sig.signal, sig.targetLevel, 'stale_canceled')) {
+              log.system(
+                `[AutoTrade] ${sym} SHORT: Từ khi chạm mốc Long ($${sig.condLevel}), nến M1 đã xát mốc entry SHORT ($${bestTouchHigh.toFixed(6)}) ` +
+                `rồi nảy xuống đáy $${bestTroughLow.toFixed(6)} (-${maxDropPct.toFixed(2)}% >= ${preEntryBouncePct.toFixed(2)}% Khung/5) — HỦY LIMIT stale.`
+              );
+            }
             continue;
           }
           // Record max bounce for dataset if trade is allowed
@@ -689,7 +721,9 @@ async function startAutoTrade(coins) {
         if (sig.signal === 'LONG') {
           const bouncedAwayPct = ((markPrice - sig.targetLevel) / sig.targetLevel) * 100;
           if (bouncedAwayPct >= preEntryBouncePct) {
-            log.system(`[AutoTrade] ${sym} LONG đã nảy xa mốc entry ($${sig.targetLevel} → $${markPrice.toFixed(6)} +${bouncedAwayPct.toFixed(2)}% >= ${preEntryBouncePct.toFixed(2)}%) — bỏ qua không đặt lệnh LIMIT stale.`);
+            if (_shouldLogSignal(sym, sig.signal, sig.targetLevel, 'stale_canceled_fallback')) {
+              log.system(`[AutoTrade] ${sym} LONG đã nảy xa mốc entry ($${sig.targetLevel} → $${markPrice.toFixed(6)} +${bouncedAwayPct.toFixed(2)}% >= ${preEntryBouncePct.toFixed(2)}%) — bỏ qua không đặt lệnh LIMIT stale.`);
+            }
             continue;
           }
         } else if (sig.signal === 'SHORT') {
@@ -1668,7 +1702,9 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
       }
     }
   } catch (err) {
-    log.warn(`[AutoTrade] Lỗi kiểm tra virtual TP/SL: ${err.message}`);
+    if (_shouldLogSignal('SYSTEM', 'HTTP429', 'WARN', 'virtual_tpsl', 60000)) {
+      log.warn(`[AutoTrade] Lỗi kiểm tra virtual TP/SL: ${err.message}`);
+    }
   } finally {
     isCheckingTrailingSL = false;
   }
