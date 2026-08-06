@@ -5,14 +5,14 @@
     "btc_wave:BTC_ALIGNED": 1.15,
     "score_group:SCORE_HIGH_GE7": 1.12,
     "funding:FUNDING_NORMAL": 1.05,
-    "volume:VOL_SURGE": 1.12,
-    "volatility:VOL_ULTRA": 1.15,
+    "price_action:PA_4_LEVELS": 1.1,
     "ls_flow:LS_GOLD": 1.2,
+    "volatility:VOL_ULTRA": 1.15,
+    "volume:VOL_SURGE": 1.12,
     "ls_flow:LS_DIVERGENCE": 0.8,
     "funding:FUNDING_SQUEEZE": 1.12,
-    "price_action:PA_4_LEVELS": 1.1,
     "price_action:PA_3_LEVELS": 1.08
   },
-  "rules_count": 24,
-  "extracted_at": "2026-08-06 08:32:07"
+  "rules_count": 28,
+  "extracted_at": "2026-08-06 09:32:56"
 }

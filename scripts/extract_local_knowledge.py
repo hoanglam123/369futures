@@ -134,6 +134,14 @@ def parse_knowledge_rules():
             rule_modifiers["volume:VOL_SURGE"] = 1.12
             total_rules += 1
 
+        # 9. IPDA Liquidity & Structure (BSL, SSL, CHoCH, FVG, OTE, 20D/40D/60D)
+        if "ipda" in content_lower or "bsl" in content_lower or "ssl" in content_lower or "choch" in content_lower or "fvg" in content_lower or "ote" in content_lower:
+            rule_modifiers["price_action:PA_4_LEVELS"] = 1.25
+            rule_modifiers["ls_flow:LS_GOLD"] = 1.22
+            rule_modifiers["trend:TREND_PERFECT"] = 1.25
+            rule_modifiers["volatility:VOL_ULTRA"] = 1.18
+            total_rules += 1
+
     knowledge_result = {
         "rule_modifiers": rule_modifiers,
         "rules_count": total_rules,
