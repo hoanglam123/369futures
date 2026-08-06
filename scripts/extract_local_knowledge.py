@@ -48,6 +48,17 @@ def read_file_content(file_path):
             print(f"⚠️ Thiếu thư viện python-docx để đọc file Word {file_path}. Hãy cài: pip install python-docx")
         except Exception as e:
             print(f"⚠️ Lỗi đọc file docx {file_path}: {e}")
+
+    elif ext in ['.jpg', '.jpeg', '.png']:
+        try:
+            import easyocr
+            global _easyocr_reader
+            if '_easyocr_reader' not in globals() or _easyocr_reader is None:
+                _easyocr_reader = easyocr.Reader(['vi', 'en'], gpu=False)
+            results = _easyocr_reader.readtext(file_path, detail=0)
+            text = "\n".join(results)
+        except Exception as e:
+            print(f"⚠️ Lỗi OCR đọc file ảnh {file_path}: {e}")
             
     return text
 
@@ -132,6 +143,14 @@ def parse_knowledge_rules():
         # 8. Volume & Supply/Demand Breakout
         if "volume bùng nổ" in content_lower or "dòng tiền dội vào" in content_lower or "khối lượng" in content_lower or "breakout" in content_lower:
             rule_modifiers["volume:VOL_SURGE"] = 1.12
+            total_rules += 1
+
+        # 9. IPDA Liquidity & Structure (BSL, SSL, CHoCH, FVG, OTE, 20D/40D/60D)
+        if "ipda" in content_lower or "bsl" in content_lower or "ssl" in content_lower or "choch" in content_lower or "fvg" in content_lower or "ote" in content_lower:
+            rule_modifiers["price_action:PA_4_LEVELS"] = 1.25
+            rule_modifiers["ls_flow:LS_GOLD"] = 1.22
+            rule_modifiers["trend:TREND_PERFECT"] = 1.25
+            rule_modifiers["volatility:VOL_ULTRA"] = 1.18
             total_rules += 1
 
     knowledge_result = {
