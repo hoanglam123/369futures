@@ -820,6 +820,7 @@ function analyzeRoundtrips(candles, lowerLevel, upperLevel) {
   const upTol = upperLevel * TOUCH_TOLERANCE;
 
   let lastSide = null;  // bên nào được chạm gần nhất (valid)
+  let prevLastSide = null;
   let lowerCount = 0;     // số lần valid từ upper → lower
   let upperCount = 0;     // số lần valid từ lower → upper
 
@@ -833,9 +834,11 @@ function analyzeRoundtrips(candles, lowerLevel, upperLevel) {
       const endedLow = c.close < c.open;
       if (endedLow && lastSide !== 'lower') {
         if (lastSide === 'upper') lowerCount++;
+        prevLastSide = lastSide;
         lastSide = 'lower';
       } else if (!endedLow && lastSide !== 'upper') {
         if (lastSide === 'lower') upperCount++;
+        prevLastSide = lastSide;
         lastSide = 'upper';
       }
       continue;
@@ -843,16 +846,18 @@ function analyzeRoundtrips(candles, lowerLevel, upperLevel) {
 
     if (hitLower && lastSide !== 'lower') {
       if (lastSide === 'upper') lowerCount++;
+      prevLastSide = lastSide;
       lastSide = 'lower';
     }
 
     if (hitUpper && lastSide !== 'upper') {
       if (lastSide === 'lower') upperCount++;
+      prevLastSide = lastSide;
       lastSide = 'upper';
     }
   }
 
-  return { lowerCount, upperCount, lastSide };
+  return { lowerCount, upperCount, lastSide, prevLastSide };
 }
 
 // ─── Tạo signal 369 cho 1 coin ────────────────────────────────────────────────
@@ -891,8 +896,9 @@ async function get369Signal(symbol, currentPrice = null) {
       const levelsRange = Math.max(LEVELS_RANGE, distTicks + 5);
       const grid = buildLevelGrid(upperPrice, lowerPrice, step, decimals, levelsRange);
 
-      const longEntry = grid.filter(l => l.type === 'tren' && l.value < currentPrice).pop();
-      const shortEntry = grid.find(l => l.type === 'duoi' && l.value > currentPrice);
+      const nearTolPre = currentPrice * NEAR_LEVEL_PCT;
+      const longEntry = grid.filter(l => l.type === 'tren' && l.value <= currentPrice + nearTolPre).pop();
+      const shortEntry = grid.find(l => l.type === 'duoi' && l.value >= currentPrice - nearTolPre);
 
       if (longEntry && shortEntry) {
         const y = ((shortEntry.value - longEntry.value) / longEntry.value) * 100; // % Khung kẹp giá trực tiếp
@@ -916,9 +922,8 @@ async function get369Signal(symbol, currentPrice = null) {
           };
         }
 
-        const nearTol = currentPrice * NEAR_LEVEL_PCT;
-        const nearLong = (currentPrice - longEntry.value) <= nearTol;
-        const nearShort = (shortEntry.value - currentPrice) <= nearTol;
+        const nearLong = Math.abs(currentPrice - longEntry.value) <= nearTolPre;
+        const nearShort = Math.abs(shortEntry.value - currentPrice) <= nearTolPre;
 
         if (!nearLong && !nearShort) {
           _levelCache[symbol] = { longEntry: longEntry.value, shortEntry: shortEntry.value, step: step };
@@ -947,8 +952,9 @@ async function get369Signal(symbol, currentPrice = null) {
 
     const grid = buildLevelGrid(upperPrice, lowerPrice, step, decimals, levelsRange);
 
-    const longEntry = grid.filter(l => l.type === 'tren' && l.value < price).pop();
-    const shortEntry = grid.find(l => l.type === 'duoi' && l.value > price);
+    const nearTol = price * NEAR_LEVEL_PCT;
+    const longEntry = grid.filter(l => l.type === 'tren' && l.value <= price + nearTol).pop();
+    const shortEntry = grid.find(l => l.type === 'duoi' && l.value >= price - nearTol);
 
     if (!longEntry || !shortEntry) {
       return {
@@ -982,7 +988,7 @@ async function get369Signal(symbol, currentPrice = null) {
 
     const done = hybridCandles.slice(0, -1); // bỏ nến M1 đang hình thành (nến cuối)
 
-    const { lowerCount, upperCount, lastSide } =
+    const { lowerCount, upperCount, lastSide, prevLastSide } =
       analyzeRoundtrips(done, pairLow, pairHigh);
 
     let effectiveLastSide = lastSide;
@@ -998,9 +1004,8 @@ async function get369Signal(symbol, currentPrice = null) {
     const touchCountLong = lowerCount;
     const touchCountShort = upperCount;
 
-    const nearTol = price * NEAR_LEVEL_PCT;
-    const nearLong = (price - longEntry.value) <= nearTol;
-    const nearShort = (shortEntry.value - price) <= nearTol;
+    const nearLong = Math.abs(price - longEntry.value) <= nearTol;
+    const nearShort = Math.abs(shortEntry.value - price) <= nearTol;
 
     let signal = 'NONE';
     let strength = 'none';
@@ -1009,7 +1014,10 @@ async function get369Signal(symbol, currentPrice = null) {
     let touchCount = 0;
     let reason = '';
 
-    if (nearLong && effectiveLastSide === 'upper') {
+    const isLongValid = effectiveLastSide === 'upper' || prevLastSide === 'upper';
+    const isShortValid = effectiveLastSide === 'lower' || prevLastSide === 'lower';
+
+    if (nearLong && isLongValid) {
       signal = 'LONG';
       strength = touchCountLong === 0 ? 'strong' : touchCountLong === 1 ? 'medium' : 'weak';
       touchCount = touchCountLong;
@@ -1018,7 +1026,7 @@ async function get369Signal(symbol, currentPrice = null) {
       reason = `[369] LONG lần ${touchCountLong + 1} tại ${longEntry.value} ← từ ${shortEntry.value} (${strength})`;
     }
 
-    if (nearShort && effectiveLastSide === 'lower' && signal === 'NONE') {
+    if (nearShort && isShortValid && signal === 'NONE') {
       signal = 'SHORT';
       strength = touchCountShort === 0 ? 'strong' : touchCountShort === 1 ? 'medium' : 'weak';
       touchCount = touchCountShort;

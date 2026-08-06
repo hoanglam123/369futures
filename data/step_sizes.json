@@ -13618,6 +13618,11 @@
       "yearStart": 1767225600000,
       "failed": true,
       "reason": "Status 400"
+    },
+    "TAIKOUSDT": {
+      "yearStart": 1767225600000,
+      "failed": true,
+      "reason": "Status 400"
     }
   },
   "tickSizes": {
