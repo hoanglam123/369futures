@@ -1180,6 +1180,8 @@ async function checkH1RetestSignals(client) {
 
       // 1. Check nến H1 có rút chân/rút râu thực sự tại Entry không:
       let isRutChan = false;
+      const isTouchedH1 = isLong ? (h1MinLow <= targetLevel) : (h1MaxHigh >= targetLevel);
+
       if (isLong) {
         // LONG: Mở nến trên/tại mốc (h1Open >= targetLevel), nhúng đâm qua mốc (h1MinLow <= targetLevel)
         // VÀ rút chân chốt nến tại/trên mốc (h1Close >= targetLevel)
@@ -1190,7 +1192,13 @@ async function checkH1RetestSignals(client) {
         isRutChan = h1Open <= targetLevel && h1MaxHigh >= targetLevel && h1Close <= targetLevel;
       }
 
-      if (!isRutChan) continue; // Nến H1 chưa đóng rút chân/rút râu tại entry
+      if (!isRutChan) {
+        if (isTouchedH1) {
+          log.system(`[H1Retest] ${sym} ${signal} nến H1 đã chạm mốc $${targetLevel} nhưng đâm thủng mốc (Close: $${h1Close}) — XÓA KHỎI WATCHLIST`);
+          delete lowScoreWatchlist[sym];
+        }
+        continue; // Nến H1 chưa đóng rút chân/rút râu tại entry hoặc chưa chạm mốc
+      }
 
       // 2. Tìm thời điểm (index) chạm entry lần đầu tiên trong chuỗi nến 1M
       let touchIndex = -1;
