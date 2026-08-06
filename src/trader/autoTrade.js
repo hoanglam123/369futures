@@ -1458,13 +1458,13 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
 
       let targetSlPriceExact, targetTpPriceExact, trailTriggerPriceExact;
       if (isLong) {
-        targetSlPriceExact = entryPrice - unit;
-        targetTpPriceExact = entryPrice + tpDistance;
-        trailTriggerPriceExact = entryPrice + trailDistance;
+        targetSlPriceExact = Number((entryPrice - unit).toFixed(8));
+        targetTpPriceExact = Number((entryPrice + tpDistance).toFixed(8));
+        trailTriggerPriceExact = Number((entryPrice + trailDistance).toFixed(8));
       } else {
-        targetSlPriceExact = entryPrice + unit;
-        targetTpPriceExact = entryPrice - tpDistance;
-        trailTriggerPriceExact = entryPrice - trailDistance;
+        targetSlPriceExact = Number((entryPrice + unit).toFixed(8));
+        targetTpPriceExact = Number((entryPrice - tpDistance).toFixed(8));
+        trailTriggerPriceExact = Number((entryPrice - trailDistance).toFixed(8));
       }
 
       // Đổi sang ROI % tương đương để logging / telegram / dataset
@@ -1478,7 +1478,7 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
       // ----------------------------------------------------
 
       // 1a. Virtual TP — đóng vị thế ngay khi giá chạm mốc TP mục tiêu
-      const isTpReached = isLong ? (markPrice >= targetTpPriceExact) : (markPrice <= targetTpPriceExact);
+      const isTpReached = isLong ? (markPrice >= targetTpPriceExact - 1e-9) : (markPrice <= targetTpPriceExact + 1e-9);
       if (isTpReached) {
         log.system(`[AutoTrade] [Virtual TP] Kích hoạt cho ${sym}: Giá $${markPrice} chạm TP $${targetTpPriceExact.toFixed(5)} (ROI ~${roi.toFixed(2)}%). Đóng vị thế MARKET.`);
         try {
@@ -1533,8 +1533,8 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
       // trạng thái trailing luôn được DUY TRÌ và SL sẽ không bao giờ bị trả về -13% nguyên thủy.
       const peakPrice = meta?.maxFavorablePrice || markPrice;
       const isTrailTriggerReached = isLong
-        ? (peakPrice >= trailTriggerPriceExact)
-        : (peakPrice <= trailTriggerPriceExact);
+        ? (peakPrice >= trailTriggerPriceExact - 1e-9)
+        : (peakPrice <= trailTriggerPriceExact + 1e-9);
 
       let targetSlPrice = targetSlPriceExact;
       let currentSlPct = slPct;
@@ -1624,7 +1624,7 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
           : (markPrice >= roundedTargetSl);
 
         if (slTriggered) {
-          const typeLabel = roi >= trailTrigger ? 'Trailing SL' : 'Stop Loss';
+          const typeLabel = (isTrailTriggerReached || roi >= trailTrigger) ? 'Trailing SL' : 'Stop Loss';
           log.system(`[AutoTrade] [Virtual ${typeLabel}] Kích hoạt cho ${sym}: Giá ${markPrice} chạm/vượt mốc $${targetSlStr}. Đóng vị thế bằng lệnh MARKET.`);
           try {
             justClosedByBot.add(sym);
