@@ -117,14 +117,21 @@ def parse_knowledge_rules():
             rule_modifiers["trend:TREND_EMA"] = 1.08
             total_rules += 1
 
-        # 6. Elliott Wave & BTC Wave
-        if "sóng elliott" in content_lower or "sóng" in content_lower or "btc" in content_lower:
-            rule_modifiers["btc_wave:BTC_ALIGNED"] = 1.12
+        # 6. Elliott Wave, Fibonacci & BTC Wave
+        if "sóng elliott" in content_lower or "fibonacci" in content_lower or "sóng" in content_lower or "btc" in content_lower:
+            rule_modifiers["btc_wave:BTC_ALIGNED"] = 1.15
+            rule_modifiers["trend:TREND_PERFECT"] = 1.18
             total_rules += 1
 
-        # 7. Volume
-        if "volume bùng nổ" in content_lower or "dòng tiền dội vào" in content_lower or "khối lượng" in content_lower:
-            rule_modifiers["volume:VOL_SURGE"] = 1.10
+        # 7. Trader Psychology & Risk Management
+        if "tâm lý" in content_lower or "quản trị rủi ro" in content_lower or "kỷ luật" in content_lower:
+            rule_modifiers["score_group:SCORE_HIGH_GE7"] = 1.12
+            rule_modifiers["funding:FUNDING_NORMAL"] = 1.05
+            total_rules += 1
+
+        # 8. Volume & Supply/Demand Breakout
+        if "volume bùng nổ" in content_lower or "dòng tiền dội vào" in content_lower or "khối lượng" in content_lower or "breakout" in content_lower:
+            rule_modifiers["volume:VOL_SURGE"] = 1.12
             total_rules += 1
 
     knowledge_result = {
