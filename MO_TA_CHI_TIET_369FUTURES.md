@@ -232,9 +232,9 @@ Chạy mỗi 5 giây (`checkTrailingSL`):
   * **Score $< 7.0$đ (hoặc Ngược Trend)**: $\text{TP Distance} = \text{Unit} \times 0.9$ (90 ticks khi step=300, ví dụ $+0.090 \rightarrow \text{TP} = 5.176$).
   * **Score $< 8.0$đ ($7.0 - 7.9$đ)**: $\text{TP Distance} = \text{Unit} \times 1.2$ (120 ticks khi step=300, ví dụ $+0.120 \rightarrow \text{TP} = 5.206$).
   * **Score $\ge 8.0$đ ($\ge 8.0$đ)**: $\text{TP Distance} = \text{Unit} \times 1.5$ (150 ticks khi step=300, ví dụ $+0.150 \rightarrow \text{TP} = 5.236$).
-- **Mốc Dời Trailing SL (Hòa vốn)**:
+- **Mốc Dời Trailing SL (Khóa Lãi)**:
   * $\text{Trail Trigger Distance} = \text{Unit} \times 0.45$ (**Cố định 45 ticks** khi step=300 cho **tất cả các thang điểm Score**, ví dụ $+0.045$ với giá $5.086 \rightarrow \text{Trigger} = 5.131$).
-  * Khi giá chạm mốc này, Bot lập tức dời SL trên sàn về mốc **Entry $+ 1\%$ ROI** (Bảo vệ hòa vốn + phí).
+  * Khi giá chạm mốc này, Bot lập tức dời SL trên sàn về mốc **Entry $+ 5$đ** ($\text{Unit} \times 0.05$, tương đương $+5$ ticks tùy theo bước giá; ví dụ $+0.005$ với giá $5.086 \rightarrow \text{SL Mới} = 5.091$).
 
 #### Cơ chế Virtual TP & Virtual SL (Bảo vệ Kép):
 - Trong mọi chu kỳ quét WebSocket, nếu ROI vượt quá `tpPct` hoặc sụt quá `slPct`, Bot tự động đóng vị thế bằng lệnh **MARKET** ngay lập tức, phòng trường hợp sàn Binance bị nghẽn API hoặc giá quét nhanh rút râu.
