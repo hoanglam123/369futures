@@ -153,7 +153,7 @@ async function startAutoTrade(coins) {
   const limitTimeoutMs = limitTimeoutMinutes * 60_000;
   const h1RetestLimitTimeoutMinutes = parseInt(process.env.H1_RETEST_LIMIT_TIMEOUT_MINUTES || '60', 10);
   const h1RetestLimitTimeoutMs = h1RetestLimitTimeoutMinutes * 60_000;
-  const limitTouchedTimeoutMinutes = parseInt(process.env.LIMIT_TOUCHED_TIMEOUT_MINUTES || '5', 10);
+  const limitTouchedTimeoutMinutes = parseInt(process.env.LIMIT_TOUCHED_TIMEOUT_MINUTES || '10', 10);
   const limitTouchedTimeoutMs = limitTouchedTimeoutMinutes * 60_000;
 
   const activeSymbols = new Set();
@@ -256,7 +256,7 @@ async function startAutoTrade(coins) {
         }
 
         const isTouchedTimeout = meta?.hasTouchedEntry === true && (now - (meta.touchedTime || order.time)) > limitTouchedTimeoutMs;
-        const isNormalTimeout = (now - order.time) > curTimeoutMs;
+        const isNormalTimeout = curTimeoutMinutes > 0 && (now - order.time) > curTimeoutMs;
 
         if (order.type === 'LIMIT' && (isNormalTimeout || isTouchedTimeout)) {
           const exitType = isTouchedTimeout ? 'LIMIT_TOUCHED_TIMEOUT' : 'LIMIT_TIMEOUT';
