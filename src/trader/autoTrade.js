@@ -256,7 +256,7 @@ async function startAutoTrade(coins) {
         }
 
         const isTouchedTimeout = meta?.hasTouchedEntry === true && (now - (meta.touchedTime || order.time)) > limitTouchedTimeoutMs;
-        const isNormalTimeout = (now - order.time) > curTimeoutMs;
+        const isNormalTimeout = curTimeoutMinutes > 0 && (now - order.time) > curTimeoutMs;
 
         if (order.type === 'LIMIT' && (isNormalTimeout || isTouchedTimeout)) {
           const exitType = isTouchedTimeout ? 'LIMIT_TOUCHED_TIMEOUT' : 'LIMIT_TIMEOUT';
