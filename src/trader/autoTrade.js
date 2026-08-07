@@ -1498,25 +1498,29 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
       //    SL = entry +/- unit (tương đương đúng -13% Margin với đòn bẩy = 39 / gridStepPct)
       //    TP = entry +/- (unit * tpMultiplier) -> 90, 120, 150 ticks với step=300
       //    Trail Trigger = entry +/- (unit * 0.45) -> CỐ ĐỊNH 45 ticks với step=300 cho TẤT CẢ các thang điểm!
+      //    Trail SL = entry +/- (unit * 0.05) -> Dời SL +5đ (+5 ticks tùy bước giá, tương đương 0.05 * unit) khi chạm mốc 45đ
       const tpDistance = unit * tpMultiplier;
       const trailDistance = unit * 0.45; // Cố định 45 ticks (0.45 * unit) cho mọi thang điểm
+      const trailSlDistance = unit * 0.05; // Dời SL +5 ticks (0.05 * unit) khi chạm mốc 45đ
 
-      let targetSlPriceExact, targetTpPriceExact, trailTriggerPriceExact;
+      let targetSlPriceExact, targetTpPriceExact, trailTriggerPriceExact, trailedSlPriceExact;
       if (isLong) {
         targetSlPriceExact = Number((entryPrice - unit).toFixed(8));
         targetTpPriceExact = Number((entryPrice + tpDistance).toFixed(8));
         trailTriggerPriceExact = Number((entryPrice + trailDistance).toFixed(8));
+        trailedSlPriceExact = Number((entryPrice + trailSlDistance).toFixed(8));
       } else {
         targetSlPriceExact = Number((entryPrice + unit).toFixed(8));
         targetTpPriceExact = Number((entryPrice - tpDistance).toFixed(8));
         trailTriggerPriceExact = Number((entryPrice - trailDistance).toFixed(8));
+        trailedSlPriceExact = Number((entryPrice - trailSlDistance).toFixed(8));
       }
 
       // Đổi sang ROI % tương đương để logging / telegram / dataset
       const slPct = -13;
       const tpPct = parseFloat(((tpDistance / entryPrice) * leverageVal * 100).toFixed(2));
       const trailTrigger = parseFloat(((trailDistance / entryPrice) * leverageVal * 100).toFixed(2));
-      const trailSlRoi = 1; // ROI +1% khi dời SL hòa vốn
+      const trailSlRoi = parseFloat(((trailSlDistance / entryPrice) * leverageVal * 100).toFixed(2)); // ROI tương đương +5đ
 
       // ----------------------------------------------------
       // 1. Quản lý TAKE PROFIT (Virtual & Real)
@@ -1585,10 +1589,8 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
       let currentSlPct = slPct;
 
       if (isTrailTriggerReached) {
-        currentSlPct = trailSlRoi; // Dời SL về entry + 1% ROI (Hòa vốn)
-        targetSlPrice = isLong
-          ? entryPrice * (1 + (trailSlRoi / 100) / leverageVal)
-          : entryPrice * (1 - (trailSlRoi / 100) / leverageVal);
+        currentSlPct = trailSlRoi; // Dời SL về entry + 5đ (+5 ticks, tương đương trailSlRoi %)
+        targetSlPrice = trailedSlPriceExact;
       }
 
       // Lấy tickSize từ cache RAM để định dạng giá chính xác
@@ -1630,8 +1632,8 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
           }
 
           if (!alreadyMoved && !betterOrEqualExists) {
-            const levelLabel = currentSlPct === trailSlRoi ? 'Hòa vốn' : 'Khóa lãi';
-            log.system(`[AutoTrade] Trailing SL: ${sym} đạt ROI ${roi.toFixed(2)}% -> Dịch SL trên sàn về entry + ${currentSlPct}% ROI ($${targetSlStr}) [Mức: ${levelLabel}]`);
+            const levelLabel = currentSlPct === trailSlRoi ? '+5đ (Khóa lãi)' : 'Khóa lãi';
+            log.system(`[AutoTrade] Trailing SL: ${sym} đạt ROI ${roi.toFixed(2)}% -> Dịch SL trên sàn về entry +5đ ($${targetSlStr}, ROI ~${currentSlPct}%) [Mức: ${levelLabel}]`);
             // Hủy SL cũ
             for (const o of realSlOrders) {
               try {
