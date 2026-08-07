@@ -18,10 +18,15 @@ let timeOffset = 0;
 
 async function syncTimeOffset() {
   try {
+    const t0 = Date.now();
     const res = await axios.get(`${BASE}/fapi/v1/time`, { timeout: 10000 });
+    const t1 = Date.now();
     const serverTime = res.data.serverTime;
-    timeOffset = serverTime - Date.now();
-    log.system(`[Binance] Đã đồng bộ giờ: offset = ${timeOffset}ms (Giờ server: ${new Date(serverTime).toISOString()})`);
+    // Bù trừ độ trễ mạng RTT (Round-Trip Time):
+    // Thời điểm Binance ghi nhận serverTime nằm giữa thời gian gửi request (t0) và nhận response (t1)
+    const rtt = t1 - t0;
+    timeOffset = Math.round(serverTime - (t0 + t1) / 2);
+    log.system(`[Binance] Đã đồng bộ giờ: offset = ${timeOffset}ms (Giờ server: ${new Date(serverTime).toISOString()}, RTT: ${rtt}ms)`);
   } catch (err) {
     log.warn(`[Binance] Không thể đồng bộ giờ: ${err.message}`);
   }
@@ -29,8 +34,8 @@ async function syncTimeOffset() {
 
 // Chạy đồng bộ giờ ngay khi load module
 syncTimeOffset().catch(() => { });
-// Đồng bộ lại thời gian mỗi 30 phút để tránh drift kéo dài
-setInterval(() => syncTimeOffset().catch(() => { }), 30 * 60 * 1000);
+// Đồng bộ lại thời gian mỗi 3 phút để triệt tiêu lệch giờ (drift) khi ứng dụng chạy lâu dài
+setInterval(() => syncTimeOffset().catch(() => { }), 3 * 60 * 1000);
 
 function _buildBody(params) {
   const timestamp = Date.now() + timeOffset;
@@ -382,4 +387,4 @@ function createClient(apiKey, secret) {
   };
 }
 
-module.exports = { createClient, loadStepSizes, loadLeverageBrackets, calcQuantity };
+module.exports = { createClient, loadStepSizes, loadLeverageBrackets, calcQuantity, syncTimeOffset };
