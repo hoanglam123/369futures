@@ -176,21 +176,43 @@ function evaluateSignalWithAI(sig) {
   // Bound winProbability strictly between 5% and 95%
   winProb = Math.max(5.0, Math.min(95.0, winProb));
 
-  const isApproved = winProb >= threshold;
+  // EV (Expected Value) Calculation
+  const minEvRoiThreshold = _modelConfig?.minExpectedEvRoi ?? 0.5;
+
+  // Estimate Target Profit (ROI %) and Stop Loss (ROI %)
+  const estSlRoi = 13.0 + (gridWidthPct > 8.0 ? (gridWidthPct - 8.0) * 0.5 : 0);
+  let estTpRoi = 11.7; // default 90 ticks (~11.7% ROI)
+  if (score >= 8.0) estTpRoi = 19.5; // 150 ticks (~19.5% ROI)
+  else if (score >= 7.0) estTpRoi = 15.6; // 120 ticks (~15.6% ROI)
+
+  const winProbDec = winProb / 100.0;
+  const evRoi = (winProbDec * estTpRoi) - ((1.0 - winProbDec) * estSlRoi);
+  const tradeMargin = parseFloat(sig.margin) || 30;
+  const evUsd = (evRoi / 100.0) * tradeMargin;
+
+  const isApproved = winProb >= threshold && evRoi >= minEvRoiThreshold;
   const factorSummary = keyFactors.length > 0 ? keyFactors.join(', ') : 'Điều kiện trung tính';
-  const reasonText = isApproved
-    ? `Xác suất thắng ${winProb.toFixed(1)}% >= ${threshold}% (${factorSummary})`
-    : `Xác suất thắng ${winProb.toFixed(1)}% < ${threshold}% (${factorSummary})`;
+  
+  let reasonText = '';
+  if (winProb < threshold) {
+    reasonText = `Xác suất thắng ${winProb.toFixed(1)}% < ${threshold}% (${factorSummary})`;
+  } else if (evRoi < minEvRoiThreshold) {
+    reasonText = `Xác suất thắng ${winProb.toFixed(1)}% >= ${threshold}%, nhưng Lợi Nhuận Kỳ Vọng (EV) chưa đạt (${evRoi.toFixed(2)}% ROI, $${evUsd.toFixed(2)}) (${factorSummary})`;
+  } else {
+    reasonText = `Xác suất thắng ${winProb.toFixed(1)}% >= ${threshold}% & EV = +${evRoi.toFixed(2)}% ROI ($${evUsd.toFixed(2)}) (${factorSummary})`;
+  }
 
   return {
     winProbability: parseFloat(winProb.toFixed(1)),
+    expectedValueRoi: parseFloat(evRoi.toFixed(2)),
+    expectedValueUsd: parseFloat(evUsd.toFixed(2)),
     isApproved,
     reason: reasonText,
   };
 }
 
 /**
- * Log evaluation result to data/data/ai_evaluations.jsonl for shadow testing
+ * Log evaluation result to data/ai_evaluations.jsonl for shadow testing
  */
 function recordAIEvaluation(sig, aiEval) {
   try {
@@ -201,6 +223,8 @@ function recordAIEvaluation(sig, aiEval) {
       targetLevel: sig.targetLevel,
       score: sig.score,
       winProbability: aiEval.winProbability,
+      expectedValueRoi: aiEval.expectedValueRoi,
+      expectedValueUsd: aiEval.expectedValueUsd,
       isApprovedByAI: aiEval.isApproved,
       aiReason: aiEval.reason,
       marketCapRank: sig.marketCapRank || null,
