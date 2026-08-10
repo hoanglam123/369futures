@@ -78,6 +78,7 @@ module.exports = {
   getNearbySymbols: stream.getNearbySymbols,
   updatePricesRest: stream.updatePricesRest,
   syncWebSocketSubscriptions: stream.syncWebSocketSubscriptions,
+  onPriceUpdate:    stream.onPriceUpdate,
 
   // ── Signal log ───────────────────────────────────────────────────────────
   logSignal369:      signalLog.logSignal369,
