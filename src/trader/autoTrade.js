@@ -1592,21 +1592,40 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
 
 
       // ----------------------------------------------------
-      // 2. Quản lý STOP LOSS (Virtual & Real, Trailing SL)
+      // 2. Quản lý STOP LOSS (Virtual & Real, Trailing SL & Near-TP Lock)
       // ----------------------------------------------------
       // Dùng peakPrice (giá đỉnh/đáy tốt nhất được theo dõi liên tục) thay vì chỉ markPrice hiện tại.
-      // Điều này đảm bảo: một khi giá đã từng chạm trail trigger (dù trong khoảng <3s giữa 2 poll),
-      // trạng thái trailing luôn được DUY TRÌ và SL sẽ không bao giờ bị trả về -13% nguyên thủy.
       const peakPrice = meta?.maxFavorablePrice || markPrice;
+
+      // a. Ngưỡng Kích hoạt Trailing SL cơ bản (45đ hoặc 70đ)
       const isTrailTriggerReached = isLong
         ? (peakPrice >= trailTriggerPriceExact - 1e-9)
         : (peakPrice <= trailTriggerPriceExact + 1e-9);
 
+      // b. Ngưỡng Kích hoạt Near-TP Lock (khi giá đạt >= 90% chặng đường TP -> Dời SL về 75% Lợi Nhuận TP)
+      const nearTpTriggerDistance = tpDistance * 0.90;
+      const nearTpLockedSlDistance = tpDistance * 0.75;
+      let nearTpTriggerPriceExact, nearTpLockedSlPriceExact;
+      if (isLong) {
+        nearTpTriggerPriceExact = Number((entryPrice + nearTpTriggerDistance).toFixed(8));
+        nearTpLockedSlPriceExact = Number((entryPrice + nearTpLockedSlDistance).toFixed(8));
+      } else {
+        nearTpTriggerPriceExact = Number((entryPrice - nearTpTriggerDistance).toFixed(8));
+        nearTpLockedSlPriceExact = Number((entryPrice - nearTpLockedSlDistance).toFixed(8));
+      }
+
+      const isNearTpReached = isLong
+        ? (peakPrice >= nearTpTriggerPriceExact - 1e-9)
+        : (peakPrice <= nearTpTriggerPriceExact + 1e-9);
+
       let targetSlPrice = targetSlPriceExact;
       let currentSlPct = slPct;
 
-      if (isTrailTriggerReached) {
-        currentSlPct = trailSlRoi; // Dời SL về entry + 5đ (+5 ticks, tương đương trailSlRoi %)
+      if (isNearTpReached) {
+        targetSlPrice = nearTpLockedSlPriceExact;
+        currentSlPct = parseFloat(((nearTpLockedSlDistance / entryPrice) * leverageVal * 100).toFixed(2));
+      } else if (isTrailTriggerReached) {
+        currentSlPct = trailSlRoi; // Dời SL về entry + 5đ (+5 ticks)
         targetSlPrice = trailedSlPriceExact;
       }
 
@@ -1649,9 +1668,13 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
           }
 
           if (!alreadyMoved && !betterOrEqualExists) {
-            const levelLabel = currentSlPct === trailSlRoi ? '+5đ (Khóa lãi)' : 'Khóa lãi';
-            const ticksLabel = (trailMultiplier * 100).toFixed(0);
-            log.system(`[AutoTrade] Trailing SL (chạm mốc ${ticksLabel}đ): ${sym} đạt ROI ${roi.toFixed(2)}% -> Dịch SL trên sàn về entry +5đ ($${targetSlStr}, ROI ~${currentSlPct}%) [Mức: ${levelLabel}]`);
+            if (isNearTpReached) {
+              log.system(`[AutoTrade] 🎯 Near-TP Lock (Đạt >=90% TP): ${sym} đạt ROI ${roi.toFixed(2)}% -> Dịch SL trên sàn về mốc 75% Lợi Nhuận TP ($${targetSlStr}, ROI ~+${currentSlPct}%)`);
+            } else {
+              const levelLabel = currentSlPct === trailSlRoi ? '+5đ (Khóa lãi)' : 'Khóa lãi';
+              const ticksLabel = (trailMultiplier * 100).toFixed(0);
+              log.system(`[AutoTrade] Trailing SL (chạm mốc ${ticksLabel}đ): ${sym} đạt ROI ${roi.toFixed(2)}% -> Dịch SL trên sàn về entry +5đ ($${targetSlStr}, ROI ~${currentSlPct}%) [Mức: ${levelLabel}]`);
+            }
             // Hủy SL cũ
             for (const o of realSlOrders) {
               try {
