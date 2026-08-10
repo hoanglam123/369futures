@@ -528,10 +528,22 @@ async function startAutoTrade(coins) {
 
       // Phân bổ ký quỹ (Margin): Kết hợp Thang điểm Scorer PP369 + Thưởng Rank MarketCap
       const score = sig.score ?? 0;
+      const gridWidthPct = parseFloat(sig.gridWidthPct) || 3.5;
+      const reasonsStr = Array.isArray(sig.scoreReasons) ? sig.scoreReasons.join(' ') : String(sig.scoreReasons || '');
+      const isCounterTrend = sig.isCounterTrend || reasonsStr.includes('Ngược/Mâu thuẫn');
+      const hasExtremeRsi = reasonsStr.includes('Quá bán cực đại') || reasonsStr.includes('Quá mua cực đại');
+      // Dùng Regex kiểm tra chính xác xem có ít nhất 1 cản cũ H4 hoặc D1 hay không (tránh lỗi khi H4 có 0 cản nhưng D1 có 1 cản)
+      const hasPaSupport = /[1-9]\s*cản cũ/.test(reasonsStr);
+
+      // Ngược trend chỉ chờ H1 Retest khi KHÔNG có cản Price Action VÀ KHÔNG có RSI cực đại.
+      // Nếu có cản OR có RSI cực đại thì vẫn đặt LIMIT trực tiếp.
+      const isHighRiskCounterTrend = isCounterTrend && !hasPaSupport && !hasExtremeRsi;
+
       let baseMargin = 30;
-      if (!isBtc && score < 5.5) {
+      if (!isBtc && (score < 5.5 || gridWidthPct > 7.0 || isHighRiskCounterTrend)) {
         if (isNewSignalLog) {
-          log.system(`[AutoTrade] ${sym} ${sig.signal} có Score = ${sig.score}đ < 5.5đ — Đưa vào Watchlist chờ Retest nến H1`);
+          const reasonLabel = gridWidthPct > 7.0 ? `GridWidthPct (${gridWidthPct.toFixed(2)}%) > 7.0%` : (isHighRiskCounterTrend ? 'Ngược Trend (Thiếu Cản & RSI Cực Đại)' : `Score (${score}đ) < 5.5đ`);
+          log.system(`[AutoTrade] ${sym} ${sig.signal} [${reasonLabel}] — Đưa vào Watchlist chờ Retest nến H1`);
         }
         lowScoreWatchlist[sym] = {
           symbol: sym,
@@ -540,7 +552,8 @@ async function startAutoTrade(coins) {
           score: sig.score,
           scoreReasons: sig.scoreReasons || [],
           step: sig.step || getStep(markPrice),
-          isCounterTrend: sig.isCounterTrend,
+          isCounterTrend: isCounterTrend,
+          gridWidthPct: gridWidthPct,
           timestamp: Date.now()
         };
         // Ghi log để backfill phân tích (không ảnh hưởng hiệu năng)
@@ -551,7 +564,7 @@ async function startAutoTrade(coins) {
             signalPrice: sig.targetLevel,
             score: sig.score,
             scoreReasons: sig.scoreReasons || [],
-            skipReason: 'SCORE_TOO_LOW',
+            skipReason: gridWidthPct > 7.0 ? 'GRID_TOO_WIDE' : (isHighRiskCounterTrend ? 'COUNTER_TREND_HIGH_RISK' : 'SCORE_TOO_LOW'),
             markPrice: markPrice,
             marketCapRank: getMarketCapRank ? getMarketCapRank(sym) : 999,
           });
@@ -1494,14 +1507,18 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
         }
       }
 
-      // 3. Tính khoảng cách giá tuyệt đối:
+      // 3. Tính khoảng cách giá tuyệt đối (Dynamic Trailing SL - Option B):
       //    SL = entry +/- unit (tương đương đúng -13% Margin với đòn bẩy = 39 / gridStepPct)
       //    TP = entry +/- (unit * tpMultiplier) -> 90, 120, 150 ticks với step=300
-      //    Trail Trigger = entry +/- (unit * 0.45) -> CỐ ĐỊNH 45 ticks với step=300 cho TẤT CẢ các thang điểm!
-      //    Trail SL = entry +/- (unit * 0.05) -> Dời SL +5đ (+5 ticks tùy bước giá, tương đương 0.05 * unit) khi chạm mốc 45đ
+      //    Trail Trigger: GridWidthPct <= 5.0% hoặc Retest H1 -> 70 ticks (0.70 * unit); GridWidthPct > 5.0% -> 45 ticks (0.45 * unit)
+      //    Trail SL = entry +/- (unit * 0.05) -> Dời SL +5đ (+5 ticks tùy bước giá, tương đương 0.05 * unit) khi chạm mốc Trail Trigger
+      //    LƯU Ý OPTION B: Một khi lệnh đã dời SL về +5đ thì giữ nguyên SL hòa, không rollback về âm.
+      const posGridWidthPct = meta?.gridWidthPct || 4.5;
+      const isRetestH1Pos = meta?.isH1Retest === true || meta?.hasH1WickRejection === true;
+      const trailMultiplier = (posGridWidthPct <= 5.0 || isRetestH1Pos) ? 0.70 : 0.45;
       const tpDistance = unit * tpMultiplier;
-      const trailDistance = unit * 0.45; // Cố định 45 ticks (0.45 * unit) cho mọi thang điểm
-      const trailSlDistance = unit * 0.05; // Dời SL +5 ticks (0.05 * unit) khi chạm mốc 45đ
+      const trailDistance = unit * trailMultiplier;
+      const trailSlDistance = unit * 0.05; // Dời SL +5 ticks (0.05 * unit) khi chạm mốc Trail Trigger
 
       let targetSlPriceExact, targetTpPriceExact, trailTriggerPriceExact, trailedSlPriceExact;
       if (isLong) {
@@ -1633,7 +1650,8 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
 
           if (!alreadyMoved && !betterOrEqualExists) {
             const levelLabel = currentSlPct === trailSlRoi ? '+5đ (Khóa lãi)' : 'Khóa lãi';
-            log.system(`[AutoTrade] Trailing SL: ${sym} đạt ROI ${roi.toFixed(2)}% -> Dịch SL trên sàn về entry +5đ ($${targetSlStr}, ROI ~${currentSlPct}%) [Mức: ${levelLabel}]`);
+            const ticksLabel = (trailMultiplier * 100).toFixed(0);
+            log.system(`[AutoTrade] Trailing SL (chạm mốc ${ticksLabel}đ): ${sym} đạt ROI ${roi.toFixed(2)}% -> Dịch SL trên sàn về entry +5đ ($${targetSlStr}, ROI ~${currentSlPct}%) [Mức: ${levelLabel}]`);
             // Hủy SL cũ
             for (const o of realSlOrders) {
               try {
