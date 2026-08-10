@@ -26,7 +26,6 @@ async function syncTimeOffset() {
     // Thời điểm Binance ghi nhận serverTime nằm giữa thời gian gửi request (t0) và nhận response (t1)
     const rtt = t1 - t0;
     timeOffset = Math.round(serverTime - (t0 + t1) / 2);
-    log.system(`[Binance] Đã đồng bộ giờ: offset = ${timeOffset}ms (Giờ server: ${new Date(serverTime).toISOString()}, RTT: ${rtt}ms)`);
   } catch (err) {
     log.warn(`[Binance] Không thể đồng bộ giờ: ${err.message}`);
   }

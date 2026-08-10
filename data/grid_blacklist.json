@@ -548,5 +548,25 @@
     "reason": "x*2 (7.52%) > y (5.12%)",
     "xPct": 7.52,
     "yPct": 5.12
+  },
+  "QNT": {
+    "symbol": "QNT",
+    "addedAt": 1786326867908,
+    "addedAtStr": "2026-08-10 08:54:27",
+    "expiresAt": 1786931667908,
+    "expiresAtStr": "2026-08-17 08:54:27",
+    "reason": "x*2 (5.99%) > y (2.23%)",
+    "xPct": 5.99,
+    "yPct": 2.23
+  },
+  "ZKP": {
+    "symbol": "ZKP",
+    "addedAt": 1786326890079,
+    "addedAtStr": "2026-08-10 08:54:50",
+    "expiresAt": 1786931690079,
+    "expiresAtStr": "2026-08-17 08:54:50",
+    "reason": "x*2 (23.16%) > y (9.82%)",
+    "xPct": 23.16,
+    "yPct": 9.82
   }
 }

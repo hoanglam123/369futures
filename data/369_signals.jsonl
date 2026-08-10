@@ -341,3 +341,5 @@
 {"ts":"2026-08-09T11:22:05","symbol":"FLUX","signal":"SHORT","price":0.04129,"leverage":5,"score":5.8,"margin":30}
 {"ts":"2026-08-09T11:56:34","symbol":"FLUX","signal":"SHORT","price":0.04128,"leverage":5,"score":5.8,"margin":30}
 {"ts":"2026-08-09T21:11:07","symbol":"XMR","signal":"SHORT","price":397.26,"leverage":5,"score":6.3,"margin":40}
+{"ts":"2026-08-10T10:54:26","symbol":"1000XEC","signal":"LONG","price":0.006643,"leverage":8,"score":6.8999999999999995,"margin":30}
+{"ts":"2026-08-10T14:13:36","symbol":"JOE","signal":"LONG","price":0.02731,"leverage":3,"score":7.3,"margin":40}

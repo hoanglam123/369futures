@@ -20725,3 +20725,301 @@
 2026-08-10 08:46:06: [PP369] [Binance] Đã đồng bộ giờ: offset = 24008ms (Giờ server: 2026-08-10T01:46:30.518Z, RTT: 87ms) 
 2026-08-10 08:49:06: [PP369] [Binance] Đã đồng bộ giờ: offset = 24025ms (Giờ server: 2026-08-10T01:49:30.537Z, RTT: 87ms) 
 2026-08-10 08:52:06: [PP369] [Binance] Đã đồng bộ giờ: offset = 24042ms (Giờ server: 2026-08-10T01:52:30.556Z, RTT: 88ms) 
+2026-08-10 08:54:17: ◇ injected env (10) from .env // tip: ◈ secrets for agents [www.dotenvx.com]
+2026-08-10 08:54:18: [PP369] [AI Reviewer] ✓ Đã nạp thành công mô hình AI (v1.1.0, mẫu N=19) 
+2026-08-10 08:54:18: [PP369] [369] initH4Cache: Tất cả 803 coin đã có nến H4 đầu năm. 
+2026-08-10 08:54:18: [PP369] [Binance] Đã đồng bộ giờ: offset = 1566ms (Giờ server: 2026-08-10T01:54:19.743Z, RTT: 1292ms) 
+2026-08-10 08:54:18: [AutoTrade] Bỏ qua 157 coin có grid ngoài khoảng 3–25% (theo giá hiện tại): 4(2.2%), XRP(28.9%), ETC(46.3%), LINK(36.4%), BAT(44.4%), QTUM(44.6%), KNC(28.2%), DOT(37.4%), SOL(39.0%), AVAX(46.0%), AAVE(32.6%), FIL(42.4%), BEL(2.7%), COTI(25.8%), ALICE(2.5%), NKN(2.6%), DGB(1.6%), ATA(1.8%), DYDX(2.6%), KLAY(2.4%), IMX(27.0%), APE(2.3%), WOO(25.6%), DAR(2.1%), OP(33.6%), STG(2.2%), SPELL(36.9%), APT(50.4%), FET(2.2%), CKB(34.3%), USDC(30.0%), AMB(2.5%), LEVER(26.7%), RDNT(2.9%), SUI(43.2%), MAV(32.5%), DODOX(1.5%), ARK(31.8%), BOND(28.1%), GAS(31.6%), SUPER(34.2%), 1000SATS(269.3%), ACE(25.4%), MOVR(25.7%), JUP(1.6%), GLM(32.4%), PORTAL(2.6%), MYRO(3.0%), W(35.2%), IO(2.4%), ZK(37.2%), ZRO(35.5%), SYN(2.9%), SYS(1.7%), ALPACA(25.2%), SUN(1.7%), DOGS(78.0%), BSW(2.5%), QUICK(2.3%), NEIRO(39.9%), FIO(2.5%), GHST(1.8%), LOKA(2.6%), COS(2.5%), SANTOS(61.1%), COW(28.3%), 1000000MOG(28.4%), ACT(25.5%), HIPPO(2.9%), DEGEN(2.9%), 1000WHY(197.4%), THE(40.7%), CHILLGUY(2.7%), ORCA(28.2%), MOVE(43.5%), KOMA(2.2%), VELODROME(1.7%), MOCA(39.1%), VANA(34.5%), USUAL(31.3%), DF(2.6%), GRIFFAIN(2.7%), D(2.2%), PIPPIN(165.7%), TST(1.5%), HEI(2.0%), RED(33.8%), MUBARAK(1.2%), TUT(0.1%), BROCCOLI714(1.5%), BR(2.4%), PLUME(2.5%), FUN(1.7%), BABY(2.2%), SIGN(43.2%), PUNDIX(38.0%), CTK(25.7%), SXT(39.9%), ASR(33.8%), MILK(3.0%), OG(111.0%), AGT(2.0%), B(2.0%), MERL(155.4%), PORT3(2.5%), 1000000BOB(1.5%), LA(55.1%), PUMPBTC(26.7%), MYX(403.5%), DMC(2.3%), OL(1.7%), SAHARA(35.6%), M(26.8%), TANSSI(2.4%), PUMP(1.1%), CROSS(3.0%), VELVET(0.7%), ZORA(56.0%), TAG(2.5%), ESPORTS(168.4%), A2Z(2.1%), YALA(1.8%), SOMI(32.5%), BAS(1.1%), Q(1.3%), PTB(31.9%), OPEN(1.5%), AVNT(31.1%), UB(2.2%), TOSHI(28.2%), BARD(26.7%), TRADOOR(48.8%), BLESS(2.5%), HANA(0.9%), AKE(0.7%), LIGHT(199.7%), XAN(1.4%), TRUTH(2.3%), YB(39.2%), ZBT(3.0%), LAB(2.4%), RIVER(113.3%), 币安人生(0.6%), BLUAI(1.7%), APR(1.5%), ON(0.8%), AT(2.0%), UAI(1.2%), STABLE(0.9%), JCT(0.8%), ALLO(1.0%), BOB(2.8%), RLS(2.8%), POWER(31.1%), US(0.7%), BREV(41.7%), MAGMA(1.6%)
+2026-08-10 08:54:19: [PP369] [Binance] Đang lấy leverage brackets cho 449 coin... 
+2026-08-10 08:54:19: [PP369] [Binance] Đã lưu leverage cho 449 coin vào step_sizes.json 
+2026-08-10 08:54:19: [PP369] [AutoTrade] Khởi động: 449 coin | margin=$10 | 10x | type=LIMIT 
+2026-08-10 08:54:19: [PP369] [Binance] Loaded step and tick sizes from existing file: 852 symbols 
+2026-08-10 08:54:19: [PP369] [AutoTrade] Đã nạp leverageInfo cho 449 coin từ cache. 
+2026-08-10 08:54:20: [PP369] [PP369Stream] Kết nối WebSocket thành công (market/stream) 
+2026-08-10 08:54:24: [PP369] [AutoTrade] Bắt đầu scan... 
+2026-08-10 08:54:27: [PP369] [GridBlacklist] ĐÃ THÊM QNT VÀO BLACKLIST 7 NGÀY (Lý do: x*2 (5.99%) > y (2.23%)). Sẽ tự động giải phóng sau 7 ngày. 
+2026-08-10 08:54:50: [PP369] [GridBlacklist] ĐÃ THÊM ZKP VÀO BLACKLIST 7 NGÀY (Lý do: x*2 (23.16%) > y (9.82%)). Sẽ tự động giải phóng sau 7 ngày. 
+2026-08-10 08:57:17: [PP369] [Binance] Đã đồng bộ giờ: offset = 992ms (Giờ server: 2026-08-10T01:57:18.646Z, RTT: 89ms) 
+2026-08-10 09:00:17: [PP369] [Binance] Đã đồng bộ giờ: offset = 1009ms (Giờ server: 2026-08-10T02:00:18.664Z, RTT: 89ms) 
+2026-08-10 09:03:17: [PP369] [Binance] Đã đồng bộ giờ: offset = 1026ms (Giờ server: 2026-08-10T02:03:18.682Z, RTT: 88ms) 
+2026-08-10 09:06:17: [PP369] [Binance] Đã đồng bộ giờ: offset = 1044ms (Giờ server: 2026-08-10T02:06:18.700Z, RTT: 87ms) 
+2026-08-10 09:06:25: [PP369] [AutoTrade] XNY → LONG (Score: +3.6đ) tại $0.007402 
+2026-08-10 09:06:25: [PP369] [AutoTrade] XNY LONG không đạt Tiêu chí 2 (Biến động H1/M15 an toàn) — bỏ qua 
+2026-08-10 09:09:17: [PP369] [Binance] Đã đồng bộ giờ: offset = 1060ms (Giờ server: 2026-08-10T02:09:18.718Z, RTT: 90ms) 
+2026-08-10 09:11:21: [PP369] [AutoTrade] Trailing SL: 1MBABYDOGE đạt ROI 4.98% -> Dịch SL trên sàn về entry +5đ ($0.0003612, ROI ~0.55%) [Mức: +5đ (Khóa lãi)] 
+2026-08-10 09:11:21: [PP369] [AutoTrade] Đã hủy SL cũ của 1MBABYDOGE (orderId=1000002499573495) 
+2026-08-10 09:11:21: [PP369] [AutoTrade] ✓ Đã dịch SL mới cho 1MBABYDOGE @ $0.0003612 (orderId=1000002499663262) 
+2026-08-10 09:12:17: [PP369] [Binance] Đã đồng bộ giờ: offset = 1081ms (Giờ server: 2026-08-10T02:12:18.741Z, RTT: 92ms) 
+2026-08-10 09:15:17: [PP369] [Binance] Đã đồng bộ giờ: offset = 1096ms (Giờ server: 2026-08-10T02:15:18.755Z, RTT: 90ms) 
+2026-08-10 09:18:17: [PP369] [Binance] Đã đồng bộ giờ: offset = 1115ms (Giờ server: 2026-08-10T02:18:18.775Z, RTT: 90ms) 
+2026-08-10 09:21:17: [PP369] [Binance] Đã đồng bộ giờ: offset = 1131ms (Giờ server: 2026-08-10T02:21:18.790Z, RTT: 88ms) 
+2026-08-10 09:24:17: [PP369] [Binance] Đã đồng bộ giờ: offset = 1149ms (Giờ server: 2026-08-10T02:24:18.810Z, RTT: 90ms) 
+2026-08-10 09:27:17: [PP369] [Binance] Đã đồng bộ giờ: offset = 1167ms (Giờ server: 2026-08-10T02:27:18.828Z, RTT: 90ms) 
+2026-08-10 09:30:17: [PP369] [Binance] Đã đồng bộ giờ: offset = 1185ms (Giờ server: 2026-08-10T02:30:18.846Z, RTT: 89ms) 
+2026-08-10 09:33:17: [PP369] [Binance] Đã đồng bộ giờ: offset = 1203ms (Giờ server: 2026-08-10T02:33:18.866Z, RTT: 89ms) 
+2026-08-10 09:36:17: [PP369] [Binance] Đã đồng bộ giờ: offset = 1221ms (Giờ server: 2026-08-10T02:36:18.887Z, RTT: 93ms) 
+2026-08-10 09:39:17: [PP369] [Binance] Đã đồng bộ giờ: offset = 1238ms (Giờ server: 2026-08-10T02:39:18.902Z, RTT: 87ms) 
+2026-08-10 09:42:17: [PP369] [Binance] Đã đồng bộ giờ: offset = 1254ms (Giờ server: 2026-08-10T02:42:18.921Z, RTT: 90ms) 
+2026-08-10 09:45:17: [PP369] [Binance] Đã đồng bộ giờ: offset = 1273ms (Giờ server: 2026-08-10T02:45:18.939Z, RTT: 89ms) 
+2026-08-10 09:48:17: [PP369] [Binance] Đã đồng bộ giờ: offset = 1290ms (Giờ server: 2026-08-10T02:48:18.957Z, RTT: 88ms) 
+2026-08-10 09:51:17: [PP369] [Binance] Đã đồng bộ giờ: offset = 1307ms (Giờ server: 2026-08-10T02:51:18.974Z, RTT: 88ms) 
+2026-08-10 09:54:17: [PP369] [Binance] Đã đồng bộ giờ: offset = 1324ms (Giờ server: 2026-08-10T02:54:18.992Z, RTT: 89ms) 
+2026-08-10 09:57:01: ◇ injected env (10) from .env // tip: ⌁ auth for agents [www.vestauth.com]
+2026-08-10 09:57:03: [PP369] [AI Reviewer] ✓ Đã nạp thành công mô hình AI (v1.1.0, mẫu N=19) 
+2026-08-10 09:57:03: [PP369] [369] initH4Cache: Tất cả 803 coin đã có nến H4 đầu năm. 
+2026-08-10 09:57:03: [PP369] [Binance] Đã đồng bộ giờ: offset = 2205ms (Giờ server: 2026-08-10T02:57:04.753Z, RTT: 1825ms) 
+2026-08-10 09:57:03: [AutoTrade] Bỏ qua 160 coin có grid ngoài khoảng 3–25% (theo giá hiện tại): 4(2.4%), XRP(29.0%), ETC(46.1%), LINK(36.5%), BAT(44.8%), QTUM(44.9%), KNC(28.4%), DOT(37.4%), SOL(39.1%), AVAX(46.1%), AAVE(32.7%), FIL(42.7%), BEL(2.7%), COTI(25.9%), ALICE(2.5%), NKN(2.6%), DGB(1.6%), ATA(1.8%), DYDX(2.6%), KLAY(2.4%), IMX(27.1%), APE(2.3%), WOO(25.8%), DAR(2.1%), OP(33.6%), STG(2.2%), SPELL(37.2%), APT(50.5%), FET(2.2%), CKB(34.4%), USDC(30.0%), AMB(2.5%), LEVER(26.7%), RDNT(2.9%), SUI(43.4%), MAV(33.1%), DODOX(1.5%), ARK(31.9%), BOND(28.1%), GAS(31.7%), SUPER(34.4%), 1000SATS(277.3%), ACE(25.3%), MOVR(25.8%), JUP(1.7%), GLM(32.5%), PORTAL(2.6%), MYRO(3.0%), W(35.4%), IO(2.3%), ZK(37.4%), ZRO(35.3%), SYN(2.9%), SYS(1.7%), ALPACA(25.2%), SUN(1.7%), DOGS(80.3%), BSW(2.5%), QUICK(2.3%), NEIRO(41.3%), FIO(2.5%), GHST(1.8%), LOKA(2.6%), COS(2.5%), SANTOS(61.4%), COW(28.5%), 1000000MOG(28.8%), ACT(26.2%), HIPPO(2.9%), DEGEN(2.9%), 1000WHY(197.4%), THE(41.6%), CHILLGUY(2.7%), ORCA(28.1%), MOVE(43.2%), KOMA(2.2%), VELODROME(1.7%), MOCA(39.4%), VANA(34.6%), USUAL(31.7%), DF(2.6%), GRIFFAIN(2.7%), D(2.2%), PIPPIN(165.8%), TST(1.6%), HEI(1.9%), RED(34.1%), MUBARAK(1.3%), TUT(0.2%), BROCCOLI714(1.6%), BR(2.4%), PLUME(2.4%), FUN(1.7%), BABY(2.3%), SIGN(43.7%), PUNDIX(38.4%), CTK(25.1%), SXT(38.7%), ASR(33.9%), MILK(3.0%), OG(111.8%), SKYAI(2.9%), AGT(2.1%), B(2.0%), MERL(153.4%), PORT3(2.5%), 1000000BOB(1.5%), LA(54.9%), PUMPBTC(26.9%), MYX(407.8%), DMC(2.3%), OL(1.7%), SAHARA(35.5%), M(28.1%), TANSSI(2.4%), PUMP(1.1%), CROSS(3.0%), VELVET(0.7%), ZORA(56.3%), TAG(2.5%), ESPORTS(169.2%), A2Z(2.1%), YALA(1.8%), SOMI(32.7%), BAS(1.1%), Q(1.3%), PTB(32.2%), OPEN(1.5%), AVNT(31.5%), UB(2.2%), TOSHI(28.4%), BARD(26.7%), TRADOOR(48.1%), BLESS(2.5%), HANA(0.9%), AKE(0.7%), LIGHT(200.0%), XAN(2.2%), TRUTH(2.3%), YB(39.9%), ENSO(3.0%), ZBT(3.0%), LAB(2.4%), RIVER(113.4%), 币安人生(0.6%), BLUAI(1.6%), APR(1.5%), ON(0.8%), AT(2.0%), UAI(1.2%), STABLE(0.9%), JCT(0.9%), ALLO(1.0%), BOB(2.8%), RLS(2.8%), POWER(30.7%), US(0.7%), CYS(3.0%), BREV(42.0%), MAGMA(1.6%)
+2026-08-10 09:57:04: [PP369] [Binance] Đang lấy leverage brackets cho 446 coin... 
+2026-08-10 09:57:04: [PP369] [Binance] Đã lưu leverage cho 446 coin vào step_sizes.json 
+2026-08-10 09:57:04: [PP369] [AutoTrade] Khởi động: 446 coin | margin=$10 | 10x | type=LIMIT 
+2026-08-10 09:57:04: [PP369] [Binance] Loaded step and tick sizes from existing file: 852 symbols 
+2026-08-10 09:57:04: [PP369] [AutoTrade] Đã nạp leverageInfo cho 446 coin từ cache. 
+2026-08-10 09:57:04: [PP369] [PP369Stream] Kết nối WebSocket thành công (market/stream) 
+2026-08-10 09:57:08: [PP369] [AutoTrade] Bắt đầu scan... 
+2026-08-10 09:57:20: [PP369] [AutoTrade] [BounceCancel] 1MBABYDOGE SHORT: entry=$0.0003617, current=$0.000354 (-2.10% >= 1.51%) → Hủy LIMIT ngay lập tức 
+2026-08-10 09:59:50: [PP369] [AutoTrade] WLD → SHORT (Score: +4.9đ) tại $0.3293 
+2026-08-10 09:59:50: [PP369] [AutoTrade] WLD SHORT [Score (4.9đ) < 5.5đ] — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-10 10:00:01: [PP369] [Binance] Đã đồng bộ giờ: offset = 1357ms (Giờ server: 2026-08-10T03:00:03.138Z, RTT: 106ms) 
+2026-08-10 10:00:07: [PP369] [H1Retest] === Kiểm tra Retest nến H1 vừa đóng cho 1 coin trong Watchlist === 
+2026-08-10 10:00:07: [PP369] [H1Retest] WLD SHORT nến H1 chưa chạm mốc $0.3293 (High: $0.3289) — Tiếp tục giữ trong Watchlist 
+2026-08-10 10:03:01: [PP369] [Binance] Đã đồng bộ giờ: offset = 1377ms (Giờ server: 2026-08-10T03:03:03.149Z, RTT: 89ms) 
+2026-08-10 10:06:01: [PP369] [Binance] Đã đồng bộ giờ: offset = 1418ms (Giờ server: 2026-08-10T03:06:03.215Z, RTT: 137ms) 
+2026-08-10 10:07:44: ◇ injected env (10) from .env // tip: ⌘ custom filepath { path: '/custom/path/.env' }
+2026-08-10 10:07:46: [PP369] [AI Reviewer] ✓ Đã nạp thành công mô hình AI (v1.1.0, mẫu N=19) 
+2026-08-10 10:07:46: [PP369] [369] initH4Cache: Tất cả 803 coin đã có nến H4 đầu năm. 
+2026-08-10 10:07:46: [PP369] [Binance] Đã đồng bộ giờ: offset = 2204ms (Giờ server: 2026-08-10T03:07:47.615Z, RTT: 1702ms) 
+2026-08-10 10:07:46: [AutoTrade] Bỏ qua 160 coin có grid ngoài khoảng 3–25% (theo giá hiện tại): 4(2.4%), XRP(29.1%), ETC(46.2%), LINK(36.6%), BAT(44.7%), QTUM(44.9%), KNC(28.4%), DOT(37.5%), SOL(39.1%), AVAX(46.2%), AAVE(32.8%), FIL(42.7%), BEL(2.7%), COTI(25.9%), ALICE(2.5%), NKN(2.6%), DGB(1.6%), ATA(1.8%), DYDX(2.6%), KLAY(2.4%), IMX(27.1%), APE(2.3%), WOO(25.8%), DAR(2.1%), OP(33.6%), STG(2.2%), SPELL(37.1%), APT(50.5%), FET(2.2%), CKB(34.5%), USDC(30.0%), AMB(2.5%), LEVER(26.7%), RDNT(2.9%), SUI(43.4%), MAV(33.2%), DODOX(1.5%), ARK(31.9%), BOND(28.1%), GAS(31.7%), SUPER(34.4%), 1000SATS(278.8%), ACE(25.3%), MOVR(25.8%), JUP(1.7%), GLM(32.5%), PORTAL(2.6%), MYRO(3.0%), W(35.5%), IO(2.3%), ZK(37.4%), ZRO(35.0%), SYN(2.9%), SYS(1.7%), ALPACA(25.2%), SUN(1.7%), DOGS(80.3%), BSW(2.5%), QUICK(2.3%), NEIRO(41.4%), FIO(2.5%), GHST(1.8%), LOKA(2.6%), COS(2.5%), SANTOS(61.4%), COW(28.5%), 1000000MOG(28.8%), ACT(26.9%), HIPPO(2.9%), DEGEN(2.9%), 1000WHY(197.4%), THE(40.8%), CHILLGUY(2.7%), ORCA(28.2%), MOVE(43.3%), KOMA(2.1%), VELODROME(1.7%), MOCA(39.4%), VANA(34.6%), USUAL(31.7%), DF(2.6%), GRIFFAIN(2.7%), D(2.2%), PIPPIN(166.4%), TST(1.6%), HEI(1.9%), RED(34.2%), MUBARAK(1.3%), TUT(0.1%), BROCCOLI714(1.6%), BR(2.4%), PLUME(2.5%), FUN(1.7%), BABY(2.3%), SIGN(43.7%), PUNDIX(38.3%), CTK(25.3%), SXT(38.6%), ASR(33.9%), MILK(3.0%), OG(111.8%), SKYAI(2.9%), AGT(2.1%), B(2.0%), MERL(152.7%), PORT3(2.5%), 1000000BOB(1.6%), LA(55.2%), PUMPBTC(26.9%), MYX(408.7%), DMC(2.3%), OL(1.7%), SAHARA(35.6%), M(28.3%), TANSSI(2.4%), PUMP(1.1%), CROSS(3.0%), VELVET(0.7%), ZORA(56.5%), TAG(2.5%), ESPORTS(168.9%), A2Z(2.1%), YALA(1.8%), SOMI(32.8%), BAS(1.1%), Q(1.3%), PTB(31.8%), OPEN(1.5%), AVNT(31.5%), UB(2.2%), TOSHI(28.4%), BARD(26.8%), TRADOOR(48.1%), BLESS(2.5%), HANA(0.9%), AKE(0.7%), LIGHT(201.2%), XAN(2.2%), TRUTH(2.3%), YB(40.1%), CLO(25.1%), ZBT(3.0%), LAB(2.4%), RIVER(113.4%), 币安人生(0.6%), BLUAI(1.5%), APR(1.5%), ON(0.8%), AT(2.0%), UAI(1.2%), STABLE(0.9%), JCT(0.9%), ALLO(1.0%), BOB(2.8%), RLS(2.8%), POWER(30.8%), US(0.6%), CYS(3.0%), BREV(42.0%), MAGMA(1.6%)
+2026-08-10 10:07:47: [PP369] [Binance] Đang lấy leverage brackets cho 446 coin... 
+2026-08-10 10:07:47: [PP369] [Binance] Đã lưu leverage cho 446 coin vào step_sizes.json 
+2026-08-10 10:07:47: [PP369] [AutoTrade] Khởi động: 446 coin | margin=$10 | 10x | type=LIMIT 
+2026-08-10 10:07:47: [PP369] [Binance] Loaded step and tick sizes from existing file: 852 symbols 
+2026-08-10 10:07:47: [PP369] [AutoTrade] Đã nạp leverageInfo cho 446 coin từ cache. 
+2026-08-10 10:07:47: [PP369] [PP369Stream] Kết nối WebSocket thành công (market/stream) 
+2026-08-10 10:07:51: [PP369] [AutoTrade] Bắt đầu scan... 
+2026-08-10 10:08:02: [PP369] [AutoTrade] [BounceCancel] 1MBABYDOGE SHORT: entry=$0.0003617, current=$0.000353 (-2.46% >= 1.51%) → Hủy LIMIT ngay lập tức 
+2026-08-10 10:10:44: [PP369] [Binance] Đã đồng bộ giờ: offset = 1442ms (Giờ server: 2026-08-10T03:10:46.143Z, RTT: 130ms) 
+2026-08-10 10:13:44: [PP369] [Binance] Đã đồng bộ giờ: offset = 1487ms (Giờ server: 2026-08-10T03:13:46.222Z, RTT: 197ms) 
+2026-08-10 10:16:44: [PP369] [Binance] Đã đồng bộ giờ: offset = 1477ms (Giờ server: 2026-08-10T03:16:46.179Z, RTT: 130ms) 
+2026-08-10 10:18:08: ◇ injected env (10) from .env // tip: ◈ secrets for agents [www.dotenvx.com]
+2026-08-10 10:18:09: [PP369] [AI Reviewer] ✓ Đã nạp thành công mô hình AI (v1.1.0, mẫu N=19) 
+2026-08-10 10:18:09: [PP369] [369] initH4Cache: Tất cả 803 coin đã có nến H4 đầu năm. 
+2026-08-10 10:18:09: [PP369] [Binance] Đã đồng bộ giờ: offset = 2209ms (Giờ server: 2026-08-10T03:18:11.228Z, RTT: 1585ms) 
+2026-08-10 10:18:09: [AutoTrade] Bỏ qua 160 coin có grid ngoài khoảng 3–25% (theo giá hiện tại): 4(2.4%), XRP(29.1%), ETC(46.2%), LINK(36.6%), BAT(44.8%), QTUM(45.0%), KNC(28.4%), DOT(37.5%), SOL(39.2%), AVAX(46.3%), AAVE(32.9%), FIL(42.7%), BEL(2.7%), COTI(25.9%), ALICE(2.5%), NKN(2.6%), DGB(1.6%), ATA(1.8%), DYDX(2.6%), KLAY(2.4%), IMX(27.1%), APE(2.3%), WOO(25.9%), DAR(2.1%), OP(33.7%), STG(2.2%), SPELL(37.2%), APT(50.6%), FET(2.2%), CKB(34.5%), USDC(30.0%), AMB(2.5%), LEVER(26.7%), RDNT(2.9%), SUI(43.4%), MAV(33.3%), DODOX(1.5%), ARK(32.0%), BOND(28.1%), GAS(31.7%), SUPER(34.5%), 1000SATS(277.5%), ACE(25.1%), MOVR(25.8%), JUP(1.7%), GLM(32.5%), PORTAL(2.6%), MYRO(3.0%), W(35.5%), IO(2.4%), ZK(37.5%), ZRO(35.0%), SYN(2.9%), SYS(1.7%), ALPACA(25.2%), SUN(1.7%), DOGS(79.9%), BSW(2.5%), QUICK(2.3%), NEIRO(41.4%), FIO(2.5%), GHST(1.8%), LOKA(2.6%), COS(2.5%), SANTOS(61.5%), COW(28.6%), 1000000MOG(28.8%), ACT(26.8%), HIPPO(2.9%), DEGEN(2.9%), 1000WHY(197.4%), THE(40.8%), CHILLGUY(2.7%), ORCA(28.2%), MOVE(43.4%), KOMA(2.1%), VELODROME(1.7%), MOCA(39.4%), VANA(34.6%), USUAL(31.6%), DF(2.6%), GRIFFAIN(2.7%), D(2.2%), PIPPIN(166.9%), TST(1.6%), HEI(1.9%), RED(34.2%), MUBARAK(1.3%), TUT(0.1%), BROCCOLI714(1.6%), BR(2.4%), PLUME(2.4%), FUN(1.7%), BABY(2.3%), SIGN(43.8%), PUNDIX(38.3%), CTK(25.4%), SXT(38.8%), ASR(33.9%), MILK(3.0%), OG(111.9%), SKYAI(2.9%), AGT(2.1%), B(2.0%), MERL(152.4%), PORT3(2.5%), 1000000BOB(1.6%), LA(55.9%), PUMPBTC(27.0%), MYX(410.0%), DMC(2.3%), OL(1.7%), SAHARA(35.5%), M(28.1%), TANSSI(2.4%), PUMP(1.1%), CROSS(3.0%), VELVET(0.7%), ZORA(56.6%), TAG(2.5%), ESPORTS(169.4%), A2Z(2.1%), YALA(1.8%), SOMI(33.0%), BAS(1.1%), Q(1.3%), PTB(31.5%), OPEN(1.5%), AVNT(31.6%), UB(2.3%), TOSHI(28.5%), BARD(26.7%), TRADOOR(48.5%), BLESS(2.6%), HANA(0.9%), AKE(0.7%), LIGHT(201.5%), XAN(2.3%), TRUTH(2.3%), YB(40.5%), ZBT(3.0%), LAB(2.4%), RIVER(113.6%), 币安人生(0.6%), BLUAI(1.6%), APR(1.5%), ON(0.8%), KITE(3.0%), AT(2.0%), UAI(1.2%), STABLE(0.9%), JCT(0.9%), ALLO(1.0%), BOB(2.8%), RLS(2.8%), POWER(31.0%), US(0.6%), CYS(3.0%), BREV(42.0%), MAGMA(1.6%)
+2026-08-10 10:18:10: [PP369] [Binance] Đang lấy leverage brackets cho 446 coin... 
+2026-08-10 10:18:10: [PP369] [Binance] Đã lưu leverage cho 446 coin vào step_sizes.json 
+2026-08-10 10:18:10: [PP369] [AutoTrade] Khởi động: 446 coin | margin=$10 | 10x | type=LIMIT 
+2026-08-10 10:18:10: [PP369] [Binance] Loaded step and tick sizes from existing file: 852 symbols 
+2026-08-10 10:18:10: [PP369] [AutoTrade] Đã nạp leverageInfo cho 446 coin từ cache. 
+2026-08-10 10:18:11: [PP369] [PP369Stream] Kết nối WebSocket thành công (market/stream) 
+2026-08-10 10:18:15: [PP369] [AutoTrade] Bắt đầu scan... 
+2026-08-10 10:21:08: [PP369] [Binance] Đã đồng bộ giờ: offset = 1501ms (Giờ server: 2026-08-10T03:21:09.863Z, RTT: 126ms) 
+2026-08-10 10:24:08: [PP369] [Binance] Đã đồng bộ giờ: offset = 1528ms (Giờ server: 2026-08-10T03:24:09.899Z, RTT: 144ms) 
+2026-08-10 10:25:14: ◇ injected env (10) from .env // tip: ⌘ enable debugging { debug: true }
+2026-08-10 10:25:15: [PP369] [AI Reviewer] ✓ Đã nạp thành công mô hình AI (v1.1.0, mẫu N=19) 
+2026-08-10 10:25:15: [PP369] [369] initH4Cache: Tất cả 803 coin đã có nến H4 đầu năm. 
+2026-08-10 10:25:15: [PP369] [Binance] Đã đồng bộ giờ: offset = 2137ms (Giờ server: 2026-08-10T03:25:17.410Z, RTT: 1361ms) 
+2026-08-10 10:25:15: [AutoTrade] Bỏ qua 159 coin có grid ngoài khoảng 3–25% (theo giá hiện tại): 4(2.4%), XRP(29.0%), ETC(46.2%), LINK(36.6%), BAT(44.7%), QTUM(44.9%), KNC(28.4%), DOT(37.4%), SOL(39.0%), AVAX(46.0%), AAVE(32.7%), FIL(42.6%), BEL(2.7%), COTI(25.9%), ALICE(2.5%), NKN(2.6%), DGB(1.6%), ATA(1.8%), DYDX(2.6%), KLAY(2.4%), IMX(27.1%), APE(2.3%), WOO(25.8%), DAR(2.1%), OP(33.6%), STG(2.2%), SPELL(37.1%), APT(50.4%), FET(2.2%), CKB(34.4%), USDC(30.0%), AMB(2.5%), LEVER(26.7%), RDNT(2.9%), SUI(43.3%), MAV(33.1%), DODOX(1.5%), ARK(31.9%), BOND(28.1%), GAS(31.7%), SUPER(34.4%), 1000SATS(275.7%), MOVR(25.8%), JUP(1.7%), GLM(32.4%), PORTAL(2.6%), MYRO(3.0%), W(35.5%), IO(2.3%), ZK(37.4%), ZRO(35.1%), SYN(2.9%), SYS(1.7%), ALPACA(25.2%), SUN(1.7%), DOGS(79.9%), BSW(2.5%), QUICK(2.3%), NEIRO(40.9%), FIO(2.5%), GHST(1.8%), LOKA(2.6%), COS(2.5%), SANTOS(61.3%), COW(28.5%), 1000000MOG(28.7%), ACT(26.3%), HIPPO(2.9%), DEGEN(2.9%), 1000WHY(197.4%), THE(40.7%), CHILLGUY(2.7%), ORCA(28.1%), MOVE(43.2%), KOMA(2.1%), VELODROME(1.7%), MOCA(39.4%), VANA(34.6%), USUAL(31.5%), DF(2.6%), GRIFFAIN(2.6%), D(2.2%), PIPPIN(166.0%), TST(1.6%), HEI(1.9%), RED(34.0%), MUBARAK(1.2%), TUT(0.1%), BROCCOLI714(1.6%), BR(2.4%), PLUME(2.5%), FUN(1.7%), BABY(2.3%), SIGN(43.7%), PUNDIX(38.2%), CTK(25.3%), SXT(38.6%), ASR(33.9%), MILK(3.0%), OG(111.9%), SKYAI(2.8%), AGT(2.1%), B(2.0%), MERL(151.4%), PORT3(2.5%), 1000000BOB(1.5%), LA(55.9%), PUMPBTC(26.9%), MYX(406.7%), DMC(2.3%), OL(1.7%), SAHARA(35.5%), M(28.2%), TANSSI(2.4%), PUMP(1.1%), CROSS(3.0%), VELVET(0.7%), ZORA(56.5%), TAG(2.5%), ESPORTS(168.8%), A2Z(2.1%), YALA(1.8%), SOMI(32.8%), BAS(1.1%), Q(1.3%), PTB(31.5%), OPEN(1.5%), AVNT(31.5%), UB(2.3%), TOSHI(28.4%), BARD(26.7%), TRADOOR(48.5%), BLESS(2.6%), HANA(0.9%), AKE(0.7%), LIGHT(201.7%), XAN(2.3%), TRUTH(2.3%), YB(40.5%), ZBT(3.0%), LAB(2.4%), RIVER(113.1%), 币安人生(0.6%), BLUAI(1.5%), APR(1.5%), ON(0.8%), KITE(3.0%), AT(2.0%), UAI(1.2%), STABLE(0.9%), JCT(0.8%), ALLO(1.0%), BOB(2.8%), RLS(2.8%), POWER(30.8%), US(0.7%), CYS(3.0%), BREV(41.9%), MAGMA(1.6%)
+2026-08-10 10:25:16: [PP369] [Binance] Đang lấy leverage brackets cho 447 coin... 
+2026-08-10 10:25:16: [PP369] [Binance] Đã lưu leverage cho 447 coin vào step_sizes.json 
+2026-08-10 10:25:16: [PP369] [AutoTrade] Khởi động: 447 coin | margin=$10 | 10x | type=LIMIT 
+2026-08-10 10:25:17: [PP369] [Binance] Loaded step and tick sizes from existing file: 852 symbols 
+2026-08-10 10:25:17: [PP369] [AutoTrade] Đã nạp leverageInfo cho 447 coin từ cache. 
+2026-08-10 10:25:17: [PP369] [PP369Stream] Kết nối WebSocket thành công (market/stream) 
+2026-08-10 10:25:21: [PP369] [AutoTrade] Bắt đầu scan... 
+2026-08-10 10:28:14: [PP369] [Binance] Đã đồng bộ giờ: offset = 1555ms (Giờ server: 2026-08-10T03:28:16.304Z, RTT: 150ms) 
+2026-08-10 10:31:14: [PP369] [Binance] Đã đồng bộ giờ: offset = 1559ms (Giờ server: 2026-08-10T03:31:16.295Z, RTT: 125ms) 
+2026-08-10 10:34:14: [PP369] [Binance] Đã đồng bộ giờ: offset = 1581ms (Giờ server: 2026-08-10T03:34:16.321Z, RTT: 132ms) 
+2026-08-10 10:37:14: [PP369] [Binance] Đã đồng bộ giờ: offset = 1597ms (Giờ server: 2026-08-10T03:37:16.337Z, RTT: 130ms) 
+2026-08-10 10:40:14: [PP369] [Binance] Đã đồng bộ giờ: offset = 1614ms (Giờ server: 2026-08-10T03:40:16.352Z, RTT: 127ms) 
+2026-08-10 10:43:14: [PP369] [Binance] Đã đồng bộ giờ: offset = 1636ms (Giờ server: 2026-08-10T03:43:16.381Z, RTT: 139ms) 
+2026-08-10 10:46:14: [PP369] [Binance] Đã đồng bộ giờ: offset = 1669ms (Giờ server: 2026-08-10T03:46:16.429Z, RTT: 167ms) 
+2026-08-10 10:47:56: [PP369] [AutoTrade] EDU → SHORT (Score: +3.8đ) tại $0.04 
+2026-08-10 10:47:56: [PP369] [AutoTrade] EDU SHORT [Score (3.8đ) < 5.5đ] — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-10 10:49:14: [PP369] [Binance] Đã đồng bộ giờ: offset = 1672ms (Giờ server: 2026-08-10T03:49:16.417Z, RTT: 138ms) 
+2026-08-10 10:52:14: [PP369] [Binance] Đã đồng bộ giờ: offset = 1683ms (Giờ server: 2026-08-10T03:52:16.421Z, RTT: 123ms) 
+2026-08-10 10:54:26: [PP369] [AutoTrade] 1000XEC → LONG (Score: +6.8999999999999995đ) tại $0.00663 
+2026-08-10 10:54:26: [PP369] [AI Reviewer (Shadow)] 🟡 Khuyên BỎ QUA 1000XEC (LONG) - Xác suất thắng 47.4% < 65% (+ VOL_ULTRA (x1.0594), - RSI_NEUTRAL (x0.8586), - LS_GOLD (x0.9091), + PA_3_LEVELS (x1.0559), - OI_STABLE (x0.9043), - VOL_STABLE (x0.9659), - BTC_ALIGNED (x0.8972), - GRID_NORMAL (x0.9455)) 
+2026-08-10 10:54:26: [PP369] [AutoTrade] Set leverage 1000XECUSDT = 8x (Bước 300đ: 4.52% → tính được 8x, giới hạn: 75x | Ký quỹ mục tiêu: $30) 
+2026-08-10 10:54:26: [PP369] [AutoTrade] ✓ 1000XEC BUY 36199 @ $0.00663 orderId=3834598414 status=NEW 
+2026-08-10 10:55:14: [PP369] [Binance] Đã đồng bộ giờ: offset = 1683ms (Giờ server: 2026-08-10T03:55:16.405Z, RTT: 88ms) 
+2026-08-10 10:58:14: [PP369] [Binance] Đã đồng bộ giờ: offset = 1700ms (Giờ server: 2026-08-10T03:58:16.422Z, RTT: 88ms) 
+2026-08-10 11:00:04: [PP369] [H1Retest] === Kiểm tra Retest nến H1 vừa đóng cho 1 coin trong Watchlist === 
+2026-08-10 11:00:04: [PP369] [H1Retest] 🎯 EDU SHORT H1 đóng rút chân chuẩn tại Entry $0.04, chưa nảy đủ 5% ROI (Max ROI: +4.13%). ĐẶT LỆNH LIMIT TẠI ENTRY! 
+2026-08-10 11:00:04: [PP369] [AI Reviewer (Shadow Retest H1)] 🟡 Khuyên BỎ QUA EDU (SHORT) - Xác suất thắng 55.4% < 65% (+ VOL_ULTRA (x1.0594), - PA_0_LEVEL (x0.8586), - OI_STABLE (x0.9043), - VOL_STABLE (x0.9659), + BTC_COUNTER (x1.0559), + GRID_WIDE (x1.0474)) 
+2026-08-10 11:00:04: [PP369] [H1Retest] ✓ Đã đặt thành công lệnh LIMIT Retest H1 cho EDU SELL 3750 @ $0.04 (orderId=3476201955) 
+2026-08-10 11:01:14: [PP369] [Binance] Đã đồng bộ giờ: offset = 1718ms (Giờ server: 2026-08-10T04:01:16.440Z, RTT: 87ms) 
+2026-08-10 11:04:14: [PP369] [Binance] Đã đồng bộ giờ: offset = 1735ms (Giờ server: 2026-08-10T04:04:16.458Z, RTT: 89ms) 
+2026-08-10 11:07:14: [PP369] [Binance] Đã đồng bộ giờ: offset = 1753ms (Giờ server: 2026-08-10T04:07:16.476Z, RTT: 88ms) 
+2026-08-10 11:09:10: [PP369] [AutoTrade] ✓ Đặt TP EDU @ $0.0391000 (đối ứng BUY) orderId=1000002499805360 
+2026-08-10 11:09:10: [PP369] [AutoTrade] ✓ Đặt SL EDU @ $0.0410000 (đối ứng BUY) orderId=1000002499805362 
+2026-08-10 11:10:14: [PP369] [Binance] Đã đồng bộ giờ: offset = 1769ms (Giờ server: 2026-08-10T04:10:16.493Z, RTT: 88ms) 
+2026-08-10 11:13:14: [PP369] [Binance] Đã đồng bộ giờ: offset = 1787ms (Giờ server: 2026-08-10T04:13:16.512Z, RTT: 88ms) 
+2026-08-10 11:15:13: [PP369] [AutoTrade] [BounceCancel] 1000XEC LONG: entry=$0.00663, current=$0.006690 (+0.90% >= 0.82%) → Hủy LIMIT ngay lập tức 
+2026-08-10 11:16:14: [PP369] [Binance] Đã đồng bộ giờ: offset = 1805ms (Giờ server: 2026-08-10T04:16:16.531Z, RTT: 88ms) 
+2026-08-10 11:19:14: [PP369] [Binance] Đã đồng bộ giờ: offset = 1828ms (Giờ server: 2026-08-10T04:19:16.558Z, RTT: 97ms) 
+2026-08-10 11:22:14: [PP369] [Binance] Đã đồng bộ giờ: offset = 1841ms (Giờ server: 2026-08-10T04:22:16.567Z, RTT: 88ms) 
+2026-08-10 11:25:14: [PP369] [Binance] Đã đồng bộ giờ: offset = 1858ms (Giờ server: 2026-08-10T04:25:16.584Z, RTT: 88ms) 
+2026-08-10 11:28:14: [PP369] [Binance] Đã đồng bộ giờ: offset = 1876ms (Giờ server: 2026-08-10T04:28:16.604Z, RTT: 90ms) 
+2026-08-10 11:31:14: [PP369] [Binance] Đã đồng bộ giờ: offset = 1895ms (Giờ server: 2026-08-10T04:31:16.623Z, RTT: 90ms) 
+2026-08-10 11:34:14: [PP369] [Binance] Đã đồng bộ giờ: offset = 1911ms (Giờ server: 2026-08-10T04:34:16.638Z, RTT: 88ms) 
+2026-08-10 11:35:26: [PP369] [AutoTrade] LUMIA → SHORT (Score: +3.0999999999999996đ) tại $0.0783 
+2026-08-10 11:35:26: [PP369] [AutoTrade] LUMIA SHORT [Score (3.0999999999999996đ) < 5.5đ] — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-10 11:37:14: [PP369] [Binance] Đã đồng bộ giờ: offset = 1930ms (Giờ server: 2026-08-10T04:37:16.657Z, RTT: 89ms) 
+2026-08-10 11:38:26: [PP369] [AutoTrade] C → SHORT (Score: +2.6đ) tại $0.06449 
+2026-08-10 11:38:26: [PP369] [AutoTrade] C SHORT [Ngược Trend (Thiếu Cản & RSI Cực Đại)] — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-10 11:40:14: [PP369] [Binance] Đã đồng bộ giờ: offset = 1947ms (Giờ server: 2026-08-10T04:40:16.677Z, RTT: 92ms) 
+2026-08-10 11:43:14: [PP369] [Binance] Đã đồng bộ giờ: offset = 1963ms (Giờ server: 2026-08-10T04:43:16.692Z, RTT: 90ms) 
+2026-08-10 11:46:14: [PP369] [Binance] Đã đồng bộ giờ: offset = 1981ms (Giờ server: 2026-08-10T04:46:16.712Z, RTT: 95ms) 
+2026-08-10 11:49:14: [PP369] [Binance] Đã đồng bộ giờ: offset = 1999ms (Giờ server: 2026-08-10T04:49:16.727Z, RTT: 87ms) 
+2026-08-10 11:52:14: [PP369] [Binance] Đã đồng bộ giờ: offset = 2021ms (Giờ server: 2026-08-10T04:52:16.755Z, RTT: 97ms) 
+2026-08-10 11:54:26: [PP369] [AutoTrade] SOLV → LONG (Score: +4.6đ) tại $0.0026 
+2026-08-10 11:54:26: [PP369] [AutoTrade] SOLV LONG [Score (4.6đ) < 5.5đ] — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-10 11:55:14: [PP369] [Binance] Đã đồng bộ giờ: offset = 2035ms (Giờ server: 2026-08-10T04:55:16.766Z, RTT: 89ms) 
+2026-08-10 11:57:26: [PP369] [AutoTrade] 1000XEC → LONG (Score: +7.199999999999999đ) tại $0.00663 
+2026-08-10 11:57:27: [PP369] [AutoTrade] 1000XEC LONG: Từ khi chạm mốc Short ($0.00688), nến M1 đã xát mốc entry LONG ($0.006634) rồi nảy lên đỉnh $0.006696 (+0.93% >= 0.75% Khung/5) — HỦY LIMIT stale. 
+2026-08-10 11:58:14: [PP369] [Binance] Đã đồng bộ giờ: offset = 2052ms (Giờ server: 2026-08-10T04:58:16.784Z, RTT: 89ms) 
+2026-08-10 12:00:04: [PP369] [H1Retest] === Kiểm tra Retest nến H1 vừa đóng cho 3 coin trong Watchlist === 
+2026-08-10 12:00:04: [PP369] [H1Retest] LUMIA SHORT nến H1 rút chân nhưng ĐÃ PHẢN ỨNG NẢY ROI = +13.67% (>= 5.0%) sau khi chạm entry. Bỏ qua không đặt limit. 
+2026-08-10 12:00:05: [PP369] [H1Retest] C SHORT nến H1 rút chân nhưng ĐÃ PHẢN ỨNG NẢY ROI = +6.20% (>= 5.0%) sau khi chạm entry. Bỏ qua không đặt limit. 
+2026-08-10 12:00:05: [PP369] [H1Retest] SOLV LONG nến H1 đã chạm mốc $0.0026 nhưng đâm thủng mốc (Close: $0.002489) — XÓA KHỎI WATCHLIST 
+2026-08-10 12:01:14: [PP369] [Binance] Đã đồng bộ giờ: offset = 2070ms (Giờ server: 2026-08-10T05:01:16.801Z, RTT: 87ms) 
+2026-08-10 12:04:14: [PP369] [Binance] Đã đồng bộ giờ: offset = 2086ms (Giờ server: 2026-08-10T05:04:16.820Z, RTT: 92ms) 
+2026-08-10 12:07:14: [PP369] [Binance] Đã đồng bộ giờ: offset = 2105ms (Giờ server: 2026-08-10T05:07:16.837Z, RTT: 87ms) 
+2026-08-10 12:10:14: [PP369] [Binance] Đã đồng bộ giờ: offset = 2123ms (Giờ server: 2026-08-10T05:10:16.856Z, RTT: 88ms) 
+2026-08-10 12:13:14: [PP369] [Binance] Đã đồng bộ giờ: offset = 2140ms (Giờ server: 2026-08-10T05:13:16.872Z, RTT: 88ms) 
+2026-08-10 12:16:14: [PP369] [Binance] Đã đồng bộ giờ: offset = 2183ms (Giờ server: 2026-08-10T05:16:16.942Z, RTT: 140ms) 
+2026-08-10 12:16:26: [PP369] [AutoTrade] COAI → SHORT (Score: +3.9đ) tại $0.4353 
+2026-08-10 12:16:26: [PP369] [AutoTrade] COAI SHORT [Score (3.9đ) < 5.5đ] — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-10 12:19:14: [PP369] [Binance] Đã đồng bộ giờ: offset = 2203ms (Giờ server: 2026-08-10T05:19:16.964Z, RTT: 145ms) 
+2026-08-10 12:22:14: [PP369] [Binance] Đã đồng bộ giờ: offset = 2234ms (Giờ server: 2026-08-10T05:22:17.009Z, RTT: 171ms) 
+2026-08-10 12:25:14: [PP369] [Binance] Đã đồng bộ giờ: offset = 2230ms (Giờ server: 2026-08-10T05:25:16.985Z, RTT: 128ms) 
+2026-08-10 12:28:14: [PP369] [Binance] Đã đồng bộ giờ: offset = 2249ms (Giờ server: 2026-08-10T05:28:17.007Z, RTT: 132ms) 
+2026-08-10 12:31:14: [PP369] [Binance] Đã đồng bộ giờ: offset = 2270ms (Giờ server: 2026-08-10T05:31:17.030Z, RTT: 137ms) 
+2026-08-10 12:34:14: [PP369] [Binance] Đã đồng bộ giờ: offset = 2290ms (Giờ server: 2026-08-10T05:34:17.055Z, RTT: 144ms) 
+2026-08-10 12:37:14: [PP369] [Binance] Đã đồng bộ giờ: offset = 2308ms (Giờ server: 2026-08-10T05:37:17.072Z, RTT: 142ms) 
+2026-08-10 12:40:14: [PP369] [Binance] Đã đồng bộ giờ: offset = 2319ms (Giờ server: 2026-08-10T05:40:17.078Z, RTT: 130ms) 
+2026-08-10 12:43:14: [PP369] [Binance] Đã đồng bộ giờ: offset = 2342ms (Giờ server: 2026-08-10T05:43:17.107Z, RTT: 142ms) 
+2026-08-10 12:46:14: [PP369] [Binance] Đã đồng bộ giờ: offset = 2365ms (Giờ server: 2026-08-10T05:46:17.136Z, RTT: 152ms) 
+2026-08-10 12:49:14: [PP369] [Binance] Đã đồng bộ giờ: offset = 2376ms (Giờ server: 2026-08-10T05:49:17.140Z, RTT: 137ms) 
+2026-08-10 12:52:14: [PP369] [Binance] Đã đồng bộ giờ: offset = 2393ms (Giờ server: 2026-08-10T05:52:17.157Z, RTT: 135ms) 
+2026-08-10 12:55:14: [PP369] [Binance] Đã đồng bộ giờ: offset = 2414ms (Giờ server: 2026-08-10T05:55:17.185Z, RTT: 146ms) 
+2026-08-10 12:58:14: [PP369] [Binance] Đã đồng bộ giờ: offset = 2439ms (Giờ server: 2026-08-10T05:58:17.216Z, RTT: 158ms) 
+2026-08-10 13:00:05: [PP369] [H1Retest] === Kiểm tra Retest nến H1 vừa đóng cho 1 coin trong Watchlist === 
+2026-08-10 13:00:05: [PP369] [H1Retest] COAI SHORT nến H1 đã chạm mốc $0.4353 nhưng đâm thủng mốc (Close: $0.4436) — XÓA KHỎI WATCHLIST 
+2026-08-10 13:01:14: [PP369] [Binance] Đã đồng bộ giờ: offset = 2446ms (Giờ server: 2026-08-10T06:01:17.212Z, RTT: 135ms) 
+2026-08-10 13:04:14: [PP369] [Binance] Đã đồng bộ giờ: offset = 2484ms (Giờ server: 2026-08-10T06:04:17.272Z, RTT: 178ms) 
+2026-08-10 13:07:14: [PP369] [Binance] Đã đồng bộ giờ: offset = 2473ms (Giờ server: 2026-08-10T06:07:17.233Z, RTT: 121ms) 
+2026-08-10 13:10:14: [PP369] [Binance] Đã đồng bộ giờ: offset = 2496ms (Giờ server: 2026-08-10T06:10:17.263Z, RTT: 132ms) 
+2026-08-10 13:13:14: [PP369] [Binance] Đã đồng bộ giờ: offset = 2508ms (Giờ server: 2026-08-10T06:13:17.268Z, RTT: 119ms) 
+2026-08-10 13:16:14: [PP369] [Binance] Đã đồng bộ giờ: offset = 2537ms (Giờ server: 2026-08-10T06:16:17.308Z, RTT: 142ms) 
+2026-08-10 13:18:02: ◇ injected env (10) from .env // tip: ⌘ custom filepath { path: '/custom/path/.env' }
+2026-08-10 13:18:02: [PP369] [AI Reviewer] ✓ Đã nạp thành công mô hình AI (v1.1.0, mẫu N=19) 
+2026-08-10 13:18:02: [PP369] [369] initH4Cache: Tất cả 803 coin đã có nến H4 đầu năm. 
+2026-08-10 13:18:02: [AutoTrade] Bỏ qua 160 coin có grid ngoài khoảng 3–25% (theo giá hiện tại): 4(2.5%), XRP(29.0%), ETC(46.0%), LINK(36.5%), BAT(44.9%), QTUM(44.9%), KNC(28.4%), DOT(37.1%), SOL(39.1%), AVAX(45.9%), AAVE(32.7%), FIL(42.4%), BEL(2.7%), COTI(26.5%), ALICE(2.5%), NKN(2.6%), DGB(1.6%), ATA(1.8%), DYDX(2.6%), KLAY(2.4%), IMX(27.0%), APE(2.3%), WOO(25.9%), DAR(2.1%), OP(33.2%), STG(2.2%), SPELL(37.4%), APT(50.3%), FET(2.2%), CKB(34.7%), USDC(30.0%), AMB(2.5%), LEVER(26.7%), RDNT(2.9%), SUI(43.2%), MAV(33.4%), DODOX(1.4%), ARK(31.8%), BOND(28.1%), GAS(31.8%), SUPER(34.8%), 1000SATS(277.0%), ACE(26.4%), MOVR(25.8%), JUP(1.6%), GLM(32.4%), PORTAL(2.6%), MYRO(3.0%), W(35.4%), IO(2.4%), ZK(37.5%), ZRO(34.7%), SYN(2.9%), SYS(1.7%), ALPACA(25.2%), SUN(1.7%), DOGS(81.3%), BSW(2.5%), QUICK(2.3%), NEIRO(41.5%), FIO(2.5%), GHST(1.8%), LOKA(2.6%), COS(2.5%), SANTOS(61.5%), COW(28.5%), 1000000MOG(28.5%), ACT(25.5%), HIPPO(2.9%), DEGEN(2.9%), 1000WHY(197.4%), THE(44.3%), CHILLGUY(2.7%), ORCA(28.1%), MOVE(43.4%), KOMA(2.2%), VELODROME(1.7%), MOCA(39.4%), VANA(34.3%), USUAL(32.8%), DF(2.6%), GRIFFAIN(2.6%), D(2.2%), PIPPIN(163.1%), TST(1.6%), HEI(2.0%), RED(34.1%), MUBARAK(1.4%), TUT(0.2%), BROCCOLI714(1.6%), BR(2.4%), PLUME(2.4%), FUN(1.7%), BABY(2.4%), SIGN(43.9%), PUNDIX(38.3%), CTK(26.0%), SXT(38.5%), ASR(34.1%), MILK(3.0%), OG(113.1%), SKYAI(2.7%), AGT(2.1%), B(2.1%), MERL(146.3%), PORT3(2.5%), 1000000BOB(1.6%), LA(55.9%), PUMPBTC(26.8%), MYX(405.6%), DMC(2.3%), OL(1.7%), SAHARA(35.9%), M(28.4%), TANSSI(2.4%), PUMP(1.1%), CROSS(2.9%), VELVET(0.7%), ZORA(56.8%), TAG(2.5%), ESPORTS(171.9%), A2Z(2.1%), YALA(1.8%), SOMI(33.3%), BAS(1.1%), Q(1.3%), PTB(32.4%), OPEN(1.5%), AVNT(31.6%), UB(2.4%), TOSHI(28.5%), BARD(26.6%), TRADOOR(50.5%), BLESS(2.5%), HANA(0.9%), AKE(0.7%), LIGHT(195.2%), XAN(2.3%), TRUTH(2.3%), YB(40.5%), CLO(30.2%), ZBT(3.0%), LAB(2.4%), RIVER(111.2%), 币安人生(0.6%), BLUAI(2.0%), APR(1.5%), ON(0.8%), KITE(2.9%), AT(2.0%), UAI(1.2%), STABLE(0.9%), JCT(0.8%), ALLO(1.0%), BOB(2.8%), RLS(2.8%), POWER(31.0%), US(0.7%), BREV(41.8%), MAGMA(1.6%)
+2026-08-10 13:18:03: [PP369] [Binance] Đã đồng bộ giờ: offset = 3074ms (Giờ server: 2026-08-10T06:18:05.960Z, RTT: 1200ms) 
+2026-08-10 13:18:03: [PP369] [Binance] Đang lấy leverage brackets cho 446 coin... 
+2026-08-10 13:18:03: [PP369] [Binance] Đã lưu leverage cho 446 coin vào step_sizes.json 
+2026-08-10 13:18:03: [PP369] [AutoTrade] Khởi động: 446 coin | margin=$10 | 10x | type=LIMIT 
+2026-08-10 13:18:03: [PP369] [Binance] Loaded step and tick sizes from existing file: 852 symbols 
+2026-08-10 13:18:03: [PP369] [AutoTrade] Đã nạp leverageInfo cho 446 coin từ cache. 
+2026-08-10 13:18:04: [PP369] [PP369Stream] Kết nối WebSocket thành công (market/stream) 
+2026-08-10 13:18:07: [PP369] [AutoTrade] Bắt đầu scan... 
+2026-08-10 13:21:02: [PP369] [Binance] Đã đồng bộ giờ: offset = 2552ms (Giờ server: 2026-08-10T06:21:04.966Z, RTT: 118ms) 
+2026-08-10 13:24:02: [PP369] [Binance] Đã đồng bộ giờ: offset = 2582ms (Giờ server: 2026-08-10T06:24:05.010Z, RTT: 142ms) 
+2026-08-10 13:27:02: [PP369] [Binance] Đã đồng bộ giờ: offset = 2608ms (Giờ server: 2026-08-10T06:27:05.044Z, RTT: 158ms) 
+2026-08-10 13:28:47: [PP369] [AutoTrade] JTO → SHORT (Score: +3.9đ) tại $0.5711 
+2026-08-10 13:28:47: [PP369] [AutoTrade] JTO SHORT [Score (3.9đ) < 5.5đ] — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-10 13:28:48: [PP369] [AutoTrade] EPIC → LONG (Score: +5.4đ) tại $0.4685 
+2026-08-10 13:28:48: [PP369] [AutoTrade] EPIC LONG không đạt Tiêu chí 2 (Biến động H1/M15 an toàn) — bỏ qua 
+2026-08-10 13:30:02: [PP369] [Binance] Đã đồng bộ giờ: offset = 2626ms (Giờ server: 2026-08-10T06:30:05.063Z, RTT: 158ms) 
+2026-08-10 13:33:02: [PP369] [Binance] Đã đồng bộ giờ: offset = 2624ms (Giờ server: 2026-08-10T06:33:05.041Z, RTT: 118ms) 
+2026-08-10 13:36:02: [PP369] [Binance] Đã đồng bộ giờ: offset = 2662ms (Giờ server: 2026-08-10T06:36:05.099Z, RTT: 159ms) 
+2026-08-10 13:37:46: [PP369] [AutoTrade] EDU → LONG (Score: +4.4đ) tại $0.0375 
+2026-08-10 13:37:46: [PP369] [AutoTrade] EDU LONG [Score (4.4đ) < 5.5đ] — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-10 13:39:02: [PP369] [Binance] Đã đồng bộ giờ: offset = 2668ms (Giờ server: 2026-08-10T06:39:05.099Z, RTT: 144ms) 
+2026-08-10 13:42:02: [PP369] [Binance] Đã đồng bộ giờ: offset = 2686ms (Giờ server: 2026-08-10T06:42:05.114Z, RTT: 138ms) 
+2026-08-10 13:45:02: [PP369] [Binance] Đã đồng bộ giờ: offset = 2699ms (Giờ server: 2026-08-10T06:45:05.129Z, RTT: 141ms) 
+2026-08-10 13:48:02: [PP369] [Binance] Đã đồng bộ giờ: offset = 2722ms (Giờ server: 2026-08-10T06:48:05.154Z, RTT: 141ms) 
+2026-08-10 13:51:02: [PP369] [Binance] Đã đồng bộ giờ: offset = 2736ms (Giờ server: 2026-08-10T06:51:05.166Z, RTT: 133ms) 
+2026-08-10 13:54:03: [PP369] [Binance] Đã đồng bộ giờ: offset = 3002ms (Giờ server: 2026-08-10T06:54:05.704Z, RTT: 672ms) 
+2026-08-10 13:57:02: [PP369] [Binance] Đã đồng bộ giờ: offset = 2792ms (Giờ server: 2026-08-10T06:57:05.244Z, RTT: 174ms) 
+2026-08-10 14:00:02: [PP369] [Binance] Đã đồng bộ giờ: offset = 2787ms (Giờ server: 2026-08-10T07:00:05.219Z, RTT: 132ms) 
+2026-08-10 14:00:04: [PP369] [H1Retest] === Kiểm tra Retest nến H1 vừa đóng cho 2 coin trong Watchlist === 
+2026-08-10 14:00:04: [PP369] [H1Retest] JTO SHORT nến H1 chưa chạm mốc $0.5711 (High: $0.5705) — Tiếp tục giữ trong Watchlist 
+2026-08-10 14:00:05: [PP369] [H1Retest] 🎯 EDU LONG H1 đóng rút chân chuẩn tại Entry $0.0375, chưa nảy đủ 5% ROI (Max ROI: +3.73%). ĐẶT LỆNH LIMIT TẠI ENTRY! 
+2026-08-10 14:00:05: [PP369] [AI Reviewer (Shadow Retest H1)] 🟡 Khuyên BỎ QUA EDU (LONG) - Xác suất thắng 49.6% < 65% (- VOL_MID (x0.9091), - RSI_NEUTRAL (x0.8586), - PA_0_LEVEL (x0.8586), + OI_SURGE (x1.0474), + VOL_SURGE (x1.0758), - BTC_ALIGNED (x0.8972), + GRID_WIDE (x1.0474)) 
+2026-08-10 14:00:05: [PP369] [H1Retest] ✓ Đã đặt thành công lệnh LIMIT Retest H1 cho EDU BUY 3200 @ $0.0375 (orderId=3476400302) 
+2026-08-10 14:00:16: [PP369] [AutoTrade] ✓ Đặt TP EDU @ $0.0383800 (đối ứng SELL) orderId=1000002500022629 
+2026-08-10 14:00:16: [PP369] [AutoTrade] ✓ Đặt SL EDU @ $0.0364800 (đối ứng SELL) orderId=1000002500022633 
+2026-08-10 14:03:02: [PP369] [Binance] Đã đồng bộ giờ: offset = 2785ms (Giờ server: 2026-08-10T07:03:05.198Z, RTT: 91ms) 
+2026-08-10 14:06:02: [PP369] [Binance] Đã đồng bộ giờ: offset = 2802ms (Giờ server: 2026-08-10T07:06:05.214Z, RTT: 89ms) 
+2026-08-10 14:09:02: [PP369] [Binance] Đã đồng bộ giờ: offset = 2820ms (Giờ server: 2026-08-10T07:09:05.232Z, RTT: 88ms) 
+2026-08-10 14:11:20: ◇ injected env (10) from .env // tip: ◈ encrypted .env [www.dotenvx.com]
+2026-08-10 14:11:21: [PP369] [AI Reviewer] ✓ Đã nạp thành công mô hình AI (v1.1.0, mẫu N=19) 
+2026-08-10 14:11:21: [PP369] [369] initH4Cache: Tất cả 803 coin đã có nến H4 đầu năm. 
+2026-08-10 14:11:21: [PP369] [Binance] Đã đồng bộ giờ: offset = 3053ms (Giờ server: 2026-08-10T07:11:24.330Z, RTT: 537ms) 
+2026-08-10 14:11:21: [AutoTrade] Bỏ qua 159 coin có grid ngoài khoảng 3–25% (theo giá hiện tại): 4(2.6%), XRP(28.9%), ETC(46.0%), LINK(36.5%), BAT(45.0%), QTUM(44.8%), KNC(28.5%), DOT(37.1%), SOL(39.0%), AVAX(46.0%), AAVE(32.4%), FIL(42.4%), BEL(2.7%), COTI(25.9%), ALICE(2.5%), NKN(2.6%), DGB(1.6%), ATA(1.8%), DYDX(2.6%), KLAY(2.4%), IMX(26.9%), APE(2.3%), WOO(26.0%), DAR(2.1%), OP(32.8%), STG(2.1%), SPELL(37.3%), APT(50.2%), FET(2.2%), CKB(34.7%), USDC(30.0%), AMB(2.5%), LEVER(26.7%), RDNT(2.9%), SUI(43.2%), MAV(33.3%), DODOX(1.4%), ARK(31.8%), BOND(28.1%), GAS(31.8%), SUPER(34.7%), 1000SATS(277.5%), ACE(25.4%), MOVR(25.7%), JUP(1.6%), GLM(32.5%), PORTAL(2.6%), MYRO(3.0%), W(35.3%), IO(2.4%), ZK(37.1%), ZRO(34.8%), SYN(2.9%), SYS(1.7%), ALPACA(25.2%), SUN(1.7%), DOGS(81.3%), BSW(2.5%), QUICK(2.3%), NEIRO(41.6%), FIO(2.5%), GHST(1.8%), LOKA(2.6%), COS(2.5%), SANTOS(61.6%), COW(28.5%), 1000000MOG(28.5%), HIPPO(2.9%), DEGEN(2.9%), 1000WHY(197.4%), THE(46.5%), CHILLGUY(2.7%), ORCA(28.1%), MOVE(43.4%), KOMA(2.2%), VELODROME(1.7%), MOCA(39.4%), VANA(34.3%), USUAL(32.9%), DF(2.6%), GRIFFAIN(2.6%), D(2.2%), PIPPIN(163.3%), TST(1.7%), HEI(2.0%), RED(34.2%), MUBARAK(1.5%), TUT(0.2%), BROCCOLI714(1.6%), BR(2.4%), PLUME(2.4%), FUN(1.7%), BABY(2.3%), SIGN(43.9%), PUNDIX(38.2%), CTK(26.0%), SXT(38.7%), ASR(34.3%), MILK(3.0%), OG(113.1%), SKYAI(2.8%), AGT(2.1%), B(2.1%), MERL(145.1%), PORT3(2.5%), 1000000BOB(1.6%), LA(55.5%), PUMPBTC(27.1%), MYX(404.1%), DMC(2.3%), OL(1.7%), SAHARA(35.7%), M(28.1%), TANSSI(2.4%), PUMP(1.1%), CROSS(2.9%), VELVET(0.7%), ZORA(56.4%), TAG(2.5%), ESPORTS(173.1%), A2Z(2.1%), YALA(1.8%), SOMI(32.9%), BAS(1.1%), Q(1.3%), PTB(32.4%), OPEN(1.5%), AVNT(31.8%), UB(2.3%), TOSHI(28.5%), BARD(26.5%), TRADOOR(49.1%), BLESS(2.4%), HANA(0.9%), AKE(0.7%), LIGHT(194.6%), XAN(2.3%), TRUTH(2.2%), YB(40.7%), CLO(30.2%), ZBT(2.9%), LAB(2.5%), RIVER(110.9%), 币安人生(0.6%), BLUAI(2.0%), APR(1.5%), ON(0.8%), KITE(2.9%), AT(2.1%), UAI(1.2%), STABLE(0.9%), JCT(0.8%), ALLO(1.0%), BOB(2.8%), RLS(2.8%), POWER(31.1%), US(0.7%), BREV(41.8%), MAGMA(1.6%)
+2026-08-10 14:11:22: [PP369] [Binance] Đang lấy leverage brackets cho 447 coin... 
+2026-08-10 14:11:22: [PP369] [Binance] Đã lưu leverage cho 447 coin vào step_sizes.json 
+2026-08-10 14:11:22: [PP369] [AutoTrade] Khởi động: 447 coin | margin=$10 | 10x | type=LIMIT 
+2026-08-10 14:11:22: [PP369] [Binance] Loaded step and tick sizes from existing file: 852 symbols 
+2026-08-10 14:11:22: [PP369] [AutoTrade] Đã nạp leverageInfo cho 447 coin từ cache. 
+2026-08-10 14:11:23: [PP369] [PP369Stream] Kết nối WebSocket thành công (market/stream) 
+2026-08-10 14:11:26: [PP369] [AutoTrade] Bắt đầu scan... 
+2026-08-10 14:13:35: [PP369] [AutoTrade] JOE → LONG (Score: +7.3đ) tại $0.02724 
+2026-08-10 14:13:35: [PP369] [AI Reviewer (Shadow)] 🟡 Khuyên BỎ QUA JOE (LONG) - Xác suất thắng 52.8% < 65% (+ VOL_ULTRA (x1.0594), - RSI_NEUTRAL (x0.8586), + OI_COOLING (x1.0559), - VOL_DRY (x0.9152), - BTC_ALIGNED (x0.8972), + GRID_WIDE (x1.0474)) 
+2026-08-10 14:13:36: [PP369] [AutoTrade] Set leverage JOEUSDT = 3x (Bước 300đ: 11.01% → tính được 3x, giới hạn: 25x | Ký quỹ mục tiêu: $40) 
+2026-08-10 14:13:36: [PP369] [AutoTrade] ✓ JOE BUY 4405 @ $0.02724 orderId=3139487623 status=NEW 
+2026-08-10 14:14:21: [PP369] [Binance] Đã đồng bộ giờ: offset = 2851ms (Giờ server: 2026-08-10T07:14:23.980Z, RTT: 89ms) 
+2026-08-10 14:17:21: [PP369] [Binance] Đã đồng bộ giờ: offset = 2870ms (Giờ server: 2026-08-10T07:17:24.002Z, RTT: 92ms) 
+2026-08-10 14:20:21: [PP369] [Binance] Đã đồng bộ giờ: offset = 2886ms (Giờ server: 2026-08-10T07:20:24.017Z, RTT: 90ms) 
+2026-08-10 14:23:21: [PP369] [Binance] Đã đồng bộ giờ: offset = 2903ms (Giờ server: 2026-08-10T07:23:24.035Z, RTT: 90ms) 
+2026-08-10 14:26:21: [PP369] [Binance] Đã đồng bộ giờ: offset = 2920ms (Giờ server: 2026-08-10T07:26:24.052Z, RTT: 90ms) 
+2026-08-10 14:29:21: [PP369] [Binance] Đã đồng bộ giờ: offset = 2939ms (Giờ server: 2026-08-10T07:29:24.070Z, RTT: 89ms) 
+2026-08-10 14:32:21: [PP369] [Binance] Đã đồng bộ giờ: offset = 2957ms (Giờ server: 2026-08-10T07:32:24.087Z, RTT: 87ms) 
+2026-08-10 14:33:33: [PP369] [AutoTrade] Lệnh LIMIT của JOE đã chạm/vượt Entry ($0.02724) quá 10 phút không khớp (10.0 phút) -> Tiến hành hủy... 
+2026-08-10 14:33:33: [PP369] [AutoTrade] ✓ Đã hủy thành công lệnh LIMIT treo của JOE 
+2026-08-10 14:35:21: [PP369] [Binance] Đã đồng bộ giờ: offset = 3001ms (Giờ server: 2026-08-10T07:35:24.158Z, RTT: 141ms) 
+2026-08-10 14:38:21: [PP369] [Binance] Đã đồng bộ giờ: offset = 3018ms (Giờ server: 2026-08-10T07:38:24.176Z, RTT: 142ms) 
+2026-08-10 14:41:21: [PP369] [Binance] Đã đồng bộ giờ: offset = 3024ms (Giờ server: 2026-08-10T07:41:24.172Z, RTT: 120ms) 
+2026-08-10 14:43:05: [PP369] [AutoTrade] DUSK → SHORT (Score: +3.1đ) tại $0.06771 
+2026-08-10 14:43:05: [PP369] [AutoTrade] DUSK SHORT [Score (3.1đ) < 5.5đ] — Đưa vào Watchlist chờ Retest nến H1 
+2026-08-10 14:44:21: [PP369] [Binance] Đã đồng bộ giờ: offset = 3052ms (Giờ server: 2026-08-10T07:44:24.209Z, RTT: 138ms) 
+2026-08-10 14:47:21: [PP369] [Binance] Đã đồng bộ giờ: offset = 3070ms (Giờ server: 2026-08-10T07:47:24.228Z, RTT: 140ms) 
+2026-08-10 14:50:21: [PP369] [Binance] Đã đồng bộ giờ: offset = 3081ms (Giờ server: 2026-08-10T07:50:24.233Z, RTT: 127ms) 
+2026-08-10 14:53:21: [PP369] [Binance] Đã đồng bộ giờ: offset = 3101ms (Giờ server: 2026-08-10T07:53:24.257Z, RTT: 133ms) 
+2026-08-10 14:56:21: [PP369] [Binance] Đã đồng bộ giờ: offset = 3121ms (Giờ server: 2026-08-10T07:56:24.282Z, RTT: 138ms) 
+2026-08-10 14:59:21: [PP369] [Binance] Đã đồng bộ giờ: offset = 3139ms (Giờ server: 2026-08-10T07:59:24.299Z, RTT: 136ms) 
+2026-08-10 15:00:03: [PP369] [H1Retest] === Kiểm tra Retest nến H1 vừa đóng cho 1 coin trong Watchlist === 
+2026-08-10 15:00:03: [PP369] [H1Retest] DUSK SHORT nến H1 rút chân nhưng ĐÃ PHẢN ỨNG NẢY ROI = +10.16% (>= 5.0%) sau khi chạm entry. Bỏ qua không đặt limit. 
+2026-08-10 15:02:21: [PP369] [Binance] Đã đồng bộ giờ: offset = 3165ms (Giờ server: 2026-08-10T08:02:24.334Z, RTT: 153ms) 
+2026-08-10 15:05:21: [PP369] [Binance] Đã đồng bộ giờ: offset = 3203ms (Giờ server: 2026-08-10T08:05:24.392Z, RTT: 193ms) 
+2026-08-10 15:07:35: [PP369] [AutoTrade] BICO → SHORT (Score: +1.1đ) tại $0.04195 
+2026-08-10 15:07:35: [PP369] [AutoTrade] BICO SHORT không đạt Tiêu chí 2 (Biến động H1/M15 an toàn) — bỏ qua 
+2026-08-10 15:08:21: [PP369] [Binance] Đã đồng bộ giờ: offset = 3189ms (Giờ server: 2026-08-10T08:08:24.348Z, RTT: 131ms) 
+2026-08-10 15:11:21: [PP369] [Binance] Đã đồng bộ giờ: offset = 3206ms (Giờ server: 2026-08-10T08:11:24.365Z, RTT: 129ms) 
+2026-08-10 15:14:21: [PP369] [Binance] Đã đồng bộ giờ: offset = 3219ms (Giờ server: 2026-08-10T08:14:24.376Z, RTT: 122ms) 
+2026-08-10 15:17:21: [PP369] [Binance] Đã đồng bộ giờ: offset = 3240ms (Giờ server: 2026-08-10T08:17:24.398Z, RTT: 125ms) 
+2026-08-10 15:20:21: [PP369] [Binance] Đã đồng bộ giờ: offset = 3257ms (Giờ server: 2026-08-10T08:20:24.416Z, RTT: 125ms) 
+2026-08-10 15:23:21: [PP369] [Binance] Đã đồng bộ giờ: offset = 3273ms (Giờ server: 2026-08-10T08:23:24.433Z, RTT: 124ms) 
+2026-08-10 15:26:21: [PP369] [Binance] Đã đồng bộ giờ: offset = 3293ms (Giờ server: 2026-08-10T08:26:24.456Z, RTT: 130ms) 
+2026-08-10 15:29:21: [PP369] [Binance] Đã đồng bộ giờ: offset = 3316ms (Giờ server: 2026-08-10T08:29:24.483Z, RTT: 139ms) 
+2026-08-10 15:32:21: [PP369] [Binance] Đã đồng bộ giờ: offset = 3528ms (Giờ server: 2026-08-10T08:32:24.890Z, RTT: 527ms) 
+2026-08-10 15:35:21: [PP369] [Binance] Đã đồng bộ giờ: offset = 3354ms (Giờ server: 2026-08-10T08:35:24.526Z, RTT: 145ms) 
+2026-08-10 15:38:21: [PP369] [Binance] Đã đồng bộ giờ: offset = 3359ms (Giờ server: 2026-08-10T08:38:24.520Z, RTT: 120ms) 
+2026-08-10 15:41:21: [PP369] [Binance] Đã đồng bộ giờ: offset = 3379ms (Giờ server: 2026-08-10T08:41:24.544Z, RTT: 128ms) 
+2026-08-10 15:44:21: [PP369] [Binance] Đã đồng bộ giờ: offset = 3406ms (Giờ server: 2026-08-10T08:44:24.578Z, RTT: 142ms) 
+2026-08-10 15:47:21: [PP369] [Binance] Đã đồng bộ giờ: offset = 3419ms (Giờ server: 2026-08-10T08:47:24.586Z, RTT: 131ms) 
+2026-08-10 15:50:21: [PP369] [Binance] Đã đồng bộ giờ: offset = 3433ms (Giờ server: 2026-08-10T08:50:24.601Z, RTT: 128ms) 
+2026-08-10 15:53:21: [PP369] [Binance] Đã đồng bộ giờ: offset = 3446ms (Giờ server: 2026-08-10T08:53:24.610Z, RTT: 120ms) 
+2026-08-10 15:56:21: [PP369] [Binance] Đã đồng bộ giờ: offset = 3477ms (Giờ server: 2026-08-10T08:56:24.657Z, RTT: 150ms) 
+2026-08-10 15:59:21: [PP369] [Binance] Đã đồng bộ giờ: offset = 3487ms (Giờ server: 2026-08-10T08:59:24.655Z, RTT: 127ms) 
+2026-08-10 16:02:21: [PP369] [Binance] Đã đồng bộ giờ: offset = 3512ms (Giờ server: 2026-08-10T09:02:24.690Z, RTT: 144ms) 
+2026-08-10 16:05:21: [PP369] [Binance] Đã đồng bộ giờ: offset = 3519ms (Giờ server: 2026-08-10T09:05:24.686Z, RTT: 123ms) 
+2026-08-10 16:08:21: [PP369] [Binance] Đã đồng bộ giờ: offset = 3538ms (Giờ server: 2026-08-10T09:08:24.708Z, RTT: 128ms) 
+2026-08-10 16:11:21: [PP369] [Binance] Đã đồng bộ giờ: offset = 3564ms (Giờ server: 2026-08-10T09:11:24.742Z, RTT: 142ms) 
+2026-08-10 16:14:21: [PP369] [Binance] Đã đồng bộ giờ: offset = 3579ms (Giờ server: 2026-08-10T09:14:24.754Z, RTT: 136ms) 
+2026-08-10 16:14:36: [PP369] [AutoTrade] JOE → LONG (Score: +6.6đ) tại $0.02724 
+2026-08-10 16:14:36: [PP369] [AutoTrade] JOE LONG: Từ khi chạm mốc Short ($0.0297), nến M1 đã xát mốc entry LONG ($0.027260) rồi nảy lên đỉnh $0.028140 (+3.23% >= 1.81% Khung/5) — HỦY LIMIT stale. 
+2026-08-10 16:17:21: [PP369] [Binance] Đã đồng bộ giờ: offset = 3594ms (Giờ server: 2026-08-10T09:17:24.768Z, RTT: 131ms) 
+2026-08-10 16:20:21: [PP369] [Binance] Đã đồng bộ giờ: offset = 3608ms (Giờ server: 2026-08-10T09:20:24.780Z, RTT: 126ms) 
