@@ -1650,7 +1650,8 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
 
           if (!alreadyMoved && !betterOrEqualExists) {
             const levelLabel = currentSlPct === trailSlRoi ? '+5đ (Khóa lãi)' : 'Khóa lãi';
-            log.system(`[AutoTrade] Trailing SL: ${sym} đạt ROI ${roi.toFixed(2)}% -> Dịch SL trên sàn về entry +5đ ($${targetSlStr}, ROI ~${currentSlPct}%) [Mức: ${levelLabel}]`);
+            const ticksLabel = (trailMultiplier * 100).toFixed(0);
+            log.system(`[AutoTrade] Trailing SL (chạm mốc ${ticksLabel}đ): ${sym} đạt ROI ${roi.toFixed(2)}% -> Dịch SL trên sàn về entry +5đ ($${targetSlStr}, ROI ~${currentSlPct}%) [Mức: ${levelLabel}]`);
             // Hủy SL cũ
             for (const o of realSlOrders) {
               try {
