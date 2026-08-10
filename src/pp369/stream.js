@@ -67,6 +67,8 @@ async function syncWebSocketSubscriptions(nearbySymbols) {
   }
 
   const CHUNK_SIZE = 50;
+  const newlySubscribed = [];
+  const newlyUnsubscribed = [];
 
   if (toSubscribe.length > 0) {
     for (let i = 0; i < toSubscribe.length; i += CHUNK_SIZE) {
@@ -77,11 +79,13 @@ async function syncWebSocketSubscriptions(nearbySymbols) {
         id: _wsRequestId++
       };
       _ws.send(JSON.stringify(payload));
-      // log.system(`[PP369Stream] WS Subscribe (chunk ${Math.floor(i/CHUNK_SIZE) + 1}): ${chunk.join(', ')}`);
       await new Promise(r => setTimeout(r, 50));
     }
     for (const sym of targetSymbols) {
-      if (!_subscribed.has(sym)) _subscribed.add(sym);
+      if (!_subscribed.has(sym)) {
+        _subscribed.add(sym);
+        newlySubscribed.push(sym);
+      }
     }
   }
 
@@ -94,13 +98,20 @@ async function syncWebSocketSubscriptions(nearbySymbols) {
         id: _wsRequestId++
       };
       _ws.send(JSON.stringify(payload));
-      // log.system(`[PP369Stream] WS Unsubscribe (chunk ${Math.floor(i/CHUNK_SIZE) + 1}): ${chunk.join(', ')}`);
       await new Promise(r => setTimeout(r, 50));
     }
     for (const stream of toUnsubscribe) {
       const sym = stream.replace('usdt@markPrice', '').toUpperCase();
       _subscribed.delete(sym);
+      newlyUnsubscribed.push(sym);
     }
+  }
+
+  if (newlySubscribed.length > 0 || newlyUnsubscribed.length > 0) {
+    const subStr = newlySubscribed.length > 0 ? `+ Subscribe mới (${newlySubscribed.length}): [${newlySubscribed.join(', ')}] ` : '';
+    const unsubStr = newlyUnsubscribed.length > 0 ? `- Unsubscribe (${newlyUnsubscribed.length}): [${newlyUnsubscribed.join(', ')}] ` : '';
+    const totalList = Array.from(_subscribed).join(', ');
+    log.system(`[PP369Stream] WebSocket Sync | ${subStr}${unsubStr}| Đang duy trì lắng nghe (${_subscribed.size} mã): [${totalList}]`);
   }
 
   _symbols = Array.from(targetSymbols);
@@ -129,7 +140,14 @@ function _connect() {
       const data = msg.data || msg;
       if (data && data.s && data.p) {
         const sym = data.s.replace('USDT', '');
-        _prices[sym] = parseFloat(data.p);
+        const price = parseFloat(data.p);
+        _prices[sym] = price;
+
+        if (_priceUpdateCallbacks.size > 0) {
+          for (const cb of _priceUpdateCallbacks) {
+            try { cb(sym, price); } catch (_) { }
+          }
+        }
       }
     } catch (_) { }
   });
@@ -146,6 +164,15 @@ function _connect() {
 }
 
 // ─── Public API ───────────────────────────────────────────────────────────────
+
+const _priceUpdateCallbacks = new Set();
+
+/** Đăng ký callback nhận điểm giá real-time từ WebSocket */
+function onPriceUpdate(cb) {
+  if (typeof cb === 'function') {
+    _priceUpdateCallbacks.add(cb);
+  }
+}
 
 /**
  * Khởi động stream.
@@ -185,10 +212,10 @@ function getMarkPrice(symbol) {
  *
  * @param {string[]} symbols     - Danh sách coin cần check
  * @param {Object}   levelCache  - { BTC: { longEntry, shortEntry }, ... } từ getLevelCache()
- * @param {number}   threshold   - Ngưỡng % tính là "gần" (mặc định 2%)
+ * @param {number}   threshold   - Ngưỡng % tính là "gần" (mặc định 1.5%)
  * @returns {string[]}           - Subset của symbols cần scan đầy đủ
  */
-function getNearbySymbols(symbols, levelCache, threshold = 0.02) {
+function getNearbySymbols(symbols, levelCache, threshold = 0.015) {
   return symbols.filter(sym => {
     const price = _prices[sym];
     const levels = levelCache[sym];
@@ -203,13 +230,13 @@ function getNearbySymbols(symbols, levelCache, threshold = 0.02) {
     const currentGridPct = ((levels.shortEntry - levels.longEntry) / levels.longEntry) * 100;
     if (currentGridPct < 3 || currentGridPct > 20) return false;
 
-    // Threshold adaptive: đảm bảo giới hạn trong khoảng 25% của bước giá (step) để lọc hiệu quả các coin ở giữa mốc
+    // Adaptive threshold: Giữ ngưỡng lắng nghe ở mức tối thiểu 1.5% giá hoặc 50% bước giá step
     const adaptiveThreshold = levels.step
-      ? Math.min(threshold, (levels.step / price) * 0.25)
-      : threshold;
+      ? Math.max(threshold, (levels.step / price) * 0.50)
+      : Math.max(threshold, 0.015);
 
-    const distLong = (price - levels.longEntry) / price;
-    const distShort = (levels.shortEntry - price) / price;
+    const distLong = Math.abs(price - levels.longEntry) / price;
+    const distShort = Math.abs(levels.shortEntry - price) / price;
 
     return distLong <= adaptiveThreshold || distShort <= adaptiveThreshold;
   });
@@ -221,5 +248,6 @@ module.exports = {
   getMarkPrice,
   getNearbySymbols,
   updatePricesRest,
-  syncWebSocketSubscriptions
+  syncWebSocketSubscriptions,
+  onPriceUpdate
 };
