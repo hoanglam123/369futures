@@ -615,3 +615,14 @@
 2026-08-06 06:00:12: [PP369 WARN] [AutoTrade] Lỗi kiểm tra virtual TP/SL: timeout of 10000ms exceeded 
 2026-08-06 06:00:13: [PP369 ERR] [PP369Stream] Lỗi lấy giá REST: timeout of 10000ms exceeded 
 2026-08-06 07:00:14: [PP369 WARN] [AutoTrade] Lỗi kiểm tra virtual TP/SL: timeout of 10000ms exceeded 
+2026-08-06 13:39:56: [PP369 WARN] [AutoTrade] Lỗi kiểm tra virtual TP/SL: Request failed with status code 429 
+2026-08-06 13:40:56: [PP369 WARN] [AutoTrade] Lỗi kiểm tra virtual TP/SL: Request failed with status code 429 
+2026-08-06 13:41:56: [PP369 WARN] [AutoTrade] Lỗi kiểm tra virtual TP/SL: Request failed with status code 429 
+2026-08-06 13:42:56: [PP369 WARN] [AutoTrade] Lỗi kiểm tra virtual TP/SL: Request failed with status code 429 
+2026-08-06 13:43:56: [PP369 WARN] [AutoTrade] Lỗi kiểm tra virtual TP/SL: Request failed with status code 429 
+2026-08-06 13:45:56: [PP369 WARN] [AutoTrade] Lỗi kiểm tra virtual TP/SL: Request failed with status code 429 
+2026-08-06 13:47:56: [PP369 WARN] [AutoTrade] Lỗi kiểm tra virtual TP/SL: Request failed with status code 429 
+2026-08-06 13:49:57: [PP369 WARN] [AutoTrade] Lỗi kiểm tra virtual TP/SL: Request failed with status code 429 
+2026-08-06 14:00:52: [PP369 WARN] [AutoTrade] Lỗi kiểm tra virtual TP/SL: Request failed with status code 429 
+2026-08-06 17:53:22: [PP369 ERR] [PP369Stream] Lỗi lấy giá REST: timeout of 10000ms exceeded 
+2026-08-07 19:30:09: [PP369 WARN] [AutoTrade] Lỗi gửi thông báo đóng vị thế WLD: markPrice is not defined 
