@@ -551,10 +551,10 @@ function loadH1HistDiskCache() {
     if (fs.existsSync(HIST_CACHE_FILE)) {
       const data = JSON.parse(fs.readFileSync(HIST_CACHE_FILE, 'utf8'));
       if (data && data.yearStart === YEAR_START_MS && data.items) {
-        // Cắt tỉa ngay dữ liệu nến H1 đã load từ đĩa về tối đa 2,000 nến gần nhất để giải phóng RAM
+        // Cắt tỉa ngay dữ liệu nến H1 đã load từ đĩa về tối đa 300 nến gần nhất (~12.5 ngày) để giải phóng RAM & đĩa
         for (const [sym, item] of Object.entries(data.items)) {
-          if (item && Array.isArray(item.candles) && item.candles.length > 2000) {
-            item.candles = item.candles.slice(-2000);
+          if (item && Array.isArray(item.candles) && item.candles.length > 300) {
+            item.candles = item.candles.slice(-300);
           }
         }
         Object.assign(_h1HistCache, data.items);
@@ -569,7 +569,17 @@ function saveH1HistDiskCache() {
   try {
     const dir = path.dirname(HIST_CACHE_FILE);
     if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-    fs.writeFileSync(HIST_CACHE_FILE, JSON.stringify({ yearStart: YEAR_START_MS, items: _h1HistCache }), 'utf8');
+    // Tự động cắt tỉa toàn bộ items về tối đa 300 nến trước khi ghi ra đĩa JSON
+    const prunedItems = {};
+    for (const [sym, item] of Object.entries(_h1HistCache)) {
+      if (item) {
+        prunedItems[sym] = {
+          ...item,
+          candles: Array.isArray(item.candles) ? item.candles.slice(-300) : []
+        };
+      }
+    }
+    fs.writeFileSync(HIST_CACHE_FILE, JSON.stringify({ yearStart: YEAR_START_MS, items: prunedItems }), 'utf8');
   } catch (err) {
     log.warn(`[369] Lỗi ghi h1_history_cache.json ra file: ${err.message}`);
   }
@@ -619,10 +629,10 @@ async function fetchH1Historical(symbol) {
     cache.cursor = cache.candles[cache.candles.length - 1].openTime + H1_MS;
   }
 
-  // Tối ưu RAM (Sliding Window): Chỉ giữ tối đa 2,000 nến H1 gần nhất (~83.3 ngày = ~2.7 tháng).
-  // Các nến cũ hơn sẽ tự động bị xóa khỏi bộ nhớ RAM bởi Garbage Collector.
-  if (cache.candles.length > 2000) {
-    cache.candles = cache.candles.slice(-2000);
+  // Tối ưu RAM (Sliding Window): Chỉ giữ tối đa 300 nến H1 gần nhất (~12.5 ngày).
+  // Đủ 100% cho cấu trúc Dow H1 3 ngày + EMA200 + ADX, giải phóng 90% bộ nhớ.
+  if (cache.candles.length > 300) {
+    cache.candles = cache.candles.slice(-300);
   }
 
   if (fetchedNew) {
