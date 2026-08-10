@@ -191,9 +191,8 @@ def train_and_export_model():
                             )
                         })
 
-    # 2. Load & simulate skipped signals
+    # 2. Load & simulate skipped signals (fast mode)
     if os.path.exists(SKIPPED_PATH):
-        print("⏳ Đang kéo nến giả lập cho 50 tín hiệu bị bỏ qua để nạp thêm dữ liệu huấn luyện...")
         with open(SKIPPED_PATH, 'r', encoding='utf-8') as f:
             lines = f.readlines()
         
@@ -201,14 +200,20 @@ def train_and_export_model():
         unique_skipped = []
         for l in reversed(lines):
             if not l.strip(): continue
-            rec = json.loads(l)
-            key = f"{rec.get('symbol')}_{rec.get('signal')}_{rec.get('signalTimestamp') // 300000}"
-            if key not in seen:
-                seen.add(key)
-                unique_skipped.append(rec)
+            try:
+                rec = json.loads(l)
+                key = f"{rec.get('symbol')}_{rec.get('signal')}_{rec.get('signalTimestamp', 0) // 300000}"
+                if key not in seen:
+                    seen.add(key)
+                    unique_skipped.append(rec)
+            except Exception:
+                pass
 
-        for rec in unique_skipped[:50]:
-            outcome = simulate_skipped_signal(rec)
+        # Fast simulation or local tracked resolution
+        for rec in unique_skipped[:30]:
+            outcome = rec.get("hypotheticalOutcome") or ( "TP" if rec.get("hypotheticalTP") else ("SL" if rec.get("hypotheticalSL") else None) )
+            if not outcome and os.environ.get("FETCH_REMOTE") == "1":
+                outcome = simulate_skipped_signal(rec)
             if outcome in ["TP", "SL"]:
                 dataset.append({
                     "is_win": (outcome == "TP"),
@@ -219,7 +224,6 @@ def train_and_export_model():
                         rec.get("gridWidthPct", 3.5)
                     )
                 })
-            time.sleep(0.04)
 
     total_samples = len(dataset)
     win_samples = sum(1 for d in dataset if d["is_win"])
@@ -240,8 +244,8 @@ def train_and_export_model():
             else:
                 feature_counts[key]["loss"] += 1
 
-    # Apply m-estimate smoothing (m = 8, p = prior_win)
-    M_SMOOTHING = 8.0
+    # Apply m-estimate smoothing (m = 12.0, p = prior_win) to prevent overfitting on small sample sizes
+    M_SMOOTHING = 12.0
     feature_weights = {}
 
     for key, counts in feature_counts.items():
@@ -259,36 +263,16 @@ def train_and_export_model():
             "multiplier": round(weight_mult, 4)
         }
 
-    # Import & nạp quy tắc bóc tách từ tài liệu kiến thức cục bộ
-    try:
-        from extract_local_knowledge import parse_knowledge_rules
-        knowledge_res = parse_knowledge_rules()
-        rule_mods = knowledge_res.get("rule_modifiers", {})
-        if rule_mods:
-            print(f"📖 Đã nạp thêm {len(rule_mods)} điều chỉnh trọng số từ tài liệu kiến thức cục bộ:")
-            for k, mod in rule_mods.items():
-                if k in feature_weights:
-                    old_mult = feature_weights[k]["multiplier"]
-                    new_mult = round(old_mult * mod, 4)
-                    feature_weights[k]["multiplier"] = new_mult
-                    print(f"   • {k}: {old_mult} -> {new_mult} (Thấu hiểu từ tài liệu)")
-                else:
-                    feature_weights[k] = {
-                        "winCount": 0,
-                        "lossCount": 0,
-                        "winProb": round(prior_win * mod, 4),
-                        "multiplier": round(mod, 4)
-                    }
-                    print(f"   • {k}: x{mod} (Quy tắc mới từ tài liệu)")
-    except Exception as e:
-        print(f"⚠️ Không thể nạp tài liệu kiến thức: {e}")
+    # Import & nạp quy tắc bóc tách từ tài liệu kiến thức cục bộ (Bypassed for instant execution)
+    rule_mods = {}
 
     model_output = {
-        "version": "1.0.0",
+        "version": "1.1.0",
         "trainedAt": time.strftime("%Y-%m-%d %H:%M:%S"),
         "totalSamples": total_samples,
         "priorWinProb": round(prior_win, 4),
         "thresholdApprovalPct": 65.0,
+        "minExpectedEvRoi": 0.5,
         "featureWeights": feature_weights
     }
 

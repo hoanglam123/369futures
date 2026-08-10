@@ -11,3 +11,4 @@ data/knowledge/*.docx
 data/knowledge/*.jpg
 data/knowledge/*.jpeg
 data/knowledge/*.png
+data/data/*
