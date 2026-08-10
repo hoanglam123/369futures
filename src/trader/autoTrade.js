@@ -540,9 +540,9 @@ async function startAutoTrade(coins) {
       const isHighRiskCounterTrend = isCounterTrend && !hasPaSupport && !hasExtremeRsi;
 
       let baseMargin = 30;
-      if (!isBtc && (score < 5.5 || gridWidthPct > 7.0 || isHighRiskCounterTrend)) {
+      if (!isBtc && (score < 5.5 || isHighRiskCounterTrend)) {
         if (isNewSignalLog) {
-          const reasonLabel = gridWidthPct > 7.0 ? `GridWidthPct (${gridWidthPct.toFixed(2)}%) > 7.0%` : (isHighRiskCounterTrend ? 'Ngược Trend (Thiếu Cản & RSI Cực Đại)' : `Score (${score}đ) < 5.5đ`);
+          const reasonLabel = isHighRiskCounterTrend ? 'Ngược Trend (Thiếu Cản & RSI Cực Đại)' : `Score (${score}đ) < 5.5đ`;
           log.system(`[AutoTrade] ${sym} ${sig.signal} [${reasonLabel}] — Đưa vào Watchlist chờ Retest nến H1`);
         }
         lowScoreWatchlist[sym] = {
@@ -564,7 +564,7 @@ async function startAutoTrade(coins) {
             signalPrice: sig.targetLevel,
             score: sig.score,
             scoreReasons: sig.scoreReasons || [],
-            skipReason: gridWidthPct > 7.0 ? 'GRID_TOO_WIDE' : (isHighRiskCounterTrend ? 'COUNTER_TREND_HIGH_RISK' : 'SCORE_TOO_LOW'),
+            skipReason: isHighRiskCounterTrend ? 'COUNTER_TREND_HIGH_RISK' : 'SCORE_TOO_LOW',
             markPrice: markPrice,
             marketCapRank: getMarketCapRank ? getMarketCapRank(sym) : 999,
           });
