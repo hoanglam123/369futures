@@ -813,12 +813,14 @@ async function startAutoTrade(coins) {
         const h4Part = trendReason ? trendReason.split('|')[0] : '';
         const isCounter = h4Part.includes('H4 ngược');
 
+        const posGridPct = (sig.step / sig.targetLevel) * 100;
         activeTradesMetadata[sym] = {
           score: sig.score,
           isCounterTrend: isCounter,
           entryPrice: sig.targetLevel,
           side,                   // 'BUY' hoặc 'SELL' — dùng cho bounce cancel
-          gridStepPct: (sig.step / sig.targetLevel) * 100, // % grid theo giá entry
+          gridWidthPct: sig.gridWidthPct || posGridPct,
+          gridStepPct: posGridPct, // % grid theo giá entry
           orderId: order.orderId ?? null,  // Luồng 3: dùng để cancel đúng lệnh
           maxFavorablePrice: null,         // Luồng 3: giá xa nhất đúng chiều từ sau khi đặt lệnh
           time: Date.now(),
@@ -1322,6 +1324,7 @@ async function checkH1RetestSignals(client) {
           isCounterTrend: watchData.isCounterTrend,
           leverage: leverage,
           step: step,
+          gridWidthPct: watchData.gridWidthPct || gridStepPct,
           gridStepPct: gridStepPct,
           margin: tradeAmount,
           maxFavorablePrice: null,
@@ -1438,13 +1441,28 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
       // Cập nhật mỗi 3 giây để tránh bỏ lỡ spike ngắn dưới 3 giây giữa hai lần poll.
       // Một khi maxFavorablePrice đã vượt ngưỡng trail trigger, trạng thái này được giữ nguyên
       // cho đến khi vị thế đóng — đảm bảo SL luôn được dời về hòa vốn khi đã đủ điều kiện.
-      const metaForPeak = activeTradesMetadata[sym];
-      if (metaForPeak) {
-        if (isLong) {
-          metaForPeak.maxFavorablePrice = Math.max(metaForPeak.maxFavorablePrice || markPrice, markPrice);
-        } else {
-          metaForPeak.maxFavorablePrice = Math.min(metaForPeak.maxFavorablePrice || markPrice, markPrice);
-        }
+      let metaForPeak = activeTradesMetadata[sym];
+      if (!metaForPeak) {
+        // Fallback: Tự động khởi tạo metadata nếu vị thế mở trên sàn chưa có metadata
+        const stepVal = getStep(entryPrice);
+        metaForPeak = {
+          symbol: sym,
+          side: isLong ? 'BUY' : 'SELL',
+          entryPrice: entryPrice,
+          leverage: leverageVal,
+          step: stepVal,
+          gridWidthPct: (stepVal / entryPrice) * 100,
+          gridStepPct: (stepVal / entryPrice) * 100,
+          maxFavorablePrice: markPrice,
+          time: Date.now(),
+        };
+        activeTradesMetadata[sym] = metaForPeak;
+        saveActiveTradesMetadata();
+      }
+      if (isLong) {
+        metaForPeak.maxFavorablePrice = Math.max(metaForPeak.maxFavorablePrice || markPrice, markPrice);
+      } else {
+        metaForPeak.maxFavorablePrice = Math.min(metaForPeak.maxFavorablePrice || markPrice, markPrice);
       }
 
       // ROI % = % thay đổi giá * leverage
@@ -1513,9 +1531,10 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
       //    Trail Trigger: GridWidthPct <= 5.0% hoặc Retest H1 -> 70 ticks (0.70 * unit); GridWidthPct > 5.0% -> 45 ticks (0.45 * unit)
       //    Trail SL = entry +/- (unit * 0.05) -> Dời SL +5đ (+5 ticks tùy bước giá, tương đương 0.05 * unit) khi chạm mốc Trail Trigger
       //    LƯU Ý OPTION B: Một khi lệnh đã dời SL về +5đ thì giữ nguyên SL hòa, không rollback về âm.
-      const posGridWidthPct = meta?.gridWidthPct || 4.5;
-      const isRetestH1Pos = meta?.isH1Retest === true || meta?.hasH1WickRejection === true;
-      const trailMultiplier = (posGridWidthPct <= 5.0 || isRetestH1Pos) ? 0.70 : 0.45;
+      const posGridWidthPct = meta?.gridWidthPct || meta?.gridStepPct || 4.5;
+      // Đặt trailMultiplier = 0.45 (45 ticks) cho mọi coin lưới rộng > 5.0%.
+      // Chỉ áp dụng 0.70 (70 ticks) nếu chính bản thân độ rộng lưới posGridWidthPct <= 5.0%.
+      const trailMultiplier = posGridWidthPct <= 5.0 ? 0.70 : 0.45;
       const tpDistance = unit * tpMultiplier;
       const trailDistance = unit * trailMultiplier;
       const trailSlDistance = unit * 0.05; // Dời SL +5 ticks (0.05 * unit) khi chạm mốc Trail Trigger
@@ -1597,10 +1616,11 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
       // Dùng peakPrice (giá đỉnh/đáy tốt nhất được theo dõi liên tục) thay vì chỉ markPrice hiện tại.
       const peakPrice = meta?.maxFavorablePrice || markPrice;
 
-      // a. Ngưỡng Kích hoạt Trailing SL cơ bản (45đ hoặc 70đ)
+      // a. Ngưỡng Kích hoạt Trailing SL cơ bản (45đ hoặc 70đ, kèm đệm 5 ticks để tránh trượt WebSocket)
+      const triggerBuffer = unit * 0.05;
       const isTrailTriggerReached = isLong
-        ? (peakPrice >= trailTriggerPriceExact - 1e-9)
-        : (peakPrice <= trailTriggerPriceExact + 1e-9);
+        ? (peakPrice >= trailTriggerPriceExact - triggerBuffer)
+        : (peakPrice <= trailTriggerPriceExact + triggerBuffer);
 
       // b. Ngưỡng Kích hoạt Near-TP Lock (khi giá đạt >= 90% chặng đường TP -> Dời SL về 75% Lợi Nhuận TP)
       const nearTpTriggerDistance = tpDistance * 0.90;
