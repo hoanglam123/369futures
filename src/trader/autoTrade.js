@@ -286,8 +286,13 @@ async function startAutoTrade(coins) {
                 isWin: false,
               });
 
-              delete activeTradesMetadata[sym];
-              saveActiveTradesMetadata();
+              if (!lastActivePositions.has(sym)) {
+                delete activeTradesMetadata[sym];
+                saveActiveTradesMetadata();
+              } else {
+                meta.orderId = null;
+                saveActiveTradesMetadata();
+              }
             }
 
             const telegramTitle = isTouchedTimeout
@@ -568,13 +573,13 @@ async function startAutoTrade(coins) {
       }
       return;
     } else if (score >= 9.0) {
-      baseMargin = 60;
+      baseMargin = 80;
     } else if (score >= 8.0) {
-      baseMargin = 50;
+      baseMargin = 70;
     } else if (score >= 7.0) {
-      baseMargin = 40;
+      baseMargin = 60;
     } else {
-      baseMargin = 30;
+      baseMargin = 50;
     }
 
     const rank = getMarketCapRank ? getMarketCapRank(sym) : 999;
@@ -1262,7 +1267,7 @@ async function checkH1RetestSignals(client) {
       } else if (rank <= 30) {
         rankBonusMargin = 10; // Top 11-30 (ADA, LINK, SUI, AVAX, NEAR...): +$10
       }
-      const tradeAmount = 30 + rankBonusMargin; // Base Margin $30 cho Retest H1 + bonus rank
+      const tradeAmount = 50 + rankBonusMargin; // Base Margin $50 cho Retest H1 + bonus rank
       const notional = tradeAmount * leverage;
       const { qty } = calcQuantity(sym, notional, targetLevel);
       const dec = getDecimals(targetLevel);
@@ -1446,6 +1451,21 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
         activeTradesMetadata[sym] = metaForPeak;
         saveActiveTradesMetadata();
       }
+
+      // Thông báo Telegram khi lệnh LIMIT khớp mở vị thế
+      if (metaForPeak && !metaForPeak.hasNotifiedFill) {
+        metaForPeak.hasNotifiedFill = true;
+        saveActiveTradesMetadata();
+        const fillSide = isLong ? 'LONG' : 'SHORT';
+        sendTelegram(
+          `⚡ <b>[AutoTrade] Lệnh LIMIT đã khớp thành công!</b>\n` +
+          `• Coin: <b>${sym} (${fillSide})</b>\n` +
+          `• Giá Entry: <b>$${entryPrice}</b>\n` +
+          `• Đòn bẩy: <b>${leverageVal}x</b>\n` +
+          `• Ký quỹ: <b>$${metaForPeak.margin || 50}</b>\n` +
+          `• Điểm Score: <b>+${metaForPeak.score || 0}đ</b>`
+        ).catch(() => { });
+      }
       if (isLong) {
         metaForPeak.maxFavorablePrice = Math.max(metaForPeak.maxFavorablePrice || markPrice, markPrice);
       } else {
@@ -1525,15 +1545,16 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
       const tpDistance = unit * tpMultiplier;
       const trailDistance = unit * trailMultiplier;
       const trailSlDistance = unit * 0.05; // Dời SL +5 ticks (0.05 * unit) khi chạm mốc Trail Trigger
+      const slBufferDistance = unit * 0.03; // Đệm 3 ticks (0.03 * unit) chống quét râu nến 1-2 ticks
 
       let targetSlPriceExact, targetTpPriceExact, trailTriggerPriceExact, trailedSlPriceExact;
       if (isLong) {
-        targetSlPriceExact = Number((entryPrice - unit).toFixed(8));
+        targetSlPriceExact = Number((entryPrice - unit - slBufferDistance).toFixed(8));
         targetTpPriceExact = Number((entryPrice + tpDistance).toFixed(8));
         trailTriggerPriceExact = Number((entryPrice + trailDistance).toFixed(8));
         trailedSlPriceExact = Number((entryPrice + trailSlDistance).toFixed(8));
       } else {
-        targetSlPriceExact = Number((entryPrice + unit).toFixed(8));
+        targetSlPriceExact = Number((entryPrice + unit + slBufferDistance).toFixed(8));
         targetTpPriceExact = Number((entryPrice - tpDistance).toFixed(8));
         trailTriggerPriceExact = Number((entryPrice - trailDistance).toFixed(8));
         trailedSlPriceExact = Number((entryPrice - trailSlDistance).toFixed(8));
@@ -1701,6 +1722,24 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
               const orderIdStr = newSl.orderId || newSl.algoId || 'unknown';
               const stopPriceStr = newSl.stopPrice || newSl.triggerPrice || roundedTargetSl;
               log.system(`[AutoTrade] ✓ Đã dịch SL mới cho ${sym} @ $${stopPriceStr} (orderId=${orderIdStr})`);
+
+              // Gửi Telegram thông báo dời SL
+              if (isNearTpReached) {
+                sendTelegram(
+                  `🎯 <b>[AutoTrade] Khóa Lãi TP 75% (${sym})</b>\n` +
+                  `• Hướng: <b>${isLong ? 'LONG' : 'SHORT'}</b>\n` +
+                  `• ROI hiện tại: <b>+${roi.toFixed(2)}%</b>\n` +
+                  `• Đã dời SL bảo toàn 75% Lợi Nhuận: <b>$${targetSlStr}</b> (ROI ~+${currentSlPct}%)`
+                ).catch(() => { });
+              } else {
+                const ticksLabel = (trailMultiplier * 100).toFixed(0);
+                sendTelegram(
+                  `🛡️ <b>[AutoTrade] Khóa Lãi Hòa Vốn (+${ticksLabel} ticks)</b>\n` +
+                  `• Coin: <b>${sym} (${isLong ? 'LONG' : 'SHORT'})</b>\n` +
+                  `• ROI hiện tại: <b>+${roi.toFixed(2)}%</b>\n` +
+                  `• Đã dời SL trên sàn về: <b>$${targetSlStr}</b> (+5 ticks khóa lãi)`
+                ).catch(() => { });
+              }
             } catch (e) {
               const errStr = _binanceErr(e);
               if (errStr.includes('-4509')) {
