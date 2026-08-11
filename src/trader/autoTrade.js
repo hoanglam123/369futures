@@ -1170,7 +1170,11 @@ async function checkH1RetestSignals(client) {
   const symbolsToWatch = Object.keys(lowScoreWatchlist);
   if (symbolsToWatch.length === 0) return;
 
-  log.system(`[H1Retest] === Kiểm tra Retest nến H1 vừa đóng cho ${symbolsToWatch.length} coin trong Watchlist ===`);
+  const watchlistSummary = symbolsToWatch.map(s => {
+    const d = lowScoreWatchlist[s];
+    return `${s}(${d?.signal || '?'} @$${d?.targetLevel || '?'})`;
+  }).join(', ');
+  log.system(`[H1Retest] === Kiểm tra ${symbolsToWatch.length} coin trong Watchlist: [${watchlistSummary}] ===`);
 
   const prevH1Start = currentH1Time - 3600000;
 
@@ -1228,10 +1232,37 @@ async function checkH1RetestSignals(client) {
           log.system(`[H1Retest] ${sym} ${signal} nến H1 đã chạm mốc $${targetLevel} nhưng đâm thủng mốc (Close: $${h1Close}) — XÓA KHỎI WATCHLIST`);
           delete lowScoreWatchlist[sym];
         } else {
-          const reachedPriceStr = isLong ? `Low: $${h1MinLow}` : `High: $${h1MaxHigh}`;
-          log.system(`[H1Retest] ${sym} ${signal} nến H1 chưa chạm mốc $${targetLevel} (${reachedPriceStr}) — Tiếp tục giữ trong Watchlist`);
+          // Kiểm tra "gần chạm + đã nảy": nếu wick H1 đã đến gần mốc entry (trong step*0.1)
+          // VÀ giá đã nảy xa khỏi điểm gần chạm đó → coi như mốc đã bị test, xóa khỏi watchlist
+          // VD: BAN SHORT entry $0.07543, h1MaxHigh $0.07539 (cách 4 ticks < step*0.1=0.0003)
+          //     → nảy từ $0.07539 xuống $0.074x → đã test mốc → xóa
+          const nearTouchRange = step * 0.1; // ~10% bước giá = 10 ticks cho coin bước 0.001
+          const gridStepPct = (step / targetLevel) * 100;
+          const bouncePct = gridStepPct / 5.5; // Ngưỡng nảy xa: tương đương BounceCancel
+
+          if (isLong) {
+            const isNearTouched = h1MinLow <= targetLevel + nearTouchRange;
+            // Bounce từ điểm thấp nhất (h1MinLow) lên cao nhất (h1MaxHigh) trong cùng H1
+            const bounceFromLow = ((h1MaxHigh - h1MinLow) / h1MinLow) * 100;
+            if (isNearTouched && bounceFromLow >= bouncePct) {
+              log.system(`[H1Retest] ${sym} LONG gần chạm mốc $${targetLevel} (Low: $${h1MinLow}, cách ${((h1MinLow - targetLevel) / targetLevel * 100).toFixed(3)}%) và đã nảy +${bounceFromLow.toFixed(2)}% >= ${bouncePct.toFixed(2)}% — XÓA KHỎI WATCHLIST`);
+              delete lowScoreWatchlist[sym];
+            } else {
+              log.system(`[H1Retest] ${sym} LONG nến H1 chưa chạm mốc $${targetLevel} (Low: $${h1MinLow}) — Tiếp tục giữ trong Watchlist`);
+            }
+          } else {
+            const isNearTouched = h1MaxHigh >= targetLevel - nearTouchRange;
+            // Bounce từ điểm cao nhất (h1MaxHigh) xuống thấp nhất (h1MinLow) trong cùng H1
+            const bounceFromHigh = ((h1MaxHigh - h1MinLow) / h1MaxHigh) * 100;
+            if (isNearTouched && bounceFromHigh >= bouncePct) {
+              log.system(`[H1Retest] ${sym} SHORT gần chạm mốc $${targetLevel} (High: $${h1MaxHigh}, cách ${((targetLevel - h1MaxHigh) / targetLevel * 100).toFixed(3)}%) và đã nảy -${bounceFromHigh.toFixed(2)}% >= ${bouncePct.toFixed(2)}% — XÓA KHỎI WATCHLIST`);
+              delete lowScoreWatchlist[sym];
+            } else {
+              log.system(`[H1Retest] ${sym} SHORT nến H1 chưa chạm mốc $${targetLevel} (High: $${h1MaxHigh}) — Tiếp tục giữ trong Watchlist`);
+            }
+          }
         }
-        continue; // Nến H1 chưa đóng rút chân/rút râu tại entry hoặc chưa chạm mốc
+        continue;
       }
 
       // 2. Tìm thời điểm (index) chạm entry lần đầu tiên trong chuỗi nến 1M

@@ -111,7 +111,7 @@ async function syncWebSocketSubscriptions(nearbySymbols) {
     const subStr = newlySubscribed.length > 0 ? `+ Subscribe mới (${newlySubscribed.length}): [${newlySubscribed.join(', ')}] ` : '';
     const unsubStr = newlyUnsubscribed.length > 0 ? `- Unsubscribe (${newlyUnsubscribed.length}): [${newlyUnsubscribed.join(', ')}] ` : '';
     const totalList = Array.from(_subscribed).join(', ');
-    log.system(`[PP369Stream] WebSocket Sync | ${subStr}${unsubStr}| Đang duy trì lắng nghe (${_subscribed.size} mã): [${totalList}]`);
+    // log.system(`[PP369Stream] WebSocket Sync | ${subStr}${unsubStr}| Đang duy trì lắng nghe (${_subscribed.size} mã): [${totalList}]`);
   }
 
   _symbols = Array.from(targetSymbols);
