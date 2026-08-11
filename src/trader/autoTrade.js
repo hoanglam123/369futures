@@ -253,6 +253,16 @@ async function startAutoTrade(coins) {
               meta.touchedTime = Date.now();
               saveActiveTradesMetadata();
             }
+          } else if (meta.hasTouchedEntry) {
+            // [BUG-2 FIX] Reset timer khi giá ra xa mốc Entry > 1.5%
+            // Tránh: timer đếm từ lần chạm cũ → hủy lệnh sớm hơn dự kiến khi giá quay lại
+            const farFromEntryLong = order.side === 'BUY' && markPrice > entryPrice * 1.015;
+            const farFromEntryShort = order.side === 'SELL' && markPrice < entryPrice * 0.985;
+            if (farFromEntryLong || farFromEntryShort) {
+              meta.hasTouchedEntry = false;
+              meta.touchedTime = null;
+              saveActiveTradesMetadata();
+            }
           }
         }
 
@@ -621,10 +631,19 @@ async function startAutoTrade(coins) {
       log.warn(`[AutoTrade] Không check được vị thế ${sym}: ${_binanceErr(e)} — vẫn tiếp tục đặt lệnh`);
     }
 
-    const gridWidth = Math.abs(sig.condLevel - sig.targetLevel);
-    const pct = (gridWidth / Math.min(sig.targetLevel, sig.condLevel)) * 100;
-
-    const preEntryBouncePct = pct / 5.0;
+    // [BUG-5 FIX] Guard against NaN khi sig.condLevel undefined/null
+    // Nếu condLevel hợp lệ: tính theo khoảng cách 2 mốc / 5
+    // Nếu condLevel thiếu: fallback về gridStepPct / 5.5 (tương đương bouncePct trong checkPendingLimits)
+    let preEntryBouncePct;
+    if (sig.condLevel && sig.targetLevel && isFinite(sig.condLevel) && isFinite(sig.targetLevel)) {
+      const gridWidth = Math.abs(sig.condLevel - sig.targetLevel);
+      const pct = (gridWidth / Math.min(sig.targetLevel, sig.condLevel)) * 100;
+      preEntryBouncePct = pct / 5.0;
+    } else {
+      const fallbackGridStepPct = sig.step ? (sig.step / sig.targetLevel) * 100 : 4.5;
+      preEntryBouncePct = fallbackGridStepPct / 5.5;
+      log.warn(`[AutoTrade] ${sym}: sig.condLevel thiếu → dùng preEntryBouncePct fallback = ${preEntryBouncePct.toFixed(3)}%`);
+    }
     const touchThresholdPct = 0.12;
     let maxRecentBouncePct = null;
 
@@ -799,6 +818,7 @@ async function startAutoTrade(coins) {
         side,
         gridWidthPct: sig.gridWidthPct || posGridPct,
         gridStepPct: posGridPct,
+        step: sig.step || getStep(sig.targetLevel), // [BUG-4 FIX] Lưu step để checkTrailingSL tính unit chính xác
         orderId: order.orderId ?? null,
         maxFavorablePrice: null,
         time: Date.now(),
@@ -1176,7 +1196,11 @@ async function checkH1RetestSignals(client) {
       const m1Candles = await fetchBinanceKlines(sym, '1m', prevH1Start, 60);
       if (!m1Candles || m1Candles.length === 0) continue;
 
-      const { signal, targetLevel, step } = watchData;
+      const { signal, targetLevel } = watchData;
+      // [BUG-1 FIX] Luôn dùng getStep(targetLevel) thay vì watchData.step
+      // Lý do: watchData.step lưu từ lúc coin vào Watchlist (giá khác), có thể sai tier nếu giá đã đi qua ranh giới bước giá
+      // VD: coin thêm watchlist lúc giá $0.22 (step=0.03), nhưng targetLevel=$0.18 (step=0.003) → leverage sai 10x
+      const step = getStep(targetLevel);
       const isLong = signal === 'LONG';
 
       // Lấy giá Open/Close/High/Low tổng quan của cả nến H1
