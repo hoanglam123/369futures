@@ -1225,24 +1225,16 @@ async function checkH1RetestSignals(client) {
 
       if (touchIndex === -1) continue;
 
-      // 3. Tính Mức Nẩy ROI Tối Đa từ nến 1M (sau thời điểm touchIndex)
+      // 3. Tính Mức Nẩy ROI Tối Đa từ TOÀN BỘ nến H1 (không chỉ sau touchIndex)
+      //    Lý do: Wick chạm entry có thể xảy ra CUỐI H1, trong khi bounce thật đã xảy ra TRƯỚC đó.
+      //    Nếu chỉ tính từ touchIndex → bỏ sót bounce sớm hơn → đặt lệnh sai.
       let maxFavorableMovePct = 0;
       if (isLong) {
-        let maxHighAfterTouch = targetLevel;
-        for (let i = touchIndex; i < m1Candles.length; i++) {
-          if (m1Candles[i].high > maxHighAfterTouch) {
-            maxHighAfterTouch = m1Candles[i].high;
-          }
-        }
-        maxFavorableMovePct = ((maxHighAfterTouch - targetLevel) / targetLevel) * 100;
+        const maxHighInH1 = Math.max(...m1Candles.map(c => c.high));
+        maxFavorableMovePct = ((maxHighInH1 - targetLevel) / targetLevel) * 100;
       } else {
-        let minLowAfterTouch = targetLevel;
-        for (let i = touchIndex; i < m1Candles.length; i++) {
-          if (m1Candles[i].low < minLowAfterTouch) {
-            minLowAfterTouch = m1Candles[i].low;
-          }
-        }
-        maxFavorableMovePct = ((targetLevel - minLowAfterTouch) / targetLevel) * 100;
+        const minLowInH1 = Math.min(...m1Candles.map(c => c.low));
+        maxFavorableMovePct = ((targetLevel - minLowInH1) / targetLevel) * 100;
       }
 
       // Tính đòn bẩy động
