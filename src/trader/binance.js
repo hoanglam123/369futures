@@ -218,18 +218,28 @@ async function loadLeverageBrackets(symbols, apiKey, secret) {
 
 // ─── Quantity helper ──────────────────────────────────────────────────────────
 
-function calcQuantity(symbol, notional, price) {
-  let stepSize = 0.001;
-  try {
-    if (fs.existsSync(FILE_PATH)) {
-      const content = fs.readFileSync(FILE_PATH, 'utf8');
-      const data = JSON.parse(content);
-      const stepSizes = data.stepSizes ?? {};
-      stepSize = stepSizes[`${symbol}USDT`] ?? 0.001;
+let _stepSizesCache = null;
+
+function _getStepSizeCached(symbol) {
+  if (!_stepSizesCache) {
+    try {
+      if (fs.existsSync(FILE_PATH)) {
+        const content = fs.readFileSync(FILE_PATH, 'utf8');
+        const data = JSON.parse(content);
+        _stepSizesCache = data.stepSizes ?? {};
+      } else {
+        _stepSizesCache = {};
+      }
+    } catch (_) {
+      _stepSizesCache = {};
     }
-  } catch (err) {
-    log.warn(`[Binance] Lỗi đọc file step_sizes.json: ${err.message}`);
   }
+  return _stepSizesCache[`${symbol}USDT`] ?? 0.001;
+}
+
+function calcQuantity(symbol, notional, price) {
+  if (!price || price <= 0) return { qty: 0, stepSize: 0.001 };
+  const stepSize = _getStepSizeCached(symbol);
   const raw = notional / price;
   const qty = Math.floor(raw / stepSize) * stepSize;
   const dec = Math.max(0, Math.round(-Math.log10(stepSize)));

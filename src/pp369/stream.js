@@ -127,8 +127,18 @@ async function syncWebSocketSubscriptions(nearbySymbols) {
 
 // ─── Kết nối / Reconnect ──────────────────────────────────────────────────────
 
+let _pingInterval = null;
+
+function _cleanupPing() {
+  if (_pingInterval) {
+    clearInterval(_pingInterval);
+    _pingInterval = null;
+  }
+}
+
 function _connect() {
   if (_stopped) return;
+  _cleanupPing();
 
   _ws = new WebSocket(FSTREAM);
 
@@ -138,6 +148,17 @@ function _connect() {
     if (_symbols && _symbols.length > 0) {
       syncWebSocketSubscriptions(_symbols);
     }
+
+    // Ping/pong heartbeat mỗi 30s để chống Zombie WebSocket Connection
+    _pingInterval = setInterval(() => {
+      if (_ws && _ws.readyState === WebSocket.OPEN) {
+        try { _ws.ping(); } catch (_) { }
+      }
+    }, 30_000);
+  });
+
+  _ws.on('pong', () => {
+    // WebSocket vẫn phản hồi tốt
   });
 
   _ws.on('message', (raw) => {
@@ -161,13 +182,16 @@ function _connect() {
   });
 
   _ws.on('close', () => {
+    _cleanupPing();
     if (_stopped) return;
     log.warn('[PP369Stream] Mất kết nối — reconnect sau 5s');
     setTimeout(_connect, RECONNECT_DELAY);
   });
 
   _ws.on('error', (err) => {
+    _cleanupPing();
     log.warn('[PP369Stream] Lỗi WebSocket', { error: err.message });
+    try { _ws.terminate(); } catch (_) { }
   });
 }
 

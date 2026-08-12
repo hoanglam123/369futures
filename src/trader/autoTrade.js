@@ -108,18 +108,24 @@ function saveActiveTradesMetadata() {
   }
 }
 
+let stepSizesCache = null;
 function formatQuantity(sym, rawQty) {
-  let stepSize = 0.001;
-  try {
-    const filePath = path.join(process.cwd(), 'data', 'step_sizes.json');
-    if (fs.existsSync(filePath)) {
-      const content = fs.readFileSync(filePath, 'utf8');
-      const data = JSON.parse(content);
-      const stepSizes = data.stepSizes ?? {};
-      stepSize = stepSizes[`${sym}USDT`] ?? 0.001;
+  if (!stepSizesCache) {
+    try {
+      const filePath = path.join(process.cwd(), 'data', 'step_sizes.json');
+      if (fs.existsSync(filePath)) {
+        const content = fs.readFileSync(filePath, 'utf8');
+        const data = JSON.parse(content);
+        stepSizesCache = data.stepSizes ?? {};
+      } else {
+        stepSizesCache = {};
+      }
+    } catch (_) {
+      stepSizesCache = {};
     }
-  } catch (_) { }
+  }
 
+  const stepSize = stepSizesCache[`${sym}USDT`] ?? 0.001;
   const qty = Math.floor(rawQty / stepSize) * stepSize;
   const dec = Math.max(0, Math.round(-Math.log10(stepSize)));
   return parseFloat(qty.toFixed(dec));
@@ -499,8 +505,8 @@ async function startAutoTrade(coins) {
       return;
     }
 
-    if (sig.signal === 'NONE') {
-      if (sig.reason && (sig.reason.includes('Không lấy được nến H4') || sig.reason.includes('không trùng ngày 01/01/2026'))) {
+    if (!sig || sig.signal === 'NONE' || !sig.targetLevel || sig.targetLevel <= 0 || !sig.step || sig.step <= 0) {
+      if (sig?.reason && (sig.reason.includes('Không lấy được nến H4') || sig.reason.includes('không trùng ngày 01/01/2026'))) {
         log.warn(`[AutoTrade] Phát hiện ${sym} không có nến H4 đầu năm 2026. Loại bỏ khỏi danh sách quét.`);
         const idx = coins.indexOf(sym);
         if (idx !== -1) {
