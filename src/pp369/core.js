@@ -18,6 +18,7 @@ const axios = require('axios');
 const fs = require('fs');
 const path = require('path');
 const { log } = require('./_logger');
+const { isIpBanned, triggerCircuitBreaker } = require('../trader/circuitBreaker');
 const { notifySignals } = require('./telegram');
 
 const FILE_PATH = path.join(process.cwd(), 'data', 'step_sizes.json');
@@ -302,10 +303,8 @@ function buildLevelGrid(upperPrice, lowerPrice, step, decimals, levelsRange = LE
   );
 }
 
-let _globalIpBannedUntil = 0;
-
 async function fetchBinanceKlines(symbol, interval, startTimeMs, limit = 1500) {
-  if (Date.now() < _globalIpBannedUntil) {
+  if (isIpBanned()) {
     return [];
   }
 
@@ -326,18 +325,15 @@ async function fetchBinanceKlines(symbol, interval, startTimeMs, limit = 1500) {
       }));
     } catch (err) {
       const data = err.response?.data;
-      if (data && data.code === -1003 && typeof data.msg === 'string') {
-        const match = data.msg.match(/banned until (\d+)/);
-        if (match) {
-          _globalIpBannedUntil = parseInt(match[1], 10);
-          log.warn(`[369] Kích hoạt Circuit Breaker: IP bị phạt đến ${new Date(_globalIpBannedUntil + 7 * 3600000).toISOString().slice(11, 19)}. Đã tạm dừng toàn bộ REST klines.`);
-          return [];
-        }
+      const status = err.response?.status;
+      if (status === 418 || data?.code === -1003) {
+        triggerCircuitBreaker(err, '369');
+        return [];
       }
       const isNetworkErr = !err.response || err.code === 'ENOTFOUND' || err.code === 'ETIMEDOUT' || err.code === 'ECONNRESET' || err.code === 'ECONNREFUSED';
-      const isRateLimit = err?.response?.status === 429 || err?.response?.status === 418;
+      const isRateLimit = status === 429;
       if ((isRateLimit || isNetworkErr) && attempt < 3) {
-        const delay = err?.response?.status === 418 ? 15000 : (attempt + 1) * 2000;
+        const delay = (attempt + 1) * 2000;
         await new Promise(r => setTimeout(r, delay));
         continue;
       }
@@ -1295,6 +1291,7 @@ function calculateADX(candles, period = 14) {
 }
 
 async function fetchGlobalLongShortRatio(symbol, period = '1h') {
+  if (isIpBanned()) return null;
   const url = 'https://fapi.binance.com/futures/data/globalLongShortAccountRatio';
   for (let attempt = 0; attempt < 4; attempt++) {
     try {
@@ -1310,6 +1307,10 @@ async function fetchGlobalLongShortRatio(symbol, period = '1h') {
         };
       }
     } catch (err) {
+      if (err.response?.status === 418 || err.response?.data?.code === -1003) {
+        triggerCircuitBreaker(err, 'Binance API');
+        return null;
+      }
       const isNetworkErr = !err.response || err.code === 'ENOTFOUND' || err.code === 'ETIMEDOUT' || err.code === 'ECONNRESET' || err.code === 'ECONNREFUSED';
       const isRateLimit = err?.response?.status === 429;
       if ((isRateLimit || isNetworkErr) && attempt < 3) {
@@ -1323,7 +1324,7 @@ async function fetchGlobalLongShortRatio(symbol, period = '1h') {
 }
 
 async function fetchTopLongShortPositionRatio(symbol, period = '1h') {
-  if (Date.now() < _globalIpBannedUntil) return null;
+  if (isIpBanned()) return null;
   const url = 'https://fapi.binance.com/futures/data/topLongShortPositionRatio';
   for (let attempt = 0; attempt < 4; attempt++) {
     try {
@@ -1339,6 +1340,10 @@ async function fetchTopLongShortPositionRatio(symbol, period = '1h') {
         };
       }
     } catch (err) {
+      if (err.response?.status === 418 || err.response?.data?.code === -1003) {
+        triggerCircuitBreaker(err, 'Binance API');
+        return null;
+      }
       const isNetworkErr = !err.response || err.code === 'ENOTFOUND' || err.code === 'ETIMEDOUT' || err.code === 'ECONNRESET' || err.code === 'ECONNREFUSED';
       const isRateLimit = err?.response?.status === 429;
       if ((isRateLimit || isNetworkErr) && attempt < 3) {
@@ -1352,7 +1357,7 @@ async function fetchTopLongShortPositionRatio(symbol, period = '1h') {
 }
 
 async function fetchOpenInterestHistory(symbol, period = '1h', limit = 5) {
-  if (Date.now() < _globalIpBannedUntil) return null;
+  if (isIpBanned()) return null;
   const url = 'https://fapi.binance.com/futures/data/openInterestHist';
   for (let attempt = 0; attempt < 4; attempt++) {
     try {
@@ -1368,6 +1373,10 @@ async function fetchOpenInterestHistory(symbol, period = '1h', limit = 5) {
         }));
       }
     } catch (err) {
+      if (err.response?.status === 418 || err.response?.data?.code === -1003) {
+        triggerCircuitBreaker(err, 'Binance API');
+        return null;
+      }
       const isNetworkErr = !err.response || err.code === 'ENOTFOUND' || err.code === 'ETIMEDOUT' || err.code === 'ECONNRESET' || err.code === 'ECONNREFUSED';
       const isRateLimit = err?.response?.status === 429;
       if ((isRateLimit || isNetworkErr) && attempt < 3) {
@@ -1384,7 +1393,7 @@ let _allFundingRatesCache = null;
 let _allFundingRatesCacheTime = 0;
 
 async function fetchAllFundingRates() {
-  if (Date.now() < _globalIpBannedUntil) return null;
+  if (isIpBanned()) return null;
   const now = Date.now();
   if (_allFundingRatesCache && (now - _allFundingRatesCacheTime < 3 * 60 * 1000)) {
     return _allFundingRatesCache;
@@ -1405,11 +1414,7 @@ async function fetchAllFundingRates() {
     }
   } catch (err) {
     if (err.response?.status === 418 || err.response?.data?.code === -1003) {
-      const match = err.response?.data?.msg?.match(/banned until (\d+)/);
-      if (match) {
-        _globalIpBannedUntil = parseInt(match[1], 10);
-        log.warn(`[369] Kích hoạt Circuit Breaker: IP bị phạt đến ${new Date(_globalIpBannedUntil + 7 * 3600000).toISOString().slice(11, 19)}.`);
-      }
+      triggerCircuitBreaker(err, '369');
     }
   }
   return _allFundingRatesCache;

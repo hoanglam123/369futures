@@ -13,6 +13,7 @@
 const path = require('path');
 const fs = require('fs');
 const { createClient, loadStepSizes, calcQuantity } = require('./binance');
+const { isIpBanned } = require('./circuitBreaker');
 const {
   get369Signal,
   getLevelCache,
@@ -231,6 +232,7 @@ async function startAutoTrade(coins) {
   log.system('[AutoTrade] Bắt đầu scan...');
 
   async function scan() {
+    if (isIpBanned()) return;
     // 1. Cập nhật lại giá REST của toàn bộ coin để kiểm tra xem có coin nào mới đi vào mốc gần phản ứng không
     await updatePricesRest();
 
@@ -493,6 +495,7 @@ async function startAutoTrade(coins) {
   }
 
   async function processSymbolSignal(client, sym, markPrice, leverageInfo, leverage, coins) {
+    if (isIpBanned()) return;
     if (!sym || !markPrice || activeSymbols.has(sym) || processingSymbols.has(sym)) return;
     // Khóa symbol ngay lập tức — trước mọi await — để chặn duplicate từ Luồng 1 + Luồng 2
     processingSymbols.add(sym);
@@ -606,7 +609,8 @@ async function startAutoTrade(coins) {
           return;
         }
       } catch (e) {
-        log.warn(`[AutoTrade] Không check được vị thế ${sym}: ${_binanceErr(e)} — vẫn tiếp tục đặt lệnh`);
+        log.warn(`[AutoTrade] Không check được vị thế ${sym}: ${_binanceErr(e)} — ngắt xử lý tín hiệu.`);
+        return;
       }
 
       // [BUG-5 FIX] Guard against NaN khi sig.condLevel undefined/null
@@ -768,9 +772,13 @@ async function startAutoTrade(coins) {
           log.system(`[AutoTrade] Set leverage ${sym}USDT = ${effectiveLeverage}x (Bước 300đ: ${gridStepPct.toFixed(2)}% → tính được ${calculatedLeverage}x, giới hạn: ${maxAllowed}x | Ký quỹ mục tiêu: $${tradeAmount})`);
         } catch (e) {
           const binErr = e.response?.data;
-          log.warn(`[AutoTrade] Set leverage ${sym} thất bại: ${_binanceErr(e)} — vẫn tiếp tục đặt lệnh`);
+          const errStr = _binanceErr(e);
+          log.warn(`[AutoTrade] Set leverage ${sym} thất bại: ${errStr}`);
           if (binErr?.code === -4411) {
             throw e;
+          }
+          if (isIpBanned() || errStr.includes('IP_BAN_CIRCUIT_BREAKER')) {
+            return;
           }
         }
 
@@ -880,6 +888,7 @@ async function startAutoTrade(coins) {
   // Luồng 1 (Real-time Event Stream 0ms): Lắng nghe điểm giá WebSocket trực tiếp
   const activeCoinSet = new Set(coins);
   onPriceUpdate((sym, price) => {
+    if (isIpBanned()) return;
     if (!activeCoinSet.has(sym) || activeSymbols.has(sym)) return;
 
     const levelCache = getLevelCache();
@@ -955,7 +964,7 @@ function _binanceErr(e) {
 let isCheckingPendingLimits = false;
 
 async function checkPendingLimits(client, activeSymbols) {
-  if (isCheckingPendingLimits) return;
+  if (isIpBanned() || isCheckingPendingLimits) return;
   isCheckingPendingLimits = true;
   try {
     // Ngưỡng: giá phải bounce ra bao nhiêu % từ entry mới coi là bounce thật
@@ -1164,6 +1173,7 @@ async function markSymbolFailed(sym, reason) {
  * Luồng 4: Check Retest nến H1 cho các mã trong Watchlist (Chạy ở phút 00 của mỗi giờ)
  */
 async function checkH1RetestSignals(client) {
+  if (isIpBanned()) return;
   const currentH1Time = Math.floor(Date.now() / 3600000) * 3600000;
   if (currentH1Time === lastCheckedH1Time) return;
   lastCheckedH1Time = currentH1Time;
@@ -1393,7 +1403,7 @@ async function checkH1RetestSignals(client) {
 let isCheckingTrailingSL = false;
 
 async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymbols) {
-  if (isCheckingTrailingSL) return;
+  if (isIpBanned() || isCheckingTrailingSL) return;
   isCheckingTrailingSL = true;
   try {
     if (!activeSymbols || activeSymbols.size === 0) return;
