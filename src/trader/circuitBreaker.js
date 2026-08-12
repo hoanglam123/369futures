@@ -1,9 +1,33 @@
-'use strict';
-
+const fs = require('fs');
+const path = require('path');
 const { log } = require('../pp369/_logger');
+
+const STATE_FILE = path.join(process.cwd(), 'data', 'circuit_breaker.json');
 
 let _globalIpBannedUntil = 0;
 let _wasBannedNotified = false;
+
+// Nạp lại trạng thái ban từ đĩa khi khởi động bot
+try {
+  if (fs.existsSync(STATE_FILE)) {
+    const data = JSON.parse(fs.readFileSync(STATE_FILE, 'utf8'));
+    if (data && typeof data.bannedUntil === 'number' && Date.now() < data.bannedUntil) {
+      _globalIpBannedUntil = data.bannedUntil;
+      _wasBannedNotified = true;
+      const remainMin = ((_globalIpBannedUntil - Date.now()) / 60000).toFixed(1);
+      const timeStr = new Date(_globalIpBannedUntil + 7 * 3600000).toISOString().slice(11, 19);
+      log.warn(`[CircuitBreaker] Nạp lại trạng thái: IP đang bị Binance phạt đến ${timeStr} (còn ${remainMin} phút). Tạm dừng toàn bộ REST API.`);
+    }
+  }
+} catch (_) { }
+
+function saveState() {
+  try {
+    const dir = path.dirname(STATE_FILE);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(STATE_FILE, JSON.stringify({ bannedUntil: _globalIpBannedUntil }), 'utf8');
+  } catch (_) { }
+}
 
 let _onUnbanCallback = null;
 
@@ -17,6 +41,8 @@ function isIpBanned() {
   const banned = Date.now() < _globalIpBannedUntil;
   if (!banned && _wasBannedNotified) {
     _wasBannedNotified = false;
+    _globalIpBannedUntil = 0;
+    saveState();
     log.system(`[CircuitBreaker] 🟢 Hết thời gian phạt IP của Binance! Tự động khôi phục giao dịch REST API bình thường.`);
     if (_onUnbanCallback) {
       try { _onUnbanCallback(); } catch (_) { }
@@ -51,6 +77,7 @@ function triggerCircuitBreaker(errOrUntilMs, source = 'Binance') {
   if (untilMs > 0 && untilMs > _globalIpBannedUntil) {
     _globalIpBannedUntil = untilMs;
     _wasBannedNotified = true;
+    saveState();
     const remainMin = ((_globalIpBannedUntil - Date.now()) / 60000).toFixed(1);
     const timeStr = new Date(_globalIpBannedUntil + 7 * 3600000).toISOString().slice(11, 19);
     log.warn(`[${source}] Kích hoạt Circuit Breaker: IP bị phạt đến ${timeStr} (còn ${remainMin} phút). Tạm dừng toàn bộ REST API.`);
