@@ -5,11 +5,22 @@ const { log } = require('../pp369/_logger');
 let _globalIpBannedUntil = 0;
 let _wasBannedNotified = false;
 
+let _onUnbanCallback = null;
+
+function setOnUnbanCallback(cb) {
+  if (typeof cb === 'function') {
+    _onUnbanCallback = cb;
+  }
+}
+
 function isIpBanned() {
   const banned = Date.now() < _globalIpBannedUntil;
   if (!banned && _wasBannedNotified) {
     _wasBannedNotified = false;
     log.system(`[CircuitBreaker] 🟢 Hết thời gian phạt IP của Binance! Tự động khôi phục giao dịch REST API bình thường.`);
+    if (_onUnbanCallback) {
+      try { _onUnbanCallback(); } catch (_) { }
+    }
   }
   return banned;
 }
@@ -59,4 +70,6 @@ module.exports = {
   getIpBannedUntil,
   triggerCircuitBreaker,
   checkCircuitBreaker,
+  setOnUnbanCallback,
 };
+

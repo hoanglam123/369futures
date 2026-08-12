@@ -11,14 +11,14 @@ const path = require('path');
 const axios = require('axios');
 const { log } = require('../pp369/_logger');
 
-const { isIpBanned, triggerCircuitBreaker, checkCircuitBreaker } = require('./circuitBreaker');
+const { isIpBanned, triggerCircuitBreaker, checkCircuitBreaker, setOnUnbanCallback } = require('./circuitBreaker');
 
 const BASE = 'https://fapi.binance.com';
 const FILE_PATH = path.join(process.cwd(), 'data', 'step_sizes.json');
 
 let timeOffset = 0;
 
-async function syncTimeOffset() {
+async function syncTimeOffset(verbose = false) {
   if (isIpBanned()) return;
   try {
     const t0 = Date.now();
@@ -29,6 +29,9 @@ async function syncTimeOffset() {
     // Thời điểm Binance ghi nhận serverTime nằm giữa thời gian gửi request (t0) và nhận response (t1)
     const rtt = t1 - t0;
     timeOffset = Math.round(serverTime - (t0 + t1) / 2);
+    if (verbose || Math.abs(timeOffset) > 1000) {
+      log.system(`[Binance] Đã đồng bộ giờ: offset = ${timeOffset}ms (Giờ server: ${new Date(serverTime).toISOString()}, RTT: ${rtt}ms)`);
+    }
   } catch (err) {
     if (err?.response?.status === 418 || err?.response?.data?.code === -1003) {
       triggerCircuitBreaker(err, 'BinanceTimeSync');
@@ -38,6 +41,11 @@ async function syncTimeOffset() {
   }
 }
 
+// Khi vừa hết phạt IP, tự động kích hoạt đồng bộ giờ lại lập tức
+setOnUnbanCallback(() => {
+  syncTimeOffset(true).catch(() => { });
+});
+
 // Chạy đồng bộ giờ ngay khi load module
 syncTimeOffset().catch(() => { });
 // Đồng bộ lại thời gian mỗi 3 phút để triệt tiêu lệch giờ (drift) khi ứng dụng chạy lâu dài
@@ -45,7 +53,7 @@ setInterval(() => syncTimeOffset().catch(() => { }), 3 * 60 * 1000);
 
 function _buildBody(params) {
   const timestamp = Date.now() + timeOffset;
-  return new URLSearchParams({ ...params, timestamp, recvWindow: 10000 }).toString();
+  return new URLSearchParams({ ...params, timestamp, recvWindow: 30000 }).toString();
 }
 
 function _sign(body, secret) {
@@ -72,9 +80,11 @@ async function _requestWithRetry(fn) {
       }
 
       if (data && data.code === -1021) {
-        log.system(`[Binance] Lỗi -1021 (Timestamp outside recvWindow). Đang tự động đồng bộ lại giờ và thử lại...`);
-        await syncTimeOffset();
-        return await fn();
+        log.system(`[Binance] Lỗi -1021 (Timestamp outside recvWindow). Đang tự động đồng bộ lại giờ và thử lại (Lần ${attempt + 1}/3)...`);
+        await syncTimeOffset(true);
+        if (attempt < 2) {
+          continue;
+        }
       }
 
       const isNetworkErr = !err.response || err.code === 'ENOTFOUND' || err.code === 'ETIMEDOUT' || err.code === 'ECONNRESET' || err.code === 'ECONNREFUSED' || err.code === 'EHOSTUNREACH';
