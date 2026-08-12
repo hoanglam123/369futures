@@ -934,8 +934,9 @@ async function get369Signal(symbol, currentPrice = null) {
           };
         }
 
-        const nearLong = Math.abs(currentPrice - longEntry.value) <= nearTolPre;
-        const nearShort = Math.abs(shortEntry.value - currentPrice) <= nearTolPre;
+        const gridWidthStepPre = shortEntry.value - longEntry.value;
+        const nearLong = (currentPrice <= longEntry.value + nearTolPre) && (currentPrice >= longEntry.value - gridWidthStepPre * 0.50);
+        const nearShort = (currentPrice >= shortEntry.value - nearTolPre) && (currentPrice <= shortEntry.value + gridWidthStepPre * 0.50);
 
         if (!nearLong && !nearShort) {
           _levelCache[symbol] = { longEntry: longEntry.value, shortEntry: shortEntry.value, step: step };
@@ -1016,8 +1017,9 @@ async function get369Signal(symbol, currentPrice = null) {
     const touchCountLong = lowerCount;
     const touchCountShort = upperCount;
 
-    const nearLong = Math.abs(price - longEntry.value) <= nearTol;
-    const nearShort = Math.abs(shortEntry.value - price) <= nearTol;
+    const gridWidthStep = shortEntry.value - longEntry.value;
+    const nearLong = (price <= longEntry.value + nearTol) && (price >= longEntry.value - gridWidthStep * 0.50);
+    const nearShort = (price >= shortEntry.value - nearTol) && (price <= shortEntry.value + gridWidthStep * 0.50);
 
     let signal = 'NONE';
     let strength = 'none';
