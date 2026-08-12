@@ -887,9 +887,15 @@ async function startAutoTrade(coins) {
 
   // Luồng 1 (Real-time Event Stream 0ms): Lắng nghe điểm giá WebSocket trực tiếp
   const activeCoinSet = new Set(coins);
+  const symbolSignalCooldown = {}; // Cooldown per symbol (chặn spam REST API từ WebSocket ticks dồn dập)
+
   onPriceUpdate((sym, price) => {
     if (isIpBanned()) return;
     if (!activeCoinSet.has(sym) || activeSymbols.has(sym)) return;
+
+    // 🛡️ COOLDOWN GUARD: Chỉ cho phép gọi processSymbolSignal tối đa 1 lần mỗi 5 giây cho từng coin
+    const now = Date.now();
+    if ((symbolSignalCooldown[sym] || 0) + 5000 > now) return;
 
     const levelCache = getLevelCache();
     const levels = levelCache[sym];
@@ -900,6 +906,7 @@ async function startAutoTrade(coins) {
     const nearShort = Math.abs(levels.shortEntry - price) <= nearTol;
 
     if (nearLong || nearShort) {
+      symbolSignalCooldown[sym] = now; // Ghi nhận thời điểm check
       processSymbolSignal(client, sym, price, leverageInfo, leverage, coins).catch(err => {
         log.warn(`[AutoTrade] Lỗi luồng WebSocket Event ${sym}: ${err.message}`);
       });
