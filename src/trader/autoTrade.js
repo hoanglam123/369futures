@@ -231,266 +231,279 @@ async function startAutoTrade(coins) {
 
   log.system('[AutoTrade] Bắt đầu scan...');
 
+  let lastHeartbeatTime = Date.now();
+
   async function scan() {
     if (isIpBanned()) return;
-    // 1. Cập nhật lại giá REST của toàn bộ coin để kiểm tra xem có coin nào mới đi vào mốc gần phản ứng không
-    await updatePricesRest();
-
-    // Đồng bộ danh sách coin có vị thế hoặc lệnh chờ (thường + algo) để tối ưu checkTrailingSL
     try {
-      const currentPos = await client.getOpenPositions();
-      const currentOrders = await client.getOpenOrders();
-      const currentAlgoOrders = await client.getOpenAlgoOrders();
+      // 1. Cập nhật lại giá REST của toàn bộ coin để kiểm tra xem có coin nào mới đi vào mốc gần phản ứng không
+      await updatePricesRest();
 
-      // Quét và hủy các lệnh LIMIT treo quá hạn
-      const now = Date.now();
-      const remainingOrders = [];
-      for (const order of currentOrders) {
-        const sym = order.symbol.replace('USDT', '');
-        const meta = activeTradesMetadata[sym];
-        const isH1Retest = meta?.isH1Retest === true;
-        const curTimeoutMs = isH1Retest ? h1RetestLimitTimeoutMs : limitTimeoutMs;
-        const curTimeoutMinutes = isH1Retest ? h1RetestLimitTimeoutMinutes : limitTimeoutMinutes;
-        const entryPrice = parseFloat(order.price);
-        const markPrice = getMarkPrice(sym);
+      // Đồng bộ danh sách coin có vị thế hoặc lệnh chờ (thường + algo) để tối ưu checkTrailingSL
+      try {
+        const currentPos = await client.getOpenPositions();
+        const currentOrders = await client.getOpenOrders();
+        const currentAlgoOrders = await client.getOpenAlgoOrders();
 
-        // Đánh dấu nếu giá hiện tại đã chạm hoặc vượt mốc Entry
-        if (meta && markPrice && entryPrice) {
-          const isTouchLong = order.side === 'BUY' && markPrice <= entryPrice * 1.0012;
-          const isTouchShort = order.side === 'SELL' && markPrice >= entryPrice * 0.9988;
-          if (isTouchLong || isTouchShort) {
-            if (!meta.hasTouchedEntry) {
-              meta.hasTouchedEntry = true;
-              meta.touchedTime = Date.now();
-              saveActiveTradesMetadata();
-            }
-          } else if (meta.hasTouchedEntry) {
-            // [BUG-2 FIX] Reset timer khi giá ra xa mốc Entry > 1.5%
-            // Tránh: timer đếm từ lần chạm cũ → hủy lệnh sớm hơn dự kiến khi giá quay lại
-            const farFromEntryLong = order.side === 'BUY' && markPrice > entryPrice * 1.015;
-            const farFromEntryShort = order.side === 'SELL' && markPrice < entryPrice * 0.985;
-            if (farFromEntryLong || farFromEntryShort) {
-              meta.hasTouchedEntry = false;
-              meta.touchedTime = null;
-              saveActiveTradesMetadata();
-            }
-          }
-        }
-
-        const isTouchedTimeout = meta?.hasTouchedEntry === true && (now - (meta.touchedTime || order.time)) > limitTouchedTimeoutMs;
-        const isNormalTimeout = curTimeoutMinutes > 0 && (now - order.time) > curTimeoutMs;
-
-        if (order.type === 'LIMIT' && (isNormalTimeout || isTouchedTimeout)) {
-          const exitType = isTouchedTimeout ? 'LIMIT_TOUCHED_TIMEOUT' : 'LIMIT_TIMEOUT';
-          const typeLabel = isTouchedTimeout
-            ? `đã chạm/vượt Entry ($${entryPrice}) quá ${limitTouchedTimeoutMinutes} phút không khớp`
-            : (isH1Retest ? `Retest H1 treo quá ${curTimeoutMinutes} phút` : `thường treo quá ${curTimeoutMinutes} phút`);
-
-          log.system(`[AutoTrade] Lệnh LIMIT của ${sym} ${typeLabel} (${((now - (isTouchedTimeout ? meta.touchedTime : order.time)) / 60000).toFixed(1)} phút) -> Tiến hành hủy...`);
-          try {
-            await client.cancelOrder(sym, order.orderId);
-            log.system(`[AutoTrade] ✓ Đã hủy thành công lệnh LIMIT treo của ${sym}`);
-
-            // ── Record trade exit for AI Dataset trước khi xóa metadata ──
-            if (meta) {
-              const holdingDurationMinutes = (Date.now() - (meta.time || Date.now())) / 60000;
-              recordTradeExit({
-                tradeId: `${sym}-${meta.orderId || 'timeout'}`,
-                orderId: String(meta.orderId || ''),
-                symbol: sym,
-                exitPrice: markPrice || parseFloat(order.price),
-                exitTimestamp: Date.now(),
-                exitType: exitType,
-                pnlPercent: 0,
-                pnlUsd: 0,
-                holdingDurationMinutes: holdingDurationMinutes,
-                isWin: false,
-              });
-
-              if (!lastActivePositions.has(sym)) {
-                delete activeTradesMetadata[sym];
-                saveActiveTradesMetadata();
-              } else {
-                meta.orderId = null;
-                saveActiveTradesMetadata();
-              }
-            }
-
-            const telegramTitle = isTouchedTimeout
-              ? `⚠️ <b>[AutoTrade] Hủy lệnh Limit đã chạm Entry nhưng không khớp</b>`
-              : `⚠️ <b>[AutoTrade] Hủy lệnh Limit ${isH1Retest ? 'Retest H1 ' : ''}treo quá hạn</b>`;
-
-            const telegramWaitStr = isTouchedTimeout
-              ? `• Đã chờ từ khi chạm: <b>${((now - (meta?.touchedTime || order.time)) / 60000).toFixed(1)} phút</b>`
-              : `• Đã chờ: <b>${((now - order.time) / 60000).toFixed(1)} phút</b>`;
-
-            sendTelegram(
-              `${telegramTitle}\n` +
-              `• Coin: <b>${sym}</b>\n` +
-              `• Hướng: <b>${order.side}</b>\n` +
-              `• Giá đặt: <b>$${order.price}</b>\n` +
-              (markPrice ? `• Giá hiện tại: <b>$${markPrice}</b>\n` : '') +
-              `• Số lượng: <b>${order.origQty}</b>\n` +
-              telegramWaitStr
-            ).catch(() => { });
-          } catch (e) {
-            log.warn(`[AutoTrade] Không thể hủy lệnh LIMIT của ${sym}: ${_binanceErr(e)}`);
-            remainingOrders.push(order); // Giữ lại nếu hủy thất bại
-          }
-        } else {
-          // ── Bounce Cancel: phát hiện giá đã chạm vùng entry rồi bật ra mạnh ───
+        // Quét và hủy các lệnh LIMIT treo quá hạn
+        const now = Date.now();
+        const remainingOrders = [];
+        for (const order of currentOrders) {
           const sym = order.symbol.replace('USDT', '');
-          const hasOpenPosition = currentPos.some(p => p.symbol === `${sym}USDT` && parseFloat(p.positionAmt) !== 0);
-          if (hasOpenPosition) {
-            // Nếu đã có vị thế mở trên sàn -> Không Bounce Cancel và KHÔNG xóa metadata vị thế!
-            remainingOrders.push(order);
-            continue;
-          }
-
           const meta = activeTradesMetadata[sym];
+          const isH1Retest = meta?.isH1Retest === true;
+          const curTimeoutMs = isH1Retest ? h1RetestLimitTimeoutMs : limitTimeoutMs;
+          const curTimeoutMinutes = isH1Retest ? h1RetestLimitTimeoutMinutes : limitTimeoutMinutes;
+          const entryPrice = parseFloat(order.price);
           const markPrice = getMarkPrice(sym);
 
-          if (meta && markPrice && meta.gridStepPct) {
-            const entryPrice = parseFloat(order.price);
-            const stepPct = meta.gridStepPct;
-            const touchThresholdPct = 0.12;             // fixed 0.12% — khoảng cách tuyệt đối từ entry (không phụ thuộc grid)
-            const bouncePct = stepPct / 5.5;          // ví dụ 3.7/5.5 = 0.67%
-
-            if (order.side === 'BUY') {
-              // LONG: kiểm tra xem giá hiện tại có bật nảy đi xa mốc entry hay chưa
-              const currentBouncedPct = ((markPrice - entryPrice) / entryPrice) * 100;
-              const touchZoneUpper = entryPrice * (1 + touchThresholdPct / 100);
-              if (markPrice <= touchZoneUpper) {
-                // Giá đang trong vùng touch — cập nhật điểm thấp nhất
-                meta.touchLow = meta.touchLow == null ? markPrice : Math.min(meta.touchLow, markPrice);
+          // Đánh dấu nếu giá hiện tại đã chạm hoặc vượt mốc Entry
+          if (meta && markPrice && entryPrice) {
+            const isTouchLong = order.side === 'BUY' && markPrice <= entryPrice * 1.0012;
+            const isTouchShort = order.side === 'SELL' && markPrice >= entryPrice * 0.9988;
+            if (isTouchLong || isTouchShort) {
+              if (!meta.hasTouchedEntry) {
+                meta.hasTouchedEntry = true;
+                meta.touchedTime = Date.now();
+                saveActiveTradesMetadata();
               }
-
-              const isBouncedFromTouch = meta.touchLow != null && markPrice >= (meta.touchLow * (1 + bouncePct / 100));
-              const isBouncedFromEntry = currentBouncedPct >= bouncePct;
-
-              if (isBouncedFromTouch || isBouncedFromEntry) {
-                const bounceRef = meta.touchLow != null ? meta.touchLow : entryPrice;
-                const bounceDisplayPct = meta.touchLow != null ? ((markPrice - meta.touchLow) / meta.touchLow * 100) : currentBouncedPct;
-                log.system(`[AutoTrade] [BounceCancel] ${sym} LONG: giá từ mốc $${bounceRef.toFixed(6)} đã bật lên $${markPrice.toFixed(6)} (+${bounceDisplayPct.toFixed(2)}% >= ${bouncePct.toFixed(2)}%) → Hủy LIMIT ngay lập tức`);
-                try {
-                  await client.cancelOrder(sym, order.orderId);
-                  overrideLevelLastSide(sym, 'lower'); // Khóa mốc LONG cho đến khi giá chạm mốc trên
-                  sendTelegram(
-                    `🔄 <b>[AutoTrade] Hủy LIMIT (Bounce Cancel)</b>\n` +
-                    `• Coin: <b>${sym} LONG</b>\n` +
-                    `• Entry: <b>$${entryPrice}</b>\n` +
-                    `• Giá hiện tại: <b>$${markPrice.toFixed(6)}</b> (+${bounceDisplayPct.toFixed(2)}%)\n` +
-                    `• Giá đã nảy xa mốc → Hủy lệnh ngay lập tức`
-                  ).catch(() => { });
-                  // ── Record trade exit for AI Dataset (BOUNCE_CANCEL) ──
-                  if (activeTradesMetadata[sym]) {
-                    const metaCancel = activeTradesMetadata[sym];
-                    const holdingDurationMinutes = (Date.now() - (metaCancel.time || Date.now())) / 60000;
-                    recordTradeExit({
-                      tradeId: `${sym}-${metaCancel.orderId || 'bounce'}`,
-                      orderId: String(metaCancel.orderId || ''),
-                      symbol: sym,
-                      exitPrice: markPrice,
-                      exitTimestamp: Date.now(),
-                      exitType: 'BOUNCE_CANCEL',
-                      pnlPercent: 0,
-                      pnlUsd: 0,
-                      holdingDurationMinutes: holdingDurationMinutes,
-                      isWin: false,
-                    });
-                    delete activeTradesMetadata[sym];
-                    saveActiveTradesMetadata();
-                  }
-                } catch (e) {
-                  log.warn(`[AutoTrade] [BounceCancel] Không hủy được LIMIT ${sym}: ${_binanceErr(e)}`);
-                  remainingOrders.push(order);
-                }
-                continue; // order đã xử lý, không push vào remainingOrders
-              }
-            } else if (order.side === 'SELL') {
-              // SHORT: kiểm tra xem giá hiện tại có bật nảy đi xa mốc entry hay chưa
-              const currentBouncedPct = ((entryPrice - markPrice) / entryPrice) * 100;
-              const touchZoneLower = entryPrice * (1 - touchThresholdPct / 100);
-              if (markPrice >= touchZoneLower) {
-                // Giá đang trong vùng touch — cập nhật điểm cao nhất
-                meta.touchHigh = meta.touchHigh == null ? markPrice : Math.max(meta.touchHigh, markPrice);
-              }
-
-              const isBouncedFromTouch = meta.touchHigh != null && markPrice <= (meta.touchHigh * (1 - bouncePct / 100));
-              const isBouncedFromEntry = currentBouncedPct >= bouncePct;
-
-              if (isBouncedFromTouch || isBouncedFromEntry) {
-                const bounceRef = meta.touchHigh != null ? meta.touchHigh : entryPrice;
-                const bounceDisplayPct = meta.touchHigh != null ? ((meta.touchHigh - markPrice) / meta.touchHigh * 100) : currentBouncedPct;
-                log.system(`[AutoTrade] [BounceCancel] ${sym} SHORT: giá từ mốc $${bounceRef.toFixed(6)} đã bật xuống $${markPrice.toFixed(6)} (-${bounceDisplayPct.toFixed(2)}% >= ${bouncePct.toFixed(2)}%) → Hủy LIMIT ngay lập tức`);
-                try {
-                  await client.cancelOrder(sym, order.orderId);
-                  overrideLevelLastSide(sym, 'upper'); // Khóa mốc SHORT cho đến khi giá chạm mốc dưới
-                  sendTelegram(
-                    `🔄 <b>[AutoTrade] Hủy LIMIT (Bounce Cancel)</b>\n` +
-                    `• Coin: <b>${sym} SHORT</b>\n` +
-                    `• Entry: <b>$${entryPrice}</b>\n` +
-                    `• Giá hiện tại: <b>$${markPrice.toFixed(6)}</b> (-${bounceDisplayPct.toFixed(2)}%)\n` +
-                    `• Giá đã nảy xa mốc → Hủy lệnh ngay lập tức`
-                  ).catch(() => { });
-                  // ── Record trade exit for AI Dataset (BOUNCE_CANCEL) ──
-                  if (activeTradesMetadata[sym]) {
-                    const metaCancel = activeTradesMetadata[sym];
-                    const holdingDurationMinutes = (Date.now() - (metaCancel.time || Date.now())) / 60000;
-                    recordTradeExit({
-                      tradeId: `${sym}-${metaCancel.orderId || 'bounce'}`,
-                      orderId: String(metaCancel.orderId || ''),
-                      symbol: sym,
-                      exitPrice: markPrice,
-                      exitTimestamp: Date.now(),
-                      exitType: 'BOUNCE_CANCEL',
-                      pnlPercent: 0,
-                      pnlUsd: 0,
-                      holdingDurationMinutes: holdingDurationMinutes,
-                      isWin: false,
-                    });
-                    delete activeTradesMetadata[sym];
-                    saveActiveTradesMetadata();
-                  }
-                } catch (e) {
-                  log.warn(`[AutoTrade] [BounceCancel] Không hủy được LIMIT ${sym}: ${_binanceErr(e)}`);
-                  remainingOrders.push(order);
-                }
-                continue; // order đã xử lý, không push vào remainingOrders
+            } else if (meta.hasTouchedEntry) {
+              // [BUG-2 FIX] Reset timer khi giá ra xa mốc Entry > 1.5%
+              // Tránh: timer đếm từ lần chạm cũ → hủy lệnh sớm hơn dự kiến khi giá quay lại
+              const farFromEntryLong = order.side === 'BUY' && markPrice > entryPrice * 1.015;
+              const farFromEntryShort = order.side === 'SELL' && markPrice < entryPrice * 0.985;
+              if (farFromEntryLong || farFromEntryShort) {
+                meta.hasTouchedEntry = false;
+                meta.touchedTime = null;
+                saveActiveTradesMetadata();
               }
             }
           }
 
-          remainingOrders.push(order);
+          const isTouchedTimeout = meta?.hasTouchedEntry === true && (now - (meta.touchedTime || order.time)) > limitTouchedTimeoutMs;
+          const isNormalTimeout = curTimeoutMinutes > 0 && (now - order.time) > curTimeoutMs;
+
+          if (order.type === 'LIMIT' && (isNormalTimeout || isTouchedTimeout)) {
+            const exitType = isTouchedTimeout ? 'LIMIT_TOUCHED_TIMEOUT' : 'LIMIT_TIMEOUT';
+            const typeLabel = isTouchedTimeout
+              ? `đã chạm/vượt Entry ($${entryPrice}) quá ${limitTouchedTimeoutMinutes} phút không khớp`
+              : (isH1Retest ? `Retest H1 treo quá ${curTimeoutMinutes} phút` : `thường treo quá ${curTimeoutMinutes} phút`);
+
+            log.system(`[AutoTrade] Lệnh LIMIT của ${sym} ${typeLabel} (${((now - (isTouchedTimeout ? meta.touchedTime : order.time)) / 60000).toFixed(1)} phút) -> Tiến hành hủy...`);
+            try {
+              await client.cancelOrder(sym, order.orderId);
+              log.system(`[AutoTrade] ✓ Đã hủy thành công lệnh LIMIT treo của ${sym}`);
+
+              // ── Record trade exit for AI Dataset trước khi xóa metadata ──
+              if (meta) {
+                const holdingDurationMinutes = (Date.now() - (meta.time || Date.now())) / 60000;
+                recordTradeExit({
+                  tradeId: `${sym}-${meta.orderId || 'timeout'}`,
+                  orderId: String(meta.orderId || ''),
+                  symbol: sym,
+                  exitPrice: markPrice || parseFloat(order.price),
+                  exitTimestamp: Date.now(),
+                  exitType: exitType,
+                  pnlPercent: 0,
+                  pnlUsd: 0,
+                  holdingDurationMinutes: holdingDurationMinutes,
+                  isWin: false,
+                });
+
+                if (!lastActivePositions.has(sym)) {
+                  delete activeTradesMetadata[sym];
+                  saveActiveTradesMetadata();
+                } else {
+                  meta.orderId = null;
+                  saveActiveTradesMetadata();
+                }
+              }
+
+              const telegramTitle = isTouchedTimeout
+                ? `⚠️ <b>[AutoTrade] Hủy lệnh Limit đã chạm Entry nhưng không khớp</b>`
+                : `⚠️ <b>[AutoTrade] Hủy lệnh Limit ${isH1Retest ? 'Retest H1 ' : ''}treo quá hạn</b>`;
+
+              const telegramWaitStr = isTouchedTimeout
+                ? `• Đã chờ từ khi chạm: <b>${((now - (meta?.touchedTime || order.time)) / 60000).toFixed(1)} phút</b>`
+                : `• Đã chờ: <b>${((now - order.time) / 60000).toFixed(1)} phút</b>`;
+
+              sendTelegram(
+                `${telegramTitle}\n` +
+                `• Coin: <b>${sym}</b>\n` +
+                `• Hướng: <b>${order.side}</b>\n` +
+                `• Giá đặt: <b>$${order.price}</b>\n` +
+                (markPrice ? `• Giá hiện tại: <b>$${markPrice}</b>\n` : '') +
+                `• Số lượng: <b>${order.origQty}</b>\n` +
+                telegramWaitStr
+              ).catch(() => { });
+            } catch (e) {
+              log.warn(`[AutoTrade] Không thể hủy lệnh LIMIT của ${sym}: ${_binanceErr(e)}`);
+              remainingOrders.push(order); // Giữ lại nếu hủy thất bại
+            }
+          } else {
+            // ── Bounce Cancel: phát hiện giá đã chạm vùng entry rồi bật ra mạnh ───
+            const sym = order.symbol.replace('USDT', '');
+            const hasOpenPosition = currentPos.some(p => p.symbol === `${sym}USDT` && parseFloat(p.positionAmt) !== 0);
+            if (hasOpenPosition) {
+              // Nếu đã có vị thế mở trên sàn -> Không Bounce Cancel và KHÔNG xóa metadata vị thế!
+              remainingOrders.push(order);
+              continue;
+            }
+
+            const meta = activeTradesMetadata[sym];
+            const markPrice = getMarkPrice(sym);
+
+            if (meta && markPrice && meta.gridStepPct) {
+              const entryPrice = parseFloat(order.price);
+              const stepPct = meta.gridStepPct;
+              const touchThresholdPct = 0.12;             // fixed 0.12% — khoảng cách tuyệt đối từ entry (không phụ thuộc grid)
+              const bouncePct = stepPct / 5.5;          // ví dụ 3.7/5.5 = 0.67%
+
+              if (order.side === 'BUY') {
+                // LONG: kiểm tra xem giá hiện tại có bật nảy đi xa mốc entry hay chưa
+                const currentBouncedPct = ((markPrice - entryPrice) / entryPrice) * 100;
+                const touchZoneUpper = entryPrice * (1 + touchThresholdPct / 100);
+                if (markPrice <= touchZoneUpper) {
+                  // Giá đang trong vùng touch — cập nhật điểm thấp nhất
+                  meta.touchLow = meta.touchLow == null ? markPrice : Math.min(meta.touchLow, markPrice);
+                }
+
+                const isBouncedFromTouch = meta.touchLow != null && markPrice >= (meta.touchLow * (1 + bouncePct / 100));
+                const isBouncedFromEntry = currentBouncedPct >= bouncePct;
+
+                if (isBouncedFromTouch || isBouncedFromEntry) {
+                  const bounceRef = meta.touchLow != null ? meta.touchLow : entryPrice;
+                  const bounceDisplayPct = meta.touchLow != null ? ((markPrice - meta.touchLow) / meta.touchLow * 100) : currentBouncedPct;
+                  log.system(`[AutoTrade] [BounceCancel] ${sym} LONG: giá từ mốc $${bounceRef.toFixed(6)} đã bật lên $${markPrice.toFixed(6)} (+${bounceDisplayPct.toFixed(2)}% >= ${bouncePct.toFixed(2)}%) → Hủy LIMIT ngay lập tức`);
+                  try {
+                    await client.cancelOrder(sym, order.orderId);
+                    overrideLevelLastSide(sym, 'lower'); // Khóa mốc LONG cho đến khi giá chạm mốc trên
+                    sendTelegram(
+                      `🔄 <b>[AutoTrade] Hủy LIMIT (Bounce Cancel)</b>\n` +
+                      `• Coin: <b>${sym} LONG</b>\n` +
+                      `• Entry: <b>$${entryPrice}</b>\n` +
+                      `• Giá hiện tại: <b>$${markPrice.toFixed(6)}</b> (+${bounceDisplayPct.toFixed(2)}%)\n` +
+                      `• Giá đã nảy xa mốc → Hủy lệnh ngay lập tức`
+                    ).catch(() => { });
+                    // ── Record trade exit for AI Dataset (BOUNCE_CANCEL) ──
+                    if (activeTradesMetadata[sym]) {
+                      const metaCancel = activeTradesMetadata[sym];
+                      const holdingDurationMinutes = (Date.now() - (metaCancel.time || Date.now())) / 60000;
+                      recordTradeExit({
+                        tradeId: `${sym}-${metaCancel.orderId || 'bounce'}`,
+                        orderId: String(metaCancel.orderId || ''),
+                        symbol: sym,
+                        exitPrice: markPrice,
+                        exitTimestamp: Date.now(),
+                        exitType: 'BOUNCE_CANCEL',
+                        pnlPercent: 0,
+                        pnlUsd: 0,
+                        holdingDurationMinutes: holdingDurationMinutes,
+                        isWin: false,
+                      });
+                      delete activeTradesMetadata[sym];
+                      saveActiveTradesMetadata();
+                    }
+                  } catch (e) {
+                    log.warn(`[AutoTrade] [BounceCancel] Không hủy được LIMIT ${sym}: ${_binanceErr(e)}`);
+                    remainingOrders.push(order);
+                  }
+                  continue; // order đã xử lý, không push vào remainingOrders
+                }
+              } else if (order.side === 'SELL') {
+                // SHORT: kiểm tra xem giá hiện tại có bật nảy đi xa mốc entry hay chưa
+                const currentBouncedPct = ((entryPrice - markPrice) / entryPrice) * 100;
+                const touchZoneLower = entryPrice * (1 - touchThresholdPct / 100);
+                if (markPrice >= touchZoneLower) {
+                  // Giá đang trong vùng touch — cập nhật điểm cao nhất
+                  meta.touchHigh = meta.touchHigh == null ? markPrice : Math.max(meta.touchHigh, markPrice);
+                }
+
+                const isBouncedFromTouch = meta.touchHigh != null && markPrice <= (meta.touchHigh * (1 - bouncePct / 100));
+                const isBouncedFromEntry = currentBouncedPct >= bouncePct;
+
+                if (isBouncedFromTouch || isBouncedFromEntry) {
+                  const bounceRef = meta.touchHigh != null ? meta.touchHigh : entryPrice;
+                  const bounceDisplayPct = meta.touchHigh != null ? ((meta.touchHigh - markPrice) / meta.touchHigh * 100) : currentBouncedPct;
+                  log.system(`[AutoTrade] [BounceCancel] ${sym} SHORT: giá từ mốc $${bounceRef.toFixed(6)} đã bật xuống $${markPrice.toFixed(6)} (-${bounceDisplayPct.toFixed(2)}% >= ${bouncePct.toFixed(2)}%) → Hủy LIMIT ngay lập tức`);
+                  try {
+                    await client.cancelOrder(sym, order.orderId);
+                    overrideLevelLastSide(sym, 'upper'); // Khóa mốc SHORT cho đến khi giá chạm mốc dưới
+                    sendTelegram(
+                      `🔄 <b>[AutoTrade] Hủy LIMIT (Bounce Cancel)</b>\n` +
+                      `• Coin: <b>${sym} SHORT</b>\n` +
+                      `• Entry: <b>$${entryPrice}</b>\n` +
+                      `• Giá hiện tại: <b>$${markPrice.toFixed(6)}</b> (-${bounceDisplayPct.toFixed(2)}%)\n` +
+                      `• Giá đã nảy xa mốc → Hủy lệnh ngay lập tức`
+                    ).catch(() => { });
+                    // ── Record trade exit for AI Dataset (BOUNCE_CANCEL) ──
+                    if (activeTradesMetadata[sym]) {
+                      const metaCancel = activeTradesMetadata[sym];
+                      const holdingDurationMinutes = (Date.now() - (metaCancel.time || Date.now())) / 60000;
+                      recordTradeExit({
+                        tradeId: `${sym}-${metaCancel.orderId || 'bounce'}`,
+                        orderId: String(metaCancel.orderId || ''),
+                        symbol: sym,
+                        exitPrice: markPrice,
+                        exitTimestamp: Date.now(),
+                        exitType: 'BOUNCE_CANCEL',
+                        pnlPercent: 0,
+                        pnlUsd: 0,
+                        holdingDurationMinutes: holdingDurationMinutes,
+                        isWin: false,
+                      });
+                      delete activeTradesMetadata[sym];
+                      saveActiveTradesMetadata();
+                    }
+                  } catch (e) {
+                    log.warn(`[AutoTrade] [BounceCancel] Không hủy được LIMIT ${sym}: ${_binanceErr(e)}`);
+                    remainingOrders.push(order);
+                  }
+                  continue; // order đã xử lý, không push vào remainingOrders
+                }
+              }
+            }
+
+            remainingOrders.push(order);
+          }
         }
+
+        activeSymbols.clear();
+        for (const p of currentPos) {
+          activeSymbols.add(p.symbol.replace('USDT', ''));
+        }
+        for (const o of remainingOrders) {
+          activeSymbols.add(o.symbol.replace('USDT', ''));
+        }
+        for (const o of currentAlgoOrders) {
+          activeSymbols.add(o.symbol.replace('USDT', ''));
+        }
+      } catch (e) {
+        log.warn(`[AutoTrade] Lỗi đồng bộ activeSymbols: ${_binanceErr(e)}`);
       }
 
-      activeSymbols.clear();
-      for (const p of currentPos) {
-        activeSymbols.add(p.symbol.replace('USDT', ''));
-      }
-      for (const o of remainingOrders) {
-        activeSymbols.add(o.symbol.replace('USDT', ''));
-      }
-      for (const o of currentAlgoOrders) {
-        activeSymbols.add(o.symbol.replace('USDT', ''));
-      }
-    } catch (e) {
-      log.warn(`[AutoTrade] Lỗi đồng bộ activeSymbols: ${_binanceErr(e)}`);
-    }
+      const levelCache = getLevelCache();
+      // 1. WebSocket lắng nghe biến động giá cho tất cả coin trong bán kính 1.0% (0 REST API calls)
+      const wsNearby = getNearbySymbols(activeCoinList, levelCache, 0.01);
+      syncWebSocketSubscriptions(wsNearby);
 
-    const levelCache = getLevelCache();
-    // 1. WebSocket lắng nghe biến động giá cho tất cả coin trong bán kính 1.0% (0 REST API calls)
-    const wsNearby = getNearbySymbols(activeCoinList, levelCache, 0.01);
-    syncWebSocketSubscriptions(wsNearby);
+      // 2. Vòng lặp Scan định kỳ chỉ xử lý các coin đang thực sự TIỆM CẬN SÁT MỐC (<= 0.3%) để tiết kiệm API
+      const scanNearby = getNearbySymbols(activeCoinList, levelCache, 0.003);
 
-    // 2. Vòng lặp Scan định kỳ chỉ xử lý các coin đang thực sự TIỆM CẬN SÁT MỐC (<= 0.3%) để tiết kiệm API
-    const scanNearby = getNearbySymbols(activeCoinList, levelCache, 0.003);
-    if (!scanNearby.length) return;
+      const nowTime = Date.now();
+      if (nowTime - lastHeartbeatTime >= 15 * 60 * 1000) {
+        lastHeartbeatTime = nowTime;
+        log.system(`[AutoTrade] 🟢 Hệ thống hoạt động bình thường | Theo dõi: ${activeCoinList.length} coin | Tiệm cận sát mốc (<=0.3%): ${scanNearby.length} coin`);
+      }
 
-    for (const sym of scanNearby) {
-      const markPrice = getMarkPrice(sym);
-      await processSymbolSignal(client, sym, markPrice, leverageInfo, leverage, coins);
+      if (!scanNearby.length) return;
+
+      for (const sym of scanNearby) {
+        const markPrice = getMarkPrice(sym);
+        await processSymbolSignal(client, sym, markPrice, leverageInfo, leverage, coins);
+      }
+    } catch (err) {
+      log.warn(`[AutoTrade] Lỗi trong chu kỳ scan: ${err.message}`);
     }
   }
 
