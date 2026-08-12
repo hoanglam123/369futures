@@ -1290,8 +1290,18 @@ function calculateADX(candles, period = 14) {
   return adx;
 }
 
+const _globalLSCache = new Map(); // key: sym_period -> { data, timestamp }
+const _topLSCache = new Map();    // key: sym_period -> { data, timestamp }
+const _oiHistCache = new Map();   // key: sym_period_limit -> { data, timestamp }
+const CACHE_TTL_MS = 3 * 60 * 1000; // 3 phút cache
+
 async function fetchGlobalLongShortRatio(symbol, period = '1h') {
   if (isIpBanned()) return null;
+  const key = `${symbol}_${period}`;
+  const cached = _globalLSCache.get(key);
+  if (cached && (Date.now() - cached.timestamp < CACHE_TTL_MS)) {
+    return cached.data;
+  }
   const url = 'https://fapi.binance.com/futures/data/globalLongShortAccountRatio';
   for (let attempt = 0; attempt < 4; attempt++) {
     try {
@@ -1300,11 +1310,13 @@ async function fetchGlobalLongShortRatio(symbol, period = '1h') {
         timeout: 10000,
       });
       if (res.data && res.data.length > 0) {
-        return {
+        const data = {
           longAccount: parseFloat(res.data[0].longAccount),
           shortAccount: parseFloat(res.data[0].shortAccount),
           ratio: parseFloat(res.data[0].longShortRatio),
         };
+        _globalLSCache.set(key, { data, timestamp: Date.now() });
+        return data;
       }
     } catch (err) {
       if (err.response?.status === 418 || err.response?.data?.code === -1003) {
@@ -1325,6 +1337,11 @@ async function fetchGlobalLongShortRatio(symbol, period = '1h') {
 
 async function fetchTopLongShortPositionRatio(symbol, period = '1h') {
   if (isIpBanned()) return null;
+  const key = `${symbol}_${period}`;
+  const cached = _topLSCache.get(key);
+  if (cached && (Date.now() - cached.timestamp < CACHE_TTL_MS)) {
+    return cached.data;
+  }
   const url = 'https://fapi.binance.com/futures/data/topLongShortPositionRatio';
   for (let attempt = 0; attempt < 4; attempt++) {
     try {
@@ -1333,11 +1350,13 @@ async function fetchTopLongShortPositionRatio(symbol, period = '1h') {
         timeout: 10000,
       });
       if (res.data && res.data.length > 0) {
-        return {
+        const data = {
           longAccount: parseFloat(res.data[0].longAccount),
           shortAccount: parseFloat(res.data[0].shortAccount),
           ratio: parseFloat(res.data[0].longShortRatio),
         };
+        _topLSCache.set(key, { data, timestamp: Date.now() });
+        return data;
       }
     } catch (err) {
       if (err.response?.status === 418 || err.response?.data?.code === -1003) {
@@ -1358,6 +1377,11 @@ async function fetchTopLongShortPositionRatio(symbol, period = '1h') {
 
 async function fetchOpenInterestHistory(symbol, period = '1h', limit = 5) {
   if (isIpBanned()) return null;
+  const key = `${symbol}_${period}_${limit}`;
+  const cached = _oiHistCache.get(key);
+  if (cached && (Date.now() - cached.timestamp < CACHE_TTL_MS)) {
+    return cached.data;
+  }
   const url = 'https://fapi.binance.com/futures/data/openInterestHist';
   for (let attempt = 0; attempt < 4; attempt++) {
     try {
@@ -1366,11 +1390,13 @@ async function fetchOpenInterestHistory(symbol, period = '1h', limit = 5) {
         timeout: 10000,
       });
       if (res.data && Array.isArray(res.data) && res.data.length > 0) {
-        return res.data.map(item => ({
+        const data = res.data.map(item => ({
           oi: parseFloat(item.sumOpenInterest),
           oiValue: parseFloat(item.sumOpenInterestValue),
           timestamp: item.timestamp,
         }));
+        _oiHistCache.set(key, { data, timestamp: Date.now() });
+        return data;
       }
     } catch (err) {
       if (err.response?.status === 418 || err.response?.data?.code === -1003) {
