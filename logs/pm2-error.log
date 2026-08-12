@@ -647,3 +647,4 @@
 2026-08-11 21:07:45: [PP369 WARN] [AutoTrade] Lỗi đặt lệnh ZEC: pct is not defined 
 2026-08-11 21:58:08: [PP369 ERR] [AutoTrade] Đặt TP ZEC thất bại: [-4130] An open stop or take profit order with GTE and closePosition in the direction is existing. 
 2026-08-12 06:54:53: [PP369 WARN] [AutoTrade] Lỗi đồng bộ activeSymbols: timeout of 10000ms exceeded 
+2026-08-12 09:47:38: [PP369 WARN] [369] JELLYJELLY: lỗi fetch klines — getaddrinfo ENOTFOUND fapi.binance.com 
