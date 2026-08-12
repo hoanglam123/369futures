@@ -302,9 +302,13 @@ function buildLevelGrid(upperPrice, lowerPrice, step, decimals, levelsRange = LE
   );
 }
 
-// ─── Lấy nến từ Binance Futures ───────────────────────────────────────────────
+let _globalIpBannedUntil = 0;
 
 async function fetchBinanceKlines(symbol, interval, startTimeMs, limit = 1500) {
+  if (Date.now() < _globalIpBannedUntil) {
+    return [];
+  }
+
   const url = 'https://fapi.binance.com/fapi/v1/klines';
   for (let attempt = 0; attempt < 4; attempt++) {
     try {
@@ -321,6 +325,15 @@ async function fetchBinanceKlines(symbol, interval, startTimeMs, limit = 1500) {
         volume: parseFloat(c[5]),
       }));
     } catch (err) {
+      const data = err.response?.data;
+      if (data && data.code === -1003 && typeof data.msg === 'string') {
+        const match = data.msg.match(/banned until (\d+)/);
+        if (match) {
+          _globalIpBannedUntil = parseInt(match[1], 10);
+          log.warn(`[369] Kích hoạt Circuit Breaker: IP bị phạt đến ${new Date(_globalIpBannedUntil + 7 * 3600000).toISOString().slice(11, 19)}. Đã tạm dừng toàn bộ REST klines.`);
+          return [];
+        }
+      }
       const isNetworkErr = !err.response || err.code === 'ENOTFOUND' || err.code === 'ETIMEDOUT' || err.code === 'ECONNRESET' || err.code === 'ECONNREFUSED';
       const isRateLimit = err?.response?.status === 429 || err?.response?.status === 418;
       if ((isRateLimit || isNetworkErr) && attempt < 3) {

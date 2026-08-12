@@ -49,12 +49,26 @@ function _authHeaders(apiKey) {
   return { 'X-MBX-APIKEY': apiKey };
 }
 
+let _globalIpBannedUntil = 0;
+
 async function _requestWithRetry(fn) {
+  if (Date.now() < _globalIpBannedUntil) {
+    const remainMin = ((_globalIpBannedUntil - Date.now()) / 60000).toFixed(1);
+    throw new Error(`[IP_BAN_CIRCUIT_BREAKER] IP đang bị Binance khóa cho đến ${new Date(_globalIpBannedUntil + 7 * 3600000).toISOString().slice(11, 19)} (còn ${remainMin} phút). Đã ngắt REST API.`);
+  }
+
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
       return await fn();
     } catch (err) {
       const data = err.response?.data;
+      if (data && data.code === -1003 && typeof data.msg === 'string') {
+        const match = data.msg.match(/banned until (\d+)/);
+        if (match) {
+          _globalIpBannedUntil = parseInt(match[1], 10);
+          log.warn(`[Binance] Kích hoạt Circuit Breaker: IP bị phạt đến ${new Date(_globalIpBannedUntil + 7 * 3600000).toISOString().slice(11, 19)}. Đã tạm dừng toàn bộ REST API.`);
+        }
+      }
       if (data && data.code === -1021) {
         log.system(`[Binance] Lỗi -1021 (Timestamp outside recvWindow). Đang tự động đồng bộ lại giờ và thử lại...`);
         await syncTimeOffset();
@@ -62,10 +76,10 @@ async function _requestWithRetry(fn) {
       }
 
       const isNetworkErr = !err.response || err.code === 'ENOTFOUND' || err.code === 'ETIMEDOUT' || err.code === 'ECONNRESET' || err.code === 'ECONNREFUSED' || err.code === 'EHOSTUNREACH';
-      const isRateLimit = err?.response?.status === 429;
+      const isRateLimit = err?.response?.status === 429 || err?.response?.status === 418;
 
       if ((isRateLimit || isNetworkErr) && attempt < 2) {
-        await new Promise(r => setTimeout(r, (attempt + 1) * 1000));
+        await new Promise(r => setTimeout(r, (attempt + 1) * 2000));
         continue;
       }
       throw err;
