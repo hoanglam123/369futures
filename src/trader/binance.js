@@ -50,16 +50,26 @@ function _authHeaders(apiKey) {
 }
 
 async function _requestWithRetry(fn) {
-  try {
-    return await fn();
-  } catch (err) {
-    const data = err.response?.data;
-    if (data && data.code === -1021) {
-      log.system(`[Binance] Lỗi -1021 (Timestamp outside recvWindow). Đang tự động đồng bộ lại giờ và thử lại...`);
-      await syncTimeOffset();
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
       return await fn();
+    } catch (err) {
+      const data = err.response?.data;
+      if (data && data.code === -1021) {
+        log.system(`[Binance] Lỗi -1021 (Timestamp outside recvWindow). Đang tự động đồng bộ lại giờ và thử lại...`);
+        await syncTimeOffset();
+        return await fn();
+      }
+
+      const isNetworkErr = !err.response || err.code === 'ENOTFOUND' || err.code === 'ETIMEDOUT' || err.code === 'ECONNRESET' || err.code === 'ECONNREFUSED' || err.code === 'EHOSTUNREACH';
+      const isRateLimit = err?.response?.status === 429;
+
+      if ((isRateLimit || isNetworkErr) && attempt < 2) {
+        await new Promise(r => setTimeout(r, (attempt + 1) * 1000));
+        continue;
+      }
+      throw err;
     }
-    throw err;
   }
 }
 
@@ -208,18 +218,28 @@ async function loadLeverageBrackets(symbols, apiKey, secret) {
 
 // ─── Quantity helper ──────────────────────────────────────────────────────────
 
-function calcQuantity(symbol, notional, price) {
-  let stepSize = 0.001;
-  try {
-    if (fs.existsSync(FILE_PATH)) {
-      const content = fs.readFileSync(FILE_PATH, 'utf8');
-      const data = JSON.parse(content);
-      const stepSizes = data.stepSizes ?? {};
-      stepSize = stepSizes[`${symbol}USDT`] ?? 0.001;
+let _stepSizesCache = null;
+
+function _getStepSizeCached(symbol) {
+  if (!_stepSizesCache) {
+    try {
+      if (fs.existsSync(FILE_PATH)) {
+        const content = fs.readFileSync(FILE_PATH, 'utf8');
+        const data = JSON.parse(content);
+        _stepSizesCache = data.stepSizes ?? {};
+      } else {
+        _stepSizesCache = {};
+      }
+    } catch (_) {
+      _stepSizesCache = {};
     }
-  } catch (err) {
-    log.warn(`[Binance] Lỗi đọc file step_sizes.json: ${err.message}`);
   }
+  return _stepSizesCache[`${symbol}USDT`] ?? 0.001;
+}
+
+function calcQuantity(symbol, notional, price) {
+  if (!price || price <= 0) return { qty: 0, stepSize: 0.001 };
+  const stepSize = _getStepSizeCached(symbol);
   const raw = notional / price;
   const qty = Math.floor(raw / stepSize) * stepSize;
   const dec = Math.max(0, Math.round(-Math.log10(stepSize)));

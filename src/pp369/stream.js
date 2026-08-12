@@ -30,19 +30,27 @@ let _wsRequestId = 1;
 
 // ─── REST Price update for getNearbySymbols pre-check ────────────────────────
 async function updatePricesRest() {
-  try {
-    const url = 'https://fapi.binance.com/fapi/v1/ticker/price';
-    const res = await axios.get(url, { timeout: 10000 });
-    if (Array.isArray(res.data)) {
-      for (const item of res.data) {
-        if (item.symbol && item.symbol.endsWith('USDT')) {
-          const sym = item.symbol.replace('USDT', '');
-          _prices[sym] = parseFloat(item.price);
+  const url = 'https://fapi.binance.com/fapi/v1/ticker/price';
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      const res = await axios.get(url, { timeout: 10000 });
+      if (Array.isArray(res.data)) {
+        for (const item of res.data) {
+          if (item.symbol && item.symbol.endsWith('USDT')) {
+            const sym = item.symbol.replace('USDT', '');
+            _prices[sym] = parseFloat(item.price);
+          }
         }
       }
+      return;
+    } catch (err) {
+      const isNetworkErr = !err.response || err.code === 'ENOTFOUND' || err.code === 'ETIMEDOUT' || err.code === 'ECONNRESET' || err.code === 'ECONNREFUSED';
+      if ((err?.response?.status === 429 || isNetworkErr) && attempt < 2) {
+        await new Promise(r => setTimeout(r, (attempt + 1) * 1000));
+        continue;
+      }
+      log.error(`[PP369Stream] Lỗi lấy giá REST: ${err.message}`);
     }
-  } catch (err) {
-    log.error(`[PP369Stream] Lỗi lấy giá REST: ${err.message}`);
   }
 }
 
@@ -119,8 +127,18 @@ async function syncWebSocketSubscriptions(nearbySymbols) {
 
 // ─── Kết nối / Reconnect ──────────────────────────────────────────────────────
 
+let _pingInterval = null;
+
+function _cleanupPing() {
+  if (_pingInterval) {
+    clearInterval(_pingInterval);
+    _pingInterval = null;
+  }
+}
+
 function _connect() {
   if (_stopped) return;
+  _cleanupPing();
 
   _ws = new WebSocket(FSTREAM);
 
@@ -130,6 +148,17 @@ function _connect() {
     if (_symbols && _symbols.length > 0) {
       syncWebSocketSubscriptions(_symbols);
     }
+
+    // Ping/pong heartbeat mỗi 30s để chống Zombie WebSocket Connection
+    _pingInterval = setInterval(() => {
+      if (_ws && _ws.readyState === WebSocket.OPEN) {
+        try { _ws.ping(); } catch (_) { }
+      }
+    }, 30_000);
+  });
+
+  _ws.on('pong', () => {
+    // WebSocket vẫn phản hồi tốt
   });
 
   _ws.on('message', (raw) => {
@@ -153,13 +182,16 @@ function _connect() {
   });
 
   _ws.on('close', () => {
+    _cleanupPing();
     if (_stopped) return;
     log.warn('[PP369Stream] Mất kết nối — reconnect sau 5s');
     setTimeout(_connect, RECONNECT_DELAY);
   });
 
   _ws.on('error', (err) => {
+    _cleanupPing();
     log.warn('[PP369Stream] Lỗi WebSocket', { error: err.message });
+    try { _ws.terminate(); } catch (_) { }
   });
 }
 
