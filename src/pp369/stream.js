@@ -254,7 +254,7 @@ function getMarkPrice(symbol) {
  * @param {number}   threshold   - Ngưỡng % tính là "gần" (mặc định 1.5%)
  * @returns {string[]}           - Subset của symbols cần scan đầy đủ
  */
-function getNearbySymbols(symbols, levelCache, threshold = 0.015) {
+function getNearbySymbols(symbols, levelCache, threshold = 0.015, strict = false) {
   return symbols.filter(sym => {
     const price = _prices[sym];
     const levels = levelCache[sym];
@@ -269,10 +269,11 @@ function getNearbySymbols(symbols, levelCache, threshold = 0.015) {
     const currentGridPct = ((levels.shortEntry - levels.longEntry) / levels.longEntry) * 100;
     if (currentGridPct < 3 || currentGridPct > 20) return false;
 
-    // Adaptive threshold: Giữ ngưỡng lắng nghe ở mức tối thiểu 1.5% giá hoặc 50% bước giá step
-    const adaptiveThreshold = levels.step
-      ? Math.max(threshold, (levels.step / price) * 0.50)
-      : Math.max(threshold, 0.015);
+    // Adaptive threshold: Giữ ngưỡng lắng nghe ở mức tối thiểu 1.5% giá hoặc 50% bước giá step cho WebSocket
+    // Với strict = true (dùng cho scan polling), dùng chính xác threshold truyền vào (ví dụ 0.3%)
+    const adaptiveThreshold = (strict || !levels.step)
+      ? threshold
+      : Math.max(threshold, (levels.step / price) * 0.50);
 
     const distLong = Math.abs(price - levels.longEntry) / price;
     const distShort = Math.abs(levels.shortEntry - price) / price;

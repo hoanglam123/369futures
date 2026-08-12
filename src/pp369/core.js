@@ -303,9 +303,18 @@ function buildLevelGrid(upperPrice, lowerPrice, step, decimals, levelsRange = LE
   );
 }
 
+const _klinesCache = new Map();
+const KLINES_CACHE_TTL_MS = 15 * 1000; // 15 giây cache cho nến ngắn hạn
+
 async function fetchBinanceKlines(symbol, interval, startTimeMs, limit = 1500) {
   if (isIpBanned()) {
     return [];
+  }
+
+  const cacheKey = `${symbol}_${interval}_${startTimeMs}_${limit}`;
+  const cached = _klinesCache.get(cacheKey);
+  if (cached && (Date.now() - cached.timestamp < KLINES_CACHE_TTL_MS)) {
+    return cached.data;
   }
 
   const url = 'https://fapi.binance.com/fapi/v1/klines';
@@ -315,7 +324,7 @@ async function fetchBinanceKlines(symbol, interval, startTimeMs, limit = 1500) {
         params: { symbol: `${symbol}USDT`, interval, startTime: startTimeMs, limit },
         timeout: 15000,
       });
-      return (res.data || []).map(c => ({
+      const data = (res.data || []).map(c => ({
         openTime: c[0],
         open: parseFloat(c[1]),
         high: parseFloat(c[2]),
@@ -323,6 +332,8 @@ async function fetchBinanceKlines(symbol, interval, startTimeMs, limit = 1500) {
         close: parseFloat(c[4]),
         volume: parseFloat(c[5]),
       }));
+      _klinesCache.set(cacheKey, { data, timestamp: Date.now() });
+      return data;
     } catch (err) {
       const data = err.response?.data;
       const status = err.response?.status;
