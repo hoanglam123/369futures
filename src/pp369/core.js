@@ -319,9 +319,10 @@ async function fetchBinanceKlines(symbol, interval, startTimeMs, limit = 1500) {
       }));
     } catch (err) {
       const isNetworkErr = !err.response || err.code === 'ENOTFOUND' || err.code === 'ETIMEDOUT' || err.code === 'ECONNRESET' || err.code === 'ECONNREFUSED';
-      const isRateLimit = err?.response?.status === 429;
+      const isRateLimit = err?.response?.status === 429 || err?.response?.status === 418;
       if ((isRateLimit || isNetworkErr) && attempt < 3) {
-        await new Promise(r => setTimeout(r, (attempt + 1) * 1500));
+        const delay = err?.response?.status === 418 ? 15000 : (attempt + 1) * 2000;
+        await new Promise(r => setTimeout(r, delay));
         continue;
       }
       throw err;
@@ -746,9 +747,16 @@ async function fetchM1Current(symbol) {
   let cache = _m1CurrCache[symbol];
 
   if (!cache || cache.h1Start !== currentH1Start) {
-    cache = { h1Start: currentH1Start, candles: [], cursor: currentH1Start };
+    cache = { h1Start: currentH1Start, candles: [], cursor: currentH1Start, lastFetchTime: 0 };
     _m1CurrCache[symbol] = cache;
   }
+
+  // 🛡️ REST API SHIELD: Nếu vừa fetch trong vòng 10s gần đây, trả về cache ngay lập tức.
+  if (cache.candles.length > 0 && (Date.now() - (cache.lastFetchTime || 0) < 10000)) {
+    return cache.candles;
+  }
+
+  cache.lastFetchTime = Date.now();
 
   const fetched = [];
   let cursor = cache.cursor;

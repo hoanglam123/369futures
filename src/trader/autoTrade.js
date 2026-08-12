@@ -838,7 +838,7 @@ async function startAutoTrade(coins) {
         // Telegram: thông báo đặt lệnh LIMIT mới với đầy đủ Score + Reasons
         try {
           const reasonLines = (sig.scoreReasons || [])
-            .map(r => `  • ${r}`)
+            .map(r => `  • ${String(r).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}`)
             .join('\n');
           const aiLine = aiEval
             ? `\n• AI: ${aiEval.isApproved ? '🟢 Nên vào' : '🟡 Khuyên bỏ'} (${(aiEval.winRate * 100).toFixed(1)}%)`
