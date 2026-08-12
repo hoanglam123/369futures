@@ -488,7 +488,7 @@ async function startAutoTrade(coins) {
       syncWebSocketSubscriptions(wsNearby);
 
       // 2. Vòng lặp Scan định kỳ chỉ xử lý các coin đang thực sự TIỆM CẬN SÁT MỐC (<= 0.3%) để tiết kiệm API
-      const scanNearby = getNearbySymbols(activeCoinList, levelCache, 0.003);
+      const scanNearby = getNearbySymbols(activeCoinList, levelCache, 0.003, true);
 
       const nowTime = Date.now();
       if (nowTime - lastHeartbeatTime >= 15 * 60 * 1000) {
@@ -498,9 +498,10 @@ async function startAutoTrade(coins) {
 
       if (!scanNearby.length) return;
 
-      for (const sym of scanNearby) {
+      for (const sym of scanNearby.slice(0, 10)) {
         const markPrice = getMarkPrice(sym);
         await processSymbolSignal(client, sym, markPrice, leverageInfo, leverage, coins);
+        await new Promise(r => setTimeout(r, 100)); // Sleep 100ms giữa các symbol để tránh dội request REST API
       }
     } catch (err) {
       log.warn(`[AutoTrade] Lỗi trong chu kỳ scan: ${err.message}`);
