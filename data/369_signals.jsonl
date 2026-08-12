@@ -313,12 +313,9 @@
 {"ts":"2026-08-05T04:04:42","symbol":"BAN","signal":"LONG","price":0.07319,"leverage":11,"score":5.5,"margin":30}
 {"ts":"2026-08-05T04:50:40","symbol":"BAN","signal":"LONG","price":0.07317,"leverage":11,"score":5.5,"margin":30}
 {"ts":"2026-08-05T08:58:42","symbol":"STO","signal":"LONG","price":0.03965,"leverage":6,"score":5.5,"margin":30}
-<<<<<<< HEAD
 {"ts":"2026-08-05T10:10:52","symbol":"JASMY","signal":"LONG","price":0.004134,"leverage":7,"score":5.6,"margin":30}
 {"ts":"2026-08-05T10:23:23","symbol":"INJ","signal":"LONG","price":4.811,"leverage":6,"score":6.8,"margin":30}
 {"ts":"2026-08-05T10:30:20","symbol":"INJ","signal":"LONG","price":4.81,"leverage":6,"score":6.8,"margin":30}
-=======
->>>>>>> 10b4a60730465512e29ba2458fc01ffc5cf4525e
 {"ts":"2026-08-05T22:07:36","symbol":"UNI","signal":"SHORT","price":4.129,"leverage":5,"score":5.9,"margin":30}
 {"ts":"2026-08-06T08:10:06","symbol":"INJ","signal":"LONG","price":4.812,"leverage":6,"score":6.1,"margin":30}
 {"ts":"2026-08-06T08:16:00","symbol":"INJ","signal":"LONG","price":4.812,"leverage":6,"score":6.1,"margin":30}

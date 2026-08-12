@@ -1910,7 +1910,7 @@ async function notifyRealClose(client, sym, prevPos, meta) {
         tradeId: `${sym}-${meta.orderId || 'real'}`,
         orderId: String(meta.orderId || ''),
         symbol: sym,
-        exitPrice: closePrice || markPrice,
+        exitPrice: closePrice || prevPos.entryPrice,
         exitTimestamp: Date.now(),
         exitType: exitType,
         pnlPercent: roi,
