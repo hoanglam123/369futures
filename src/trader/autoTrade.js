@@ -158,6 +158,9 @@ async function startAutoTrade(coins) {
   const limitTouchedTimeoutMs = limitTouchedTimeoutMinutes * 60_000;
 
   const activeSymbols = new Set();
+  // Guard chống duplicate: ghi nhận symbol đang được xử lý NGAY LẬP TỨC
+  // trước mọi async call để tránh cả 2 luồng (WS + Poll) cùng đặt lệnh song song
+  const processingSymbols = new Set();
 
   if (!apiKey || !secret) {
     throw new Error('Thiếu BINANCE_API_KEY hoặc BINANCE_SECRET trong .env');
@@ -483,7 +486,10 @@ async function startAutoTrade(coins) {
   }
 
   async function processSymbolSignal(client, sym, markPrice, leverageInfo, leverage, coins) {
-    if (!sym || !markPrice || activeSymbols.has(sym)) return;
+    if (!sym || !markPrice || activeSymbols.has(sym) || processingSymbols.has(sym)) return;
+    // Khóa symbol ngay lập tức — trước mọi await — để chặn duplicate từ Luồng 1 + Luồng 2
+    processingSymbols.add(sym);
+    try {
 
     let sig;
     try {
@@ -856,6 +862,25 @@ async function startAutoTrade(coins) {
         `orderId=${order.orderId} status=${order.status}`
       );
 
+      // Telegram: thông báo đặt lệnh LIMIT mới với đầy đủ Score + Reasons
+      try {
+        const reasonLines = (sig.scoreReasons || [])
+          .map(r => `  • ${r}`)
+          .join('\n');
+        const aiLine = aiEval
+          ? `\n• AI: ${aiEval.isApproved ? '🟢 Nên vào' : '🟡 Khuyên bỏ'} (${(aiEval.winRate * 100).toFixed(1)}%)`
+          : '';
+        sendTelegram(
+          `📋 <b>[AutoTrade] Đặt lệnh LIMIT mới</b>\n` +
+          `• Coin: <b>${sym} (${sig.signal})</b>\n` +
+          `• Entry: <b>$${sig.targetLevel}</b>\n` +
+          `• Đòn bẩy: <b>${effectiveLeverage}x</b> | Ký quỹ: <b>$${tradeAmount}</b>\n` +
+          `• Score: <b>+${sig.score?.toFixed(2) ?? '?'}đ</b>${aiLine}\n` +
+          `• Lý do:\n${reasonLines}`
+        ).catch(() => { });
+      } catch (_) { }
+
+
     } catch (e) {
       const binErr = e.response?.data;
       const errCode = binErr?.code;
@@ -870,6 +895,9 @@ async function startAutoTrade(coins) {
           log.system(`[AutoTrade] Đã loại bỏ ${sym} khỏi danh sách quét. Còn lại ${coins.length} coin.`);
         }
       }
+    }
+    } finally {
+      processingSymbols.delete(sym);
     }
   }
 
