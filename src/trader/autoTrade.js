@@ -828,6 +828,7 @@ async function startAutoTrade(coins) {
         });
 
         _markFired(sig);
+        activeSymbols.add(sym); // 🛡️ BẢO VỆ LOCAL RAM: Khóa symbol ngay khi đặt lệnh thành công, không phụ thuộc REST sync 418
         notifySignals([sig]).catch(() => { });
         logSignal369(sig);
 
