@@ -30,19 +30,27 @@ let _wsRequestId = 1;
 
 // ─── REST Price update for getNearbySymbols pre-check ────────────────────────
 async function updatePricesRest() {
-  try {
-    const url = 'https://fapi.binance.com/fapi/v1/ticker/price';
-    const res = await axios.get(url, { timeout: 10000 });
-    if (Array.isArray(res.data)) {
-      for (const item of res.data) {
-        if (item.symbol && item.symbol.endsWith('USDT')) {
-          const sym = item.symbol.replace('USDT', '');
-          _prices[sym] = parseFloat(item.price);
+  const url = 'https://fapi.binance.com/fapi/v1/ticker/price';
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      const res = await axios.get(url, { timeout: 10000 });
+      if (Array.isArray(res.data)) {
+        for (const item of res.data) {
+          if (item.symbol && item.symbol.endsWith('USDT')) {
+            const sym = item.symbol.replace('USDT', '');
+            _prices[sym] = parseFloat(item.price);
+          }
         }
       }
+      return;
+    } catch (err) {
+      const isNetworkErr = !err.response || err.code === 'ENOTFOUND' || err.code === 'ETIMEDOUT' || err.code === 'ECONNRESET' || err.code === 'ECONNREFUSED';
+      if ((err?.response?.status === 429 || isNetworkErr) && attempt < 2) {
+        await new Promise(r => setTimeout(r, (attempt + 1) * 1000));
+        continue;
+      }
+      log.error(`[PP369Stream] Lỗi lấy giá REST: ${err.message}`);
     }
-  } catch (err) {
-    log.error(`[PP369Stream] Lỗi lấy giá REST: ${err.message}`);
   }
 }
 

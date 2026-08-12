@@ -50,16 +50,26 @@ function _authHeaders(apiKey) {
 }
 
 async function _requestWithRetry(fn) {
-  try {
-    return await fn();
-  } catch (err) {
-    const data = err.response?.data;
-    if (data && data.code === -1021) {
-      log.system(`[Binance] Lỗi -1021 (Timestamp outside recvWindow). Đang tự động đồng bộ lại giờ và thử lại...`);
-      await syncTimeOffset();
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
       return await fn();
+    } catch (err) {
+      const data = err.response?.data;
+      if (data && data.code === -1021) {
+        log.system(`[Binance] Lỗi -1021 (Timestamp outside recvWindow). Đang tự động đồng bộ lại giờ và thử lại...`);
+        await syncTimeOffset();
+        return await fn();
+      }
+
+      const isNetworkErr = !err.response || err.code === 'ENOTFOUND' || err.code === 'ETIMEDOUT' || err.code === 'ECONNRESET' || err.code === 'ECONNREFUSED' || err.code === 'EHOSTUNREACH';
+      const isRateLimit = err?.response?.status === 429;
+
+      if ((isRateLimit || isNetworkErr) && attempt < 2) {
+        await new Promise(r => setTimeout(r, (attempt + 1) * 1000));
+        continue;
+      }
+      throw err;
     }
-    throw err;
   }
 }
 

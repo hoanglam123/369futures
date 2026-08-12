@@ -1284,8 +1284,10 @@ async function fetchGlobalLongShortRatio(symbol, period = '1h') {
         };
       }
     } catch (err) {
-      if (err?.response?.status === 429 && attempt < 3) {
-        await new Promise(r => setTimeout(r, (attempt + 1) * 2000));
+      const isNetworkErr = !err.response || err.code === 'ENOTFOUND' || err.code === 'ETIMEDOUT' || err.code === 'ECONNRESET' || err.code === 'ECONNREFUSED';
+      const isRateLimit = err?.response?.status === 429;
+      if ((isRateLimit || isNetworkErr) && attempt < 3) {
+        await new Promise(r => setTimeout(r, (attempt + 1) * 1500));
         continue;
       }
       log.warn(`[Binance API] Lỗi lấy Long/Short ratio cho ${symbol}: ${err.message}`);
@@ -1310,8 +1312,10 @@ async function fetchTopLongShortPositionRatio(symbol, period = '1h') {
         };
       }
     } catch (err) {
-      if (err?.response?.status === 429 && attempt < 3) {
-        await new Promise(r => setTimeout(r, (attempt + 1) * 2000));
+      const isNetworkErr = !err.response || err.code === 'ENOTFOUND' || err.code === 'ETIMEDOUT' || err.code === 'ECONNRESET' || err.code === 'ECONNREFUSED';
+      const isRateLimit = err?.response?.status === 429;
+      if ((isRateLimit || isNetworkErr) && attempt < 3) {
+        await new Promise(r => setTimeout(r, (attempt + 1) * 1500));
         continue;
       }
       log.warn(`[Binance API] Lỗi lấy Top Traders L/S ratio cho ${symbol}: ${err.message}`);
@@ -1336,8 +1340,10 @@ async function fetchOpenInterestHistory(symbol, period = '1h', limit = 5) {
         }));
       }
     } catch (err) {
-      if (err?.response?.status === 429 && attempt < 3) {
-        await new Promise(r => setTimeout(r, (attempt + 1) * 2000));
+      const isNetworkErr = !err.response || err.code === 'ENOTFOUND' || err.code === 'ETIMEDOUT' || err.code === 'ECONNRESET' || err.code === 'ECONNREFUSED';
+      const isRateLimit = err?.response?.status === 429;
+      if ((isRateLimit || isNetworkErr) && attempt < 3) {
+        await new Promise(r => setTimeout(r, (attempt + 1) * 1500));
         continue;
       }
       log.warn(`[Binance API] Lỗi lấy Open Interest history cho ${symbol}: ${err.message}`);
@@ -1358,8 +1364,10 @@ async function fetchFundingRate(symbol) {
         return parseFloat(res.data.lastFundingRate);
       }
     } catch (err) {
-      if (err?.response?.status === 429 && attempt < 3) {
-        await new Promise(r => setTimeout(r, (attempt + 1) * 2000));
+      const isNetworkErr = !err.response || err.code === 'ENOTFOUND' || err.code === 'ETIMEDOUT' || err.code === 'ECONNRESET' || err.code === 'ECONNREFUSED';
+      const isRateLimit = err?.response?.status === 429;
+      if ((isRateLimit || isNetworkErr) && attempt < 3) {
+        await new Promise(r => setTimeout(r, (attempt + 1) * 1500));
         continue;
       }
       log.warn(`[Binance API] Lỗi lấy Funding Rate cho ${symbol}: ${err.message}`);
