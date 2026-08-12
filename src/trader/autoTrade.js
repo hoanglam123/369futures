@@ -845,14 +845,14 @@ async function startAutoTrade(coins) {
           const aiLine = aiEval
             ? `\n• AI: ${aiEval.isApproved ? '🟢 Nên vào' : '🟡 Khuyên bỏ'} (${(aiEval.winRate * 100).toFixed(1)}%)`
             : '';
-          sendTelegram(
-            `📋 <b>[AutoTrade] Đặt lệnh LIMIT mới</b>\n` +
-            `• Coin: <b>${sym} (${sig.signal})</b>\n` +
-            `• Entry: <b>$${sig.targetLevel}</b>\n` +
-            `• Đòn bẩy: <b>${effectiveLeverage}x</b> | Ký quỹ: <b>$${tradeAmount}</b>\n` +
-            `• Score: <b>+${sig.score?.toFixed(2) ?? '?'}đ</b>${aiLine}\n` +
-            `• Lý do:\n${reasonLines}`
-          ).catch(() => { });
+          // sendTelegram(
+          //   `📋 <b>[AutoTrade] Đặt lệnh LIMIT mới</b>\n` +
+          //   `• Coin: <b>${sym} (${sig.signal})</b>\n` +
+          //   `• Entry: <b>$${sig.targetLevel}</b>\n` +
+          //   `• Đòn bẩy: <b>${effectiveLeverage}x</b> | Ký quỹ: <b>$${tradeAmount}</b>\n` +
+          //   `• Score: <b>+${sig.score?.toFixed(2) ?? '?'}đ</b>${aiLine}\n` +
+          //   `• Lý do:\n${reasonLines}`
+          // ).catch(() => { });
         } catch (_) { }
 
 
