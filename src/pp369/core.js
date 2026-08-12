@@ -1323,6 +1323,7 @@ async function fetchGlobalLongShortRatio(symbol, period = '1h') {
 }
 
 async function fetchTopLongShortPositionRatio(symbol, period = '1h') {
+  if (Date.now() < _globalIpBannedUntil) return null;
   const url = 'https://fapi.binance.com/futures/data/topLongShortPositionRatio';
   for (let attempt = 0; attempt < 4; attempt++) {
     try {
@@ -1351,6 +1352,7 @@ async function fetchTopLongShortPositionRatio(symbol, period = '1h') {
 }
 
 async function fetchOpenInterestHistory(symbol, period = '1h', limit = 5) {
+  if (Date.now() < _globalIpBannedUntil) return null;
   const url = 'https://fapi.binance.com/futures/data/openInterestHist';
   for (let attempt = 0; attempt < 4; attempt++) {
     try {
@@ -1378,28 +1380,44 @@ async function fetchOpenInterestHistory(symbol, period = '1h', limit = 5) {
   return null;
 }
 
-async function fetchFundingRate(symbol) {
-  const url = 'https://fapi.binance.com/fapi/v1/premiumIndex';
-  for (let attempt = 0; attempt < 4; attempt++) {
-    try {
-      const res = await axios.get(url, {
-        params: { symbol: `${symbol}USDT` },
-        timeout: 10000,
-      });
-      if (res.data && res.data.lastFundingRate !== undefined) {
-        return parseFloat(res.data.lastFundingRate);
+let _allFundingRatesCache = null;
+let _allFundingRatesCacheTime = 0;
+
+async function fetchAllFundingRates() {
+  if (Date.now() < _globalIpBannedUntil) return null;
+  const now = Date.now();
+  if (_allFundingRatesCache && (now - _allFundingRatesCacheTime < 3 * 60 * 1000)) {
+    return _allFundingRatesCache;
+  }
+  try {
+    const res = await axios.get('https://fapi.binance.com/fapi/v1/premiumIndex', { timeout: 10000 });
+    if (Array.isArray(res.data)) {
+      const map = {};
+      for (const item of res.data) {
+        if (item.symbol && item.symbol.endsWith('USDT')) {
+          const sym = item.symbol.replace('USDT', '');
+          map[sym] = parseFloat(item.lastFundingRate);
+        }
       }
-    } catch (err) {
-      const isNetworkErr = !err.response || err.code === 'ENOTFOUND' || err.code === 'ETIMEDOUT' || err.code === 'ECONNRESET' || err.code === 'ECONNREFUSED';
-      const isRateLimit = err?.response?.status === 429;
-      if ((isRateLimit || isNetworkErr) && attempt < 3) {
-        await new Promise(r => setTimeout(r, (attempt + 1) * 1500));
-        continue;
+      _allFundingRatesCache = map;
+      _allFundingRatesCacheTime = now;
+      return map;
+    }
+  } catch (err) {
+    if (err.response?.status === 418 || err.response?.data?.code === -1003) {
+      const match = err.response?.data?.msg?.match(/banned until (\d+)/);
+      if (match) {
+        _globalIpBannedUntil = parseInt(match[1], 10);
+        log.warn(`[369] Kích hoạt Circuit Breaker: IP bị phạt đến ${new Date(_globalIpBannedUntil + 7 * 3600000).toISOString().slice(11, 19)}.`);
       }
-      log.warn(`[Binance API] Lỗi lấy Funding Rate cho ${symbol}: ${err.message}`);
     }
   }
-  return null;
+  return _allFundingRatesCache;
+}
+
+async function fetchFundingRate(symbol) {
+  const map = await fetchAllFundingRates();
+  return map ? (map[symbol] ?? null) : null;
 }
 
 async function checkAndUpdateMarketCapCache() {
