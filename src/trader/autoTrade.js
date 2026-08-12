@@ -518,8 +518,9 @@ async function startAutoTrade(coins) {
       }
 
       // Tính điểm Scorer trước khi đặt lệnh và gửi Telegram
+      let scoreRes = null;
       try {
-        const scoreRes = await score369Method(sig, sig.signal);
+        scoreRes = await score369Method(sig, sig.signal);
         sig.score = scoreRes.score;
         sig.scoreReasons = scoreRes.reasons;
       } catch (err) {
