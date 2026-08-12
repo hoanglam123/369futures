@@ -26,7 +26,7 @@ const FILE_PATH = path.join(process.cwd(), 'data', 'step_sizes.json');
 
 const LEVELS_RANGE = 6;     // Tạo ±6 tầng mốc quanh giá gốc
 const TOUCH_TOLERANCE = 0; // 0% dung sai để tính "đã chạm mốc" (phải chạm hoặc vượt mốc)
-const NEAR_LEVEL_PCT = 0.003; // 0.3% = "giá đang tiếp cận mốc — đủ gần để alert / đặt lệnh"
+const NEAR_LEVEL_PCT = 0.005; // 0.5% = "giá đang tiếp cận mốc — đủ gần để alert / đặt lệnh"
 const PROXIMITY_PCT = 0.02;  // 2% = ngưỡng lọc WebSocket — chỉ scan coin đang gần mốc
 // Quy tắc 3 lần: lần 1 = strong (+2), lần 2 = medium (+1), lần 3+ = weak (+1)
 
@@ -910,7 +910,7 @@ async function get369Signal(symbol, currentPrice = null) {
 
       const nearTolPre = currentPrice * NEAR_LEVEL_PCT;
       const longEntry = grid.filter(l => l.type === 'tren' && l.value <= currentPrice + nearTolPre).pop();
-      const shortEntry = grid.find(l => l.type === 'duoi' && l.value >= currentPrice - nearTolPre);
+      const shortEntry = grid.find(l => l.type === 'duoi' && l.value > (longEntry ? longEntry.value : currentPrice));
 
       if (longEntry && shortEntry) {
         const y = ((shortEntry.value - longEntry.value) / longEntry.value) * 100; // % Khung kẹp giá trực tiếp
@@ -967,7 +967,7 @@ async function get369Signal(symbol, currentPrice = null) {
 
     const nearTol = price * NEAR_LEVEL_PCT;
     const longEntry = grid.filter(l => l.type === 'tren' && l.value <= price + nearTol).pop();
-    const shortEntry = grid.find(l => l.type === 'duoi' && l.value >= price - nearTol);
+    const shortEntry = grid.find(l => l.type === 'duoi' && l.value > (longEntry ? longEntry.value : price));
 
     if (!longEntry || !shortEntry) {
       return {
