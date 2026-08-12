@@ -2160,15 +2160,17 @@ function getLevelCache() {
         _h4RefCache[symbol] = entry;
 
         const { upperPrice, lowerPrice, step, decimals } = entry;
-        const price = entry.closePrice;
+        const stream = require('./stream');
+        const livePrice = stream.getMarkPrice ? stream.getMarkPrice(symbol) : null;
+        const price = (livePrice && livePrice > 0) ? livePrice : entry.closePrice;
         const distTicks = Math.ceil(Math.max(
           Math.abs(upperPrice - price),
           Math.abs(lowerPrice - price),
         ) / step);
         const levelsRange = Math.max(LEVELS_RANGE, distTicks + 5);
         const grid = buildLevelGrid(upperPrice, lowerPrice, step, decimals, levelsRange);
-        const longEntry  = grid.filter(l => l.type === 'tren' && l.value < price).pop();
-        const shortEntry = grid.find(l => l.type === 'duoi' && l.value > price);
+        const longEntry  = grid.filter(l => l.type === 'tren' && l.value <= price).pop();
+        const shortEntry = grid.find(l => l.type === 'duoi' && l.value > (longEntry ? longEntry.value : price));
         if (longEntry && shortEntry) {
           _levelCache[symbol] = { longEntry: longEntry.value, shortEntry: shortEntry.value, step: step };
         }
