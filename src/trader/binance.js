@@ -199,6 +199,7 @@ async function loadStepSizes() {
  * @param {string}   secret
  */
 async function loadLeverageBrackets(symbols, apiKey, secret) {
+  if (isIpBanned()) return {};
   log.system(`[Binance] Đang lấy leverage brackets cho ${symbols.length} coin...`);
 
   let allBrackets;
