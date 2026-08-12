@@ -45,11 +45,13 @@ async function updatePricesRest() {
       return;
     } catch (err) {
       const isNetworkErr = !err.response || err.code === 'ENOTFOUND' || err.code === 'ETIMEDOUT' || err.code === 'ECONNRESET' || err.code === 'ECONNREFUSED';
-      if ((err?.response?.status === 429 || isNetworkErr) && attempt < 2) {
-        await new Promise(r => setTimeout(r, (attempt + 1) * 1000));
+      const isRateLimit = err?.response?.status === 429 || err?.response?.status === 418;
+      if ((isRateLimit || isNetworkErr) && attempt < 2) {
+        const delay = err?.response?.status === 418 ? 15000 : (attempt + 1) * 2000;
+        await new Promise(r => setTimeout(r, delay));
         continue;
       }
-      log.error(`[PP369Stream] Lỗi lấy giá REST: ${err.message}`);
+      log.warn(`[PP369Stream] Lỗi lấy giá REST: ${err.message}`);
     }
   }
 }
