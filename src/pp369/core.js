@@ -1480,6 +1480,7 @@ async function score369Method(sig369, direction) {
   }
 
   let score = 0;
+  let volScore = 0;
   const reasons = [];
 
   try {
@@ -1669,7 +1670,7 @@ async function score369Method(sig369, direction) {
     reasons.push(`[Xu hướng H4/H1] ${trendReasons.join(' | ')}`);
 
     // 2. Tiêu chí 2: Bộ lọc kép biến động H1 & M15 (Tối đa +1.0đ: H1 tối đa +0.5đ, M15 tối đa +0.5đ)
-    let volScore = 0;
+    volScore = 0;
     const volReasons = [];
     const step = sig369.step || 0;
 
@@ -2100,7 +2101,8 @@ async function score369Method(sig369, direction) {
     reasons.push(`[Confluence Scorer] Lỗi tính toán chỉ báo (+0)`);
   }
 
-  return { score, reasons };
+  const otherScore = Math.max(0, score - (volScore || 0));
+  return { score, reasons, volScore: volScore || 0, otherScore };
 }
 
 // ─── Format cho AI prompt ─────────────────────────────────────────────────────
