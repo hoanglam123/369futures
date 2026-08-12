@@ -3,9 +3,15 @@
 const { log } = require('../pp369/_logger');
 
 let _globalIpBannedUntil = 0;
+let _wasBannedNotified = false;
 
 function isIpBanned() {
-  return Date.now() < _globalIpBannedUntil;
+  const banned = Date.now() < _globalIpBannedUntil;
+  if (!banned && _wasBannedNotified) {
+    _wasBannedNotified = false;
+    log.system(`[CircuitBreaker] 🟢 Hết thời gian phạt IP của Binance! Tự động khôi phục giao dịch REST API bình thường.`);
+  }
+  return banned;
 }
 
 function getIpBannedUntil() {
@@ -33,6 +39,7 @@ function triggerCircuitBreaker(errOrUntilMs, source = 'Binance') {
 
   if (untilMs > 0 && untilMs > _globalIpBannedUntil) {
     _globalIpBannedUntil = untilMs;
+    _wasBannedNotified = true;
     const remainMin = ((_globalIpBannedUntil - Date.now()) / 60000).toFixed(1);
     const timeStr = new Date(_globalIpBannedUntil + 7 * 3600000).toISOString().slice(11, 19);
     log.warn(`[${source}] Kích hoạt Circuit Breaker: IP bị phạt đến ${timeStr} (còn ${remainMin} phút). Tạm dừng toàn bộ REST API.`);
