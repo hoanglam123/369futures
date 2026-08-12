@@ -497,377 +497,377 @@ async function startAutoTrade(coins) {
     processingSymbols.add(sym);
     try {
 
-    let sig;
-    try {
-      sig = await get369Signal(sym, markPrice);
-    } catch (e) {
-      log.warn(`[AutoTrade] Lỗi get369Signal ${sym}: ${e.message}`);
-      return;
-    }
-
-    if (!sig || sig.signal === 'NONE' || !sig.targetLevel || sig.targetLevel <= 0 || !sig.step || sig.step <= 0) {
-      if (sig?.reason && (sig.reason.includes('Không lấy được nến H4') || sig.reason.includes('không trùng ngày 01/01/2026'))) {
-        log.warn(`[AutoTrade] Phát hiện ${sym} không có nến H4 đầu năm 2026. Loại bỏ khỏi danh sách quét.`);
-        const idx = coins.indexOf(sym);
-        if (idx !== -1) {
-          coins.splice(idx, 1);
-          log.system(`[AutoTrade] Đã loại bỏ ${sym} khỏi danh sách quét. Còn lại ${coins.length} coin.`);
-        }
-      }
-      return;
-    }
-
-    // Tính điểm Scorer trước khi đặt lệnh và gửi Telegram
-    try {
-      const scoreRes = await score369Method(sig, sig.signal);
-      sig.score = scoreRes.score;
-      sig.scoreReasons = scoreRes.reasons;
-    } catch (err) {
-      log.warn(`[AutoTrade] Lỗi tính score cho ${sym}: ${err.message}`);
-    }
-
-    const isNewSignalLog = _shouldLogSignal(sym, sig.signal, sig.targetLevel, 'detected');
-    if (isNewSignalLog) {
-      log.system(`[AutoTrade] ${sym} → ${sig.signal} (Score: +${sig.score}đ) tại $${sig.targetLevel}`);
-    }
-
-    const isBtc = sym === 'BTC';
-
-    // Bắt buộc phải có Tiêu chí 2 (Biến động H1/M15 an toàn - không có khung nào bị điểm cộng (+0đ)). Riêng BTC bỏ qua.
-    const hasCriterion2 = sig.scoreReasons && sig.scoreReasons.some(r => r.includes('[Biến động H1/M15]') && !r.includes('(+0đ)'));
-    if (!isBtc && !hasCriterion2) {
-      if (isNewSignalLog) {
-        log.system(`[AutoTrade] ${sym} ${sig.signal} không đạt Tiêu chí 2 (Biến động H1/M15 an toàn) — Đưa vào Watchlist chờ Retest H1`);
-      }
-      lowScoreWatchlist[sym] = {
-        symbol: sym,
-        signal: sig.signal,
-        targetLevel: sig.targetLevel,
-        score: sig.score,
-        scoreReasons: sig.scoreReasons || [],
-        volScore: scoreRes?.volScore || 0,
-        otherScore: scoreRes?.otherScore || 0,
-        step: sig.step || getStep(markPrice),
-        gridWidthPct: parseFloat(sig.gridWidthPct) || 3.5,
-        timestamp: Date.now()
-      };
-      if (_shouldLogSignal(sym, sig.signal, sig.targetLevel, 'rec_no_volatility')) {
-        recordSkippedSignal({
-          symbol: sym,
-          signal: sig.signal,
-          signalPrice: sig.targetLevel,
-          score: sig.score ?? 0,
-          scoreReasons: sig.scoreReasons || [],
-          skipReason: 'NO_VOLATILITY_FILTER',
-          markPrice: markPrice,
-          marketCapRank: getMarketCapRank ? getMarketCapRank(sym) : 999,
-        });
-      }
-      return;
-    }
-
-    // Phân bổ ký quỹ (Margin): PP369 + H1/M15 Volatility làm móng gốc ($50)
-    // Mỗi +1.0đ từ các tiêu chí bổ trợ khác (Trend, RSI, Dòng tiền L/S, Volume, PA, OI, Funding, BTC) → +$5 Margin
-    const score = sig.score ?? 0;
-    const volScore = scoreRes?.volScore || 0;
-    const otherScore = scoreRes?.otherScore != null ? scoreRes.otherScore : Math.max(0, score - volScore);
-    const bonusMargin = Math.floor(otherScore) * 5;
-    const tradeAmount = Math.min(100, 50 + bonusMargin);
-
-    const rank = getMarketCapRank ? getMarketCapRank(sym) : 999;
-    log.system(
-      `[AutoTrade] Phân bổ Ký quỹ ${sym}: $${tradeAmount} ` +
-      `(Gốc PP369+Vol $50 + Bonus $${bonusMargin} từ +${otherScore.toFixed(1)}đ các tiêu chí bổ trợ | Score tổng: +${score.toFixed(1)}đ)`
-    );
-
-    if (_isDebounced(sig)) {
-      if (isNewSignalLog) {
-        log.system(`[AutoTrade] ${sym} ${sig.signal} đã đặt gần đây — bỏ qua`);
-      }
-      if (_shouldLogSignal(sym, sig.signal, sig.targetLevel, 'rec_debounced')) {
-        recordSkippedSignal({
-          symbol: sym,
-          signal: sig.signal,
-          signalPrice: sig.targetLevel,
-          score: sig.score ?? 0,
-          scoreReasons: sig.scoreReasons || [],
-          skipReason: 'DEBOUNCED',
-          markPrice: markPrice,
-          marketCapRank: rank,
-        });
-      }
-      return;
-    }
-
-    try {
-      const hasPos = await client.hasOpenPosition(sym);
-      if (hasPos) {
-        log.system(`[AutoTrade] ${sym} đang có vị thế mở — bỏ qua`);
+      let sig;
+      try {
+        sig = await get369Signal(sym, markPrice);
+      } catch (e) {
+        log.warn(`[AutoTrade] Lỗi get369Signal ${sym}: ${e.message}`);
         return;
       }
-    } catch (e) {
-      log.warn(`[AutoTrade] Không check được vị thế ${sym}: ${_binanceErr(e)} — vẫn tiếp tục đặt lệnh`);
-    }
 
-    // [BUG-5 FIX] Guard against NaN khi sig.condLevel undefined/null
-    // Nếu condLevel hợp lệ: tính theo khoảng cách 2 mốc / 5
-    // Nếu condLevel thiếu: fallback về gridStepPct / 5.5 (tương đương bouncePct trong checkPendingLimits)
-    let preEntryBouncePct;
-    if (sig.condLevel && sig.targetLevel && isFinite(sig.condLevel) && isFinite(sig.targetLevel)) {
-      const gridWidth = Math.abs(sig.condLevel - sig.targetLevel);
-      const pct = (gridWidth / Math.min(sig.targetLevel, sig.condLevel)) * 100;
-      preEntryBouncePct = pct / 5.0;
-    } else {
-      const fallbackGridStepPct = sig.step ? (sig.step / sig.targetLevel) * 100 : 4.5;
-      preEntryBouncePct = fallbackGridStepPct / 5.5;
-      log.warn(`[AutoTrade] ${sym}: sig.condLevel thiếu → dùng preEntryBouncePct fallback = ${preEntryBouncePct.toFixed(3)}%`);
-    }
-    const touchThresholdPct = 0.12;
-    let maxRecentBouncePct = null;
-
-    if (sig.recentM1Candles && sig.recentM1Candles.length > 0) {
-      const recentM1 = sig.recentM1Candles;
-      if (sig.signal === 'LONG') {
-        let startIdx = 0;
-        for (let i = recentM1.length - 1; i >= 0; i--) {
-          if (recentM1[i].high >= sig.condLevel) {
-            startIdx = i;
-            break;
+      if (!sig || sig.signal === 'NONE' || !sig.targetLevel || sig.targetLevel <= 0 || !sig.step || sig.step <= 0) {
+        if (sig?.reason && (sig.reason.includes('Không lấy được nến H4') || sig.reason.includes('không trùng ngày 01/01/2026'))) {
+          log.warn(`[AutoTrade] Phát hiện ${sym} không có nến H4 đầu năm 2026. Loại bỏ khỏi danh sách quét.`);
+          const idx = coins.indexOf(sym);
+          if (idx !== -1) {
+            coins.splice(idx, 1);
+            log.system(`[AutoTrade] Đã loại bỏ ${sym} khỏi danh sách quét. Còn lại ${coins.length} coin.`);
           }
         }
-
-        const touchZoneUpper = sig.targetLevel * (1 + touchThresholdPct / 100);
-        let maxBouncePct = 0;
-        let bestTouchLow = 0;
-        let bestPeakHigh = 0;
-
-        for (let i = startIdx; i < recentM1.length; i++) {
-          const candle = recentM1[i];
-          if (candle.low <= touchZoneUpper) {
-            const touchLow = candle.low;
-            let peakHigh = markPrice;
-            for (let j = i; j < recentM1.length; j++) {
-              if (recentM1[j].high > peakHigh) {
-                peakHigh = recentM1[j].high;
-              }
-            }
-            const bouncePct = ((peakHigh - touchLow) / touchLow) * 100;
-            if (bouncePct > maxBouncePct) {
-              maxBouncePct = bouncePct;
-              bestTouchLow = touchLow;
-              bestPeakHigh = peakHigh;
-            }
-          }
-        }
-
-        if (maxBouncePct >= preEntryBouncePct) {
-          if (_shouldLogSignal(sym, sig.signal, sig.targetLevel, 'stale_canceled')) {
-            log.system(
-              `[AutoTrade] ${sym} LONG: Từ khi chạm mốc Short ($${sig.condLevel}), nến M1 đã xát mốc entry LONG ($${bestTouchLow.toFixed(6)}) ` +
-              `rồi nảy lên đỉnh $${bestPeakHigh.toFixed(6)} (+${maxBouncePct.toFixed(2)}% >= ${preEntryBouncePct.toFixed(2)}% Khung/5) — HỦY LIMIT stale.`
-            );
-          }
-          return;
-        }
-        maxRecentBouncePct = maxBouncePct;
-      } else if (sig.signal === 'SHORT') {
-        let startIdx = 0;
-        for (let i = recentM1.length - 1; i >= 0; i--) {
-          if (recentM1[i].low <= sig.condLevel) {
-            startIdx = i;
-            break;
-          }
-        }
-
-        const touchZoneLower = sig.targetLevel * (1 - touchThresholdPct / 100);
-        let maxDropPct = 0;
-        let bestTouchHigh = 0;
-        let bestTroughLow = 0;
-
-        for (let i = startIdx; i < recentM1.length; i++) {
-          const candle = recentM1[i];
-          if (candle.high >= touchZoneLower) {
-            const touchHigh = candle.high;
-            let troughLow = markPrice;
-            for (let j = i; j < recentM1.length; j++) {
-              if (recentM1[j].low < troughLow) {
-                troughLow = recentM1[j].low;
-              }
-            }
-            const dropPct = ((touchHigh - troughLow) / touchHigh) * 100;
-            if (dropPct > maxDropPct) {
-              maxDropPct = dropPct;
-              bestTouchHigh = touchHigh;
-              bestTroughLow = troughLow;
-            }
-          }
-        }
-
-        if (maxDropPct >= preEntryBouncePct) {
-          if (_shouldLogSignal(sym, sig.signal, sig.targetLevel, 'stale_canceled')) {
-            log.system(
-              `[AutoTrade] ${sym} SHORT: Từ khi chạm mốc Long ($${sig.condLevel}), nến M1 đã xát mốc entry SHORT ($${bestTouchHigh.toFixed(6)}) ` +
-              `rồi nảy xuống đáy $${bestTroughLow.toFixed(6)} (-${maxDropPct.toFixed(2)}% >= ${preEntryBouncePct.toFixed(2)}% Khung/5) — HỦY LIMIT stale.`
-            );
-          }
-          return;
-        }
-        maxRecentBouncePct = maxDropPct;
+        return;
       }
-    } else {
-      if (sig.signal === 'LONG') {
-        const bouncedAwayPct = ((markPrice - sig.targetLevel) / sig.targetLevel) * 100;
-        if (bouncedAwayPct >= preEntryBouncePct) {
-          if (_shouldLogSignal(sym, sig.signal, sig.targetLevel, 'stale_canceled_fallback')) {
-            log.system(`[AutoTrade] ${sym} LONG đã nảy xa mốc entry ($${sig.targetLevel} → $${markPrice.toFixed(6)} +${bouncedAwayPct.toFixed(2)}% >= ${preEntryBouncePct.toFixed(2)}%) — bỏ qua không đặt lệnh LIMIT stale.`);
-          }
-          return;
-        }
-      } else if (sig.signal === 'SHORT') {
-        const bouncedAwayPct = ((sig.targetLevel - markPrice) / sig.targetLevel) * 100;
-        if (bouncedAwayPct >= preEntryBouncePct) {
-          log.system(`[AutoTrade] ${sym} SHORT đã nảy xa mốc entry ($${sig.targetLevel} → $${markPrice.toFixed(6)} -${bouncedAwayPct.toFixed(2)}% >= ${preEntryBouncePct.toFixed(2)}%) — bỏ qua không đặt lệnh LIMIT stale.`);
-          return;
-        }
-      }
-    }
 
-    const gridStepPct = (sig.step / sig.targetLevel) * 100;
-    sig.marketCapRank = rank;
-    sig.gridWidthPct = gridStepPct;
-
-    const aiEval = evaluateSignalWithAI(sig);
-    recordAIEvaluation(sig, aiEval);
-
-    if (aiEval.isApproved) {
-      log.system(`[AI Reviewer (Shadow)] 🟢 Khuyên NÊN ĐẶT LỆNH ${sym} (${sig.signal}) - ${aiEval.reason}`);
-    } else {
-      log.system(`[AI Reviewer (Shadow)] 🟡 Khuyên BỎ QUA ${sym} (${sig.signal}) - ${aiEval.reason}`);
-    }
-
-    const calculatedLeverage = Math.floor(39 / gridStepPct);
-    const maxAllowed = leverageInfo[sym] ?? leverage;
-    const effectiveLeverage = Math.max(1, Math.min(calculatedLeverage, maxAllowed));
-
-    sig.leverage = effectiveLeverage;
-    sig.margin = tradeAmount;
-
-    const currentNotional = tradeAmount * effectiveLeverage;
-
-    const { qty } = calcQuantity(sym, currentNotional, sig.targetLevel);
-    if (qty <= 0) {
-      log.warn(`[AutoTrade] ${sym}: quantity = 0 — tăng TRADE_AMOUNT hoặc LEVERAGE`);
-      return;
-    }
-
-    const side = sig.signal === 'LONG' ? 'BUY' : 'SELL';
-
-    try {
+      // Tính điểm Scorer trước khi đặt lệnh và gửi Telegram
       try {
-        await client.setLeverage(sym, effectiveLeverage);
-        log.system(`[AutoTrade] Set leverage ${sym}USDT = ${effectiveLeverage}x (Bước 300đ: ${gridStepPct.toFixed(2)}% → tính được ${calculatedLeverage}x, giới hạn: ${maxAllowed}x | Ký quỹ mục tiêu: $${tradeAmount})`);
-      } catch (e) {
-        const binErr = e.response?.data;
-        log.warn(`[AutoTrade] Set leverage ${sym} thất bại: ${_binanceErr(e)} — vẫn tiếp tục đặt lệnh`);
-        if (binErr?.code === -4411) {
-          throw e;
+        const scoreRes = await score369Method(sig, sig.signal);
+        sig.score = scoreRes.score;
+        sig.scoreReasons = scoreRes.reasons;
+      } catch (err) {
+        log.warn(`[AutoTrade] Lỗi tính score cho ${sym}: ${err.message}`);
+      }
+
+      const isNewSignalLog = _shouldLogSignal(sym, sig.signal, sig.targetLevel, 'detected');
+      if (isNewSignalLog) {
+        log.system(`[AutoTrade] ${sym} → ${sig.signal} (Score: +${sig.score}đ) tại $${sig.targetLevel}`);
+      }
+
+      const isBtc = sym === 'BTC';
+
+      // Bắt buộc phải có Tiêu chí 2 (Biến động H1/M15 an toàn - không có khung nào bị điểm cộng (+0đ)). Riêng BTC bỏ qua.
+      const hasCriterion2 = sig.scoreReasons && sig.scoreReasons.some(r => r.includes('[Biến động H1/M15]') && !r.includes('(+0đ)'));
+      if (!isBtc && !hasCriterion2) {
+        if (isNewSignalLog) {
+          log.system(`[AutoTrade] ${sym} ${sig.signal} không đạt Tiêu chí 2 (Biến động H1/M15 an toàn) — Đưa vào Watchlist chờ Retest H1`);
         }
+        lowScoreWatchlist[sym] = {
+          symbol: sym,
+          signal: sig.signal,
+          targetLevel: sig.targetLevel,
+          score: sig.score,
+          scoreReasons: sig.scoreReasons || [],
+          volScore: scoreRes?.volScore || 0,
+          otherScore: scoreRes?.otherScore || 0,
+          step: sig.step || getStep(markPrice),
+          gridWidthPct: parseFloat(sig.gridWidthPct) || 3.5,
+          timestamp: Date.now()
+        };
+        if (_shouldLogSignal(sym, sig.signal, sig.targetLevel, 'rec_no_volatility')) {
+          recordSkippedSignal({
+            symbol: sym,
+            signal: sig.signal,
+            signalPrice: sig.targetLevel,
+            score: sig.score ?? 0,
+            scoreReasons: sig.scoreReasons || [],
+            skipReason: 'NO_VOLATILITY_FILTER',
+            markPrice: markPrice,
+            marketCapRank: getMarketCapRank ? getMarketCapRank(sym) : 999,
+          });
+        }
+        return;
       }
 
-      let order;
-      if (orderType === 'MARKET') {
-        order = await client.placeMarket(sym, side, qty);
-      } else {
-        const dec = getDecimals(sig.targetLevel);
-        order = await client.placeLimit(sym, side, qty, sig.targetLevel, dec);
-      }
+      // Phân bổ ký quỹ (Margin): PP369 + H1/M15 Volatility làm móng gốc ($50)
+      // Mỗi +1.0đ từ các tiêu chí bổ trợ khác (Trend, RSI, Dòng tiền L/S, Volume, PA, OI, Funding, BTC) → +$5 Margin
+      const score = sig.score ?? 0;
+      const volScore = scoreRes?.volScore || 0;
+      const otherScore = scoreRes?.otherScore != null ? scoreRes.otherScore : Math.max(0, score - volScore);
+      const bonusMargin = Math.floor(otherScore) * 5;
+      const tradeAmount = Math.min(100, 50 + bonusMargin);
 
-      activeSymbols.add(sym);
-
-      const trendReason = sig.scoreReasons.find(r => r.includes('[Xu hướng H4/H1]'));
-      const h4Part = trendReason ? trendReason.split('|')[0] : '';
-      const isCounter = h4Part.includes('H4 ngược');
-
-      const posGridPct = (sig.step / sig.targetLevel) * 100;
-      activeTradesMetadata[sym] = {
-        score: sig.score,
-        isCounterTrend: isCounter,
-        entryPrice: sig.targetLevel,
-        side,
-        gridWidthPct: sig.gridWidthPct || posGridPct,
-        gridStepPct: posGridPct,
-        step: sig.step || getStep(sig.targetLevel), // [BUG-4 FIX] Lưu step để checkTrailingSL tính unit chính xác
-        orderId: order.orderId ?? null,
-        maxFavorablePrice: null,
-        time: Date.now(),
-        markPrice: markPrice,
-        scoreReasons: sig.scoreReasons,
-        marketCapRank: rank,
-        leverage: effectiveLeverage,
-        margin: tradeAmount,
-        maxRecentBouncePct: maxRecentBouncePct ?? null,
-      };
-      saveActiveTradesMetadata();
-
-      recordTradeEntry({
-        tradeId: `${sym}-${order.orderId || Date.now()}`,
-        orderId: String(order.orderId || ''),
-        symbol: sym,
-        signal: sig.signal,
-        entryPrice: sig.targetLevel,
-        markPrice: markPrice,
-        score: sig.score,
-        scoreReasons: sig.scoreReasons,
-        marketCapRank: rank,
-        gridWidthPct: pct,
-        maxRecentBouncePct: maxRecentBouncePct ?? null,
-        leverage: effectiveLeverage,
-        margin: tradeAmount,
-      });
-
-      _markFired(sig);
-      notifySignals([sig]).catch(() => { });
-      logSignal369(sig);
-
+      const rank = getMarketCapRank ? getMarketCapRank(sym) : 999;
       log.system(
-        `[AutoTrade] ✓ ${sym} ${side} ${qty} @ $${sig.targetLevel} ` +
-        `orderId=${order.orderId} status=${order.status}`
+        `[AutoTrade] Phân bổ Ký quỹ ${sym}: $${tradeAmount} ` +
+        `(Gốc PP369+Vol $50 + Bonus $${bonusMargin} từ +${otherScore.toFixed(1)}đ các tiêu chí bổ trợ | Score tổng: +${score.toFixed(1)}đ)`
       );
 
-      // Telegram: thông báo đặt lệnh LIMIT mới với đầy đủ Score + Reasons
+      if (_isDebounced(sig)) {
+        if (isNewSignalLog) {
+          log.system(`[AutoTrade] ${sym} ${sig.signal} đã đặt gần đây — bỏ qua`);
+        }
+        if (_shouldLogSignal(sym, sig.signal, sig.targetLevel, 'rec_debounced')) {
+          recordSkippedSignal({
+            symbol: sym,
+            signal: sig.signal,
+            signalPrice: sig.targetLevel,
+            score: sig.score ?? 0,
+            scoreReasons: sig.scoreReasons || [],
+            skipReason: 'DEBOUNCED',
+            markPrice: markPrice,
+            marketCapRank: rank,
+          });
+        }
+        return;
+      }
+
       try {
-        const reasonLines = (sig.scoreReasons || [])
-          .map(r => `  • ${r}`)
-          .join('\n');
-        const aiLine = aiEval
-          ? `\n• AI: ${aiEval.isApproved ? '🟢 Nên vào' : '🟡 Khuyên bỏ'} (${(aiEval.winRate * 100).toFixed(1)}%)`
-          : '';
-        sendTelegram(
-          `📋 <b>[AutoTrade] Đặt lệnh LIMIT mới</b>\n` +
-          `• Coin: <b>${sym} (${sig.signal})</b>\n` +
-          `• Entry: <b>$${sig.targetLevel}</b>\n` +
-          `• Đòn bẩy: <b>${effectiveLeverage}x</b> | Ký quỹ: <b>$${tradeAmount}</b>\n` +
-          `• Score: <b>+${sig.score?.toFixed(2) ?? '?'}đ</b>${aiLine}\n` +
-          `• Lý do:\n${reasonLines}`
-        ).catch(() => { });
-      } catch (_) { }
+        const hasPos = await client.hasOpenPosition(sym);
+        if (hasPos) {
+          log.system(`[AutoTrade] ${sym} đang có vị thế mở — bỏ qua`);
+          return;
+        }
+      } catch (e) {
+        log.warn(`[AutoTrade] Không check được vị thế ${sym}: ${_binanceErr(e)} — vẫn tiếp tục đặt lệnh`);
+      }
 
+      // [BUG-5 FIX] Guard against NaN khi sig.condLevel undefined/null
+      // Nếu condLevel hợp lệ: tính theo khoảng cách 2 mốc / 5
+      // Nếu condLevel thiếu: fallback về gridStepPct / 5.5 (tương đương bouncePct trong checkPendingLimits)
+      let preEntryBouncePct;
+      if (sig.condLevel && sig.targetLevel && isFinite(sig.condLevel) && isFinite(sig.targetLevel)) {
+        const gridWidth = Math.abs(sig.condLevel - sig.targetLevel);
+        const pct = (gridWidth / Math.min(sig.targetLevel, sig.condLevel)) * 100;
+        preEntryBouncePct = pct / 5.0;
+      } else {
+        const fallbackGridStepPct = sig.step ? (sig.step / sig.targetLevel) * 100 : 4.5;
+        preEntryBouncePct = fallbackGridStepPct / 5.5;
+        log.warn(`[AutoTrade] ${sym}: sig.condLevel thiếu → dùng preEntryBouncePct fallback = ${preEntryBouncePct.toFixed(3)}%`);
+      }
+      const touchThresholdPct = 0.12;
+      let maxRecentBouncePct = null;
 
-    } catch (e) {
-      const binErr = e.response?.data;
-      const errCode = binErr?.code;
-      log.warn(`[AutoTrade] Lỗi đặt lệnh ${sym}: ${_binanceErr(e)}`);
+      if (sig.recentM1Candles && sig.recentM1Candles.length > 0) {
+        const recentM1 = sig.recentM1Candles;
+        if (sig.signal === 'LONG') {
+          let startIdx = 0;
+          for (let i = recentM1.length - 1; i >= 0; i--) {
+            if (recentM1[i].high >= sig.condLevel) {
+              startIdx = i;
+              break;
+            }
+          }
 
-      if (errCode === -4411) {
-        log.warn(`[AutoTrade] Phát hiện lỗi -4411 cho ${sym}. Tiến hành loại bỏ và đánh dấu lỗi vào step_sizes.json.`);
-        await markSymbolFailed(sym, 'Lỗi 4411 - Chưa ký hợp đồng TradFi');
-        const idx = coins.indexOf(sym);
-        if (idx !== -1) {
-          coins.splice(idx, 1);
-          log.system(`[AutoTrade] Đã loại bỏ ${sym} khỏi danh sách quét. Còn lại ${coins.length} coin.`);
+          const touchZoneUpper = sig.targetLevel * (1 + touchThresholdPct / 100);
+          let maxBouncePct = 0;
+          let bestTouchLow = 0;
+          let bestPeakHigh = 0;
+
+          for (let i = startIdx; i < recentM1.length; i++) {
+            const candle = recentM1[i];
+            if (candle.low <= touchZoneUpper) {
+              const touchLow = candle.low;
+              let peakHigh = markPrice;
+              for (let j = i; j < recentM1.length; j++) {
+                if (recentM1[j].high > peakHigh) {
+                  peakHigh = recentM1[j].high;
+                }
+              }
+              const bouncePct = ((peakHigh - touchLow) / touchLow) * 100;
+              if (bouncePct > maxBouncePct) {
+                maxBouncePct = bouncePct;
+                bestTouchLow = touchLow;
+                bestPeakHigh = peakHigh;
+              }
+            }
+          }
+
+          if (maxBouncePct >= preEntryBouncePct) {
+            if (_shouldLogSignal(sym, sig.signal, sig.targetLevel, 'stale_canceled')) {
+              log.system(
+                `[AutoTrade] ${sym} LONG: Từ khi chạm mốc Short ($${sig.condLevel}), nến M1 đã xát mốc entry LONG ($${bestTouchLow.toFixed(6)}) ` +
+                `rồi nảy lên đỉnh $${bestPeakHigh.toFixed(6)} (+${maxBouncePct.toFixed(2)}% >= ${preEntryBouncePct.toFixed(2)}% Khung/5) — HỦY LIMIT stale.`
+              );
+            }
+            return;
+          }
+          maxRecentBouncePct = maxBouncePct;
+        } else if (sig.signal === 'SHORT') {
+          let startIdx = 0;
+          for (let i = recentM1.length - 1; i >= 0; i--) {
+            if (recentM1[i].low <= sig.condLevel) {
+              startIdx = i;
+              break;
+            }
+          }
+
+          const touchZoneLower = sig.targetLevel * (1 - touchThresholdPct / 100);
+          let maxDropPct = 0;
+          let bestTouchHigh = 0;
+          let bestTroughLow = 0;
+
+          for (let i = startIdx; i < recentM1.length; i++) {
+            const candle = recentM1[i];
+            if (candle.high >= touchZoneLower) {
+              const touchHigh = candle.high;
+              let troughLow = markPrice;
+              for (let j = i; j < recentM1.length; j++) {
+                if (recentM1[j].low < troughLow) {
+                  troughLow = recentM1[j].low;
+                }
+              }
+              const dropPct = ((touchHigh - troughLow) / touchHigh) * 100;
+              if (dropPct > maxDropPct) {
+                maxDropPct = dropPct;
+                bestTouchHigh = touchHigh;
+                bestTroughLow = troughLow;
+              }
+            }
+          }
+
+          if (maxDropPct >= preEntryBouncePct) {
+            if (_shouldLogSignal(sym, sig.signal, sig.targetLevel, 'stale_canceled')) {
+              log.system(
+                `[AutoTrade] ${sym} SHORT: Từ khi chạm mốc Long ($${sig.condLevel}), nến M1 đã xát mốc entry SHORT ($${bestTouchHigh.toFixed(6)}) ` +
+                `rồi nảy xuống đáy $${bestTroughLow.toFixed(6)} (-${maxDropPct.toFixed(2)}% >= ${preEntryBouncePct.toFixed(2)}% Khung/5) — HỦY LIMIT stale.`
+              );
+            }
+            return;
+          }
+          maxRecentBouncePct = maxDropPct;
+        }
+      } else {
+        if (sig.signal === 'LONG') {
+          const bouncedAwayPct = ((markPrice - sig.targetLevel) / sig.targetLevel) * 100;
+          if (bouncedAwayPct >= preEntryBouncePct) {
+            if (_shouldLogSignal(sym, sig.signal, sig.targetLevel, 'stale_canceled_fallback')) {
+              log.system(`[AutoTrade] ${sym} LONG đã nảy xa mốc entry ($${sig.targetLevel} → $${markPrice.toFixed(6)} +${bouncedAwayPct.toFixed(2)}% >= ${preEntryBouncePct.toFixed(2)}%) — bỏ qua không đặt lệnh LIMIT stale.`);
+            }
+            return;
+          }
+        } else if (sig.signal === 'SHORT') {
+          const bouncedAwayPct = ((sig.targetLevel - markPrice) / sig.targetLevel) * 100;
+          if (bouncedAwayPct >= preEntryBouncePct) {
+            log.system(`[AutoTrade] ${sym} SHORT đã nảy xa mốc entry ($${sig.targetLevel} → $${markPrice.toFixed(6)} -${bouncedAwayPct.toFixed(2)}% >= ${preEntryBouncePct.toFixed(2)}%) — bỏ qua không đặt lệnh LIMIT stale.`);
+            return;
+          }
         }
       }
-    }
+
+      const gridStepPct = (sig.step / sig.targetLevel) * 100;
+      sig.marketCapRank = rank;
+      sig.gridWidthPct = gridStepPct;
+
+      const aiEval = evaluateSignalWithAI(sig);
+      recordAIEvaluation(sig, aiEval);
+
+      if (aiEval.isApproved) {
+        log.system(`[AI Reviewer (Shadow)] 🟢 Khuyên NÊN ĐẶT LỆNH ${sym} (${sig.signal}) - ${aiEval.reason}`);
+      } else {
+        log.system(`[AI Reviewer (Shadow)] 🟡 Khuyên BỎ QUA ${sym} (${sig.signal}) - ${aiEval.reason}`);
+      }
+
+      const calculatedLeverage = Math.floor(39 / gridStepPct);
+      const maxAllowed = leverageInfo[sym] ?? leverage;
+      const effectiveLeverage = Math.max(1, Math.min(calculatedLeverage, maxAllowed));
+
+      sig.leverage = effectiveLeverage;
+      sig.margin = tradeAmount;
+
+      const currentNotional = tradeAmount * effectiveLeverage;
+
+      const { qty } = calcQuantity(sym, currentNotional, sig.targetLevel);
+      if (qty <= 0) {
+        log.warn(`[AutoTrade] ${sym}: quantity = 0 — tăng TRADE_AMOUNT hoặc LEVERAGE`);
+        return;
+      }
+
+      const side = sig.signal === 'LONG' ? 'BUY' : 'SELL';
+
+      try {
+        try {
+          await client.setLeverage(sym, effectiveLeverage);
+          log.system(`[AutoTrade] Set leverage ${sym}USDT = ${effectiveLeverage}x (Bước 300đ: ${gridStepPct.toFixed(2)}% → tính được ${calculatedLeverage}x, giới hạn: ${maxAllowed}x | Ký quỹ mục tiêu: $${tradeAmount})`);
+        } catch (e) {
+          const binErr = e.response?.data;
+          log.warn(`[AutoTrade] Set leverage ${sym} thất bại: ${_binanceErr(e)} — vẫn tiếp tục đặt lệnh`);
+          if (binErr?.code === -4411) {
+            throw e;
+          }
+        }
+
+        let order;
+        if (orderType === 'MARKET') {
+          order = await client.placeMarket(sym, side, qty);
+        } else {
+          const dec = getDecimals(sig.targetLevel);
+          order = await client.placeLimit(sym, side, qty, sig.targetLevel, dec);
+        }
+
+        activeSymbols.add(sym);
+
+        const trendReason = sig.scoreReasons.find(r => r.includes('[Xu hướng H4/H1]'));
+        const h4Part = trendReason ? trendReason.split('|')[0] : '';
+        const isCounter = h4Part.includes('H4 ngược');
+
+        const posGridPct = (sig.step / sig.targetLevel) * 100;
+        activeTradesMetadata[sym] = {
+          score: sig.score,
+          isCounterTrend: isCounter,
+          entryPrice: sig.targetLevel,
+          side,
+          gridWidthPct: sig.gridWidthPct || posGridPct,
+          gridStepPct: posGridPct,
+          step: sig.step || getStep(sig.targetLevel), // [BUG-4 FIX] Lưu step để checkTrailingSL tính unit chính xác
+          orderId: order.orderId ?? null,
+          maxFavorablePrice: null,
+          time: Date.now(),
+          markPrice: markPrice,
+          scoreReasons: sig.scoreReasons,
+          marketCapRank: rank,
+          leverage: effectiveLeverage,
+          margin: tradeAmount,
+          maxRecentBouncePct: maxRecentBouncePct ?? null,
+        };
+        saveActiveTradesMetadata();
+
+        recordTradeEntry({
+          tradeId: `${sym}-${order.orderId || Date.now()}`,
+          orderId: String(order.orderId || ''),
+          symbol: sym,
+          signal: sig.signal,
+          entryPrice: sig.targetLevel,
+          markPrice: markPrice,
+          score: sig.score,
+          scoreReasons: sig.scoreReasons,
+          marketCapRank: rank,
+          gridWidthPct: gridStepPct,
+          maxRecentBouncePct: maxRecentBouncePct ?? null,
+          leverage: effectiveLeverage,
+          margin: tradeAmount,
+        });
+
+        _markFired(sig);
+        notifySignals([sig]).catch(() => { });
+        logSignal369(sig);
+
+        log.system(
+          `[AutoTrade] ✓ ${sym} ${side} ${qty} @ $${sig.targetLevel} ` +
+          `orderId=${order.orderId} status=${order.status}`
+        );
+
+        // Telegram: thông báo đặt lệnh LIMIT mới với đầy đủ Score + Reasons
+        try {
+          const reasonLines = (sig.scoreReasons || [])
+            .map(r => `  • ${r}`)
+            .join('\n');
+          const aiLine = aiEval
+            ? `\n• AI: ${aiEval.isApproved ? '🟢 Nên vào' : '🟡 Khuyên bỏ'} (${(aiEval.winRate * 100).toFixed(1)}%)`
+            : '';
+          sendTelegram(
+            `📋 <b>[AutoTrade] Đặt lệnh LIMIT mới</b>\n` +
+            `• Coin: <b>${sym} (${sig.signal})</b>\n` +
+            `• Entry: <b>$${sig.targetLevel}</b>\n` +
+            `• Đòn bẩy: <b>${effectiveLeverage}x</b> | Ký quỹ: <b>$${tradeAmount}</b>\n` +
+            `• Score: <b>+${sig.score?.toFixed(2) ?? '?'}đ</b>${aiLine}\n` +
+            `• Lý do:\n${reasonLines}`
+          ).catch(() => { });
+        } catch (_) { }
+
+
+      } catch (e) {
+        const binErr = e.response?.data;
+        const errCode = binErr?.code;
+        log.warn(`[AutoTrade] Lỗi đặt lệnh ${sym}: ${_binanceErr(e)}`);
+
+        if (errCode === -4411) {
+          log.warn(`[AutoTrade] Phát hiện lỗi -4411 cho ${sym}. Tiến hành loại bỏ và đánh dấu lỗi vào step_sizes.json.`);
+          await markSymbolFailed(sym, 'Lỗi 4411 - Chưa ký hợp đồng TradFi');
+          const idx = coins.indexOf(sym);
+          if (idx !== -1) {
+            coins.splice(idx, 1);
+            log.system(`[AutoTrade] Đã loại bỏ ${sym} khỏi danh sách quét. Còn lại ${coins.length} coin.`);
+          }
+        }
+      }
     } finally {
       processingSymbols.delete(sym);
     }
@@ -1652,8 +1652,8 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
           log.system(`[AutoTrade] ✓ Đặt TP ${sym} @ $${tpOrder.stopPrice || tpOrder.triggerPrice || targetTpPriceExact.toFixed(5)} (đối ứng ${oppositeSide}) orderId=${tpId}`);
         } catch (e) {
           const errStr = _binanceErr(e);
-          if (errStr.includes('-4509')) {
-            log.system(`[AutoTrade] Vị thế ${sym} đã đóng trên sàn (TP/SL đã khớp trước đó). Bỏ qua.`);
+          if (errStr.includes('-4509') || errStr.includes('-4130')) {
+            log.system(`[AutoTrade] Lệnh TP ${sym} đã tồn tại trên sàn hoặc vị thế đã đóng. Bỏ qua.`);
             continue;
           }
           log.error(`[AutoTrade] Đặt TP ${sym} thất bại: ${errStr}`);
@@ -1835,8 +1835,8 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
             log.system(`[AutoTrade] ✓ Đặt SL ${sym} @ $${slOrder.stopPrice || slOrder.triggerPrice || roundedTargetSl} (đối ứng ${oppositeSide}) orderId=${slId}`);
           } catch (e) {
             const errStr = _binanceErr(e);
-            if (errStr.includes('-4509')) {
-              log.system(`[AutoTrade] Vị thế ${sym} đã đóng trên sàn (TP/SL đã khớp trước đó). Bỏ qua.`);
+            if (errStr.includes('-4509') || errStr.includes('-4130') || errStr.includes('-2021')) {
+              log.system(`[AutoTrade] Lệnh SL ${sym} đã tồn tại, lập tức kích hoạt hoặc vị thế đã đóng trên sàn. Bỏ qua.`);
             } else {
               log.error(`[AutoTrade] Đặt SL ${sym} thất bại: ${errStr}`);
             }
@@ -1910,7 +1910,7 @@ async function notifyRealClose(client, sym, prevPos, meta) {
         tradeId: `${sym}-${meta.orderId || 'real'}`,
         orderId: String(meta.orderId || ''),
         symbol: sym,
-        exitPrice: closePrice || prevPos.entryPrice,
+        exitPrice: closePrice || markPrice,
         exitTimestamp: Date.now(),
         exitType: exitType,
         pnlPercent: roi,
