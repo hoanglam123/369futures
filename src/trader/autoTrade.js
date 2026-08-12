@@ -533,10 +533,8 @@ async function startAutoTrade(coins) {
         log.system(`[AutoTrade] ${sym} → ${sig.signal} (Score: +${sig.score}đ) tại $${sig.targetLevel}`);
       }
 
-      const isBtc = sym === 'BTC';
-
-      // Bắt buộc phải có Tiêu chí 2 (Biến động H1/M15 an toàn - không có khung nào bị điểm cộng (+0đ)). Riêng BTC bỏ qua.
-      const hasCriterion2 = sig.scoreReasons && sig.scoreReasons.some(r => r.includes('[Biến động H1/M15]') && !r.includes('(+0đ)'));
+      const volScore = scoreRes?.volScore || 0;
+      const hasCriterion2 = isBtc || volScore >= 0.3;
       if (!isBtc && !hasCriterion2) {
         if (isNewSignalLog) {
           log.system(`[AutoTrade] ${sym} ${sig.signal} không đạt Tiêu chí 2 (Biến động H1/M15 an toàn) — Đưa vào Watchlist chờ Retest H1`);
