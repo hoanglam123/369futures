@@ -30,6 +30,19 @@ async function sendTelegram(text) {
       }, { timeout: 10_000 });
       return; // Gửi thành công -> thoát
     } catch (err) {
+      if (err.response?.status === 400) {
+        // Fallback khẩn cấp nếu dính lỗi HTML parse entity: Gửi dạng Plain Text loại bỏ thẻ HTML
+        try {
+          const plainText = (text || '').replace(/<[^>]*>/g, '');
+          await axios.post(API_URL, {
+            chat_id: CHAT_ID,
+            text: plainText,
+            disable_web_page_preview: true,
+          }, { timeout: 10_000 });
+          return;
+        } catch (_) {}
+      }
+
       if (attempt < maxAttempts) {
         log.warn(`[Telegram] Lỗi gửi tin nhắn (Lần ${attempt}/${maxAttempts}): ${err.message}. Thử lại sau 2 giây...`);
         await new Promise(r => setTimeout(r, 2000));
