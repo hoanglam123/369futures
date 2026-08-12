@@ -531,8 +531,20 @@ async function startAutoTrade(coins) {
     const hasCriterion2 = sig.scoreReasons && sig.scoreReasons.some(r => r.includes('[Biến động H1/M15]') && !r.includes('(+0đ)'));
     if (!isBtc && !hasCriterion2) {
       if (isNewSignalLog) {
-        log.system(`[AutoTrade] ${sym} ${sig.signal} không đạt Tiêu chí 2 (Biến động H1/M15 an toàn) — bỏ qua`);
+        log.system(`[AutoTrade] ${sym} ${sig.signal} không đạt Tiêu chí 2 (Biến động H1/M15 an toàn) — Đưa vào Watchlist chờ Retest H1`);
       }
+      lowScoreWatchlist[sym] = {
+        symbol: sym,
+        signal: sig.signal,
+        targetLevel: sig.targetLevel,
+        score: sig.score,
+        scoreReasons: sig.scoreReasons || [],
+        volScore: scoreRes?.volScore || 0,
+        otherScore: scoreRes?.otherScore || 0,
+        step: sig.step || getStep(markPrice),
+        gridWidthPct: parseFloat(sig.gridWidthPct) || 3.5,
+        timestamp: Date.now()
+      };
       if (_shouldLogSignal(sym, sig.signal, sig.targetLevel, 'rec_no_volatility')) {
         recordSkippedSignal({
           symbol: sym,
@@ -548,65 +560,19 @@ async function startAutoTrade(coins) {
       return;
     }
 
-    // Phân bổ ký quỹ (Margin): Kết hợp Thang điểm Scorer PP369 + Thưởng Rank MarketCap
+    // Phân bổ ký quỹ (Margin): PP369 + H1/M15 Volatility làm móng gốc ($50)
+    // Mỗi +1.0đ từ các tiêu chí bổ trợ khác (Trend, RSI, Dòng tiền L/S, Volume, PA, OI, Funding, BTC) → +$10 Margin
     const score = sig.score ?? 0;
-    const gridWidthPct = parseFloat(sig.gridWidthPct) || 3.5;
-    const reasonsStr = Array.isArray(sig.scoreReasons) ? sig.scoreReasons.join(' ') : String(sig.scoreReasons || '');
-    const isCounterTrend = sig.isCounterTrend || reasonsStr.includes('Ngược/Mâu thuẫn');
-    const hasExtremeRsi = reasonsStr.includes('Quá bán cực đại') || reasonsStr.includes('Quá mua cực đại');
-    const hasPaSupport = /[1-9]\s*cản cũ/.test(reasonsStr);
-
-    const isHighRiskCounterTrend = isCounterTrend && !hasPaSupport && !hasExtremeRsi;
-
-    let baseMargin = 30;
-    if (!isBtc && (score < 5.5 || isHighRiskCounterTrend)) {
-      if (isNewSignalLog) {
-        const reasonLabel = isHighRiskCounterTrend ? 'Ngược Trend (Thiếu Cản & RSI Cực Đại)' : `Score (${score}đ) < 5.5đ`;
-        log.system(`[AutoTrade] ${sym} ${sig.signal} [${reasonLabel}] — Đưa vào Watchlist chờ Retest nến H1`);
-      }
-      lowScoreWatchlist[sym] = {
-        symbol: sym,
-        signal: sig.signal,
-        targetLevel: sig.targetLevel,
-        score: sig.score,
-        scoreReasons: sig.scoreReasons || [],
-        step: sig.step || getStep(markPrice),
-        isCounterTrend: isCounterTrend,
-        gridWidthPct: gridWidthPct,
-        timestamp: Date.now()
-      };
-      if (_shouldLogSignal(sym, sig.signal, sig.targetLevel, 'rec_score_too_low')) {
-        recordSkippedSignal({
-          symbol: sym,
-          signal: sig.signal,
-          signalPrice: sig.targetLevel,
-          score: sig.score,
-          scoreReasons: sig.scoreReasons || [],
-          skipReason: isHighRiskCounterTrend ? 'COUNTER_TREND_HIGH_RISK' : 'SCORE_TOO_LOW',
-          markPrice: markPrice,
-          marketCapRank: getMarketCapRank ? getMarketCapRank(sym) : 999,
-        });
-      }
-      return;
-    } else if (score >= 9.0) {
-      baseMargin = 80;
-    } else if (score >= 8.0) {
-      baseMargin = 70;
-    } else if (score >= 7.0) {
-      baseMargin = 60;
-    } else {
-      baseMargin = 50;
-    }
+    const volScore = scoreRes?.volScore || 0;
+    const otherScore = scoreRes?.otherScore != null ? scoreRes.otherScore : Math.max(0, score - volScore);
+    const bonusMargin = Math.floor(otherScore) * 10;
+    const tradeAmount = Math.min(100, 50 + bonusMargin);
 
     const rank = getMarketCapRank ? getMarketCapRank(sym) : 999;
-    let rankBonusMargin = 0;
-    if (rank <= 10) {
-      rankBonusMargin = 20;
-    } else if (rank <= 30) {
-      rankBonusMargin = 10;
-    }
-
-    const tradeAmount = baseMargin + rankBonusMargin;
+    log.system(
+      `[AutoTrade] Phân bổ Ký quỹ ${sym}: $${tradeAmount} ` +
+      `(Gốc PP369+Vol $50 + Bonus $${bonusMargin} từ +${otherScore.toFixed(1)}đ các tiêu chí bổ trợ | Score tổng: +${score.toFixed(1)}đ)`
+    );
 
     if (_isDebounced(sig)) {
       if (isNewSignalLog) {
@@ -1335,14 +1301,10 @@ async function checkH1RetestSignals(client) {
       log.system(`[H1Retest] 🎯 ${sym} ${signal} H1 đóng rút chân chuẩn tại Entry $${targetLevel}, chưa nảy đủ 5% ROI (Max ROI: +${maxFavorableRoi.toFixed(2)}%). ĐẶT LỆNH LIMIT TẠI ENTRY!`);
 
       const side = isLong ? 'BUY' : 'SELL';
-      const rank = getMarketCapRank ? getMarketCapRank(sym) : 999;
-      let rankBonusMargin = 0;
-      if (rank <= 10) {
-        rankBonusMargin = 20; // Top 1-10 (BTC, ETH, BNB, SOL, XRP, DOGE...): +$20
-      } else if (rank <= 30) {
-        rankBonusMargin = 10; // Top 11-30 (ADA, LINK, SUI, AVAX, NEAR...): +$10
-      }
-      const tradeAmount = 50 + rankBonusMargin; // Base Margin $50 cho Retest H1 + bonus rank
+      const volScoreRetest = watchData.volScore || 0;
+      const otherScoreRetest = watchData.otherScore != null ? watchData.otherScore : Math.max(0, (watchData.score || 0) - volScoreRetest);
+      const bonusMarginRetest = Math.floor(otherScoreRetest) * 10;
+      const tradeAmount = Math.min(100, 50 + bonusMarginRetest);
       const notional = tradeAmount * leverage;
       const { qty } = calcQuantity(sym, notional, targetLevel);
       const dec = getDecimals(targetLevel);
