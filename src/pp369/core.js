@@ -318,8 +318,10 @@ async function fetchBinanceKlines(symbol, interval, startTimeMs, limit = 1500) {
         volume: parseFloat(c[5]),
       }));
     } catch (err) {
-      if (err?.response?.status === 429 && attempt < 3) {
-        await new Promise(r => setTimeout(r, (attempt + 1) * 2000));
+      const isNetworkErr = !err.response || err.code === 'ENOTFOUND' || err.code === 'ETIMEDOUT' || err.code === 'ECONNRESET' || err.code === 'ECONNREFUSED';
+      const isRateLimit = err?.response?.status === 429;
+      if ((isRateLimit || isNetworkErr) && attempt < 3) {
+        await new Promise(r => setTimeout(r, (attempt + 1) * 1500));
         continue;
       }
       throw err;
