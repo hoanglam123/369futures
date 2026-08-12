@@ -533,6 +533,7 @@ async function startAutoTrade(coins) {
         log.system(`[AutoTrade] ${sym} → ${sig.signal} (Score: +${sig.score}đ) tại $${sig.targetLevel}`);
       }
 
+      const isBtc = sym === 'BTC';
       const volScore = scoreRes?.volScore || 0;
       const hasCriterion2 = isBtc || volScore >= 0.3;
       if (!isBtc && !hasCriterion2) {
