@@ -239,10 +239,10 @@ async function runBacktest() {
       else if (outcome === 'LOSS') statsA.losses++;
       else if (outcome === 'BREAKEVEN') statsA.breakeven++;
 
-      // ── Option B (Dynamic Margin: Base $50 + $10 per 1.0đ extra criteria, max $100) ──
+      // ── Option B (Dynamic Margin: Base $50 + $5 per 1.0đ extra criteria, max $100) ──
       const volScore = scoreRes.volScore || 0;
       const otherScore = scoreRes.otherScore != null ? scoreRes.otherScore : Math.max(0, score - volScore);
-      const marginB = Math.min(100, 50 + Math.floor(otherScore) * 10);
+      const marginB = Math.min(100, 50 + Math.floor(otherScore) * 5);
       const pnlB = marginB * (roi / 100);
       statsB.trades++;
       statsB.pnl += pnlB;
@@ -294,7 +294,7 @@ async function runBacktest() {
 
   console.table([
     formatStats('A. Cố định $50 (Tất cả lệnh pass H1/M15 Vol)', statsA),
-    formatStats('B. Thưởng Margin ($50 gốc + $10/1.0đ tiêu chí bổ trợ)', statsB),
+    formatStats('B. Thưởng Margin ($50 gốc + $5/1.0đ tiêu chí bổ trợ)', statsB),
     formatStats('C. Chỉ đánh Hội tụ cao ($90 cố định)', statsC),
   ]);
 }

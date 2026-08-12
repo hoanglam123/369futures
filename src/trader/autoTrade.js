@@ -561,11 +561,11 @@ async function startAutoTrade(coins) {
     }
 
     // Phân bổ ký quỹ (Margin): PP369 + H1/M15 Volatility làm móng gốc ($50)
-    // Mỗi +1.0đ từ các tiêu chí bổ trợ khác (Trend, RSI, Dòng tiền L/S, Volume, PA, OI, Funding, BTC) → +$10 Margin
+    // Mỗi +1.0đ từ các tiêu chí bổ trợ khác (Trend, RSI, Dòng tiền L/S, Volume, PA, OI, Funding, BTC) → +$5 Margin
     const score = sig.score ?? 0;
     const volScore = scoreRes?.volScore || 0;
     const otherScore = scoreRes?.otherScore != null ? scoreRes.otherScore : Math.max(0, score - volScore);
-    const bonusMargin = Math.floor(otherScore) * 10;
+    const bonusMargin = Math.floor(otherScore) * 5;
     const tradeAmount = Math.min(100, 50 + bonusMargin);
 
     const rank = getMarketCapRank ? getMarketCapRank(sym) : 999;
@@ -1303,7 +1303,7 @@ async function checkH1RetestSignals(client) {
       const side = isLong ? 'BUY' : 'SELL';
       const volScoreRetest = watchData.volScore || 0;
       const otherScoreRetest = watchData.otherScore != null ? watchData.otherScore : Math.max(0, (watchData.score || 0) - volScoreRetest);
-      const bonusMarginRetest = Math.floor(otherScoreRetest) * 10;
+      const bonusMarginRetest = Math.floor(otherScoreRetest) * 5;
       const tradeAmount = Math.min(100, 50 + bonusMarginRetest);
       const notional = tradeAmount * leverage;
       const { qty } = calcQuantity(sym, notional, targetLevel);
