@@ -478,14 +478,15 @@ async function startAutoTrade(coins) {
     }
 
     const levelCache = getLevelCache();
-    const nearby = getNearbySymbols(activeCoinList, levelCache, 0.01);
+    // 1. WebSocket lắng nghe biến động giá cho tất cả coin trong bán kính 1.0% (0 REST API calls)
+    const wsNearby = getNearbySymbols(activeCoinList, levelCache, 0.01);
+    syncWebSocketSubscriptions(wsNearby);
 
-    // 2. Đồng bộ danh sách đăng ký WebSocket (Subscribe các coin mới vào mốc, Unsubscribe các coin đã ra xa)
-    syncWebSocketSubscriptions(nearby);
+    // 2. Vòng lặp Scan định kỳ chỉ xử lý các coin đang thực sự TIỆM CẬN SÁT MỐC (<= 0.3%) để tiết kiệm API
+    const scanNearby = getNearbySymbols(activeCoinList, levelCache, 0.003);
+    if (!scanNearby.length) return;
 
-    if (!nearby.length) return;
-
-    for (const sym of nearby) {
+    for (const sym of scanNearby) {
       const markPrice = getMarkPrice(sym);
       await processSymbolSignal(client, sym, markPrice, leverageInfo, leverage, coins);
     }

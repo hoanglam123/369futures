@@ -228,6 +228,9 @@ const _d1HistCache = {};
 // M1 current H1 period cache: { symbol: { h1Start, candles: [], cursor } } — reset mỗi khi H1 mới mở
 const _m1CurrCache = {};
 
+// M15 klines cache (60s RAM TTL): { symbol: { time, candles: [] } }
+const _m15Cache = {};
+
 // Level cache: { symbol: { longEntry, shortEntry, lastSideOverride } } — dùng cho WebSocket proximity filter & level lock
 const _levelCache = {};
 
@@ -1525,11 +1528,19 @@ async function score369Method(sig369, direction) {
       }
     }
 
-    // Tải nến M15 (3 ngày = 288 nến) phục vụ Dow M15
+    // Tải nến M15 (3 ngày = 288 nến) phục vụ Dow M15 có 60s RAM cache
     let m15Data = [];
     try {
-      const startTimeM15 = Date.now() - 288 * 15 * 60_000;
-      m15Data = await fetchBinanceKlines(sig369.symbol, '15m', startTimeM15, 300);
+      const now = Date.now();
+      if (!_m15Cache) _m15Cache = {};
+      let cachedM15 = _m15Cache[sig369.symbol];
+      if (cachedM15 && (now - cachedM15.time < 60000)) {
+        m15Data = cachedM15.candles;
+      } else {
+        const startTimeM15 = now - 288 * 15 * 60_000;
+        m15Data = await fetchBinanceKlines(sig369.symbol, '15m', startTimeM15, 300);
+        _m15Cache[sig369.symbol] = { time: now, candles: m15Data };
+      }
     } catch (err) {
       log.warn(`[Confluence Scorer] Không thể lấy klines M15 cho ${sig369.symbol}: ${err.message}`);
     }
