@@ -11,12 +11,15 @@ const path = require('path');
 const axios = require('axios');
 const { log } = require('../pp369/_logger');
 
+const { isIpBanned, triggerCircuitBreaker, checkCircuitBreaker } = require('./circuitBreaker');
+
 const BASE = 'https://fapi.binance.com';
 const FILE_PATH = path.join(process.cwd(), 'data', 'step_sizes.json');
 
 let timeOffset = 0;
 
 async function syncTimeOffset() {
+  if (isIpBanned()) return;
   try {
     const t0 = Date.now();
     const res = await axios.get(`${BASE}/fapi/v1/time`, { timeout: 10000 });
@@ -27,7 +30,11 @@ async function syncTimeOffset() {
     const rtt = t1 - t0;
     timeOffset = Math.round(serverTime - (t0 + t1) / 2);
   } catch (err) {
-    log.warn(`[Binance] Không thể đồng bộ giờ: ${err.message}`);
+    if (err?.response?.status === 418 || err?.response?.data?.code === -1003) {
+      triggerCircuitBreaker(err, 'BinanceTimeSync');
+    } else {
+      log.warn(`[Binance] Không thể đồng bộ giờ: ${err.message}`);
+    }
   }
 }
 
@@ -49,26 +56,21 @@ function _authHeaders(apiKey) {
   return { 'X-MBX-APIKEY': apiKey };
 }
 
-let _globalIpBannedUntil = 0;
-
 async function _requestWithRetry(fn) {
-  if (Date.now() < _globalIpBannedUntil) {
-    const remainMin = ((_globalIpBannedUntil - Date.now()) / 60000).toFixed(1);
-    throw new Error(`[IP_BAN_CIRCUIT_BREAKER] IP đang bị Binance khóa cho đến ${new Date(_globalIpBannedUntil + 7 * 3600000).toISOString().slice(11, 19)} (còn ${remainMin} phút). Đã ngắt REST API.`);
-  }
+  checkCircuitBreaker();
 
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
       return await fn();
     } catch (err) {
       const data = err.response?.data;
-      if (data && data.code === -1003 && typeof data.msg === 'string') {
-        const match = data.msg.match(/banned until (\d+)/);
-        if (match) {
-          _globalIpBannedUntil = parseInt(match[1], 10);
-          log.warn(`[Binance] Kích hoạt Circuit Breaker: IP bị phạt đến ${new Date(_globalIpBannedUntil + 7 * 3600000).toISOString().slice(11, 19)}. Đã tạm dừng toàn bộ REST API.`);
-        }
+      const status = err.response?.status;
+
+      if (status === 418 || data?.code === -1003) {
+        triggerCircuitBreaker(err, 'Binance');
+        checkCircuitBreaker(); // Throw [IP_BAN_CIRCUIT_BREAKER] error immediately
       }
+
       if (data && data.code === -1021) {
         log.system(`[Binance] Lỗi -1021 (Timestamp outside recvWindow). Đang tự động đồng bộ lại giờ và thử lại...`);
         await syncTimeOffset();
@@ -76,7 +78,7 @@ async function _requestWithRetry(fn) {
       }
 
       const isNetworkErr = !err.response || err.code === 'ENOTFOUND' || err.code === 'ETIMEDOUT' || err.code === 'ECONNRESET' || err.code === 'ECONNREFUSED' || err.code === 'EHOSTUNREACH';
-      const isRateLimit = err?.response?.status === 429 || err?.response?.status === 418;
+      const isRateLimit = status === 429;
 
       if ((isRateLimit || isNetworkErr) && attempt < 2) {
         await new Promise(r => setTimeout(r, (attempt + 1) * 2000));
@@ -126,6 +128,7 @@ async function _delete(path, params, apiKey, secret) {
 // ─── Exchange info (không cần auth) ──────────────────────────────────────────
 
 async function loadStepSizes() {
+  if (isIpBanned()) return;
   if (fs.existsSync(FILE_PATH)) {
     try {
       const content = fs.readFileSync(FILE_PATH, 'utf8');

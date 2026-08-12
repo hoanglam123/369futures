@@ -16,6 +16,7 @@
 const WebSocket = require('ws');
 const { log } = require('./_logger');
 const axios = require('axios');
+const { isIpBanned, triggerCircuitBreaker } = require('../trader/circuitBreaker');
 
 const FSTREAM = 'wss://fstream.binance.com/market/stream';
 const RECONNECT_DELAY = 5000;
@@ -30,6 +31,7 @@ let _wsRequestId = 1;
 
 // ─── REST Price update for getNearbySymbols pre-check ────────────────────────
 async function updatePricesRest() {
+  if (isIpBanned()) return;
   const url = 'https://fapi.binance.com/fapi/v1/ticker/price';
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
@@ -44,11 +46,14 @@ async function updatePricesRest() {
       }
       return;
     } catch (err) {
+      if (err?.response?.status === 418 || err?.response?.data?.code === -1003) {
+        triggerCircuitBreaker(err, 'PP369Stream');
+        return;
+      }
       const isNetworkErr = !err.response || err.code === 'ENOTFOUND' || err.code === 'ETIMEDOUT' || err.code === 'ECONNRESET' || err.code === 'ECONNREFUSED';
-      const isRateLimit = err?.response?.status === 429 || err?.response?.status === 418;
+      const isRateLimit = err?.response?.status === 429;
       if ((isRateLimit || isNetworkErr) && attempt < 2) {
-        const delay = err?.response?.status === 418 ? 15000 : (attempt + 1) * 2000;
-        await new Promise(r => setTimeout(r, delay));
+        await new Promise(r => setTimeout(r, (attempt + 1) * 2000));
         continue;
       }
       log.warn(`[PP369Stream] Lỗi lấy giá REST: ${err.message}`);
