@@ -1787,26 +1787,29 @@ async function score369Method(sig369, direction) {
     if (step > 0) {
       const stepPct = (step / price) * 100;
 
-      // 2.1 Kiểm tra biến động H1 (Tối đa 0.5đ) - Lấy cây nến H1 đã đóng cửa trước đó (00->60)
+      // 2.1 Kiểm tra biến động H1 (Tối đa 0.5đ) - Check cả cây H1 đã đóng cửa trước đó (00->60) VÀ cây H1 hiện tại đang chạy
       if (h1Candles && h1Candles.length >= 2) {
         const prevH1 = h1Candles[h1Candles.length - 2];
-        const h1Range = prevH1.high - prevH1.low;
-        const h1RangePct = (h1Range / price) * 100;
+        const currH1 = h1Candles[h1Candles.length - 1];
+
+        const prevH1Pct = ((prevH1.high - prevH1.low) / price) * 100;
+        const currH1Pct = ((currH1.high - currH1.low) / price) * 100;
+        const maxH1RangePct = Math.max(prevH1Pct, currH1Pct);
         
-        if (h1RangePct <= 0.5 * stepPct) {
+        if (maxH1RangePct <= 0.5 * stepPct) {
           volScore += 0.5;
-          volReasons.push(`H1 siêu nén: ${h1RangePct.toFixed(2)}% <= ${(0.5 * stepPct).toFixed(2)}% (+0.5đ)`);
-        } else if (h1RangePct <= stepPct) {
+          volReasons.push(`H1 siêu nén (cây trước ${prevH1Pct.toFixed(2)}%, hiện tại ${currH1Pct.toFixed(2)}%): max <= ${(0.5 * stepPct).toFixed(2)}% (+0.5đ)`);
+        } else if (maxH1RangePct <= stepPct) {
           volScore += 0.3;
-          volReasons.push(`H1 nén vừa: ${h1RangePct.toFixed(2)}% <= ${stepPct.toFixed(2)}% (+0.3đ)`);
+          volReasons.push(`H1 nén vừa (cây trước ${prevH1Pct.toFixed(2)}%, hiện tại ${currH1Pct.toFixed(2)}%): max <= ${stepPct.toFixed(2)}% (+0.3đ)`);
         } else {
-          volReasons.push(`H1 biến động mạnh: ${h1RangePct.toFixed(2)}% > ${stepPct.toFixed(2)}% (+0đ)`);
+          volReasons.push(`H1 biến động mạnh (cây trước ${prevH1Pct.toFixed(2)}%, hiện tại ${currH1Pct.toFixed(2)}%): max > ${stepPct.toFixed(2)}% (+0đ)`);
         }
       } else {
         volReasons.push(`H1: thiếu nến (+0đ)`);
       }
 
-      // 2.2 Kiểm tra biến động M15 (Tối đa 0.5đ) - Lấy cây nến M15 chuẩn đã đóng cửa trước đó (00->15, 15->30, 30->45, 45->00)
+      // 2.2 Kiểm tra biến động M15 (Tối đa 0.5đ) - Check cả cây M15 chuẩn đã đóng cửa trước đó VÀ cây M15 hiện tại đang chạy
       try {
         let m15Klines = m15Data;
         if (!m15Klines || m15Klines.length < 2) {
@@ -1814,21 +1817,24 @@ async function score369Method(sig369, direction) {
         }
         if (m15Klines && m15Klines.length >= 2) {
           const prevM15 = m15Klines[m15Klines.length - 2];
-          const m15Range = prevM15.high - prevM15.low;
-          const m15RangePct = (m15Range / price) * 100;
+          const currM15 = m15Klines[m15Klines.length - 1];
+
+          const prevM15Pct = ((prevM15.high - prevM15.low) / price) * 100;
+          const currM15Pct = ((currM15.high - currM15.low) / price) * 100;
+          const maxM15RangePct = Math.max(prevM15Pct, currM15Pct);
 
           const m15LimitPct = 0.69 * stepPct;
           const m15SuperLimitPct = 0.345 * stepPct;
 
-          if (m15RangePct <= m15SuperLimitPct) {
+          if (maxM15RangePct <= m15SuperLimitPct) {
             volScore += 0.5;
-            volReasons.push(`M15 siêu nén: ${m15RangePct.toFixed(2)}% <= ${m15SuperLimitPct.toFixed(2)}% (+0.5đ)`);
-          } else if (m15RangePct <= m15LimitPct) {
+            volReasons.push(`M15 siêu nén (cây trước ${prevM15Pct.toFixed(2)}%, hiện tại ${currM15Pct.toFixed(2)}%): max <= ${m15SuperLimitPct.toFixed(2)}% (+0.5đ)`);
+          } else if (maxM15RangePct <= m15LimitPct) {
             volScore += 0.3;
-            volReasons.push(`M15 nén vừa: ${m15RangePct.toFixed(2)}% <= ${m15LimitPct.toFixed(2)}% (+0.3đ)`);
+            volReasons.push(`M15 nén vừa (cây trước ${prevM15Pct.toFixed(2)}%, hiện tại ${currM15Pct.toFixed(2)}%): max <= ${m15LimitPct.toFixed(2)}% (+0.3đ)`);
           } else {
             isM15Volatile = true;
-            volReasons.push(`M15 biến động mạnh: ${m15RangePct.toFixed(2)}% > ${m15LimitPct.toFixed(2)}% (+0đ)`);
+            volReasons.push(`M15 biến động mạnh (cây trước ${prevM15Pct.toFixed(2)}%, hiện tại ${currM15Pct.toFixed(2)}%): max > ${m15LimitPct.toFixed(2)}% (+0đ)`);
           }
         } else {
           volReasons.push(`M15: thiếu nến (+0đ)`);
