@@ -43,7 +43,7 @@ const {
 const { log } = require('../pp369/_logger');
 
 const SCAN_INTERVAL_MS = 30_000;   // scan mỗi 30 giây
-const TRAILING_SL_INTERVAL_MS = 3_000; // kiểm tra vị thế để dịch SL mỗi 3 giây
+const TRAILING_SL_INTERVAL_MS = 6_000; // kiểm tra vị thế để dịch SL mỗi 6 giây
 const MONITOR_LIMIT_INTERVAL_MS = 3_000; // Luồng 3: monitor lệnh LIMIT đang chờ mỗi 3 giây
 const DEBOUNCE_MS = 5 * 60_000; // 5 phút / tín hiệu
 const COIN_REFRESH_INTERVAL_MS = 4 * 60 * 60_000; // Tái kiểm tra danh sách coin mỗi 4 giờ
@@ -519,7 +519,7 @@ async function startAutoTrade(coins) {
   }
 
   // ─── CONCURRENCY POOL FOR SIGNAL CHECKS ──────────────────────────────────
-  const MAX_CONCURRENT_SIGNAL_CHECKS = 3;
+  const MAX_CONCURRENT_SIGNAL_CHECKS = 1;
   let activeSignalChecks = 0;
   const signalCheckQueue = [];
 
@@ -546,7 +546,7 @@ async function startAutoTrade(coins) {
       })
       .finally(() => {
         activeSignalChecks--;
-        setTimeout(processSignalQueue, 50);
+        setTimeout(processSignalQueue, 1000); // Sleep 1000ms giữa các symbol để bảo đảm 100% không dội REST API
       });
   }
 

@@ -23,6 +23,9 @@ const { notifySignals } = require('./telegram');
 
 const FILE_PATH = path.join(process.cwd(), 'data', 'step_sizes.json');
 
+let _btcM1Cache = null;
+let _btcM1CacheTime = 0;
+
 // ─── Cấu hình ─────────────────────────────────────────────────────────────────
 
 const LEVELS_RANGE = 6;     // Tạo ±6 tầng mốc quanh giá gốc
@@ -2092,8 +2095,18 @@ async function score369Method(sig369, direction) {
       btcReasons.push(`Chính là BTC (+1.0đ)`);
     } else {
       try {
-        // 11.1 Check biến động nến M15 của BTC
-        const btcM1Recent = await fetchBinanceKlines('BTC', '1m', Date.now() - 16 * 60_000, 16);
+        // 11.1 Check biến động nến M15 của BTC (Có 30s RAM cache)
+        let btcM1Recent;
+        const nowBtc = Date.now();
+        if (_btcM1Cache && (nowBtc - _btcM1CacheTime < 30000)) {
+          btcM1Recent = _btcM1Cache;
+        } else {
+          btcM1Recent = await fetchBinanceKlines('BTC', '1m', nowBtc - 16 * 60_000, 16);
+          if (btcM1Recent && btcM1Recent.length) {
+            _btcM1Cache = btcM1Recent;
+            _btcM1CacheTime = nowBtc;
+          }
+        }
         let btcM15Pct = 0;
         let btcPrice = price; // Fallback
         if (btcM1Recent && btcM1Recent.length >= 15) {
