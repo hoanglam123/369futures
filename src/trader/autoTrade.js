@@ -369,12 +369,12 @@ async function startAutoTrade(coins) {
                 }
 
                 const isBouncedFromTouch = meta.touchLow != null && markPrice >= (meta.touchLow * (1 + bouncePct / 100));
-                const isBouncedFromEntry = currentBouncedPct >= bouncePct;
+                const isBouncedFromEntry = meta.hasTouchedEntry === true && currentBouncedPct >= bouncePct;
 
                 if (isBouncedFromTouch || isBouncedFromEntry) {
                   const bounceRef = meta.touchLow != null ? meta.touchLow : entryPrice;
                   const bounceDisplayPct = meta.touchLow != null ? ((markPrice - meta.touchLow) / meta.touchLow * 100) : currentBouncedPct;
-                  log.system(`[AutoTrade] [BounceCancel] ${sym} LONG: giá từ mốc $${bounceRef.toFixed(6)} đã bật lên $${markPrice.toFixed(6)} (+${bounceDisplayPct.toFixed(2)}% >= ${bouncePct.toFixed(2)}%) → Hủy LIMIT ngay lập tức`);
+                  log.system(`[AutoTrade] [BounceCancel] ${sym} LONG: giá từ điểm chạm $${bounceRef.toFixed(6)} đã bật lên $${markPrice.toFixed(6)} (+${bounceDisplayPct.toFixed(2)}% >= ${bouncePct.toFixed(2)}%) → Hủy LIMIT ngay lập tức`);
                   try {
                     await client.cancelOrder(sym, order.orderId);
                     overrideLevelLastSide(sym, 'lower'); // Khóa mốc LONG cho đến khi giá chạm mốc trên
@@ -382,8 +382,8 @@ async function startAutoTrade(coins) {
                       `🔄 <b>[AutoTrade] Hủy LIMIT (Bounce Cancel)</b>\n` +
                       `• Coin: <b>${sym} LONG</b>\n` +
                       `• Entry: <b>$${entryPrice}</b>\n` +
-                      `• Giá hiện tại: <b>$${markPrice.toFixed(6)}</b> (+${bounceDisplayPct.toFixed(2)}%)\n` +
-                      `• Giá đã nảy xa mốc → Hủy lệnh ngay lập tức`
+                      `• Giá điểm chạm: <b>$${bounceRef.toFixed(6)}</b> | Giá hiện tại: <b>$${markPrice.toFixed(6)}</b> (+${bounceDisplayPct.toFixed(2)}%)\n` +
+                      `• Giá đã chạm sát mốc và bật nảy ra xa → Hủy lệnh ngay lập tức`
                     ).catch(() => { });
                     // ── Record trade exit for AI Dataset (BOUNCE_CANCEL) ──
                     if (activeTradesMetadata[sym]) {
@@ -425,12 +425,12 @@ async function startAutoTrade(coins) {
                 }
 
                 const isBouncedFromTouch = meta.touchHigh != null && markPrice <= (meta.touchHigh * (1 - bouncePct / 100));
-                const isBouncedFromEntry = currentBouncedPct >= bouncePct;
+                const isBouncedFromEntry = meta.hasTouchedEntry === true && currentBouncedPct >= bouncePct;
 
                 if (isBouncedFromTouch || isBouncedFromEntry) {
                   const bounceRef = meta.touchHigh != null ? meta.touchHigh : entryPrice;
                   const bounceDisplayPct = meta.touchHigh != null ? ((meta.touchHigh - markPrice) / meta.touchHigh * 100) : currentBouncedPct;
-                  log.system(`[AutoTrade] [BounceCancel] ${sym} SHORT: giá từ mốc $${bounceRef.toFixed(6)} đã bật xuống $${markPrice.toFixed(6)} (-${bounceDisplayPct.toFixed(2)}% >= ${bouncePct.toFixed(2)}%) → Hủy LIMIT ngay lập tức`);
+                  log.system(`[AutoTrade] [BounceCancel] ${sym} SHORT: giá từ điểm chạm $${bounceRef.toFixed(6)} đã bật xuống $${markPrice.toFixed(6)} (-${bounceDisplayPct.toFixed(2)}% >= ${bouncePct.toFixed(2)}%) → Hủy LIMIT ngay lập tức`);
                   try {
                     await client.cancelOrder(sym, order.orderId);
                     overrideLevelLastSide(sym, 'upper'); // Khóa mốc SHORT cho đến khi giá chạm mốc dưới
@@ -438,8 +438,8 @@ async function startAutoTrade(coins) {
                       `🔄 <b>[AutoTrade] Hủy LIMIT (Bounce Cancel)</b>\n` +
                       `• Coin: <b>${sym} SHORT</b>\n` +
                       `• Entry: <b>$${entryPrice}</b>\n` +
-                      `• Giá hiện tại: <b>$${markPrice.toFixed(6)}</b> (-${bounceDisplayPct.toFixed(2)}%)\n` +
-                      `• Giá đã nảy xa mốc → Hủy lệnh ngay lập tức`
+                      `• Giá điểm chạm: <b>$${bounceRef.toFixed(6)}</b> | Giá hiện tại: <b>$${markPrice.toFixed(6)}</b> (-${bounceDisplayPct.toFixed(2)}%)\n` +
+                      `• Giá đã chạm sát mốc và bật nảy ra xa → Hủy lệnh ngay lập tức`
                     ).catch(() => { });
                     // ── Record trade exit for AI Dataset (BOUNCE_CANCEL) ──
                     if (activeTradesMetadata[sym]) {
