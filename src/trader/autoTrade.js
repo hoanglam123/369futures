@@ -735,7 +735,8 @@ async function startAutoTrade(coins) {
           for (let i = startIdx; i < recentM1.length; i++) {
             const candle = recentM1[i];
             if (candle.low <= touchZoneUpper) {
-              const touchLow = candle.low;
+              // Nếu candle.low thấp hơn entry (sig.targetLevel), khoảng nảy tính từ entry đến đỉnh cao nhất
+              const touchLow = Math.max(candle.low, sig.targetLevel);
               let peakHigh = markPrice;
               for (let j = i; j < recentM1.length; j++) {
                 if (recentM1[j].high > peakHigh) {
@@ -778,7 +779,8 @@ async function startAutoTrade(coins) {
           for (let i = startIdx; i < recentM1.length; i++) {
             const candle = recentM1[i];
             if (candle.high >= touchZoneLower) {
-              const touchHigh = candle.high;
+              // Nếu candle.high cao hơn entry (sig.targetLevel), khoảng nảy/sụt giảm tính từ entry xuống đáy
+              const touchHigh = Math.min(candle.high, sig.targetLevel);
               let troughLow = markPrice;
               for (let j = i; j < recentM1.length; j++) {
                 if (recentM1[j].low < troughLow) {
