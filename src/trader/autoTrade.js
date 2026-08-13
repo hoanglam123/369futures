@@ -405,8 +405,13 @@ async function startAutoTrade(coins) {
                       saveActiveTradesMetadata();
                     }
                   } catch (e) {
-                    log.warn(`[AutoTrade] [BounceCancel] Không hủy được LIMIT ${sym}: ${_binanceErr(e)}`);
-                    remainingOrders.push(order);
+                    const errStr = _binanceErr(e);
+                    if (errStr.includes('-2011') || errStr.includes('Unknown order')) {
+                      log.system(`[AutoTrade] [BounceCancel] Lệnh LIMIT ${sym} đã khớp vị thế hoặc đã hủy trước đó trên sàn (-2011).`);
+                    } else {
+                      log.warn(`[AutoTrade] [BounceCancel] Không hủy được LIMIT ${sym}: ${errStr}`);
+                      remainingOrders.push(order);
+                    }
                   }
                   continue; // order đã xử lý, không push vào remainingOrders
                 }
@@ -456,8 +461,13 @@ async function startAutoTrade(coins) {
                       saveActiveTradesMetadata();
                     }
                   } catch (e) {
-                    log.warn(`[AutoTrade] [BounceCancel] Không hủy được LIMIT ${sym}: ${_binanceErr(e)}`);
-                    remainingOrders.push(order);
+                    const errStr = _binanceErr(e);
+                    if (errStr.includes('-2011') || errStr.includes('Unknown order')) {
+                      log.system(`[AutoTrade] [BounceCancel] Lệnh LIMIT ${sym} đã khớp vị thế hoặc đã hủy trước đó trên sàn (-2011).`);
+                    } else {
+                      log.warn(`[AutoTrade] [BounceCancel] Không hủy được LIMIT ${sym}: ${errStr}`);
+                      remainingOrders.push(order);
+                    }
                   }
                   continue; // order đã xử lý, không push vào remainingOrders
                 }
