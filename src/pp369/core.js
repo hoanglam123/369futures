@@ -25,6 +25,7 @@ const FILE_PATH = path.join(process.cwd(), 'data', 'step_sizes.json');
 
 let _btcM1Cache = null;
 let _btcM1CacheTime = 0;
+let _lastLevelCacheRefreshTime = 0;
 
 // ─── Cấu hình ─────────────────────────────────────────────────────────────────
 
@@ -2249,8 +2250,12 @@ function format369ForPrompt(signals369Map) {
   return lines.join('\n');
 }
 
-function getLevelCache() {
-  if (Object.keys(_levelCache).length === 0 && fs.existsSync(FILE_PATH)) {
+function getLevelCache(forceRefresh = false) {
+  const now = Date.now();
+  const shouldRefresh = forceRefresh || Object.keys(_levelCache).length === 0 || (now - _lastLevelCacheRefreshTime > 15000);
+
+  if (shouldRefresh && fs.existsSync(FILE_PATH)) {
+    _lastLevelCacheRefreshTime = now;
     try {
       const content = fs.readFileSync(FILE_PATH, 'utf8');
       const data = JSON.parse(content);
