@@ -1779,6 +1779,7 @@ async function score369Method(sig369, direction) {
 
     // 2. Tiêu chí 2: Bộ lọc kép biến động H1 & M15 (Tối đa +1.0đ: H1 tối đa +0.5đ, M15 tối đa +0.5đ)
     volScore = 0;
+    let isM15Volatile = false;
     const volReasons = [];
     const step = sig369.step || 0;
 
@@ -1824,6 +1825,7 @@ async function score369Method(sig369, direction) {
             volScore += 0.3;
             volReasons.push(`M15 nén vừa: ${m15RangePct.toFixed(2)}% <= ${m15LimitPct.toFixed(2)}% (+0.3đ)`);
           } else {
+            isM15Volatile = true;
             volReasons.push(`M15 biến động mạnh: ${m15RangePct.toFixed(2)}% > ${m15LimitPct.toFixed(2)}% (+0đ)`);
           }
         } else {
@@ -2220,7 +2222,7 @@ async function score369Method(sig369, direction) {
   }
 
   const otherScore = Math.max(0, score - (volScore || 0));
-  return { score, reasons, volScore: volScore || 0, otherScore };
+  return { score, reasons, volScore: volScore || 0, isM15Volatile: isM15Volatile === true, otherScore };
 }
 
 // ─── Format cho AI prompt ─────────────────────────────────────────────────────

@@ -604,10 +604,12 @@ async function startAutoTrade(coins) {
 
       const isBtc = sym === 'BTC';
       const volScore = scoreRes?.volScore || 0;
-      const hasCriterion2 = isBtc || volScore >= 0.3;
+      const isM15Volatile = scoreRes?.isM15Volatile === true;
+      const hasCriterion2 = isBtc || (volScore >= 0.3 && !isM15Volatile);
       if (!isBtc && !hasCriterion2) {
         if (isNewSignalLog) {
-          log.system(`[AutoTrade] ${sym} ${sig.signal} không đạt Tiêu chí 2 (Biến động H1/M15 an toàn) — Đưa vào Watchlist chờ Retest H1`);
+          const failReason = isM15Volatile ? 'M15 biến động mạnh' : 'Biến động H1/M15 không đạt';
+          log.system(`[AutoTrade] ${sym} ${sig.signal} không đạt Tiêu chí 2 (${failReason}) — Đưa vào Watchlist chờ Retest H1`);
         }
         lowScoreWatchlist[sym] = {
           symbol: sym,
