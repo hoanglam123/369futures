@@ -201,6 +201,25 @@ async function startAutoTrade(coins) {
   // Khởi động WebSocket stream và đăng ký (subscribe) chỉ các mã đang gần mốc
   start369Stream(initialNearby);
 
+  // ── Đăng ký Real-time WebSocket Price listener để cập nhật maxFavorablePrice tức thì (0ms) ──
+  // Đảm bảo mọi quét râu (wick spike) ngắn dưới 1s đều được ghi nhận ngay lập tức cho Trailing SL
+  onPriceUpdate((sym, price) => {
+    if (!price || price <= 0) return;
+    const meta = activeTradesMetadata[sym];
+    if (meta) {
+      const isLong = meta.side === 'BUY' || meta.isLong === true;
+      if (isLong) {
+        if (meta.maxFavorablePrice == null || price > meta.maxFavorablePrice) {
+          meta.maxFavorablePrice = price;
+        }
+      } else {
+        if (meta.maxFavorablePrice == null || price < meta.maxFavorablePrice) {
+          meta.maxFavorablePrice = price;
+        }
+      }
+    }
+  });
+
   // ── Tái kiểm tra danh sách coin mỗi 4 giờ theo giá thị trường hiện tại ────
   setInterval(async () => {
     try {
