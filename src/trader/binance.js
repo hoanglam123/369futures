@@ -29,9 +29,9 @@ async function syncTimeOffset(verbose = false) {
     // Thời điểm Binance ghi nhận serverTime nằm giữa thời gian gửi request (t0) và nhận response (t1)
     const rtt = t1 - t0;
     timeOffset = Math.round(serverTime - (t0 + t1) / 2);
-    if (verbose || Math.abs(timeOffset) > 1000) {
-      log.system(`[Binance] Đã đồng bộ giờ: offset = ${timeOffset}ms (Giờ server: ${new Date(serverTime).toISOString()}, RTT: ${rtt}ms)`);
-    }
+    // if (verbose || Math.abs(timeOffset) > 1000) {
+    //   log.system(`[Binance] Đã đồng bộ giờ: offset = ${timeOffset}ms (Giờ server: ${new Date(serverTime).toISOString()}, RTT: ${rtt}ms)`);
+    // }
   } catch (err) {
     if (err?.response?.status === 418 || err?.response?.data?.code === -1003) {
       triggerCircuitBreaker(err, 'BinanceTimeSync');
