@@ -1500,7 +1500,8 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
   try {
     if (!activeSymbols || activeSymbols.size === 0) return;
 
-    const positions = await client.getOpenPositions();
+    const rawPositions = await client.getOpenPositions();
+    const positions = (rawPositions || []).filter(p => parseFloat(p.positionAmt) !== 0);
 
     // Kiểm tra xem có vị thế nào ở lượt trước mà lượt này không còn không (sàn đóng hoặc user đóng tay)
     for (const [prevSym, prevPos] of lastActivePositions.entries()) {
