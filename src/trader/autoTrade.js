@@ -516,13 +516,13 @@ async function startAutoTrade(coins) {
       const wsNearby = getNearbySymbols(activeCoinList, levelCache, 0.01);
       syncWebSocketSubscriptions(wsNearby);
 
-      // 2. Vòng lặp Scan định kỳ chỉ xử lý các coin đang thực sự TIỆM CẬN SÁT MỐC (<= 0.3%) để tiết kiệm API
-      const scanNearby = getNearbySymbols(activeCoinList, levelCache, 0.003, true);
+      // 2. Vòng lặp Scan định kỳ chỉ xử lý các coin đang thực sự TIỆM CẬN SÁT MỐC (<= 0.5%) để tối ưu tốc độ treo LIMIT
+      const scanNearby = getNearbySymbols(activeCoinList, levelCache, 0.005, true);
 
       const nowTime = Date.now();
       if (nowTime - lastHeartbeatTime >= 15 * 60 * 1000) {
         lastHeartbeatTime = nowTime;
-        log.system(`[AutoTrade] 🟢 Hệ thống hoạt động bình thường | Theo dõi: ${activeCoinList.length} coin | Tiệm cận sát mốc (<=0.3%): ${scanNearby.length} coin`);
+        log.system(`[AutoTrade] 🟢 Hệ thống hoạt động bình thường | Theo dõi: ${activeCoinList.length} coin | Tiệm cận sát mốc (<=0.5%): ${scanNearby.length} coin`);
       }
 
       if (!scanNearby.length) return;
@@ -575,7 +575,7 @@ async function startAutoTrade(coins) {
       })
       .finally(() => {
         activeSignalChecks--;
-        setTimeout(processSignalQueue, 1000); // Sleep 1000ms giữa các symbol để bảo đảm 100% không dội REST API
+        setTimeout(processSignalQueue, 400); // Sleep 400ms giữa các symbol để bảo đảm tốc độ và an toàn API
       });
   }
 

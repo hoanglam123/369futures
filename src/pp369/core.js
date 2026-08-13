@@ -1787,10 +1787,10 @@ async function score369Method(sig369, direction) {
     if (step > 0) {
       const stepPct = (step / price) * 100;
 
-      // 2.1 Kiểm tra biến động H1 (Tối đa 0.5đ)
-      if (h1Candles && h1Candles.length > 0) {
-        const lastH1 = h1Candles[h1Candles.length - 1];
-        const h1Range = lastH1.high - lastH1.low;
+      // 2.1 Kiểm tra biến động H1 (Tối đa 0.5đ) - Lấy cây nến H1 đã đóng cửa trước đó (00->60)
+      if (h1Candles && h1Candles.length >= 2) {
+        const prevH1 = h1Candles[h1Candles.length - 2];
+        const h1Range = prevH1.high - prevH1.low;
         const h1RangePct = (h1Range / price) * 100;
         
         if (h1RangePct <= 0.5 * stepPct) {
@@ -1806,14 +1806,15 @@ async function score369Method(sig369, direction) {
         volReasons.push(`H1: thiếu nến (+0đ)`);
       }
 
-      // 2.2 Kiểm tra biến động M15 (Tối đa 0.5đ)
+      // 2.2 Kiểm tra biến động M15 (Tối đa 0.5đ) - Lấy cây nến M15 chuẩn đã đóng cửa trước đó (00->15, 15->30, 30->45, 45->00)
       try {
-        const m1Recent = await fetchBinanceKlines(sig369.symbol, '1m', Date.now() - 16 * 60_000, 16);
-        if (m1Recent && m1Recent.length >= 15) {
-          const m15Candles = m1Recent.slice(-15);
-          const m15High = Math.max(...m15Candles.map(c => c.high));
-          const m15Low = Math.min(...m15Candles.map(c => c.low));
-          const m15Range = m15High - m15Low;
+        let m15Klines = m15Data;
+        if (!m15Klines || m15Klines.length < 2) {
+          m15Klines = await fetchBinanceKlines(sig369.symbol, '15m', Date.now() - 3 * 3600_000, 10);
+        }
+        if (m15Klines && m15Klines.length >= 2) {
+          const prevM15 = m15Klines[m15Klines.length - 2];
+          const m15Range = prevM15.high - prevM15.low;
           const m15RangePct = (m15Range / price) * 100;
 
           const m15LimitPct = 0.69 * stepPct;
