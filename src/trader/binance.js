@@ -277,6 +277,9 @@ function calcQuantity(symbol, notional, price) {
 // ─── Public client factory ────────────────────────────────────────────────────
 
 function createClient(apiKey, secret) {
+  let _posCache = null;
+  let _posCacheTime = 0;
+
   return {
     /**
      * Set đòn bẩy cho 1 symbol trước khi đặt lệnh.
@@ -393,8 +396,12 @@ function createClient(apiKey, secret) {
      * Lấy danh sách tất cả các vị thế đang mở (positionAmt != 0).
      */
     async getOpenPositions() {
-      const data = await _get('/fapi/v2/positionRisk', {}, apiKey, secret);
-      return data.filter(p => parseFloat(p.positionAmt) !== 0);
+      const now = Date.now();
+      if (!_posCache || (now - _posCacheTime > 5000)) {
+        _posCache = await _get('/fapi/v2/positionRisk', {}, apiKey, secret);
+        _posCacheTime = now;
+      }
+      return (_posCache || []).filter(p => parseFloat(p.positionAmt) !== 0);
     },
 
     /**
@@ -426,8 +433,13 @@ function createClient(apiKey, secret) {
      * Kiểm tra có vị thế mở không (positionAmt != 0).
      */
     async hasOpenPosition(symbol) {
-      const data = await _get('/fapi/v2/positionRisk', { symbol: `${symbol}USDT` }, apiKey, secret);
-      return data.some(p => parseFloat(p.positionAmt) !== 0);
+      const now = Date.now();
+      if (!_posCache || (now - _posCacheTime > 5000)) {
+        _posCache = await _get('/fapi/v2/positionRisk', {}, apiKey, secret);
+        _posCacheTime = now;
+      }
+      const symUsdt = `${symbol}USDT`;
+      return (_posCache || []).some(p => p.symbol === symUsdt && parseFloat(p.positionAmt) !== 0);
     },
 
     calcQuantity,
