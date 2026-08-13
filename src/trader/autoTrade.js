@@ -498,14 +498,56 @@ async function startAutoTrade(coins) {
 
       if (!scanNearby.length) return;
 
-      for (const sym of scanNearby.slice(0, 10)) {
+      // Priority Sorting: Sắp xếp các mã coin theo độ sát mốc tăng dần (% khoảng cách nhỏ nhất xử lý trước)
+      scanNearby.sort((a, b) => {
+        const priceA = getMarkPrice(a) || 0;
+        const priceB = getMarkPrice(b) || 0;
+        const levA = levelCache[a];
+        const levB = levelCache[b];
+        const distA = priceA && levA ? Math.min(Math.abs(priceA - levA.longEntry) / priceA, Math.abs(levA.shortEntry - priceA) / priceA) : 1;
+        const distB = priceB && levB ? Math.min(Math.abs(priceB - levB.longEntry) / priceB, Math.abs(levB.shortEntry - priceB) / priceB) : 1;
+        return distA - distB;
+      });
+
+      for (const sym of scanNearby.slice(0, 15)) {
         const markPrice = getMarkPrice(sym);
-        await processSymbolSignal(client, sym, markPrice, leverageInfo, leverage, coins);
-        await new Promise(r => setTimeout(r, 100)); // Sleep 100ms giữa các symbol để tránh dội request REST API
+        enqueueSymbolSignal(client, sym, markPrice, leverageInfo, leverage, coins);
       }
     } catch (err) {
       log.warn(`[AutoTrade] Lỗi trong chu kỳ scan: ${err.message}`);
     }
+  }
+
+  // ─── CONCURRENCY POOL FOR SIGNAL CHECKS ──────────────────────────────────
+  const MAX_CONCURRENT_SIGNAL_CHECKS = 3;
+  let activeSignalChecks = 0;
+  const signalCheckQueue = [];
+
+  function enqueueSymbolSignal(client, sym, markPrice, leverageInfo, leverage, coins) {
+    if (isIpBanned()) return;
+    if (!sym || !markPrice || activeSymbols.has(sym) || processingSymbols.has(sym)) return;
+
+    if (signalCheckQueue.some(item => item.sym === sym)) return;
+
+    signalCheckQueue.push({ client, sym, markPrice, leverageInfo, leverage, coins });
+    processSignalQueue();
+  }
+
+  function processSignalQueue() {
+    if (activeSignalChecks >= MAX_CONCURRENT_SIGNAL_CHECKS || signalCheckQueue.length === 0) return;
+
+    const task = signalCheckQueue.shift();
+    if (!task) return;
+
+    activeSignalChecks++;
+    processSymbolSignal(task.client, task.sym, task.markPrice, task.leverageInfo, task.leverage, task.coins)
+      .catch(err => {
+        log.warn(`[AutoTrade] Queue error for ${task.sym}: ${err.message}`);
+      })
+      .finally(() => {
+        activeSignalChecks--;
+        setTimeout(processSignalQueue, 50);
+      });
   }
 
   async function processSymbolSignal(client, sym, markPrice, leverageInfo, leverage, coins) {
@@ -907,9 +949,9 @@ async function startAutoTrade(coins) {
     if (isIpBanned()) return;
     if (!activeCoinSet.has(sym) || activeSymbols.has(sym)) return;
 
-    // 🛡️ COOLDOWN GUARD: Chỉ cho phép gọi processSymbolSignal tối đa 1 lần mỗi 5 giây cho từng coin
+    // 🛡️ COOLDOWN GUARD: Chỉ cho phép enqueueSymbolSignal tối đa 1 lần mỗi 15 giây cho từng coin
     const now = Date.now();
-    if ((symbolSignalCooldown[sym] || 0) + 5000 > now) return;
+    if ((symbolSignalCooldown[sym] || 0) + 15000 > now) return;
 
     const levelCache = getLevelCache();
     const levels = levelCache[sym];
@@ -921,9 +963,7 @@ async function startAutoTrade(coins) {
 
     if (nearLong || nearShort) {
       symbolSignalCooldown[sym] = now; // Ghi nhận thời điểm check
-      processSymbolSignal(client, sym, price, leverageInfo, leverage, coins).catch(err => {
-        log.warn(`[AutoTrade] Lỗi luồng WebSocket Event ${sym}: ${err.message}`);
-      });
+      enqueueSymbolSignal(client, sym, price, leverageInfo, leverage, coins);
     }
   });
 
