@@ -1583,6 +1583,7 @@ async function score369Method(sig369, direction) {
   let volScore = 0;
   let isM15Volatile = false;
   let isStagnant = false;
+  let isH1VolSurge = false;
   const reasons = [];
 
   try {
@@ -2071,6 +2072,25 @@ async function score369Method(sig369, direction) {
     } else {
       volSurgeReasons.push(`Chưa đủ dữ liệu nến H1 để tính Volume trung bình (+0đ)`);
     }
+
+    // 9.2 Kiểm tra Đột biến Volume 3 nến H1 gần nhất so với 24 nến H1 trước đó (gấp >= 2.5x)
+    if (h1Data && h1Data.length >= 27) {
+      const last3 = h1Data.slice(-3);
+      const base24 = h1Data.slice(-27, -3);
+      const avgBaseVol = base24.reduce((sum, c) => sum + c.volume, 0) / 24;
+      const recentMaxVol = Math.max(...last3.map(c => c.volume));
+      const recentAvgVol = last3.reduce((sum, c) => sum + c.volume, 0) / 3;
+
+      if (avgBaseVol > 0) {
+        const maxRatio = recentMaxVol / avgBaseVol;
+        const avgRatio = recentAvgVol / avgBaseVol;
+        if (maxRatio >= 2.5 || avgRatio >= 2.0) {
+          isH1VolSurge = true;
+          volSurgeReasons.push(`🚨 Đột biến Volume 3 H1 gần nhất (${recentMaxVol.toFixed(0)} gấp ${maxRatio.toFixed(2)}x TB 24 nến): Nguy cơ bão xả/bơm mạnh → Chuyển Watchlist Retest`);
+        }
+      }
+    }
+
     score += volSurgeScore;
     reasons.push(`[Động lượng Volume] ${volSurgeReasons.join(' | ')}`);
 
@@ -2246,7 +2266,15 @@ async function score369Method(sig369, direction) {
   }
 
   const otherScore = Math.max(0, score - (volScore || 0));
-  return { score, reasons, volScore: volScore || 0, isM15Volatile: isM15Volatile === true, isStagnant: isStagnant === true, otherScore };
+  return {
+    score,
+    reasons,
+    volScore: volScore || 0,
+    isM15Volatile: isM15Volatile === true,
+    isStagnant: isStagnant === true,
+    isH1VolSurge: isH1VolSurge === true,
+    otherScore
+  };
 }
 
 // ─── Format cho AI prompt ─────────────────────────────────────────────────────

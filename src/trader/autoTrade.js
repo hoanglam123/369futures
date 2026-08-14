@@ -628,12 +628,15 @@ async function startAutoTrade(coins) {
       const volScore = scoreRes?.volScore || 0;
       const isM15Volatile = scoreRes?.isM15Volatile === true;
       const isStagnant = scoreRes?.isStagnant === true;
-      const hasCriterion2 = isBtc || (volScore >= 0.3 && !isM15Volatile && !isStagnant);
+      const isH1VolSurge = scoreRes?.isH1VolSurge === true;
+      const hasCriterion2 = isBtc || (volScore >= 0.3 && !isM15Volatile && !isStagnant && !isH1VolSurge);
       if (!isBtc && !hasCriterion2) {
         if (isNewSignalLog) {
-          const failReason = isStagnant
-            ? 'Nén bế tắc H1 (24-48 nến Range <= 1.5%)'
-            : (isM15Volatile ? 'M15 biến động mạnh' : 'Biến động H1/M15 không đạt');
+          const failReason = isH1VolSurge
+            ? 'Đột biến Volume 3 nến H1 (gấp >= 2.5x)'
+            : (isStagnant
+              ? 'Nén bế tắc H1 (24-48 nến Range <= 1.5%)'
+              : (isM15Volatile ? 'M15 biến động mạnh' : 'Biến động H1/M15 không đạt'));
           log.system(`[AutoTrade] ${sym} ${sig.signal} không đạt Tiêu chí 2 (${failReason}) — Đưa vào Watchlist chờ Retest H1`);
         }
         lowScoreWatchlist[sym] = {
@@ -655,7 +658,7 @@ async function startAutoTrade(coins) {
             signalPrice: sig.targetLevel,
             score: sig.score ?? 0,
             scoreReasons: sig.scoreReasons || [],
-            skipReason: isStagnant ? 'STAGNANT_COMPRESSION' : 'NO_VOLATILITY_FILTER',
+            skipReason: isH1VolSurge ? 'H1_VOLUME_SURGE' : (isStagnant ? 'STAGNANT_COMPRESSION' : 'NO_VOLATILITY_FILTER'),
             markPrice: markPrice,
             marketCapRank: getMarketCapRank ? getMarketCapRank(sym) : 999,
           });
