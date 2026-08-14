@@ -1682,9 +1682,46 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
         }
       }
 
+      // 2.5 Kiểm tra Nến H1 Không Phản Ứng (Gãy cản 35% ticks -> Dời TP về Entry hòa vốn)
+      //     Áp dụng thuần túy theo Giá Đóng Cửa (Close Price):
+      //     - LONG:  Đóng H1 <= Entry - 0.35*unit
+      //     - SHORT: Đóng H1 >= Entry + 0.35*unit
+      const invalidationDistance = unit * 0.35; // 35% Unit = 35 ticks
+      if (meta && !meta.isH1Failed) {
+        const nowMs = Date.now();
+        if (!meta._lastH1Check || (nowMs - meta._lastH1Check >= 60000)) {
+          meta._lastH1Check = nowMs;
+          try {
+            const h1s = await fetchBinanceKlines(sym, '1h', nowMs - 3 * 3600_000, 3);
+            if (h1s && h1s.length >= 2) {
+              const lastClosedH1 = h1s[h1s.length - 2];
+              if (lastClosedH1 && lastClosedH1.openTime > (meta.time || (nowMs - 3600_000))) {
+                const cClose = lastClosedH1.close;
+
+                if (isLong) {
+                  const isClosedBelow = cClose <= (entryPrice - invalidationDistance);
+                  if (isClosedBelow) {
+                    meta.isH1Failed = true;
+                    log.system(`[AutoTrade] ⚠️ ${sym} LONG: Nến H1 đóng cửa xấu ($${cClose} <= Entry - 35 ticks $${(entryPrice - invalidationDistance).toFixed(6)}) -> Kích hoạt dời TP về Entry $${entryPrice}`);
+                  }
+                } else {
+                  const isClosedAbove = cClose >= (entryPrice + invalidationDistance);
+                  if (isClosedAbove) {
+                    meta.isH1Failed = true;
+                    log.system(`[AutoTrade] ⚠️ ${sym} SHORT: Nến H1 đóng cửa xấu ($${cClose} >= Entry + 35 ticks $${(entryPrice + invalidationDistance).toFixed(6)}) -> Kích hoạt dời TP về Entry $${entryPrice}`);
+                  }
+                }
+              }
+            }
+          } catch (err) {
+            log.warn(`[AutoTrade] Lỗi kiểm tra H1 cho vị thế ${sym}: ${err.message}`);
+          }
+        }
+      }
+
       // 3. Tính khoảng cách giá tuyệt đối (Dynamic Trailing SL - Option B):
       //    SL = entry +/- unit (tương đương đúng -13% Margin với đòn bẩy = 39 / gridStepPct)
-      //    TP = entry +/- (unit * tpMultiplier) -> 90, 120, 150 ticks với step=300
+      //    TP = entry +/- (unit * tpMultiplier) -> 90, 120, 150 ticks với step=300 (hoặc Entry nếu H1 gãy cản)
       //    Trail Trigger: CỐ ĐỊNH 45 ticks (0.45 * unit) cho TẤT CẢ các thang điểm và mọi độ rộng lưới
       //    Trail SL = entry +/- (unit * 0.05) -> Dời SL +5đ (+5 ticks tùy bước giá, tương đương 0.05 * unit) khi chạm mốc Trail Trigger
       //    LƯU Ý OPTION B: Một khi lệnh đã dời SL về +5đ thì giữ nguyên SL hòa, không rollback về âm.
@@ -1697,19 +1734,19 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
       let targetSlPriceExact, targetTpPriceExact, trailTriggerPriceExact, trailedSlPriceExact;
       if (isLong) {
         targetSlPriceExact = Number((entryPrice - unit - slBufferDistance).toFixed(8));
-        targetTpPriceExact = Number((entryPrice + tpDistance).toFixed(8));
+        targetTpPriceExact = meta?.isH1Failed ? Number(entryPrice.toFixed(8)) : Number((entryPrice + tpDistance).toFixed(8));
         trailTriggerPriceExact = Number((entryPrice + trailDistance).toFixed(8));
         trailedSlPriceExact = Number((entryPrice + trailSlDistance).toFixed(8));
       } else {
         targetSlPriceExact = Number((entryPrice + unit + slBufferDistance).toFixed(8));
-        targetTpPriceExact = Number((entryPrice - tpDistance).toFixed(8));
+        targetTpPriceExact = meta?.isH1Failed ? Number(entryPrice.toFixed(8)) : Number((entryPrice - tpDistance).toFixed(8));
         trailTriggerPriceExact = Number((entryPrice - trailDistance).toFixed(8));
         trailedSlPriceExact = Number((entryPrice - trailSlDistance).toFixed(8));
       }
 
       // Đổi sang ROI % tương đương để logging / telegram / dataset
       const slPct = -13;
-      const tpPct = parseFloat(((tpDistance / entryPrice) * leverageVal * 100).toFixed(2));
+      const tpPct = meta?.isH1Failed ? 0 : parseFloat(((tpDistance / entryPrice) * leverageVal * 100).toFixed(2));
       const trailTrigger = parseFloat(((trailDistance / entryPrice) * leverageVal * 100).toFixed(2));
       const trailSlRoi = parseFloat(((trailSlDistance / entryPrice) * leverageVal * 100).toFixed(2)); // ROI tương đương +5đ
 
@@ -1748,8 +1785,26 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
         continue; // Bỏ qua check SL cho coin này trong lượt này
       }
 
-      // 1b. Đặt algo TP lên sàn tại mốc targetTpPriceExact (chỉ khi chưa có)
-      if (realTpOrders.length === 0) {
+      // 1b. Cập nhật / Đặt algo TP lên sàn tại mốc targetTpPriceExact
+      if (meta?.isH1Failed && realTpOrders.length > 0 && !meta.hasMovedTpToEntry) {
+        for (const o of realTpOrders) {
+          try {
+            if (o.isAlgo) await client.cancelAlgoOrder(sym, o.orderId);
+            else await client.cancelOrder(sym, o.orderId);
+          } catch (e) {
+            log.warn(`[AutoTrade] Hủy TP cũ ${sym} để dời về hòa vốn: ${e.message}`);
+          }
+        }
+        meta.hasMovedTpToEntry = true;
+        try {
+          const tpOrder = await client.placeStopOrder(sym, oppositeSide, 'TAKE_PROFIT_MARKET', targetTpPriceExact);
+          const tpId = tpOrder.orderId || tpOrder.algoId || 'unknown';
+          log.system(`[AutoTrade] ⚠️ Đã dời TP ${sym} về Entry (Hòa vốn) @ $${targetTpPriceExact.toFixed(5)} do H1 gãy cản (đối ứng ${oppositeSide}) orderId=${tpId}`);
+          await sendTelegram(`⚠️ <b>H1 Không Phản Ứng (Gãy Cản 35% ticks)</b>\n• Coin: <b>${sym}</b> (${isLong ? 'LONG' : 'SHORT'})\n• Nến H1 đóng cửa xấu không rút râu\n• Đã dời TP về Entry: <b>$${targetTpPriceExact.toFixed(5)}</b> để đón nhịp Retest thoát hòa vốn!`);
+        } catch (e) {
+          log.error(`[AutoTrade] Đặt TP hòa vốn ${sym} thất bại: ${_binanceErr(e)}`);
+        }
+      } else if (realTpOrders.length === 0) {
         try {
           const tpOrder = await client.placeStopOrder(sym, oppositeSide, 'TAKE_PROFIT_MARKET', targetTpPriceExact);
           const tpId = tpOrder.orderId || tpOrder.algoId || 'unknown';
