@@ -42,7 +42,7 @@ async function main() {
     step: step
   };
 
-  const scoreRes = await score369Method(sig, 0.008649);
+  const scoreRes = await score369Method(sig, 'SHORT');
   console.log('\n--- Score369Method Details ---');
   console.log(`Score: ${scoreRes.score}`);
   console.log(`volScore: ${scoreRes.volScore}`);
