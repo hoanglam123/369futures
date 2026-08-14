@@ -1582,6 +1582,7 @@ async function score369Method(sig369, direction) {
   let score = 0;
   let volScore = 0;
   let isM15Volatile = false;
+  let isStagnant = false;
   const reasons = [];
 
   try {
@@ -1841,6 +1842,21 @@ async function score369Method(sig369, direction) {
         }
       } catch (err) {
         volReasons.push(`M15: lỗi check (${err.message}) (+0đ)`);
+      }
+
+      // 2.3 Kiểm tra Nén bế tắc H1 (24–48 cây nến H1 gần nhất có Range <= 1.5%)
+      if (h1Data && h1Data.length >= 24) {
+        const sampleCount = Math.min(48, h1Data.length);
+        const h1Sample = h1Data.slice(-sampleCount);
+        const sampleHigh = Math.max(...h1Sample.map(c => c.high));
+        const sampleLow = Math.min(...h1Sample.map(c => c.low));
+        const sampleRangePct = ((sampleHigh - sampleLow) / price) * 100;
+
+        if (sampleRangePct <= 1.5) {
+          isStagnant = true;
+          volScore = 0; // Hủy điểm nén vì đây là nén bế tắc / bẫy thanh khoản (chờ Retest)
+          volReasons.push(`Nén bế tắc H1 (${sampleCount} nến Range ${sampleRangePct.toFixed(2)}% <= 1.5%): Bẫy quét thanh khoản → Chuyển H1 Retest (+0đ)`);
+        }
       }
     } else {
       volReasons.push(`Thiếu dữ liệu Step để kiểm tra (+0đ)`);
@@ -2230,7 +2246,7 @@ async function score369Method(sig369, direction) {
   }
 
   const otherScore = Math.max(0, score - (volScore || 0));
-  return { score, reasons, volScore: volScore || 0, isM15Volatile: isM15Volatile === true, otherScore };
+  return { score, reasons, volScore: volScore || 0, isM15Volatile: isM15Volatile === true, isStagnant: isStagnant === true, otherScore };
 }
 
 // ─── Format cho AI prompt ─────────────────────────────────────────────────────
