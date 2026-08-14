@@ -11791,3 +11791,72 @@
 2026-08-13 08:41:49: [PP369 WARN] [AutoTrade] Lỗi kiểm tra virtual TP/SL: [IP_BAN_CIRCUIT_BREAKER] IP đang bị Binance khóa cho đến 08:56:49 (còn 15.0 phút). Đã ngắt REST API. 
 2026-08-13 08:57:58: [PP369 WARN] [Binance] Kích hoạt Circuit Breaker: IP bị phạt đến 09:12:58 (còn 15.0 phút). Tạm dừng toàn bộ REST API. 
 2026-08-13 08:57:58: [PP369 WARN] [AutoTrade] Lỗi đồng bộ activeSymbols: [IP_BAN_CIRCUIT_BREAKER] IP đang bị Binance khóa cho đến 09:12:58 (còn 15.0 phút). Đã ngắt REST API. 
+2026-08-13 09:11:31: [PP369 WARN] [AI Reviewer] Lỗi tự động re-train mô hình AI: Command failed: python "/root/369futures/scripts/train_ai_model.py"
+2026-08-13 09:11:31: /bin/sh: line 1: python: command not found
+2026-08-13 09:11:31:  
+2026-08-13 09:13:55: [PP369 WARN] [Binance] Kích hoạt Circuit Breaker: IP bị phạt đến 09:28:55 (còn 15.0 phút). Tạm dừng toàn bộ REST API. 
+2026-08-13 09:13:55: [PP369 WARN] [AutoTrade] Lỗi kiểm tra virtual TP/SL: [IP_BAN_CIRCUIT_BREAKER] IP đang bị Binance khóa cho đến 09:28:55 (còn 15.0 phút). Đã ngắt REST API. 
+2026-08-13 09:18:47: [PP369 WARN] [CircuitBreaker] Nạp lại trạng thái: IP đang bị Binance phạt đến 09:28:55 (còn 10.1 phút). Tạm dừng toàn bộ REST API. 
+2026-08-13 09:18:47: [PP369 WARN] [AI Reviewer] Lỗi tự động re-train mô hình AI: Command failed: python "/root/369futures/scripts/train_ai_model.py"
+2026-08-13 09:18:47: /bin/sh: line 1: python: command not found
+2026-08-13 09:18:47:  
+2026-08-13 09:40:11: [PP369 WARN] [AI Reviewer] Lỗi tự động re-train mô hình AI: Command failed: python "/root/369futures/scripts/train_ai_model.py"
+2026-08-13 09:40:11: /bin/sh: line 1: python: command not found
+2026-08-13 09:40:11:  
+2026-08-13 09:42:56: [PP369 WARN] [Binance] Kích hoạt Circuit Breaker: IP bị phạt đến 09:57:56 (còn 15.0 phút). Tạm dừng toàn bộ REST API. 
+2026-08-13 09:42:56: [PP369 WARN] [AutoTrade] Lỗi kiểm tra virtual TP/SL: [IP_BAN_CIRCUIT_BREAKER] IP đang bị Binance khóa cho đến 09:57:56 (còn 15.0 phút). Đã ngắt REST API. 
+2026-08-13 09:52:00: [PP369 WARN] [CircuitBreaker] Nạp lại trạng thái: IP đang bị Binance phạt đến 09:57:56 (còn 5.9 phút). Tạm dừng toàn bộ REST API. 
+2026-08-13 09:52:00: [PP369 WARN] [AI Reviewer] Lỗi tự động re-train mô hình AI: Command failed: python "/root/369futures/scripts/train_ai_model.py"
+2026-08-13 09:52:00: /bin/sh: line 1: python: command not found
+2026-08-13 09:52:00:  
+2026-08-13 11:18:11: [PP369 WARN] [AI Reviewer] Lỗi tự động re-train mô hình AI: Command failed: python "/root/369futures/scripts/train_ai_model.py"
+2026-08-13 11:18:11: /bin/sh: line 1: python: command not found
+2026-08-13 11:18:11:  
+2026-08-13 11:18:20: [PP369 WARN] [AutoTrade] [BounceCancel] Không hủy được LIMIT ONDO: [-2011] Unknown order sent. 
+2026-08-13 11:24:48: [PP369 WARN] [AI Reviewer] Lỗi tự động re-train mô hình AI: Command failed: python "/root/369futures/scripts/train_ai_model.py"
+2026-08-13 11:24:48: /bin/sh: line 1: python: command not found
+2026-08-13 11:24:48:  
+2026-08-13 12:10:30: [PP369 WARN] [AI Reviewer] Lỗi tự động re-train mô hình AI: Command failed: python "/root/369futures/scripts/train_ai_model.py"
+2026-08-13 12:10:30: /bin/sh: line 1: python: command not found
+2026-08-13 12:10:30:  
+2026-08-13 12:59:24: [PP369 WARN] [AI Reviewer] Lỗi tự động re-train mô hình AI: Command failed: python "/root/369futures/scripts/train_ai_model.py"
+2026-08-13 12:59:24: /bin/sh: line 1: python: command not found
+2026-08-13 12:59:24:  
+2026-08-13 13:04:45: [PP369 WARN] [AI Reviewer] Lỗi tự động re-train mô hình AI: Command failed: python "/root/369futures/scripts/train_ai_model.py"
+2026-08-13 13:04:45: /bin/sh: line 1: python: command not found
+2026-08-13 13:04:45:  
+2026-08-13 13:14:04: [PP369 WARN] [AutoTrade] Lỗi tính score cho SKYAI: isM15Volatile is not defined 
+2026-08-13 13:14:22: [PP369 WARN] [AutoTrade] Lỗi tính score cho SKYAI: isM15Volatile is not defined 
+2026-08-13 13:14:40: [PP369 WARN] [AutoTrade] Lỗi tính score cho SKYAI: isM15Volatile is not defined 
+2026-08-13 13:18:15: [PP369 WARN] [AI Reviewer] Lỗi tự động re-train mô hình AI: Command failed: python "/root/369futures/scripts/train_ai_model.py"
+2026-08-13 13:18:15: /bin/sh: line 1: python: command not found
+2026-08-13 13:18:15:  
+2026-08-13 13:31:54: [PP369 WARN] [AutoTrade] [BounceCancel] Không hủy được LIMIT BTR: [-2011] Unknown order sent. 
+2026-08-13 14:01:18: [PP369 WARN] [AI Reviewer] Lỗi tự động re-train mô hình AI: Command failed: python "/root/369futures/scripts/train_ai_model.py"
+2026-08-13 14:01:18: /bin/sh: line 1: python: command not found
+2026-08-13 14:01:18:  
+2026-08-13 15:40:44: [PP369 WARN] [AI Reviewer] Lỗi tự động re-train mô hình AI: Command failed: python "/root/369futures/scripts/train_ai_model.py"
+2026-08-13 15:40:44: /bin/sh: line 1: python: command not found
+2026-08-13 15:40:44:  
+2026-08-13 16:49:27: [PP369 WARN] [AI Reviewer] Lỗi tự động re-train mô hình AI: Command failed: python "/root/369futures/scripts/train_ai_model.py"
+2026-08-13 16:49:27: /bin/sh: line 1: python: command not found
+2026-08-13 16:49:27:  
+2026-08-13 16:49:36: [PP369 WARN] [AI Reviewer] Lỗi tự động re-train mô hình AI: Command failed: python "/root/369futures/scripts/train_ai_model.py"
+2026-08-13 16:49:36: /bin/sh: line 1: python: command not found
+2026-08-13 16:49:36:  
+2026-08-14 08:37:58: [PP369 WARN] [AI Reviewer] Lỗi tự động re-train mô hình AI: Command failed: python "/root/369futures/scripts/train_ai_model.py"
+2026-08-14 08:37:58: /bin/sh: line 1: python: command not found
+2026-08-14 08:37:58:  
+2026-08-14 09:12:03: [PP369 WARN] [AI Reviewer] Lỗi tự động re-train mô hình AI: Command failed: python "/root/369futures/scripts/train_ai_model.py"
+2026-08-14 09:12:03: /bin/sh: line 1: python: command not found
+2026-08-14 09:12:03:  
+2026-08-14 09:41:55: [PP369 WARN] [AI Reviewer] Lỗi tự động re-train mô hình AI: Command failed: python "/root/369futures/scripts/train_ai_model.py"
+2026-08-14 09:41:55: /bin/sh: line 1: python: command not found
+2026-08-14 09:41:55:  
+2026-08-14 10:38:25: [PP369 WARN] [AutoTrade] [BounceCancel] Không hủy được LIMIT PIEVERSE: [-2011] Unknown order sent. 
+2026-08-14 11:08:13: [PP369 WARN] [AI Reviewer] Lỗi tự động re-train mô hình AI: Command failed: python "/root/369futures/scripts/train_ai_model.py"
+2026-08-14 11:08:13: /bin/sh: line 1: python: command not found
+2026-08-14 11:08:13:  
+2026-08-14 11:26:00: [PP369 WARN] [AI Reviewer] Lỗi tự động re-train mô hình AI: Command failed: python "/root/369futures/scripts/train_ai_model.py"
+2026-08-14 11:26:00: /bin/sh: line 1: python: command not found
+2026-08-14 11:26:00:  

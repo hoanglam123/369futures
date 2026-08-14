@@ -28009,3 +28009,916 @@
 2026-08-13 08:56:50: [PP369] [GridBlacklist] Đã tự động giải phóng BROCCOLIF3B khỏi Blacklist sau 1 tuần. 
 2026-08-13 08:56:50: [PP369] [GridBlacklist] ĐÃ THÊM BROCCOLIF3B VÀO BLACKLIST 7 NGÀY (Lý do: x*2 (11.26%) > y (3.38%)). Sẽ tự động giải phóng sau 7 ngày. 
 2026-08-13 08:56:58: [PP369] [AutoTrade] 🟢 Hệ thống hoạt động bình thường | Theo dõi: 440 coin | Tiệm cận sát mốc (<=0.3%): 27 coin 
+2026-08-13 09:11:30: ◇ injected env (10) from .env // tip: ⌘ custom filepath { path: '/custom/path/.env' }
+2026-08-13 09:11:31: [PP369] [AI Reviewer] ✓ Đã nạp thành công mô hình AI (v1.1.0, mẫu N=19) 
+2026-08-13 09:11:31: [PP369] [AI Reviewer] 🔄 Tự động kích hoạt Python re-train mô hình AI trong nền... 
+2026-08-13 09:11:31: [PP369] [369] initH4Cache: Tất cả 803 coin đã có nến H4 đầu năm. 
+2026-08-13 09:11:31: [AutoTrade] Bỏ qua 166 coin có grid ngoài khoảng 3–25% (theo giá hiện tại): 4(2.7%), XRP(29.9%), ETC(48.1%), LINK(34.7%), BAT(51.9%), QTUM(45.9%), KNC(29.8%), DOT(39.0%), SOL(39.7%), AVAX(46.9%), AAVE(34.1%), FIL(44.7%), RSR(25.7%), BEL(2.9%), ALICE(2.6%), ONE(38.6%), NKN(2.6%), DGB(1.6%), ATA(1.8%), DYDX(2.7%), KLAY(2.4%), LPT(25.3%), IMX(27.5%), APE(2.4%), WOO(28.5%), DAR(2.1%), OP(35.4%), STG(2.1%), SPELL(38.9%), APT(53.6%), FET(2.2%), CKB(36.6%), USDC(30.0%), AMB(2.5%), LEVER(26.7%), RDNT(2.9%), SUI(43.9%), MAV(34.5%), DODOX(1.4%), ARK(33.6%), BOND(28.1%), GAS(32.9%), SUPER(35.3%), 1000SATS(297.6%), ACE(27.6%), MOVR(36.5%), JUP(1.8%), GLM(34.3%), PORTAL(2.8%), MYRO(3.0%), W(37.0%), BB(26.2%), IO(2.7%), ZK(41.4%), ZRO(37.2%), SYN(2.9%), SYS(1.7%), ALPACA(25.2%), SUN(1.6%), DOGS(86.3%), BSW(2.5%), QUICK(2.3%), NEIRO(45.1%), FIO(2.5%), GHST(1.8%), LOKA(2.6%), COS(2.5%), SANTOS(64.1%), COW(29.3%), 1000000MOG(30.4%), DRIFT(26.3%), ACT(30.4%), HIPPO(2.9%), DEGEN(2.9%), 1000WHY(197.4%), THE(50.0%), CHILLGUY(2.7%), ORCA(29.2%), MOVE(46.0%), KOMA(2.1%), VELODROME(1.8%), MOCA(42.0%), VANA(35.7%), USUAL(34.6%), DF(2.6%), GRIFFAIN(2.6%), D(2.2%), AVAAI(2.7%), PIPPIN(180.0%), TST(2.1%), HEI(2.3%), RED(35.7%), MUBARAK(1.6%), TUT(0.5%), BROCCOLI714(1.8%), BR(1.3%), PLUME(2.6%), FUN(1.7%), BABY(2.9%), SIGN(46.0%), PUNDIX(40.5%), CTK(28.1%), SXT(41.0%), ASR(35.3%), MILK(3.0%), OG(121.3%), AGT(1.9%), B(2.0%), MERL(164.8%), PORT3(2.5%), 1000000BOB(1.6%), LA(59.9%), PUMPBTC(28.4%), MYX(410.5%), DMC(2.3%), OL(1.7%), SAHARA(38.1%), M(27.4%), TANSSI(2.4%), PUMP(1.1%), VELVET(0.4%), ZORA(61.3%), TAG(2.5%), ESPORTS(191.1%), A2Z(2.1%), YALA(1.8%), SOMI(34.6%), BAS(1.2%), Q(1.3%), PTB(34.4%), OPEN(1.5%), AVNT(32.7%), UB(2.3%), TOSHI(30.3%), BARD(26.1%), TRADOOR(48.8%), BLESS(2.8%), FLUID(26.3%), HANA(0.9%), AKE(0.7%), LIGHT(171.9%), XAN(2.8%), TRUTH(2.2%), YB(38.3%), EUL(25.3%), CLO(25.5%), LAB(2.6%), RIVER(117.3%), 币安人生(0.6%), BLUAI(2.3%), APR(0.5%), ON(0.8%), KITE(3.0%), AT(1.8%), UAI(1.2%), STABLE(0.9%), JCT(0.8%), ALLO(1.0%), BEAT(33.3%), BOB(2.8%), RLS(2.8%), POWER(30.6%), US(1.0%), CYS(1.8%), BREV(43.7%), MAGMA(1.6%)
+2026-08-13 09:11:32: [PP369] [Binance] Đang lấy leverage brackets cho 440 coin... 
+2026-08-13 09:11:32: [PP369] [Binance] Đã lưu leverage cho 440 coin vào step_sizes.json 
+2026-08-13 09:11:32: [PP369] [AutoTrade] Khởi động: 440 coin | margin=$10 | 10x | type=LIMIT 
+2026-08-13 09:11:32: [PP369] [Binance] Loaded step and tick sizes from existing file: 852 symbols 
+2026-08-13 09:11:32: [PP369] [AutoTrade] Đã nạp leverageInfo cho 440 coin từ cache. 
+2026-08-13 09:11:32: [PP369] [PP369Stream] Kết nối WebSocket thành công (market/stream) 
+2026-08-13 09:11:36: [PP369] [AutoTrade] Bắt đầu scan... 
+2026-08-13 09:18:47: ◇ injected env (10) from .env // tip: ◈ encrypted .env [www.dotenvx.com]
+2026-08-13 09:18:47: [PP369] [AI Reviewer] ✓ Đã nạp thành công mô hình AI (v1.1.0, mẫu N=19) 
+2026-08-13 09:18:47: [PP369] [AI Reviewer] 🔄 Tự động kích hoạt Python re-train mô hình AI trong nền... 
+2026-08-13 09:18:47: [PP369] [369] initH4Cache: Tất cả 803 coin đã có nến H4 đầu năm. 
+2026-08-13 09:18:47: [AutoTrade] Bỏ qua 147 coin có grid ngoài khoảng 3–25% (theo giá hiện tại): 4(1.5%), ETC(26.2%), VET(2.9%), IOST(1.7%), ZRX(2.1%), STORJ(2.3%), BEL(2.3%), 1INCH(2.1%), SAND(2.8%), MANA(2.5%), ALICE(1.8%), NKN(2.6%), DGB(1.6%), GTC(2.3%), ATA(1.8%), DYDX(1.8%), 1000XEC(2.9%), CELO(2.7%), KLAY(2.4%), ARPA(2.4%), ROSE(3.0%), GMT(2.0%), APE(1.5%), DAR(2.1%), STG(2.8%), FET(1.5%), USDC(30.0%), ARB(1.6%), AMB(2.5%), LEVER(26.7%), RDNT(2.9%), EDU(1.8%), ARKM(1.7%), DODOX(1.7%), SEI(2.7%), BIGTIME(1.5%), BOND(28.1%), 1000SATS(201.3%), XAI(1.9%), LSK(1.6%), ALT(2.6%), JUP(1.6%), RONIN(2.3%), PORTAL(1.5%), MYRO(3.0%), ENA(1.5%), TURBO(1.9%), IO(2.0%), LISTA(1.8%), SYS(1.7%), BRETT(2.2%), ALPACA(25.2%), SUN(1.6%), DOGS(78.5%), BSW(2.5%), QUICK(2.3%), NEIRO(29.2%), FIO(2.5%), GHST(1.8%), LOKA(2.6%), COS(2.5%), SAFE(2.2%), DRIFT(2.0%), HIPPO(2.9%), DEGEN(2.9%), SCRT(3.0%), 1000WHY(197.4%), MORPHO(27.5%), CHILLGUY(1.9%), ORCA(28.1%), KOMA(2.8%), ME(1.5%), VELODROME(1.7%), LUMIA(2.5%), DF(2.6%), GRIFFAIN(1.6%), ALCH(2.2%), SWARMS(2.1%), D(2.2%), SOLV(2.3%), MELANIA(2.6%), TST(1.9%), LAYER(1.8%), HEI(2.5%), MUBARAK(1.7%), TUT(2.0%), BROCCOLI714(1.7%), PLUME(1.8%), PARTI(3.0%), WAL(2.5%), FUN(1.7%), GUN(2.7%), BABY(1.8%), HYPER(2.5%), AIOT(2.7%), MILK(3.0%), OG(26.0%), B(2.2%), A(1.9%), SOPH(2.5%), PORT3(2.5%), 1000000BOB(1.6%), HOME(1.5%), TAIKO(1.8%), DMC(2.3%), H(1.8%), OL(1.7%), TANSSI(2.4%), PUMP(1.6%), CROSS(2.0%), VELVET(2.1%), ERA(1.5%), TREE(2.9%), A2Z(2.1%), YALA(1.8%), CARV(2.5%), AIO(2.6%), SAPIEN(2.3%), XPL(1.9%), HEMI(1.7%), Q(1.8%), OPEN(1.9%), ZKC(2.7%), BLESS(2.5%), HANA(2.7%), MIRA(2.1%), XAN(1.8%), 2Z(2.5%), LYN(1.9%), RECALL(2.9%), ZBT(2.1%), LAB(2.5%), RIVER(27.4%), APR(2.4%), ON(2.8%), AT(1.7%), CC(2.0%), TRUST(2.8%), UAI(2.1%), JCT(1.5%), ALLO(2.7%), BOB(2.8%), RLS(2.8%), WET(1.7%), ZKP(2.3%), GUA(2.5%), MAGMA(2.1%)
+2026-08-13 09:18:48: [PP369] [AutoTrade] Khởi động: 459 coin | margin=$10 | 10x | type=LIMIT 
+2026-08-13 09:18:48: [PP369] [AutoTrade] Đã nạp leverageInfo cho 440 coin từ cache. 
+2026-08-13 09:18:49: [PP369] [PP369Stream] Kết nối WebSocket thành công (market/stream) 
+2026-08-13 09:18:52: [PP369] [AutoTrade] Bắt đầu scan... 
+2026-08-13 09:28:56: [PP369] [CircuitBreaker] 🟢 Hết thời gian phạt IP của Binance! Tự động khôi phục giao dịch REST API bình thường. 
+2026-08-13 09:33:53: [PP369] [AutoTrade] 🟢 Hệ thống hoạt động bình thường | Theo dõi: 459 coin | Tiệm cận sát mốc (<=0.3%): 0 coin 
+2026-08-13 09:40:10: ◇ injected env (10) from .env // tip: ⌘ override existing { override: true }
+2026-08-13 09:40:11: [PP369] [AI Reviewer] ✓ Đã nạp thành công mô hình AI (v1.1.0, mẫu N=19) 
+2026-08-13 09:40:11: [PP369] [AI Reviewer] 🔄 Tự động kích hoạt Python re-train mô hình AI trong nền... 
+2026-08-13 09:40:11: [PP369] [369] initH4Cache: Tất cả 803 coin đã có nến H4 đầu năm. 
+2026-08-13 09:40:11: [AutoTrade] Bỏ qua 166 coin có grid ngoài khoảng 3–25% (theo giá hiện tại): 4(2.7%), XRP(29.9%), ETC(48.2%), LINK(34.8%), BAT(51.9%), QTUM(45.7%), KNC(29.8%), DOT(39.0%), SOL(39.7%), AVAX(47.1%), AAVE(34.3%), FIL(44.7%), RSR(25.7%), BEL(2.9%), ALICE(2.6%), ONE(38.7%), NKN(2.6%), DGB(1.6%), ATA(1.8%), DYDX(2.7%), KLAY(2.4%), LPT(25.4%), IMX(27.4%), APE(2.4%), WOO(28.5%), DAR(2.1%), OP(35.7%), STG(2.1%), SPELL(38.8%), APT(53.6%), FET(2.2%), CKB(36.7%), USDC(30.0%), AMB(2.5%), LEVER(26.7%), RDNT(2.9%), SUI(43.9%), MAV(34.7%), DODOX(1.4%), ARK(33.7%), BOND(28.1%), GAS(33.0%), SUPER(35.3%), 1000SATS(298.2%), ACE(27.6%), MOVR(36.6%), JUP(1.8%), GLM(34.2%), PORTAL(2.8%), MYRO(3.0%), W(37.2%), BB(26.3%), IO(2.7%), ZK(41.6%), ZRO(37.4%), SYN(2.9%), SYS(1.7%), ALPACA(25.2%), SUN(1.6%), DOGS(86.4%), BSW(2.5%), QUICK(2.3%), NEIRO(45.0%), FIO(2.5%), GHST(1.8%), LOKA(2.6%), COS(2.5%), SANTOS(64.2%), COW(29.4%), 1000000MOG(30.4%), DRIFT(26.3%), ACT(30.0%), HIPPO(2.9%), DEGEN(2.9%), 1000WHY(197.4%), THE(49.9%), CHILLGUY(2.7%), ORCA(29.3%), MOVE(46.6%), KOMA(2.1%), VELODROME(1.8%), MOCA(42.0%), VANA(35.7%), USUAL(34.5%), DF(2.6%), GRIFFAIN(2.6%), D(2.2%), AVAAI(2.6%), PIPPIN(179.1%), TST(2.1%), HEI(2.3%), RED(35.7%), MUBARAK(1.6%), TUT(0.5%), BROCCOLI714(1.8%), BR(1.3%), PLUME(2.7%), FUN(1.7%), BABY(2.9%), SIGN(46.0%), PUNDIX(40.5%), CTK(28.1%), SXT(40.7%), ASR(35.4%), MILK(3.0%), OG(121.3%), AGT(1.9%), B(2.0%), MERL(165.2%), PORT3(2.5%), 1000000BOB(1.6%), LA(60.5%), PUMPBTC(28.3%), MYX(410.2%), DMC(2.3%), OL(1.7%), SAHARA(38.1%), M(27.4%), TANSSI(2.4%), PUMP(1.1%), VELVET(0.4%), ZORA(61.7%), TAG(2.4%), ESPORTS(192.2%), A2Z(2.1%), YALA(1.8%), SOMI(34.8%), BAS(1.2%), Q(1.3%), PTB(34.5%), OPEN(1.5%), AVNT(32.8%), UB(2.3%), TOSHI(30.2%), BARD(26.1%), TRADOOR(49.2%), BLESS(2.8%), FLUID(26.3%), HANA(0.9%), AKE(0.7%), LIGHT(173.0%), XAN(2.8%), TRUTH(2.2%), YB(38.3%), EUL(25.3%), CLO(25.6%), LAB(2.7%), RIVER(117.5%), 币安人生(0.6%), BLUAI(2.4%), APR(0.5%), ON(0.8%), KITE(3.0%), AT(1.8%), UAI(1.1%), STABLE(0.9%), JCT(0.8%), ALLO(1.0%), BEAT(32.4%), BOB(2.8%), RLS(2.8%), POWER(30.9%), US(1.0%), CYS(1.8%), BREV(43.8%), MAGMA(1.6%)
+2026-08-13 09:40:12: [PP369] [Binance] Đang lấy leverage brackets cho 440 coin... 
+2026-08-13 09:40:12: [PP369] [Binance] Đã lưu leverage cho 440 coin vào step_sizes.json 
+2026-08-13 09:40:12: [PP369] [AutoTrade] Khởi động: 440 coin | margin=$10 | 10x | type=LIMIT 
+2026-08-13 09:40:12: [PP369] [Binance] Loaded step and tick sizes from existing file: 852 symbols 
+2026-08-13 09:40:12: [PP369] [AutoTrade] Đã nạp leverageInfo cho 440 coin từ cache. 
+2026-08-13 09:40:13: [PP369] [PP369Stream] Kết nối WebSocket thành công (market/stream) 
+2026-08-13 09:40:16: [PP369] [AutoTrade] Bắt đầu scan... 
+2026-08-13 09:52:00: ◇ injected env (10) from .env // tip: ⌘ custom filepath { path: '/custom/path/.env' }
+2026-08-13 09:52:00: [PP369] [AI Reviewer] ✓ Đã nạp thành công mô hình AI (v1.1.0, mẫu N=19) 
+2026-08-13 09:52:00: [PP369] [AI Reviewer] 🔄 Tự động kích hoạt Python re-train mô hình AI trong nền... 
+2026-08-13 09:52:00: [PP369] [369] initH4Cache: Tất cả 803 coin đã có nến H4 đầu năm. 
+2026-08-13 09:52:00: [AutoTrade] Bỏ qua 147 coin có grid ngoài khoảng 3–25% (theo giá hiện tại): 4(1.5%), ETC(26.2%), VET(2.9%), IOST(1.7%), ZRX(2.1%), STORJ(2.3%), BEL(2.3%), 1INCH(2.1%), SAND(2.8%), MANA(2.5%), ALICE(1.8%), NKN(2.6%), DGB(1.6%), GTC(2.3%), ATA(1.8%), DYDX(1.8%), 1000XEC(2.9%), CELO(2.7%), KLAY(2.4%), ARPA(2.4%), ROSE(3.0%), GMT(2.0%), APE(1.5%), DAR(2.1%), STG(2.8%), FET(1.5%), USDC(30.0%), ARB(1.6%), AMB(2.5%), LEVER(26.7%), RDNT(2.9%), EDU(1.8%), ARKM(1.7%), DODOX(1.7%), SEI(2.7%), BIGTIME(1.5%), BOND(28.1%), 1000SATS(201.3%), XAI(1.9%), LSK(1.6%), ALT(2.6%), JUP(1.6%), RONIN(2.3%), PORTAL(1.5%), MYRO(3.0%), ENA(1.5%), TURBO(1.9%), IO(2.0%), LISTA(1.8%), SYS(1.7%), BRETT(2.2%), ALPACA(25.2%), SUN(1.6%), DOGS(78.5%), BSW(2.5%), QUICK(2.3%), NEIRO(29.2%), FIO(2.5%), GHST(1.8%), LOKA(2.6%), COS(2.5%), SAFE(2.2%), DRIFT(2.0%), HIPPO(2.9%), DEGEN(2.9%), SCRT(3.0%), 1000WHY(197.4%), MORPHO(27.5%), CHILLGUY(1.9%), ORCA(28.1%), KOMA(2.8%), ME(1.5%), VELODROME(1.7%), LUMIA(2.5%), DF(2.6%), GRIFFAIN(1.6%), ALCH(2.2%), SWARMS(2.1%), D(2.2%), SOLV(2.3%), MELANIA(2.6%), TST(1.9%), LAYER(1.8%), HEI(2.5%), MUBARAK(1.7%), TUT(2.0%), BROCCOLI714(1.7%), PLUME(1.8%), PARTI(3.0%), WAL(2.5%), FUN(1.7%), GUN(2.7%), BABY(1.8%), HYPER(2.5%), AIOT(2.7%), MILK(3.0%), OG(26.0%), B(2.2%), A(1.9%), SOPH(2.5%), PORT3(2.5%), 1000000BOB(1.6%), HOME(1.5%), TAIKO(1.8%), DMC(2.3%), H(1.8%), OL(1.7%), TANSSI(2.4%), PUMP(1.6%), CROSS(2.0%), VELVET(2.1%), ERA(1.5%), TREE(2.9%), A2Z(2.1%), YALA(1.8%), CARV(2.5%), AIO(2.6%), SAPIEN(2.3%), XPL(1.9%), HEMI(1.7%), Q(1.8%), OPEN(1.9%), ZKC(2.7%), BLESS(2.5%), HANA(2.7%), MIRA(2.1%), XAN(1.8%), 2Z(2.5%), LYN(1.9%), RECALL(2.9%), ZBT(2.1%), LAB(2.5%), RIVER(27.4%), APR(2.4%), ON(2.8%), AT(1.7%), CC(2.0%), TRUST(2.8%), UAI(2.1%), JCT(1.5%), ALLO(2.7%), BOB(2.8%), RLS(2.8%), WET(1.7%), ZKP(2.3%), GUA(2.5%), MAGMA(2.1%)
+2026-08-13 09:52:01: [PP369] [AutoTrade] Khởi động: 459 coin | margin=$10 | 10x | type=LIMIT 
+2026-08-13 09:52:01: [PP369] [AutoTrade] Đã nạp leverageInfo cho 440 coin từ cache. 
+2026-08-13 09:52:02: [PP369] [PP369Stream] Kết nối WebSocket thành công (market/stream) 
+2026-08-13 09:52:05: [PP369] [AutoTrade] Bắt đầu scan... 
+2026-08-13 09:57:56: [PP369] [CircuitBreaker] 🟢 Hết thời gian phạt IP của Binance! Tự động khôi phục giao dịch REST API bình thường. 
+2026-08-13 10:07:06: [PP369] [AutoTrade] 🟢 Hệ thống hoạt động bình thường | Theo dõi: 459 coin | Tiệm cận sát mốc (<=0.3%): 0 coin 
+2026-08-13 10:22:06: [PP369] [AutoTrade] 🟢 Hệ thống hoạt động bình thường | Theo dõi: 459 coin | Tiệm cận sát mốc (<=0.3%): 0 coin 
+2026-08-13 10:37:06: [PP369] [AutoTrade] 🟢 Hệ thống hoạt động bình thường | Theo dõi: 459 coin | Tiệm cận sát mốc (<=0.3%): 0 coin 
+2026-08-13 10:52:36: [PP369] [AutoTrade] 🟢 Hệ thống hoạt động bình thường | Theo dõi: 459 coin | Tiệm cận sát mốc (<=0.3%): 0 coin 
+2026-08-13 11:07:36: [PP369] [AutoTrade] 🟢 Hệ thống hoạt động bình thường | Theo dõi: 459 coin | Tiệm cận sát mốc (<=0.3%): 0 coin 
+2026-08-13 11:18:11: ◇ injected env (10) from .env // tip: ⌘ multiple files { path: ['.env.local', '.env'] }
+2026-08-13 11:18:11: [PP369] [AI Reviewer] ✓ Đã nạp thành công mô hình AI (v1.1.0, mẫu N=19) 
+2026-08-13 11:18:11: [PP369] [AI Reviewer] 🔄 Tự động kích hoạt Python re-train mô hình AI trong nền... 
+2026-08-13 11:18:11: [PP369] [369] initH4Cache: Tất cả 803 coin đã có nến H4 đầu năm. 
+2026-08-13 11:18:12: [AutoTrade] Bỏ qua 165 coin có grid ngoài khoảng 3–25% (theo giá hiện tại): 4(2.7%), XRP(29.7%), ETC(47.8%), LINK(34.3%), BAT(51.6%), QTUM(45.9%), KNC(29.7%), DOT(38.7%), SOL(39.4%), AVAX(46.2%), AAVE(34.0%), FIL(44.4%), RSR(25.6%), BEL(2.9%), ALICE(2.6%), ONE(39.1%), NKN(2.6%), DGB(1.6%), ATA(1.8%), DYDX(2.7%), KLAY(2.4%), LPT(25.2%), IMX(27.4%), APE(2.4%), WOO(28.4%), DAR(2.1%), OP(34.9%), STG(2.1%), SPELL(38.6%), APT(53.0%), FET(2.2%), CKB(36.3%), USDC(30.0%), AMB(2.5%), LEVER(26.7%), RDNT(2.9%), SUI(43.5%), MAV(34.6%), DODOX(1.3%), ARK(33.5%), BOND(28.1%), GAS(32.9%), SUPER(35.4%), 1000SATS(296.7%), ACE(28.2%), MOVR(36.9%), JUP(1.7%), GLM(34.0%), PORTAL(2.8%), MYRO(3.0%), W(36.9%), BB(26.2%), IO(2.7%), ZK(41.2%), ZRO(36.8%), SYN(2.8%), SYS(1.7%), ALPACA(25.2%), SUN(1.6%), DOGS(86.1%), BSW(2.5%), QUICK(2.3%), NEIRO(45.0%), FIO(2.5%), GHST(1.8%), LOKA(2.6%), COS(2.5%), SANTOS(63.6%), COW(29.1%), 1000000MOG(30.2%), DRIFT(26.3%), ACT(29.8%), HIPPO(2.9%), DEGEN(2.9%), 1000WHY(197.4%), THE(49.2%), CHILLGUY(2.7%), ORCA(29.0%), MOVE(48.5%), KOMA(2.1%), VELODROME(1.8%), MOCA(41.8%), VANA(35.5%), USUAL(34.3%), DF(2.6%), GRIFFAIN(2.6%), D(2.2%), AVAAI(2.7%), PIPPIN(178.7%), TST(1.9%), HEI(2.3%), RED(35.4%), MUBARAK(1.6%), TUT(0.5%), BROCCOLI714(1.7%), BR(1.3%), PLUME(2.6%), FUN(1.7%), BABY(2.9%), SIGN(45.7%), PUNDIX(40.3%), CTK(27.9%), SXT(40.4%), ASR(35.3%), MILK(3.0%), OG(121.1%), AGT(2.0%), B(2.0%), MERL(163.8%), PORT3(2.5%), 1000000BOB(1.6%), LA(60.5%), PUMPBTC(28.2%), MYX(403.9%), DMC(2.3%), OL(1.7%), SAHARA(38.0%), M(27.0%), TANSSI(2.4%), PUMP(1.1%), VELVET(0.4%), ZORA(60.3%), TAG(2.4%), ESPORTS(191.3%), A2Z(2.1%), YALA(1.8%), SOMI(34.7%), BAS(1.1%), Q(1.3%), PTB(34.6%), OPEN(1.5%), AVNT(32.8%), UB(2.3%), TOSHI(30.0%), BARD(26.1%), TRADOOR(48.9%), BLESS(2.8%), FLUID(26.0%), HANA(0.9%), AKE(0.7%), LIGHT(170.7%), XAN(2.8%), TRUTH(2.2%), YB(38.3%), CLO(25.5%), LAB(2.7%), RIVER(116.0%), 币安人生(0.6%), BLUAI(2.4%), APR(0.6%), ON(0.8%), KITE(2.9%), AT(1.9%), UAI(1.2%), STABLE(0.9%), JCT(0.8%), ALLO(1.0%), BEAT(31.7%), BOB(2.8%), RLS(2.8%), POWER(31.5%), US(1.1%), CYS(1.8%), BREV(43.7%), MAGMA(1.6%)
+2026-08-13 11:18:12: [PP369] [Binance] Đang lấy leverage brackets cho 441 coin... 
+2026-08-13 11:18:13: [PP369] [Binance] Đã lưu leverage cho 441 coin vào step_sizes.json 
+2026-08-13 11:18:13: [PP369] [AutoTrade] Khởi động: 441 coin | margin=$10 | 10x | type=LIMIT 
+2026-08-13 11:18:13: [PP369] [Binance] Loaded step and tick sizes from existing file: 852 symbols 
+2026-08-13 11:18:13: [PP369] [AutoTrade] Đã nạp leverageInfo cho 441 coin từ cache. 
+2026-08-13 11:18:13: [PP369] [PP369Stream] Kết nối WebSocket thành công (market/stream) 
+2026-08-13 11:18:17: [PP369] [AutoTrade] Bắt đầu scan... 
+2026-08-13 11:18:20: [PP369] [AutoTrade] [BounceCancel] ONDO LONG: entry=$0.3286, current=$0.335200 (+2.01% >= 1.66%) → Hủy LIMIT ngay lập tức 
+2026-08-13 11:21:35: [PP369] [GridBlacklist] Đã tự động giải phóng HIVE khỏi Blacklist sau 1 tuần. 
+2026-08-13 11:21:35: [PP369] [GridBlacklist] ĐÃ THÊM HIVE VÀO BLACKLIST 7 NGÀY (Lý do: x*2 (6.36%) > y (4.45%)). Sẽ tự động giải phóng sau 7 ngày. 
+2026-08-13 11:24:47: ◇ injected env (10) from .env // tip: ◈ encrypted .env [www.dotenvx.com]
+2026-08-13 11:24:48: [PP369] [AI Reviewer] ✓ Đã nạp thành công mô hình AI (v1.1.0, mẫu N=19) 
+2026-08-13 11:24:48: [PP369] [AI Reviewer] 🔄 Tự động kích hoạt Python re-train mô hình AI trong nền... 
+2026-08-13 11:24:48: [PP369] [369] initH4Cache: Tất cả 803 coin đã có nến H4 đầu năm. 
+2026-08-13 11:24:48: [AutoTrade] Bỏ qua 164 coin có grid ngoài khoảng 3–25% (theo giá hiện tại): 4(2.7%), XRP(29.7%), ETC(47.8%), LINK(34.3%), BAT(51.6%), QTUM(45.9%), KNC(29.7%), DOT(38.8%), SOL(39.5%), AVAX(46.2%), AAVE(34.0%), FIL(44.3%), RSR(25.6%), BEL(2.9%), ALICE(2.6%), ONE(38.8%), NKN(2.6%), DGB(1.6%), ATA(1.8%), DYDX(2.7%), KLAY(2.4%), LPT(25.2%), IMX(27.4%), APE(2.4%), WOO(28.4%), DAR(2.1%), OP(34.9%), STG(2.1%), SPELL(38.6%), APT(53.0%), FET(2.2%), CKB(36.4%), USDC(30.0%), AMB(2.5%), LEVER(26.7%), RDNT(2.9%), SUI(43.6%), MAV(34.6%), DODOX(1.3%), ARK(33.5%), BOND(28.1%), GAS(32.8%), SUPER(35.4%), 1000SATS(297.0%), ACE(28.1%), MOVR(37.0%), JUP(1.7%), GLM(34.1%), PORTAL(2.8%), MYRO(3.0%), W(36.9%), BB(26.0%), IO(2.7%), ZK(41.2%), ZRO(36.8%), SYN(2.8%), SYS(1.7%), ALPACA(25.2%), SUN(1.6%), DOGS(86.3%), BSW(2.5%), QUICK(2.3%), NEIRO(45.0%), FIO(2.5%), GHST(1.8%), LOKA(2.6%), COS(2.5%), SANTOS(63.7%), COW(29.2%), 1000000MOG(30.2%), DRIFT(26.4%), ACT(29.9%), HIPPO(2.9%), DEGEN(2.9%), 1000WHY(197.4%), THE(49.3%), CHILLGUY(2.7%), ORCA(29.0%), MOVE(48.6%), KOMA(2.2%), VELODROME(1.8%), MOCA(41.9%), VANA(35.5%), USUAL(34.4%), DF(2.6%), GRIFFAIN(2.6%), D(2.2%), AVAAI(2.7%), PIPPIN(178.7%), TST(1.9%), HEI(2.3%), RED(35.3%), MUBARAK(1.6%), TUT(0.5%), BROCCOLI714(1.7%), BR(1.3%), PLUME(2.6%), FUN(1.7%), BABY(2.9%), SIGN(45.7%), PUNDIX(40.3%), CTK(27.9%), SXT(40.3%), ASR(35.3%), MILK(3.0%), OG(121.2%), AGT(2.0%), B(2.0%), MERL(163.5%), PORT3(2.5%), 1000000BOB(1.6%), LA(60.5%), PUMPBTC(28.1%), MYX(402.4%), DMC(2.3%), OL(1.7%), SAHARA(38.1%), M(27.0%), TANSSI(2.4%), PUMP(1.1%), VELVET(0.4%), ZORA(60.5%), TAG(2.4%), ESPORTS(191.3%), A2Z(2.1%), YALA(1.8%), SOMI(34.8%), BAS(1.1%), Q(1.3%), PTB(34.7%), OPEN(1.5%), AVNT(32.9%), UB(2.3%), TOSHI(30.0%), BARD(26.0%), TRADOOR(48.7%), BLESS(2.8%), FLUID(26.1%), HANA(0.9%), AKE(0.7%), LIGHT(167.5%), XAN(2.8%), TRUTH(2.2%), YB(38.4%), LAB(2.7%), RIVER(115.9%), 币安人生(0.6%), BLUAI(2.4%), APR(0.6%), ON(0.8%), KITE(2.9%), AT(1.8%), UAI(1.2%), STABLE(0.9%), JCT(0.8%), ALLO(1.0%), BEAT(31.5%), BOB(2.8%), RLS(2.8%), POWER(31.5%), US(1.1%), CYS(1.8%), BREV(43.7%), MAGMA(1.6%)
+2026-08-13 11:24:49: [PP369] [Binance] Đang lấy leverage brackets cho 442 coin... 
+2026-08-13 11:24:49: [PP369] [Binance] Đã lưu leverage cho 442 coin vào step_sizes.json 
+2026-08-13 11:24:49: [PP369] [AutoTrade] Khởi động: 442 coin | margin=$10 | 10x | type=LIMIT 
+2026-08-13 11:24:49: [PP369] [Binance] Loaded step and tick sizes from existing file: 852 symbols 
+2026-08-13 11:24:49: [PP369] [AutoTrade] Đã nạp leverageInfo cho 442 coin từ cache. 
+2026-08-13 11:24:49: [PP369] [PP369Stream] Kết nối WebSocket thành công (market/stream) 
+2026-08-13 11:24:53: [PP369] [AutoTrade] Bắt đầu scan... 
+2026-08-13 11:39:54: [PP369] [AutoTrade] 🟢 Hệ thống hoạt động bình thường | Theo dõi: 442 coin | Tiệm cận sát mốc (<=0.3%): 30 coin 
+2026-08-13 11:51:26: [PP369] [AutoTrade] LUMIA → SHORT (Score: +3.8đ) tại $0.0783 
+2026-08-13 11:51:26: [PP369] [AutoTrade] Phân bổ Ký quỹ LUMIA: $60 (Gốc PP369+Vol $50 + Bonus $10 từ +2.8đ các tiêu chí bổ trợ | Score tổng: +3.8đ) 
+2026-08-13 11:51:26: [PP369] [AI Reviewer (Shadow)] 🟡 Khuyên BỎ QUA LUMIA (SHORT) - Xác suất thắng 52.9% < 65% (+ VOL_ULTRA (x1.0594), - RSI_NEUTRAL (x0.8586), + LS_DIVERGENCE (x1.1039), + PA_3_LEVELS (x1.0559), - OI_STABLE (x0.9043), - VOL_STABLE (x0.9659), - BTC_ALIGNED (x0.8972), - GRID_NORMAL (x0.9455)) 
+2026-08-13 11:51:26: [PP369] [AutoTrade] Set leverage LUMIAUSDT = 10x (Bước 300đ: 3.83% → tính được 10x, giới hạn: 10x | Ký quỹ mục tiêu: $60) 
+2026-08-13 11:51:26: [PP369] [AutoTrade] ✓ LUMIA SELL 7662.8 @ $0.0783 orderId=1265736596 status=NEW 
+2026-08-13 11:51:59: [PP369] [AutoTrade] NIL → LONG (Score: +5.3đ) tại $0.04035 
+2026-08-13 11:51:59: [PP369] [AutoTrade] Phân bổ Ký quỹ NIL: $70 (Gốc PP369+Vol $50 + Bonus $20 từ +4.3đ các tiêu chí bổ trợ | Score tổng: +5.3đ) 
+2026-08-13 11:51:59: [PP369] [AI Reviewer (Shadow)] 🟡 Khuyên BỎ QUA NIL (LONG) - Xác suất thắng 54.8% < 65% (+ VOL_ULTRA (x1.0594), - RSI_NEUTRAL (x0.8586), - PA_0_LEVEL (x0.8586), + OI_COOLING (x1.0559), - VOL_DRY (x0.9152), + BTC_NEUTRAL (x1.0861), + GRID_WIDE (x1.0474)) 
+2026-08-13 11:51:59: [PP369] [AutoTrade] Set leverage NILUSDT = 5x (Bước 300đ: 7.43% → tính được 5x, giới hạn: 50x | Ký quỹ mục tiêu: $70) 
+2026-08-13 11:51:59: [PP369] [AutoTrade] ✓ NIL BUY 8674.1 @ $0.04035 orderId=1400822195 status=NEW 
+2026-08-13 11:54:54: [PP369] [AutoTrade] 🟢 Hệ thống hoạt động bình thường | Theo dõi: 442 coin | Tiệm cận sát mốc (<=0.3%): 33 coin 
+2026-08-13 11:57:09: [PP369] [AutoTrade] [BounceCancel] LUMIA SHORT: entry=$0.0783, current=$0.077709 (-0.76% >= 0.70%) → Hủy LIMIT ngay lập tức 
+2026-08-13 11:57:57: [PP369] [AutoTrade] [BounceCancel] NIL LONG: entry=$0.04035, current=$0.040896 (+1.35% >= 1.35%) → Hủy LIMIT ngay lập tức 
+2026-08-13 12:04:21: [PP369] [AutoTrade] Phân bổ Ký quỹ LUMIA: $65 (Gốc PP369+Vol $50 + Bonus $15 từ +3.3đ các tiêu chí bổ trợ | Score tổng: +4.1đ) 
+2026-08-13 12:04:21: [PP369] [AI Reviewer (Shadow)] 🟡 Khuyên BỎ QUA LUMIA (SHORT) - Xác suất thắng 57.0% < 65% (- VOL_MID (x0.9091), + RSI_NEAR (x1.1818), + LS_DIVERGENCE (x1.1039), + PA_3_LEVELS (x1.0559), - OI_STABLE (x0.9043), - VOL_STABLE (x0.9659), - BTC_ALIGNED (x0.8972), - GRID_NORMAL (x0.9455)) 
+2026-08-13 12:04:21: [PP369] [AutoTrade] Set leverage LUMIAUSDT = 10x (Bước 300đ: 3.83% → tính được 10x, giới hạn: 10x | Ký quỹ mục tiêu: $65) 
+2026-08-13 12:04:21: [PP369] [AutoTrade] ✓ LUMIA SELL 8301.4 @ $0.0783 orderId=1265750544 status=NEW 
+2026-08-13 12:09:54: [PP369] [AutoTrade] 🟢 Hệ thống hoạt động bình thường | Theo dõi: 442 coin | Tiệm cận sát mốc (<=0.3%): 34 coin 
+2026-08-13 12:10:30: ◇ injected env (10) from .env // tip: ⌘ override existing { override: true }
+2026-08-13 12:10:30: [PP369] [AI Reviewer] ✓ Đã nạp thành công mô hình AI (v1.1.0, mẫu N=19) 
+2026-08-13 12:10:30: [PP369] [AI Reviewer] 🔄 Tự động kích hoạt Python re-train mô hình AI trong nền... 
+2026-08-13 12:10:30: [PP369] [369] initH4Cache: Tất cả 803 coin đã có nến H4 đầu năm. 
+2026-08-13 12:10:31: [AutoTrade] Bỏ qua 167 coin có grid ngoài khoảng 3–25% (theo giá hiện tại): 4(2.6%), XRP(29.7%), ETC(47.8%), LINK(34.2%), BAT(51.6%), QTUM(45.2%), KNC(29.8%), DOT(38.7%), SOL(39.4%), AVAX(46.2%), AAVE(33.9%), FIL(44.2%), RSR(25.5%), BEL(2.9%), COTI(26.7%), ALICE(2.6%), ONE(39.0%), NKN(2.6%), DGB(1.6%), ATA(1.8%), DYDX(2.7%), KLAY(2.4%), LPT(25.1%), IMX(27.4%), APE(2.4%), WOO(28.4%), DAR(2.1%), OP(34.8%), STG(2.1%), SPELL(38.6%), APT(52.9%), FET(2.2%), CKB(36.4%), USDC(30.0%), AMB(2.5%), LEVER(26.7%), RDNT(2.9%), SUI(43.6%), MAV(34.7%), DODOX(1.3%), ARK(33.5%), BOND(28.1%), GAS(32.9%), SUPER(35.4%), 1000SATS(295.3%), ACE(28.1%), MOVR(36.9%), JUP(1.7%), GLM(34.1%), PORTAL(2.8%), MYRO(3.0%), W(36.9%), BB(26.2%), IO(2.7%), ZK(41.1%), ZRO(36.7%), SYN(2.9%), SYS(1.7%), ALPACA(25.2%), SUN(1.6%), DOGS(85.7%), BSW(2.5%), QUICK(2.3%), NEIRO(44.8%), FIO(2.5%), GHST(1.8%), LOKA(2.6%), COS(2.5%), SANTOS(63.7%), COW(29.1%), 1000000MOG(30.2%), DRIFT(26.5%), ACT(29.9%), HIPPO(2.9%), DEGEN(2.9%), 1000WHY(197.4%), THE(49.1%), CHILLGUY(2.7%), ORCA(29.0%), MOVE(48.4%), KOMA(2.1%), VELODROME(1.8%), MOCA(41.8%), VANA(35.5%), USUAL(34.4%), DF(2.6%), GRIFFAIN(2.6%), D(2.2%), AVAAI(2.8%), PIPPIN(178.3%), TST(1.7%), HEI(2.3%), RED(35.3%), MUBARAK(1.5%), TUT(0.5%), BROCCOLI714(1.7%), BR(1.4%), PLUME(2.6%), FUN(1.7%), BABY(2.9%), SIGN(45.7%), PUNDIX(40.3%), CTK(28.0%), SXT(40.3%), ASR(35.3%), MILK(3.0%), OG(121.1%), AGT(1.9%), B(2.0%), MERL(163.8%), PORT3(2.5%), 1000000BOB(1.6%), LA(60.9%), PUMPBTC(28.0%), MYX(407.2%), DMC(2.3%), OL(1.7%), SAHARA(38.6%), M(26.8%), TANSSI(2.4%), PUMP(1.1%), VELVET(0.4%), ZORA(60.5%), TAG(2.4%), ESPORTS(190.7%), A2Z(2.1%), YALA(1.8%), SOMI(34.6%), BAS(1.1%), Q(1.3%), PTB(34.6%), OPEN(1.5%), AVNT(32.6%), UB(2.3%), TOSHI(29.9%), BARD(26.0%), TRADOOR(48.7%), BLESS(2.8%), FLUID(25.9%), HANA(0.9%), AKE(0.7%), LIGHT(166.9%), XAN(2.8%), TRUTH(2.2%), YB(38.7%), EUL(25.2%), CLO(25.6%), LAB(2.7%), RIVER(117.0%), 币安人生(0.6%), BLUAI(2.4%), APR(0.6%), ON(0.8%), KITE(2.9%), AT(1.8%), UAI(1.2%), STABLE(0.9%), JCT(0.8%), ALLO(1.0%), BEAT(31.0%), BOB(2.8%), RLS(2.8%), POWER(31.3%), US(1.1%), CYS(1.9%), BREV(43.8%), MAGMA(1.6%)
+2026-08-13 12:10:31: [PP369] [Binance] Đang lấy leverage brackets cho 439 coin... 
+2026-08-13 12:10:32: [PP369] [Binance] Đã lưu leverage cho 439 coin vào step_sizes.json 
+2026-08-13 12:10:32: [PP369] [AutoTrade] Khởi động: 439 coin | margin=$10 | 10x | type=LIMIT 
+2026-08-13 12:10:32: [PP369] [Binance] Loaded step and tick sizes from existing file: 852 symbols 
+2026-08-13 12:10:32: [PP369] [AutoTrade] Đã nạp leverageInfo cho 439 coin từ cache. 
+2026-08-13 12:10:32: [PP369] [PP369Stream] Kết nối WebSocket thành công (market/stream) 
+2026-08-13 12:10:36: [PP369] [AutoTrade] Bắt đầu scan... 
+2026-08-13 12:11:07: [PP369] [AutoTrade] ✓ Đặt TP LUMIA @ $0.0774000 (đối ứng BUY) orderId=1000002504712722 
+2026-08-13 12:11:07: [PP369] [AutoTrade] ✓ Đặt SL LUMIA @ $0.0793300 (đối ứng BUY) orderId=1000002504712725 
+2026-08-13 12:12:51: [PP369] [AutoTrade] BANANAS31 → SHORT (Score: +4.3999999999999995đ) tại $0.008349 
+2026-08-13 12:12:51: [PP369] [AutoTrade] Phân bổ Ký quỹ BANANAS31: $65 (Gốc PP369+Vol $50 + Bonus $15 từ +3.6đ các tiêu chí bổ trợ | Score tổng: +4.4đ) 
+2026-08-13 12:12:51: [PP369] [AI Reviewer (Shadow)] 🟡 Khuyên BỎ QUA BANANAS31 (SHORT) - Xác suất thắng 42.1% < 65% (- VOL_MID (x0.9091), - RSI_NEUTRAL (x0.8586), + LS_DIVERGENCE (x1.1039), - PA_0_LEVEL (x0.8586), - OI_STABLE (x0.9043), - VOL_DRY (x0.9152), - BTC_ALIGNED (x0.8972), - GRID_NORMAL (x0.9455)) 
+2026-08-13 12:12:51: [PP369] [AutoTrade] Set leverage BANANAS31USDT = 10x (Bước 300đ: 3.59% → tính được 10x, giới hạn: 25x | Ký quỹ mục tiêu: $65) 
+2026-08-13 12:12:52: [PP369] [AutoTrade] ✓ BANANAS31 SELL 77853 @ $0.008349 orderId=2249025941 status=NEW 
+2026-08-13 12:14:29: [PP369] [AutoTrade] TRUST → LONG (Score: +3.3đ) tại $0.0531 
+2026-08-13 12:14:29: [PP369] [AutoTrade] Phân bổ Ký quỹ TRUST: $65 (Gốc PP369+Vol $50 + Bonus $15 từ +3.0đ các tiêu chí bổ trợ | Score tổng: +3.3đ) 
+2026-08-13 12:14:29: [PP369] [AutoTrade] TRUST LONG: Từ khi chạm mốc Short ($0.056), nến M1 đã xát mốc entry LONG ($0.053130) rồi nảy lên đỉnh $0.053730 (+1.13% >= 1.09% Khung/5) — HỦY LIMIT stale. 
+2026-08-13 12:14:52: [PP369] [AutoTrade] Phân bổ Ký quỹ TRUST: $65 (Gốc PP369+Vol $50 + Bonus $15 từ +3.0đ các tiêu chí bổ trợ | Score tổng: +3.3đ) 
+2026-08-13 12:15:05: [PP369] [AutoTrade] Phân bổ Ký quỹ TRUST: $65 (Gốc PP369+Vol $50 + Bonus $15 từ +3.0đ các tiêu chí bổ trợ | Score tổng: +3.3đ) 
+2026-08-13 12:15:12: [PP369] [AutoTrade] Phân bổ Ký quỹ TRUST: $65 (Gốc PP369+Vol $50 + Bonus $15 từ +3.0đ các tiêu chí bổ trợ | Score tổng: +3.3đ) 
+2026-08-13 12:16:43: [PP369] [AutoTrade] ✓ Đặt TP BANANAS31 @ $0.0082590 (đối ứng BUY) orderId=1000002504718435 
+2026-08-13 12:16:43: [PP369] [AutoTrade] ✓ Đặt SL BANANAS31 @ $0.0084520 (đối ứng BUY) orderId=1000002504718437 
+2026-08-13 12:20:48: [PP369] [AutoTrade] STEEM → SHORT (Score: +3.2đ) tại $0.03826 
+2026-08-13 12:20:48: [PP369] [AutoTrade] Phân bổ Ký quỹ STEEM: $60 (Gốc PP369+Vol $50 + Bonus $10 từ +2.7đ các tiêu chí bổ trợ | Score tổng: +3.2đ) 
+2026-08-13 12:20:48: [PP369] [AutoTrade] STEEM SHORT: Từ khi chạm mốc Long ($0.03547), nến M1 đã xát mốc entry SHORT ($0.038280) rồi nảy xuống đáy $0.037220 (-2.77% >= 1.57% Khung/5) — HỦY LIMIT stale. 
+2026-08-13 12:21:59: [PP369] [AutoTrade] STEEM → SHORT (Score: +3đ) tại $0.04126 
+2026-08-13 12:21:59: [PP369] [AutoTrade] Phân bổ Ký quỹ STEEM: $60 (Gốc PP369+Vol $50 + Bonus $10 từ +2.5đ các tiêu chí bổ trợ | Score tổng: +3.0đ) 
+2026-08-13 12:21:59: [PP369] [AutoTrade] STEEM SHORT: Từ khi chạm mốc Long ($0.03847), nến M1 đã xát mốc entry SHORT ($0.041340) rồi nảy xuống đáy $0.038810 (-6.12% >= 1.45% Khung/5) — HỦY LIMIT stale. 
+2026-08-13 12:25:37: [PP369] [AutoTrade] 🟢 Hệ thống hoạt động bình thường | Theo dõi: 439 coin | Tiệm cận sát mốc (<=0.3%): 33 coin 
+2026-08-13 12:29:31: [PP369] [AutoTrade] Trailing SL (chạm mốc 70đ): LUMIA đạt ROI 9.71% -> Dịch SL trên sàn về entry +5đ ($0.07825, ROI ~0.64%) [Mức: +5đ (Khóa lãi)] 
+2026-08-13 12:29:31: [PP369] [AutoTrade] Đã hủy SL cũ của LUMIA (orderId=1000002504712725) 
+2026-08-13 12:29:31: [PP369] [AutoTrade] ✓ Đã dịch SL mới cho LUMIA @ $0.0782500 (orderId=1000002504730916) 
+2026-08-13 12:40:37: [PP369] [AutoTrade] 🟢 Hệ thống hoạt động bình thường | Theo dõi: 439 coin | Tiệm cận sát mốc (<=0.3%): 33 coin 
+2026-08-13 12:43:12: [PP369] [AutoTrade] STEEM → LONG (Score: +4.1đ) tại $0.03547 
+2026-08-13 12:43:12: [PP369] [AutoTrade] Phân bổ Ký quỹ STEEM: $65 (Gốc PP369+Vol $50 + Bonus $15 từ +3.6đ các tiêu chí bổ trợ | Score tổng: +4.1đ) 
+2026-08-13 12:43:12: [PP369] [AI Reviewer (Shadow)] 🟡 Khuyên BỎ QUA STEEM (LONG) - Xác suất thắng 57.5% < 65% (+ VOL_ULTRA (x1.0594), - RSI_NEUTRAL (x0.8586), + LS_DIVERGENCE (x1.1039), + PA_3_LEVELS (x1.0559), - OI_STABLE (x0.9043), - VOL_DRY (x0.9152), + BTC_NEUTRAL (x1.0861), + GRID_WIDE (x1.0474)) 
+2026-08-13 12:43:12: [PP369] [AutoTrade] Set leverage STEEMUSDT = 4x (Bước 300đ: 8.46% → tính được 4x, giới hạn: 25x | Ký quỹ mục tiêu: $65) 
+2026-08-13 12:43:12: [PP369] [AutoTrade] ✓ STEEM BUY 7330 @ $0.03547 orderId=2282985184 status=NEW 
+2026-08-13 12:43:19: [PP369] [AutoTrade] ✓ Đặt TP STEEM @ $0.036350 (đối ứng SELL) orderId=1000002504743934 
+2026-08-13 12:43:19: [PP369] [AutoTrade] ✓ Đặt SL STEEM @ $0.034420 (đối ứng SELL) orderId=1000002504743936 
+2026-08-13 12:56:07: [PP369] [AutoTrade] 🟢 Hệ thống hoạt động bình thường | Theo dõi: 439 coin | Tiệm cận sát mốc (<=0.3%): 40 coin 
+2026-08-13 12:57:56: [PP369] [AutoTrade] SKYAI → LONG (Score: +3.1đ) tại $0.08009 
+2026-08-13 12:57:56: [PP369] [AutoTrade] Phân bổ Ký quỹ SKYAI: $60 (Gốc PP369+Vol $50 + Bonus $10 từ +2.8đ các tiêu chí bổ trợ | Score tổng: +3.1đ) 
+2026-08-13 12:57:56: [PP369] [AI Reviewer (Shadow)] 🟡 Khuyên BỎ QUA SKYAI (LONG) - Xác suất thắng 47.8% < 65% (- RSI_NEUTRAL (x0.8586), - PA_0_LEVEL (x0.8586), - OI_STABLE (x0.9043), - VOL_STABLE (x0.9659), + BTC_NEUTRAL (x1.0861), - GRID_NORMAL (x0.9455)) 
+2026-08-13 12:57:56: [PP369] [AutoTrade] Set leverage SKYAIUSDT = 10x (Bước 300đ: 3.75% → tính được 10x, giới hạn: 10x | Ký quỹ mục tiêu: $60) 
+2026-08-13 12:57:56: [PP369] [AutoTrade] ✓ SKYAI BUY 7491 @ $0.08009 orderId=2588934977 status=NEW 
+2026-08-13 12:58:25: [PP369] [AutoTrade] ✓ Đặt TP SKYAI @ $0.0809900 (đối ứng SELL) orderId=1000002504758769 
+2026-08-13 12:58:25: [PP369] [AutoTrade] ✓ Đặt SL SKYAI @ $0.0790600 (đối ứng SELL) orderId=1000002504758771 
+2026-08-13 12:59:24: ◇ injected env (10) from .env // tip: ⌘ override existing { override: true }
+2026-08-13 12:59:24: [PP369] [AI Reviewer] ✓ Đã nạp thành công mô hình AI (v1.1.0, mẫu N=19) 
+2026-08-13 12:59:24: [PP369] [AI Reviewer] 🔄 Tự động kích hoạt Python re-train mô hình AI trong nền... 
+2026-08-13 12:59:24: [PP369] [369] initH4Cache: Tất cả 803 coin đã có nến H4 đầu năm. 
+2026-08-13 12:59:24: [AutoTrade] Bỏ qua 168 coin có grid ngoài khoảng 3–25% (theo giá hiện tại): 4(2.7%), XRP(29.6%), ETC(47.7%), LINK(34.1%), BAT(51.2%), QTUM(45.2%), KNC(29.6%), DOT(38.7%), SOL(39.2%), AVAX(46.1%), AAVE(33.8%), FIL(44.1%), RSR(25.5%), BEL(2.9%), COTI(26.4%), ALICE(2.6%), ONE(36.7%), NKN(2.6%), DGB(1.6%), ATA(1.8%), DYDX(2.7%), KLAY(2.4%), LPT(25.0%), IMX(27.3%), APE(2.4%), WOO(28.4%), DAR(2.1%), OP(34.6%), STG(2.1%), SPELL(38.5%), APT(53.0%), FET(2.2%), CKB(36.3%), USDC(30.0%), AMB(2.5%), LEVER(26.7%), RDNT(2.9%), SUI(43.4%), MAV(34.6%), DODOX(1.3%), ARK(33.3%), BOND(28.1%), GAS(32.7%), SUPER(35.3%), 1000SATS(295.3%), ACE(28.4%), MOVR(37.9%), JUP(1.7%), GLM(34.0%), PORTAL(2.8%), MYRO(3.0%), W(37.0%), BB(25.8%), IO(2.7%), ZK(41.2%), ZRO(36.6%), SYN(2.9%), SYS(1.7%), ALPACA(25.2%), SUN(1.6%), DOGS(85.7%), BSW(2.5%), QUICK(2.3%), NEIRO(44.9%), FIO(2.5%), GHST(1.8%), LOKA(2.6%), COS(2.5%), SANTOS(63.7%), COW(29.2%), 1000000MOG(30.1%), DRIFT(26.3%), ACT(30.1%), HIPPO(2.9%), DEGEN(2.9%), 1000WHY(197.4%), THE(49.9%), CHILLGUY(2.6%), ORCA(29.0%), MOVE(48.7%), KOMA(2.1%), VELODROME(1.7%), MOCA(41.5%), VANA(35.4%), USUAL(34.4%), DF(2.6%), GRIFFAIN(2.6%), D(2.2%), AVAAI(2.7%), PIPPIN(178.0%), TST(1.8%), HEI(2.3%), RED(35.2%), MUBARAK(1.6%), TUT(0.5%), BROCCOLI714(1.7%), BR(1.4%), PLUME(2.6%), FUN(1.7%), BABY(2.9%), SIGN(45.7%), PUNDIX(40.2%), CTK(27.9%), SXT(40.7%), ASR(35.3%), MILK(3.0%), OG(120.5%), AGT(1.9%), B(2.0%), MERL(164.4%), PORT3(2.5%), 1000000BOB(1.6%), LA(61.2%), HOME(3.0%), PUMPBTC(28.1%), MYX(407.4%), DMC(2.3%), OL(1.7%), SAHARA(38.7%), M(27.2%), TANSSI(2.4%), PUMP(1.1%), VELVET(0.4%), ZORA(60.3%), TAG(2.4%), ESPORTS(192.3%), A2Z(2.1%), YALA(1.8%), SOMI(34.1%), BAS(1.1%), Q(1.3%), PTB(34.7%), OPEN(1.5%), AVNT(31.7%), UB(2.3%), TOSHI(29.8%), BARD(26.0%), TRADOOR(48.7%), BLESS(2.8%), FLUID(26.0%), HANA(0.9%), AKE(0.7%), LIGHT(165.1%), XAN(2.8%), TRUTH(2.2%), YB(39.1%), EUL(26.0%), CLO(25.2%), LAB(2.7%), RIVER(117.1%), 币安人生(0.6%), BLUAI(2.4%), APR(0.7%), ON(0.8%), KITE(3.0%), AT(1.8%), UAI(1.2%), STABLE(0.9%), JCT(0.8%), ALLO(1.0%), BEAT(30.0%), BOB(2.8%), RLS(2.8%), POWER(31.3%), US(1.2%), CYS(2.0%), BREV(43.5%), MAGMA(1.6%)
+2026-08-13 12:59:25: [PP369] [Binance] Đang lấy leverage brackets cho 438 coin... 
+2026-08-13 12:59:25: [PP369] [Binance] Đã lưu leverage cho 438 coin vào step_sizes.json 
+2026-08-13 12:59:25: [PP369] [AutoTrade] Khởi động: 438 coin | margin=$10 | 10x | type=LIMIT 
+2026-08-13 12:59:25: [PP369] [Binance] Loaded step and tick sizes from existing file: 852 symbols 
+2026-08-13 12:59:25: [PP369] [AutoTrade] Đã nạp leverageInfo cho 438 coin từ cache. 
+2026-08-13 12:59:26: [PP369] [PP369Stream] Kết nối WebSocket thành công (market/stream) 
+2026-08-13 12:59:29: [PP369] [AutoTrade] Bắt đầu scan... 
+2026-08-13 13:04:45: ◇ injected env (10) from .env // tip: ◈ secrets for agents [www.dotenvx.com]
+2026-08-13 13:04:45: [PP369] [AI Reviewer] ✓ Đã nạp thành công mô hình AI (v1.1.0, mẫu N=19) 
+2026-08-13 13:04:45: [PP369] [AI Reviewer] 🔄 Tự động kích hoạt Python re-train mô hình AI trong nền... 
+2026-08-13 13:04:45: [PP369] [369] initH4Cache: Tất cả 803 coin đã có nến H4 đầu năm. 
+2026-08-13 13:04:45: [AutoTrade] Bỏ qua 168 coin có grid ngoài khoảng 3–25% (theo giá hiện tại): 4(2.7%), XRP(29.6%), ETC(47.8%), LINK(34.2%), BAT(51.3%), QTUM(45.1%), KNC(29.7%), DOT(38.8%), SOL(39.2%), AVAX(46.0%), AAVE(33.8%), FIL(44.2%), RSR(25.5%), BEL(2.9%), COTI(26.1%), ALICE(2.6%), ONE(36.5%), NKN(2.6%), DGB(1.6%), ATA(1.8%), DYDX(2.7%), KLAY(2.4%), LPT(25.1%), IMX(27.4%), APE(2.4%), WOO(28.4%), DAR(2.1%), OP(34.7%), STG(2.1%), SPELL(38.6%), APT(53.1%), FET(2.2%), CKB(36.4%), USDC(30.0%), AMB(2.5%), LEVER(26.7%), RDNT(2.9%), SUI(43.5%), MAV(34.6%), DODOX(1.3%), ARK(33.3%), BOND(28.1%), GAS(32.7%), SUPER(35.4%), 1000SATS(295.6%), ACE(28.4%), MOVR(37.5%), JUP(1.8%), GLM(34.0%), PORTAL(2.8%), MYRO(3.0%), W(37.0%), BB(25.7%), IO(2.7%), ZK(41.2%), ZRO(36.5%), SYN(2.9%), SYS(1.7%), ALPACA(25.2%), SUN(1.6%), DOGS(85.8%), BSW(2.5%), QUICK(2.3%), NEIRO(45.2%), FIO(2.5%), GHST(1.8%), LOKA(2.6%), COS(2.5%), SANTOS(63.8%), COW(29.1%), 1000000MOG(30.2%), DRIFT(26.3%), ACT(30.0%), HIPPO(2.9%), DEGEN(2.9%), 1000WHY(197.4%), THE(50.1%), CHILLGUY(2.6%), ORCA(29.0%), MOVE(48.7%), KOMA(2.1%), VELODROME(1.8%), MOCA(41.6%), VANA(35.5%), USUAL(34.4%), DF(2.6%), GRIFFAIN(2.6%), D(2.2%), AVAAI(2.8%), PIPPIN(178.3%), TST(1.8%), HEI(2.3%), RED(35.2%), MUBARAK(1.6%), TUT(0.5%), BROCCOLI714(1.7%), BR(1.3%), PLUME(2.6%), FUN(1.7%), BABY(2.9%), SIGN(45.8%), PUNDIX(40.2%), CTK(28.0%), SXT(40.6%), ASR(35.3%), MILK(3.0%), OG(120.9%), AGT(1.9%), B(2.0%), MERL(164.5%), PORT3(2.5%), 1000000BOB(1.6%), LA(61.2%), HOME(3.0%), PUMPBTC(28.1%), MYX(405.0%), DMC(2.3%), OL(1.7%), SAHARA(38.8%), M(27.1%), TANSSI(2.4%), PUMP(1.1%), VELVET(0.4%), ZORA(60.4%), TAG(2.4%), ESPORTS(191.9%), A2Z(2.1%), YALA(1.8%), SOMI(34.0%), BAS(1.1%), Q(1.3%), PTB(34.7%), OPEN(1.5%), AVNT(31.4%), UB(2.3%), TOSHI(29.9%), BARD(26.0%), TRADOOR(48.7%), BLESS(2.8%), FLUID(26.1%), HANA(0.9%), AKE(0.7%), LIGHT(164.7%), XAN(2.8%), TRUTH(2.2%), YB(39.0%), EUL(26.1%), CLO(25.3%), LAB(2.7%), RIVER(117.0%), 币安人生(0.6%), BLUAI(2.4%), APR(0.7%), ON(0.8%), KITE(3.0%), AT(1.8%), UAI(1.2%), STABLE(0.9%), JCT(0.8%), ALLO(1.0%), BEAT(29.3%), BOB(2.8%), RLS(2.8%), POWER(31.4%), US(1.2%), CYS(1.9%), BREV(43.7%), MAGMA(1.6%)
+2026-08-13 13:04:46: [PP369] [Binance] Đang lấy leverage brackets cho 438 coin... 
+2026-08-13 13:04:46: [PP369] [Binance] Đã lưu leverage cho 438 coin vào step_sizes.json 
+2026-08-13 13:04:46: [PP369] [AutoTrade] Khởi động: 438 coin | margin=$10 | 10x | type=LIMIT 
+2026-08-13 13:04:46: [PP369] [Binance] Loaded step and tick sizes from existing file: 852 symbols 
+2026-08-13 13:04:46: [PP369] [AutoTrade] Đã nạp leverageInfo cho 438 coin từ cache. 
+2026-08-13 13:04:47: [PP369] [PP369Stream] Kết nối WebSocket thành công (market/stream) 
+2026-08-13 13:04:51: [PP369] [AutoTrade] Bắt đầu scan... 
+2026-08-13 13:14:04: [PP369] [AutoTrade] SKYAI → LONG (Score: +undefinedđ) tại $0.07709 
+2026-08-13 13:14:04: [PP369] [AutoTrade] SKYAI LONG không đạt Tiêu chí 2 (Biến động H1/M15 không đạt) — Đưa vào Watchlist chờ Retest H1 
+2026-08-13 13:18:15: ◇ injected env (10) from .env // tip: ⌘ custom filepath { path: '/custom/path/.env' }
+2026-08-13 13:18:15: [PP369] [AI Reviewer] ✓ Đã nạp thành công mô hình AI (v1.1.0, mẫu N=19) 
+2026-08-13 13:18:15: [PP369] [AI Reviewer] 🔄 Tự động kích hoạt Python re-train mô hình AI trong nền... 
+2026-08-13 13:18:15: [PP369] [369] initH4Cache: Tất cả 803 coin đã có nến H4 đầu năm. 
+2026-08-13 13:18:15: [AutoTrade] Bỏ qua 168 coin có grid ngoài khoảng 3–25% (theo giá hiện tại): 4(2.6%), XRP(29.6%), ETC(47.7%), LINK(34.2%), BAT(51.2%), QTUM(44.6%), KNC(29.7%), DOT(38.7%), SOL(39.3%), AVAX(45.9%), AAVE(33.7%), FIL(44.2%), RSR(25.5%), BEL(2.9%), COTI(25.8%), ALICE(2.6%), ONE(36.2%), NKN(2.6%), DGB(1.6%), ATA(1.8%), DYDX(2.7%), KLAY(2.4%), LPT(25.1%), IMX(27.4%), APE(2.4%), WOO(28.4%), DAR(2.1%), OP(34.7%), STG(2.1%), SPELL(38.5%), APT(53.0%), FET(2.2%), CKB(36.4%), USDC(30.0%), AMB(2.5%), LEVER(26.7%), RDNT(2.9%), SUI(43.5%), MAV(34.6%), DODOX(1.3%), ARK(33.3%), BOND(28.1%), GAS(32.8%), SUPER(35.5%), 1000SATS(295.6%), ACE(28.4%), MOVR(36.3%), JUP(1.8%), GLM(34.0%), PORTAL(2.8%), MYRO(3.0%), W(37.0%), BB(25.6%), IO(2.7%), ZK(41.2%), ZRO(36.6%), SYN(2.9%), SYS(1.7%), ALPACA(25.2%), SUN(1.6%), DOGS(85.7%), BSW(2.5%), QUICK(2.3%), NEIRO(45.1%), FIO(2.5%), GHST(1.8%), LOKA(2.6%), COS(2.5%), SANTOS(63.8%), COW(29.1%), 1000000MOG(30.2%), DRIFT(26.3%), ACT(29.8%), HIPPO(2.9%), DEGEN(2.9%), 1000WHY(197.4%), THE(50.1%), CHILLGUY(2.6%), ORCA(29.0%), MOVE(48.5%), KOMA(2.1%), VELODROME(1.8%), MOCA(41.5%), VANA(35.5%), USUAL(34.3%), DF(2.6%), GRIFFAIN(2.6%), D(2.2%), AVAAI(2.8%), PIPPIN(178.5%), TST(1.8%), HEI(2.3%), RED(35.2%), MUBARAK(1.6%), TUT(0.5%), BROCCOLI714(1.7%), BR(1.3%), PLUME(2.6%), FUN(1.7%), BABY(2.9%), SIGN(45.8%), PUNDIX(40.3%), CTK(28.0%), SXT(40.4%), ASR(35.3%), MILK(3.0%), OG(120.9%), AGT(1.9%), B(2.0%), MERL(164.3%), PORT3(2.5%), 1000000BOB(1.6%), LA(61.4%), HOME(3.0%), PUMPBTC(28.1%), MYX(406.3%), DMC(2.3%), OL(1.7%), SAHARA(38.8%), M(27.0%), TANSSI(2.4%), PUMP(1.1%), VELVET(0.4%), ZORA(60.6%), TAG(2.4%), ESPORTS(190.0%), A2Z(2.1%), YALA(1.8%), SOMI(34.2%), BAS(1.1%), Q(1.3%), PTB(34.6%), OPEN(1.5%), AVNT(31.6%), UB(2.3%), TOSHI(29.8%), BARD(26.1%), TRADOOR(48.4%), BLESS(2.8%), FLUID(26.2%), HANA(0.9%), AKE(0.7%), LIGHT(169.2%), XAN(2.7%), TRUTH(2.2%), YB(39.3%), EUL(26.3%), CLO(25.3%), LAB(2.7%), RIVER(116.3%), 币安人生(0.6%), BLUAI(2.3%), APR(0.6%), ON(0.8%), KITE(2.9%), AT(1.8%), UAI(1.2%), STABLE(0.9%), JCT(0.8%), ALLO(1.0%), BEAT(31.4%), BOB(2.8%), RLS(2.8%), POWER(31.6%), US(1.1%), CYS(1.9%), BREV(43.6%), MAGMA(1.6%)
+2026-08-13 13:18:16: [PP369] [Binance] Đang lấy leverage brackets cho 438 coin... 
+2026-08-13 13:18:16: [PP369] [Binance] Đã lưu leverage cho 438 coin vào step_sizes.json 
+2026-08-13 13:18:16: [PP369] [AutoTrade] Khởi động: 438 coin | margin=$10 | 10x | type=LIMIT 
+2026-08-13 13:18:16: [PP369] [Binance] Loaded step and tick sizes from existing file: 852 symbols 
+2026-08-13 13:18:16: [PP369] [AutoTrade] Đã nạp leverageInfo cho 438 coin từ cache. 
+2026-08-13 13:18:17: [PP369] [PP369Stream] Kết nối WebSocket thành công (market/stream) 
+2026-08-13 13:18:21: [PP369] [AutoTrade] Bắt đầu scan... 
+2026-08-13 13:24:40: [PP369] [AutoTrade] BTR → SHORT (Score: +3.9999999999999996đ) tại $0.03136 
+2026-08-13 13:24:40: [PP369] [AutoTrade] Phân bổ Ký quỹ BTR: $65 (Gốc PP369+Vol $50 + Bonus $15 từ +3.2đ các tiêu chí bổ trợ | Score tổng: +4.0đ) 
+2026-08-13 13:24:40: [PP369] [AI Reviewer (Shadow)] 🟡 Khuyên BỎ QUA BTR (SHORT) - Xác suất thắng 50.9% < 65% (+ VOL_ULTRA (x1.0594), - RSI_NEUTRAL (x0.8586), + PA_1_LEVEL (x1.0559), - OI_STABLE (x0.9043), - VOL_DRY (x0.9152), - BTC_ALIGNED (x0.8972), + GRID_WIDE (x1.0474)) 
+2026-08-13 13:24:40: [PP369] [AutoTrade] Set leverage BTRUSDT = 4x (Bước 300đ: 9.57% → tính được 4x, giới hạn: 10x | Ký quỹ mục tiêu: $65) 
+2026-08-13 13:24:40: [PP369] [AutoTrade] ✓ BTR SELL 8290 @ $0.03136 orderId=912660179 status=NEW 
+2026-08-13 13:24:45: [PP369] [AutoTrade] ✓ Đặt TP BTR @ $0.0306900 (đối ứng BUY) orderId=1000002504785720 
+2026-08-13 13:24:46: [PP369] [AutoTrade] ✓ Đặt SL BTR @ $0.0326200 (đối ứng BUY) orderId=1000002504785724 
+2026-08-13 13:29:24: [PP369] [GridBlacklist] Đã tự động giải phóng DOOD khỏi Blacklist sau 1 tuần. 
+2026-08-13 13:29:24: [PP369] [GridBlacklist] ĐÃ THÊM DOOD VÀO BLACKLIST 7 NGÀY (Lý do: x*2 (25.58%) > y (12.96%)). Sẽ tự động giải phóng sau 7 ngày. 
+2026-08-13 13:31:23: [PP369] [GridBlacklist] Đã tự động giải phóng FHE khỏi Blacklist sau 1 tuần. 
+2026-08-13 13:31:23: [PP369] [GridBlacklist] ĐÃ THÊM FHE VÀO BLACKLIST 7 NGÀY (Lý do: x*2 (8.50%) > y (8.01%)). Sẽ tự động giải phóng sau 7 ngày. 
+2026-08-13 13:31:33: [PP369] [AutoTrade] Trailing SL (chạm mốc 45đ): BTR đạt ROI 5.44% -> Dịch SL trên sàn về entry +5đ ($0.03154, ROI ~0.63%) [Mức: +5đ (Khóa lãi)] 
+2026-08-13 13:31:33: [PP369] [AutoTrade] Đã hủy SL cũ của BTR (orderId=1000002504785724) 
+2026-08-13 13:31:34: [PP369] [AutoTrade] ✓ Đã dịch SL mới cho BTR @ $0.0315400 (orderId=1000002504792394) 
+2026-08-13 13:31:51: [PP369] [AutoTrade] Lệnh TP BTR đã tồn tại trên sàn hoặc vị thế đã đóng. Bỏ qua. 
+2026-08-13 13:31:54: [PP369] [AutoTrade] [BounceCancel] BTR SHORT: entry=$0.03136, current=$0.030808 (-1.76% >= 1.74%) → Hủy LIMIT ngay lập tức 
+2026-08-13 13:33:22: [PP369] [AutoTrade] 🟢 Hệ thống hoạt động bình thường | Theo dõi: 438 coin | Tiệm cận sát mốc (<=0.3%): 33 coin 
+2026-08-13 13:38:41: [PP369] [GridBlacklist] Đã tự động giải phóng FOLKS khỏi Blacklist sau 1 tuần. 
+2026-08-13 13:38:41: [PP369] [GridBlacklist] ĐÃ THÊM FOLKS VÀO BLACKLIST 7 NGÀY (Lý do: x*2 (17.96%) > y (6.78%)). Sẽ tự động giải phóng sau 7 ngày. 
+2026-08-13 13:42:04: [PP369] [AutoTrade] TA → LONG (Score: +4.8đ) tại $0.06187 
+2026-08-13 13:42:04: [PP369] [AutoTrade] Phân bổ Ký quỹ TA: $65 (Gốc PP369+Vol $50 + Bonus $15 từ +3.8đ các tiêu chí bổ trợ | Score tổng: +4.8đ) 
+2026-08-13 13:42:04: [PP369] [AI Reviewer (Shadow)] 🟡 Khuyên BỎ QUA TA (LONG) - Xác suất thắng 55.5% < 65% (+ VOL_ULTRA (x1.0594), - RSI_NEUTRAL (x0.8586), + PA_4_LEVELS (x1.1039), - OI_STABLE (x0.9043), - VOL_STABLE (x0.9659), + BTC_NEUTRAL (x1.0861), - GRID_NORMAL (x0.9455)) 
+2026-08-13 13:42:04: [PP369] [AutoTrade] Set leverage TAUSDT = 8x (Bước 300đ: 4.85% → tính được 8x, giới hạn: 10x | Ký quỹ mục tiêu: $65) 
+2026-08-13 13:42:05: [PP369] [AutoTrade] ✓ TA BUY 8404 @ $0.06187 orderId=1303026640 status=NEW 
+2026-08-13 13:45:45: [PP369] [AutoTrade] BICO → LONG (Score: +4.3999999999999995đ) tại $0.03018 
+2026-08-13 13:45:45: [PP369] [AutoTrade] Phân bổ Ký quỹ BICO: $65 (Gốc PP369+Vol $50 + Bonus $15 từ +3.6đ các tiêu chí bổ trợ | Score tổng: +4.4đ) 
+2026-08-13 13:45:45: [PP369] [AutoTrade] BICO LONG: Từ khi chạm mốc Short ($0.03295), nến M1 đã xát mốc entry LONG ($0.029790) rồi nảy lên đỉnh $0.030660 (+2.92% >= 1.84% Khung/5) — HỦY LIMIT stale. 
+2026-08-13 13:45:58: [PP369] [AutoTrade] Phân bổ Ký quỹ BICO: $65 (Gốc PP369+Vol $50 + Bonus $15 từ +3.6đ các tiêu chí bổ trợ | Score tổng: +4.4đ) 
+2026-08-13 13:48:51: [PP369] [AutoTrade] 🟢 Hệ thống hoạt động bình thường | Theo dõi: 438 coin | Tiệm cận sát mốc (<=0.3%): 33 coin 
+2026-08-13 14:01:18: ◇ injected env (10) from .env // tip: ⌘ override existing { override: true }
+2026-08-13 14:01:18: [PP369] [AI Reviewer] ✓ Đã nạp thành công mô hình AI (v1.1.0, mẫu N=19) 
+2026-08-13 14:01:18: [PP369] [AI Reviewer] 🔄 Tự động kích hoạt Python re-train mô hình AI trong nền... 
+2026-08-13 14:01:18: [PP369] [369] initH4Cache: Tất cả 803 coin đã có nến H4 đầu năm. 
+2026-08-13 14:01:18: [AutoTrade] Bỏ qua 168 coin có grid ngoài khoảng 3–25% (theo giá hiện tại): 4(2.7%), XRP(29.6%), ETC(47.6%), LINK(34.2%), BAT(51.4%), QTUM(44.8%), KNC(29.7%), DOT(38.7%), SOL(39.2%), AVAX(45.9%), AAVE(33.5%), FIL(44.1%), RSR(25.4%), BEL(2.9%), COTI(26.8%), ALICE(2.6%), ONE(37.0%), NKN(2.6%), DGB(1.6%), ATA(1.8%), DYDX(2.7%), KLAY(2.4%), LPT(25.1%), IMX(27.4%), APE(2.4%), WOO(28.4%), DAR(2.1%), OP(34.6%), STG(2.1%), SPELL(38.5%), APT(52.9%), FET(2.2%), CKB(36.3%), USDC(30.0%), AMB(2.5%), LEVER(26.7%), RDNT(2.9%), SUI(43.4%), MAV(34.5%), DODOX(1.3%), ARK(33.3%), BOND(28.1%), GAS(32.6%), SUPER(35.5%), 1000SATS(296.4%), ACE(28.5%), MOVR(37.2%), JUP(1.8%), GLM(34.0%), PORTAL(2.8%), MYRO(3.0%), W(36.9%), BB(25.9%), IO(2.7%), ZK(41.2%), ZRO(36.1%), SYN(2.9%), SYS(1.7%), ALPACA(25.2%), SUN(1.6%), DOGS(85.7%), BSW(2.5%), QUICK(2.3%), NEIRO(45.1%), FIO(2.5%), GHST(1.8%), LOKA(2.6%), COS(2.5%), SANTOS(63.5%), COW(29.0%), 1000000MOG(30.1%), DRIFT(26.2%), ACT(29.5%), HIPPO(2.9%), DEGEN(2.9%), 1000WHY(197.4%), THE(50.2%), CHILLGUY(2.6%), ORCA(29.0%), MOVE(48.3%), KOMA(2.2%), VELODROME(1.7%), MOCA(41.5%), VANA(35.6%), USUAL(34.3%), DF(2.6%), GRIFFAIN(2.6%), D(2.2%), AVAAI(2.9%), PIPPIN(178.1%), TST(1.9%), HEI(2.3%), RED(35.2%), MUBARAK(1.6%), TUT(0.5%), BROCCOLI714(1.8%), BR(1.3%), PLUME(2.6%), FUN(1.7%), BABY(2.9%), SIGN(45.9%), PUNDIX(40.2%), CTK(27.9%), SXT(40.8%), ASR(34.7%), MILK(3.0%), OG(120.3%), AGT(1.9%), B(2.0%), MERL(164.6%), PORT3(2.5%), 1000000BOB(1.6%), LA(61.3%), HOME(2.9%), PUMPBTC(28.1%), MYX(402.3%), DMC(2.3%), OL(1.7%), SAHARA(38.6%), M(26.9%), TANSSI(2.4%), PUMP(1.1%), VELVET(0.4%), ZORA(60.6%), TAG(2.4%), ESPORTS(190.0%), A2Z(2.1%), YALA(1.8%), SOMI(34.1%), BAS(1.1%), Q(1.3%), PTB(34.0%), OPEN(1.5%), AVNT(31.6%), UB(2.3%), TOSHI(29.8%), BARD(26.0%), TRADOOR(47.9%), BLESS(2.9%), FLUID(26.1%), HANA(0.9%), AKE(0.7%), LIGHT(171.9%), XAN(2.7%), TRUTH(2.2%), YB(38.9%), EUL(26.5%), CLO(25.4%), LAB(2.7%), RIVER(116.6%), 币安人生(0.6%), BLUAI(2.5%), APR(0.6%), ON(0.8%), KITE(3.0%), AT(1.8%), UAI(1.2%), STABLE(0.9%), JCT(0.8%), ALLO(1.0%), BEAT(30.5%), BOB(2.8%), RLS(2.8%), POWER(31.9%), US(1.2%), CYS(2.0%), BREV(43.7%), MAGMA(1.6%)
+2026-08-13 14:01:19: [PP369] [Binance] Đang lấy leverage brackets cho 438 coin... 
+2026-08-13 14:01:19: [PP369] [Binance] Đã lưu leverage cho 438 coin vào step_sizes.json 
+2026-08-13 14:01:19: [PP369] [AutoTrade] Khởi động: 438 coin | margin=$10 | 10x | type=LIMIT 
+2026-08-13 14:01:19: [PP369] [Binance] Loaded step and tick sizes from existing file: 852 symbols 
+2026-08-13 14:01:19: [PP369] [AutoTrade] Đã nạp leverageInfo cho 438 coin từ cache. 
+2026-08-13 14:01:20: [PP369] [PP369Stream] Kết nối WebSocket thành công (market/stream) 
+2026-08-13 14:01:24: [PP369] [AutoTrade] Bắt đầu scan... 
+2026-08-13 14:14:20: [PP369] [AutoTrade] SKYAI → SHORT (Score: +2.5đ) tại $0.07986 
+2026-08-13 14:14:20: [PP369] [AutoTrade] SKYAI SHORT không đạt Tiêu chí 2 (M15 biến động mạnh) — Đưa vào Watchlist chờ Retest H1 
+2026-08-13 14:15:32: [PP369] [GridBlacklist] Đã tự động giải phóng ACH khỏi Blacklist sau 1 tuần. 
+2026-08-13 14:15:32: [PP369] [GridBlacklist] ĐÃ THÊM ACH VÀO BLACKLIST 7 NGÀY (Lý do: x*2 (7.81%) > y (3.56%)). Sẽ tự động giải phóng sau 7 ngày. 
+2026-08-13 14:15:55: [PP369] [AutoTrade] HOLO → SHORT (Score: +4.6đ) tại $0.07083 
+2026-08-13 14:15:55: [PP369] [AutoTrade] HOLO SHORT không đạt Tiêu chí 2 (M15 biến động mạnh) — Đưa vào Watchlist chờ Retest H1 
+2026-08-13 14:16:24: [PP369] [AutoTrade] 🟢 Hệ thống hoạt động bình thường | Theo dõi: 438 coin | Tiệm cận sát mốc (<=0.3%): 25 coin 
+2026-08-13 14:22:59: [PP369] [AutoTrade] Phân bổ Ký quỹ HOLO: $70 (Gốc PP369+Vol $50 + Bonus $20 từ +4.1đ các tiêu chí bổ trợ | Score tổng: +4.9đ) 
+2026-08-13 14:22:59: [PP369] [AutoTrade] HOLO SHORT: Từ khi chạm mốc Long ($0.06869), nến M1 đã xát mốc entry SHORT ($0.070800) rồi nảy xuống đáy $0.069340 (-2.06% >= 0.62% Khung/5) — HỦY LIMIT stale. 
+2026-08-13 14:31:24: [PP369] [AutoTrade] 🟢 Hệ thống hoạt động bình thường | Theo dõi: 438 coin | Tiệm cận sát mốc (<=0.3%): 27 coin 
+2026-08-13 14:36:23: [PP369] [AutoTrade] SOPH → LONG (Score: +3.5999999999999996đ) tại $0.003398 
+2026-08-13 14:36:23: [PP369] [AutoTrade] Phân bổ Ký quỹ SOPH: $60 (Gốc PP369+Vol $50 + Bonus $10 từ +2.6đ các tiêu chí bổ trợ | Score tổng: +3.6đ) 
+2026-08-13 14:36:23: [PP369] [AI Reviewer (Shadow)] 🟡 Khuyên BỎ QUA SOPH (LONG) - Xác suất thắng 59.2% < 65% (+ VOL_ULTRA (x1.0594), + RSI_NEAR (x1.1818), - PA_0_LEVEL (x0.8586), - OI_STABLE (x0.9043), - VOL_DRY (x0.9152), + BTC_NEUTRAL (x1.0861), + GRID_WIDE (x1.0474)) 
+2026-08-13 14:36:23: [PP369] [AutoTrade] Set leverage SOPHUSDT = 4x (Bước 300đ: 8.83% → tính được 4x, giới hạn: 25x | Ký quỹ mục tiêu: $60) 
+2026-08-13 14:36:23: [PP369] [AutoTrade] ✓ SOPH BUY 70629 @ $0.003398 orderId=1748803828 status=NEW 
+2026-08-13 14:46:24: [PP369] [AutoTrade] Lệnh LIMIT của SOPH đã chạm/vượt Entry ($0.003398) quá 10 phút không khớp (10.0 phút) -> Tiến hành hủy... 
+2026-08-13 14:46:25: [PP369] [AutoTrade] ✓ Đã hủy thành công lệnh LIMIT treo của SOPH 
+2026-08-13 14:46:25: [PP369] [AutoTrade] 🟢 Hệ thống hoạt động bình thường | Theo dõi: 438 coin | Tiệm cận sát mốc (<=0.3%): 23 coin 
+2026-08-13 15:00:04: [PP369] [H1Retest] === Kiểm tra 2 coin trong Watchlist: [SKYAI(SHORT @$0.07986), HOLO(SHORT @$0.07083)] === 
+2026-08-13 15:00:04: [PP369] [H1Retest] SKYAI SHORT nến H1 rút chân nhưng ĐÃ PHẢN ỨNG NẢY ROI = +37.06% (>= 5.0%) sau khi chạm entry. Bỏ qua không đặt limit. 
+2026-08-13 15:00:05: [PP369] [H1Retest] HOLO SHORT nến H1 rút chân nhưng ĐÃ PHẢN ỨNG NẢY ROI = +39.01% (>= 5.0%) sau khi chạm entry. Bỏ qua không đặt limit. 
+2026-08-13 15:01:55: [PP369] [AutoTrade] 🟢 Hệ thống hoạt động bình thường | Theo dõi: 438 coin | Tiệm cận sát mốc (<=0.3%): 25 coin 
+2026-08-13 15:16:55: [PP369] [AutoTrade] 🟢 Hệ thống hoạt động bình thường | Theo dõi: 438 coin | Tiệm cận sát mốc (<=0.3%): 23 coin 
+2026-08-13 15:17:09: [PP369] [AutoTrade] BANK → SHORT (Score: +3.4999999999999996đ) tại $0.04135 
+2026-08-13 15:17:09: [PP369] [AutoTrade] Phân bổ Ký quỹ BANK: $60 (Gốc PP369+Vol $50 + Bonus $10 từ +2.7đ các tiêu chí bổ trợ | Score tổng: +3.5đ) 
+2026-08-13 15:17:09: [PP369] [AI Reviewer (Shadow)] 🟡 Khuyên BỎ QUA BANK (SHORT) - Xác suất thắng 51.8% < 65% (+ VOL_ULTRA (x1.0594), - RSI_NEUTRAL (x0.8586), + PA_1_LEVEL (x1.0559), - OI_STABLE (x0.9043), - VOL_DRY (x0.9152), - BTC_ALIGNED (x0.8972), + GRID_WIDE (x1.0474)) 
+2026-08-13 15:17:09: [PP369] [AutoTrade] Set leverage BANKUSDT = 5x (Bước 300đ: 7.26% → tính được 5x, giới hạn: 50x | Ký quỹ mục tiêu: $60) 
+2026-08-13 15:17:10: [PP369] [AutoTrade] ✓ BANK SELL 7255 @ $0.04135 orderId=3295253822 status=NEW 
+2026-08-13 15:17:13: [PP369] [AutoTrade] ✓ Đặt TP BANK @ $0.0404500 (đối ứng BUY) orderId=1000002504897473 
+2026-08-13 15:17:13: [PP369] [AutoTrade] ✓ Đặt SL BANK @ $0.0423800 (đối ứng BUY) orderId=1000002504897475 
+2026-08-13 15:19:43: [PP369] [AutoTrade] Trailing SL (chạm mốc 45đ): BANK đạt ROI 5.76% -> Dịch SL trên sàn về entry +5đ ($0.04130, ROI ~0.6%) [Mức: +5đ (Khóa lãi)] 
+2026-08-13 15:19:44: [PP369] [AutoTrade] Đã hủy SL cũ của BANK (orderId=1000002504897475) 
+2026-08-13 15:19:44: [PP369] [AutoTrade] ✓ Đã dịch SL mới cho BANK @ $0.0413000 (orderId=1000002504900076) 
+2026-08-13 15:21:38: [PP369] [GridBlacklist] Đã tự động giải phóng LQTY khỏi Blacklist sau 1 tuần. 
+2026-08-13 15:21:38: [PP369] [GridBlacklist] ĐÃ THÊM LQTY VÀO BLACKLIST 7 NGÀY (Lý do: x*2 (11.76%) > y (10.92%)). Sẽ tự động giải phóng sau 7 ngày. 
+2026-08-13 15:25:34: [PP369] [GridBlacklist] Đã tự động giải phóng ARIA khỏi Blacklist sau 1 tuần. 
+2026-08-13 15:25:34: [PP369] [GridBlacklist] ĐÃ THÊM ARIA VÀO BLACKLIST 7 NGÀY (Lý do: x*2 (8.22%) > y (5.23%)). Sẽ tự động giải phóng sau 7 ngày. 
+2026-08-13 15:28:18: [PP369] [AutoTrade] BOME → LONG (Score: +4.1đ) tại $0.0007822 
+2026-08-13 15:28:18: [PP369] [AutoTrade] Phân bổ Ký quỹ BOME: $65 (Gốc PP369+Vol $50 + Bonus $15 từ +3.5đ các tiêu chí bổ trợ | Score tổng: +4.1đ) 
+2026-08-13 15:28:19: [PP369] [AI Reviewer (Shadow)] 🟡 Khuyên BỎ QUA BOME (LONG) - Xác suất thắng 44.5% < 65% (- VOL_MID (x0.9091), - RSI_NEUTRAL (x0.8586), - PA_0_LEVEL (x0.8586), - OI_STABLE (x0.9043), - VOL_STABLE (x0.9659), - FUNDING_DANGER (x0.9659), + BTC_NEUTRAL (x1.0861), - GRID_NORMAL (x0.9455)) 
+2026-08-13 15:28:19: [PP369] [AutoTrade] Set leverage BOMEUSDT = 10x (Bước 300đ: 3.84% → tính được 10x, giới hạn: 50x | Ký quỹ mục tiêu: $65) 
+2026-08-13 15:28:19: [PP369] [AutoTrade] ✓ BOME BUY 830989 @ $0.0007822 orderId=8502390377 status=NEW 
+2026-08-13 15:28:36: [PP369] [AutoTrade] GUA → LONG (Score: +3.4999999999999996đ) tại $0.04674 
+2026-08-13 15:28:36: [PP369] [AutoTrade] Phân bổ Ký quỹ GUA: $60 (Gốc PP369+Vol $50 + Bonus $10 từ +2.7đ các tiêu chí bổ trợ | Score tổng: +3.5đ) 
+2026-08-13 15:28:37: [PP369] [AutoTrade] GUA LONG: Từ khi chạm mốc Short ($0.04915), nến M1 đã xát mốc entry LONG ($0.046740) rồi nảy lên đỉnh $0.047350 (+1.31% >= 1.03% Khung/5) — HỦY LIMIT stale. 
+2026-08-13 15:28:37: [PP369] [AutoTrade] ✓ Đặt TP BOME @ $0.0007912 (đối ứng SELL) orderId=1000002504908197 
+2026-08-13 15:28:37: [PP369] [AutoTrade] Lệnh SL BOME đã tồn tại, lập tức kích hoạt hoặc vị thế đã đóng trên sàn. Bỏ qua. 
+2026-08-13 15:28:43: [PP369] [AutoTrade] ✓ Đặt SL BOME @ $0.0007719 (đối ứng SELL) orderId=1000002504908301 
+2026-08-13 15:31:55: [PP369] [AutoTrade] 🟢 Hệ thống hoạt động bình thường | Theo dõi: 438 coin | Tiệm cận sát mốc (<=0.3%): 33 coin 
+2026-08-13 15:32:17: [PP369] [AutoTrade] BANK → LONG (Score: +4.8999999999999995đ) tại $0.03926 
+2026-08-13 15:32:17: [PP369] [AutoTrade] Phân bổ Ký quỹ BANK: $70 (Gốc PP369+Vol $50 + Bonus $20 từ +4.1đ các tiêu chí bổ trợ | Score tổng: +4.9đ) 
+2026-08-13 15:32:17: [PP369] [AI Reviewer (Shadow)] 🟡 Khuyên BỎ QUA BANK (LONG) - Xác suất thắng 50.8% < 65% (+ VOL_ULTRA (x1.0594), - RSI_NEUTRAL (x0.8586), - PA_0_LEVEL (x0.8586), - OI_STABLE (x0.9043), - VOL_DRY (x0.9152), + BTC_NEUTRAL (x1.0861), + GRID_WIDE (x1.0474)) 
+2026-08-13 15:32:17: [PP369] [AutoTrade] Set leverage BANKUSDT = 5x (Bước 300đ: 7.64% → tính được 5x, giới hạn: 50x | Ký quỹ mục tiêu: $70) 
+2026-08-13 15:32:17: [PP369] [AutoTrade] ✓ BANK BUY 8914 @ $0.03926 orderId=3295855700 status=NEW 
+2026-08-13 15:32:25: [PP369] [AutoTrade] ✓ Đặt TP BANK @ $0.0401600 (đối ứng SELL) orderId=1000002504911743 
+2026-08-13 15:32:26: [PP369] [AutoTrade] ✓ Đặt SL BANK @ $0.0382300 (đối ứng SELL) orderId=1000002504911747 
+2026-08-13 15:35:20: [PP369] [AutoTrade] Trailing SL (chạm mốc 45đ): BANK đạt ROI 5.28% -> Dịch SL trên sàn về entry +5đ ($0.03931, ROI ~0.64%) [Mức: +5đ (Khóa lãi)] 
+2026-08-13 15:35:20: [PP369] [AutoTrade] Đã hủy SL cũ của BANK (orderId=1000002504911747) 
+2026-08-13 15:35:20: [PP369] [AutoTrade] ✓ Đã dịch SL mới cho BANK @ $0.0393100 (orderId=1000002504914519) 
+2026-08-13 15:40:43: ◇ injected env (10) from .env // tip: ◈ secrets for agents [www.dotenvx.com]
+2026-08-13 15:40:44: [PP369] [AI Reviewer] ✓ Đã nạp thành công mô hình AI (v1.1.0, mẫu N=19) 
+2026-08-13 15:40:44: [PP369] [AI Reviewer] 🔄 Tự động kích hoạt Python re-train mô hình AI trong nền... 
+2026-08-13 15:40:44: [PP369] [369] initH4Cache: Tất cả 803 coin đã có nến H4 đầu năm. 
+2026-08-13 15:40:44: [AutoTrade] Bỏ qua 169 coin có grid ngoài khoảng 3–25% (theo giá hiện tại): 4(2.7%), XRP(29.6%), ETC(47.7%), LINK(34.2%), BAT(51.5%), QTUM(44.8%), KNC(29.7%), DOT(38.8%), SOL(39.4%), AVAX(46.1%), AAVE(33.7%), FIL(44.5%), RSR(25.5%), BEL(2.9%), COTI(28.7%), ALICE(2.6%), ONE(37.8%), NKN(2.6%), DGB(1.6%), ATA(1.8%), DYDX(2.7%), KLAY(2.4%), IMX(27.3%), APE(2.4%), WOO(28.4%), DAR(2.1%), OP(34.7%), STG(2.1%), SPELL(38.7%), APT(53.1%), FET(2.2%), CKB(36.3%), USDC(30.0%), AMB(2.5%), LEVER(26.7%), RDNT(2.9%), SUI(43.5%), MAV(34.3%), DODOX(1.3%), ARK(33.3%), BOND(28.1%), GAS(32.6%), SUPER(35.3%), 1000SATS(297.0%), ACE(28.7%), MOVR(36.6%), JUP(1.8%), GLM(33.9%), PORTAL(2.8%), MYRO(3.0%), W(36.9%), BB(26.1%), IO(2.7%), ZK(40.9%), ZRO(36.3%), SYN(2.9%), SYS(1.7%), ALPACA(25.2%), SUN(1.6%), DOGS(85.8%), BSW(2.5%), QUICK(2.3%), NEIRO(45.9%), FIO(2.5%), GHST(1.8%), LOKA(2.6%), COS(2.5%), SANTOS(62.1%), COW(29.2%), 1000000MOG(30.1%), DRIFT(26.4%), ACT(29.8%), HIPPO(2.9%), DEGEN(2.9%), 1000WHY(197.4%), THE(49.9%), CHILLGUY(2.6%), ORCA(29.0%), MOVE(47.8%), KOMA(2.2%), VELODROME(1.7%), MOCA(41.4%), VANA(35.5%), USUAL(34.4%), DF(2.6%), GRIFFAIN(2.6%), COOKIE(25.1%), D(2.2%), AVAAI(2.6%), PIPPIN(179.2%), TST(1.9%), HEI(2.3%), RED(35.2%), MUBARAK(1.7%), TUT(0.5%), BROCCOLI714(1.8%), BR(1.3%), PLUME(2.6%), FUN(1.7%), BABY(2.9%), SIGN(45.8%), PUNDIX(40.3%), CTK(28.1%), SXT(40.9%), ASR(33.9%), MILK(3.0%), OG(118.6%), AGT(1.9%), B(2.0%), MERL(164.3%), PORT3(2.5%), 1000000BOB(1.6%), LA(62.8%), HOME(3.0%), PUMPBTC(28.3%), MYX(394.5%), DMC(2.3%), OL(1.7%), SAHARA(38.7%), M(27.2%), TANSSI(2.4%), PUMP(1.1%), CROSS(3.0%), VELVET(0.4%), ZORA(61.2%), TAG(2.4%), ESPORTS(187.4%), A2Z(2.1%), YALA(1.8%), SOMI(34.1%), BAS(1.1%), Q(1.3%), PTB(34.1%), OPEN(1.5%), AVNT(30.7%), UB(2.4%), TOSHI(29.9%), BARD(26.2%), TRADOOR(47.3%), BLESS(2.9%), FLUID(26.1%), HANA(0.9%), AKE(0.7%), LIGHT(172.8%), XAN(2.8%), TRUTH(2.2%), YB(39.4%), EUL(26.7%), CLO(26.0%), LAB(2.7%), RIVER(115.7%), 币安人生(0.6%), BLUAI(2.4%), APR(0.6%), ON(0.8%), KITE(3.0%), AT(1.9%), UAI(1.2%), STABLE(0.9%), JCT(0.8%), ALLO(1.0%), BEAT(31.2%), BOB(2.8%), RLS(2.8%), POWER(31.4%), US(1.3%), CYS(2.1%), BREV(43.6%), MAGMA(1.6%)
+2026-08-13 15:40:45: [PP369] [Binance] Đang lấy leverage brackets cho 437 coin... 
+2026-08-13 15:40:45: [PP369] [Binance] Đã lưu leverage cho 437 coin vào step_sizes.json 
+2026-08-13 15:40:45: [PP369] [AutoTrade] Khởi động: 437 coin | margin=$10 | 10x | type=LIMIT 
+2026-08-13 15:40:45: [PP369] [Binance] Loaded step and tick sizes from existing file: 852 symbols 
+2026-08-13 15:40:45: [PP369] [AutoTrade] Đã nạp leverageInfo cho 437 coin từ cache. 
+2026-08-13 15:40:46: [PP369] [PP369Stream] Kết nối WebSocket thành công (market/stream) 
+2026-08-13 15:40:49: [PP369] [AutoTrade] Bắt đầu scan... 
+2026-08-13 15:48:19: [PP369] [AutoTrade] CATI → SHORT (Score: +4.4đ) tại $0.04595 
+2026-08-13 15:48:19: [PP369] [AutoTrade] Phân bổ Ký quỹ CATI: $65 (Gốc PP369+Vol $50 + Bonus $15 từ +3.4đ các tiêu chí bổ trợ | Score tổng: +4.4đ) 
+2026-08-13 15:48:19: [PP369] [AutoTrade] CATI SHORT: Từ khi chạm mốc Long ($0.04393), nến M1 đã xát mốc entry SHORT ($0.045950) rồi nảy xuống đáy $0.045420 (-1.15% >= 0.92% Khung/5) — HỦY LIMIT stale. 
+2026-08-13 15:48:20: [PP369] [AutoTrade] 🎯 Near-TP Lock (Đạt >=90% TP): BANK đạt ROI 9.68% -> Dịch SL trên sàn về mốc 75% Lợi Nhuận TP ($0.03993, ROI ~+8.6%) 
+2026-08-13 15:48:20: [PP369] [AutoTrade] Đã hủy SL cũ của BANK (orderId=1000002504914519) 
+2026-08-13 15:48:20: [PP369] [AutoTrade] ✓ Đã dịch SL mới cho BANK @ $0.0399300 (orderId=1000002504926524) 
+2026-08-13 15:48:33: [PP369] [AutoTrade] Phân bổ Ký quỹ CATI: $65 (Gốc PP369+Vol $50 + Bonus $15 từ +3.4đ các tiêu chí bổ trợ | Score tổng: +4.4đ) 
+2026-08-13 15:48:57: [PP369] [AutoTrade] Phân bổ Ký quỹ CATI: $65 (Gốc PP369+Vol $50 + Bonus $15 từ +3.4đ các tiêu chí bổ trợ | Score tổng: +4.4đ) 
+2026-08-13 15:55:50: [PP369] [AutoTrade] 🟢 Hệ thống hoạt động bình thường | Theo dõi: 437 coin | Tiệm cận sát mốc (<=0.5%): 47 coin 
+2026-08-13 16:10:50: [PP369] [AutoTrade] 🟢 Hệ thống hoạt động bình thường | Theo dõi: 437 coin | Tiệm cận sát mốc (<=0.5%): 44 coin 
+2026-08-13 16:25:50: [PP369] [AutoTrade] 🟢 Hệ thống hoạt động bình thường | Theo dõi: 437 coin | Tiệm cận sát mốc (<=0.5%): 47 coin 
+2026-08-13 16:31:05: [PP369] [AutoTrade] MMT → LONG (Score: +6.5đ) tại $0.1681 
+2026-08-13 16:31:05: [PP369] [AutoTrade] Phân bổ Ký quỹ MMT: $75 (Gốc PP369+Vol $50 + Bonus $25 từ +5.5đ các tiêu chí bổ trợ | Score tổng: +6.5đ) 
+2026-08-13 16:31:05: [PP369] [AI Reviewer (Shadow)] 🟢 Khuyên NÊN ĐẶT LỆNH MMT (LONG) - Xác suất thắng 68.3% >= 65% & EV = +2.30% ROI ($0.69) (+ VOL_ULTRA (x1.0594), + RSI_NEAR (x1.1818), - LS_GOLD (x0.9091), + PA_1_LEVEL (x1.0559), + OI_SURGE (x1.0474), + VOL_SURGE (x1.0758), + BTC_NEUTRAL (x1.0861), + GRID_WIDE (x1.0474)) 
+2026-08-13 16:31:06: [PP369] [AutoTrade] Set leverage MMTUSDT = 2x (Bước 300đ: 17.85% → tính được 2x, giới hạn: 50x | Ký quỹ mục tiêu: $75) 
+2026-08-13 16:31:06: [PP369] [AutoTrade] ✓ MMT BUY 892 @ $0.1681 orderId=1050063749 status=NEW 
+2026-08-13 16:31:08: [PP369] [AutoTrade] ✓ Đặt TP MMT @ $0.1771000 (đối ứng SELL) orderId=1000002504967572 
+2026-08-13 16:31:09: [PP369] [AutoTrade] ✓ Đặt SL MMT @ $0.1578000 (đối ứng SELL) orderId=1000002504967574 
+2026-08-13 16:39:12: [PP369] [AutoTrade] SKYAI → LONG (Score: +2.6đ) tại $0.07709 
+2026-08-13 16:39:12: [PP369] [AutoTrade] Phân bổ Ký quỹ SKYAI: $60 (Gốc PP369+Vol $50 + Bonus $10 từ +2.1đ các tiêu chí bổ trợ | Score tổng: +2.6đ) 
+2026-08-13 16:39:12: [PP369] [AI Reviewer (Shadow)] 🟡 Khuyên BỎ QUA SKYAI (LONG) - Xác suất thắng 47.4% < 65% (- RSI_NEUTRAL (x0.8586), - PA_0_LEVEL (x0.8586), - OI_STABLE (x0.9043), - VOL_DRY (x0.9152), + BTC_NEUTRAL (x1.0861), - GRID_NORMAL (x0.9455)) 
+2026-08-13 16:39:12: [PP369] [AutoTrade] Set leverage SKYAIUSDT = 10x (Bước 300đ: 3.89% → tính được 10x, giới hạn: 10x | Ký quỹ mục tiêu: $60) 
+2026-08-13 16:39:13: [PP369] [AutoTrade] ✓ SKYAI BUY 7783 @ $0.07709 orderId=2590326681 status=NEW 
+2026-08-13 16:39:14: [PP369] [AutoTrade] ✓ Đặt TP SKYAI @ $0.0779500 (đối ứng SELL) orderId=1000002504974335 
+2026-08-13 16:39:15: [PP369] [AutoTrade] ✓ Đặt SL SKYAI @ $0.0760200 (đối ứng SELL) orderId=1000002504974336 
+2026-08-13 16:40:02: [PP369] [GridBlacklist] Đã tự động giải phóng MITO khỏi Blacklist sau 1 tuần. 
+2026-08-13 16:40:02: [PP369] [GridBlacklist] ĐÃ THÊM MITO VÀO BLACKLIST 7 NGÀY (Lý do: x*2 (10.23%) > y (7.06%)). Sẽ tự động giải phóng sau 7 ngày. 
+2026-08-13 16:40:50: [PP369] [AutoTrade] 🟢 Hệ thống hoạt động bình thường | Theo dõi: 437 coin | Tiệm cận sát mốc (<=0.5%): 51 coin 
+2026-08-13 16:47:59: [PP369] [AutoTrade] TRUST → LONG (Score: +6đ) tại $0.0531 
+2026-08-13 16:47:59: [PP369] [AutoTrade] Phân bổ Ký quỹ TRUST: $75 (Gốc PP369+Vol $50 + Bonus $25 từ +5.0đ các tiêu chí bổ trợ | Score tổng: +6.0đ) 
+2026-08-13 16:47:59: [PP369] [AI Reviewer (Shadow)] 🟡 Khuyên BỎ QUA TRUST (LONG) - Xác suất thắng 58.5% < 65% (+ VOL_ULTRA (x1.0594), - RSI_NEUTRAL (x0.8586), - PA_0_LEVEL (x0.8586), + OI_COOLING (x1.0559), + VOL_SURGE (x1.0758), + BTC_NEUTRAL (x1.0861), + GRID_WIDE (x1.0474)) 
+2026-08-13 16:47:59: [PP369] [AutoTrade] Set leverage TRUSTUSDT = 6x (Bước 300đ: 5.65% → tính được 6x, giới hạn: 10x | Ký quỹ mục tiêu: $75) 
+2026-08-13 16:47:59: [PP369] [AutoTrade] ✓ TRUST BUY 8474 @ $0.0531 orderId=514419534 status=NEW 
+2026-08-13 16:48:02: [PP369] [AutoTrade] ✓ Đặt TP TRUST @ $0.0540000 (đối ứng SELL) orderId=1000002504982322 
+2026-08-13 16:48:03: [PP369] [AutoTrade] ✓ Đặt SL TRUST @ $0.0520700 (đối ứng SELL) orderId=1000002504982323 
+2026-08-13 16:49:27: ◇ injected env (10) from .env // tip: ⌘ multiple files { path: ['.env.local', '.env'] }
+2026-08-13 16:49:27: [PP369] [AI Reviewer] ✓ Đã nạp thành công mô hình AI (v1.1.0, mẫu N=19) 
+2026-08-13 16:49:27: [PP369] [AI Reviewer] 🔄 Tự động kích hoạt Python re-train mô hình AI trong nền... 
+2026-08-13 16:49:27: [PP369] [369] initH4Cache: Tất cả 803 coin đã có nến H4 đầu năm. 
+2026-08-13 16:49:27: [AutoTrade] Bỏ qua 170 coin có grid ngoài khoảng 3–25% (theo giá hiện tại): 4(2.7%), XRP(29.7%), ETC(47.8%), LINK(34.5%), BAT(51.5%), QTUM(44.7%), KNC(29.8%), DOT(38.8%), SOL(39.5%), AVAX(46.2%), AAVE(33.7%), FIL(44.6%), RSR(25.3%), BEL(2.9%), COTI(28.4%), ALICE(2.6%), ONE(38.2%), NKN(2.6%), DGB(1.6%), ATA(1.8%), DYDX(2.7%), KLAY(2.4%), IMX(27.4%), APE(2.4%), WOO(28.2%), DAR(2.1%), OP(34.6%), STG(2.1%), SPELL(38.5%), APT(53.2%), FET(2.2%), CKB(36.3%), USDC(30.0%), AMB(2.5%), LEVER(26.7%), RDNT(2.9%), SUI(43.4%), MAV(34.2%), DODOX(1.3%), ARK(33.1%), BOND(28.1%), GAS(32.7%), SUPER(35.3%), 1000SATS(293.3%), ACE(28.4%), MOVR(37.1%), JUP(1.8%), GLM(33.9%), PORTAL(2.8%), MYRO(3.0%), W(36.8%), BB(25.9%), IO(2.7%), ZK(40.5%), ZRO(36.2%), RARE(25.3%), SYN(2.9%), SYS(1.7%), ALPACA(25.2%), SUN(1.6%), DOGS(85.2%), BSW(2.5%), QUICK(2.3%), NEIRO(45.6%), FIO(2.5%), GHST(1.8%), LOKA(2.6%), COS(2.5%), SANTOS(62.9%), COW(29.2%), 1000000MOG(30.1%), DRIFT(26.3%), ACT(29.7%), HIPPO(2.9%), DEGEN(2.9%), 1000WHY(197.4%), THE(50.3%), CHILLGUY(2.5%), ORCA(29.1%), MOVE(47.7%), KOMA(2.2%), VELODROME(1.7%), MOCA(41.4%), VANA(35.5%), USUAL(34.2%), DF(2.6%), GRIFFAIN(2.6%), COOKIE(25.3%), D(2.2%), AVAAI(2.3%), PIPPIN(177.8%), TST(1.9%), HEI(2.4%), RED(35.2%), MUBARAK(1.7%), TUT(0.5%), BROCCOLI714(1.8%), BR(1.3%), PLUME(2.5%), FUN(1.7%), BABY(2.9%), SIGN(45.9%), PUNDIX(40.4%), CTK(28.3%), SXT(41.0%), ASR(34.8%), MILK(3.0%), OG(120.1%), AGT(1.9%), B(2.0%), MERL(163.2%), PORT3(2.5%), 1000000BOB(1.6%), LA(62.5%), HOME(2.8%), PUMPBTC(28.5%), MYX(397.0%), DMC(2.3%), OL(1.7%), SAHARA(38.6%), M(27.5%), TANSSI(2.4%), PUMP(1.1%), CROSS(3.0%), VELVET(0.4%), ZORA(60.9%), TAG(2.4%), ESPORTS(185.1%), A2Z(2.1%), YALA(1.8%), SOMI(33.4%), BAS(1.1%), Q(1.3%), PTB(33.9%), OPEN(1.5%), AVNT(29.3%), UB(2.3%), TOSHI(29.8%), BARD(25.5%), TRADOOR(46.6%), BLESS(2.9%), FLUID(26.2%), HANA(0.9%), AKE(0.7%), LIGHT(173.9%), XAN(2.7%), TRUTH(2.2%), YB(38.7%), EUL(26.7%), CLO(26.3%), LAB(2.6%), RIVER(115.7%), 币安人生(0.6%), BLUAI(2.3%), APR(0.6%), ON(0.8%), KITE(2.9%), AT(1.9%), UAI(1.2%), STABLE(0.9%), JCT(0.8%), ALLO(1.0%), BEAT(31.1%), BOB(2.8%), RLS(2.8%), POWER(31.3%), US(1.4%), CYS(2.2%), BREV(43.8%), MAGMA(1.6%)
+2026-08-13 16:49:28: [PP369] [Binance] Đang lấy leverage brackets cho 436 coin... 
+2026-08-13 16:49:28: [PP369] [Binance] Đã lưu leverage cho 436 coin vào step_sizes.json 
+2026-08-13 16:49:28: [PP369] [AutoTrade] Khởi động: 436 coin | margin=$10 | 10x | type=LIMIT 
+2026-08-13 16:49:28: [PP369] [Binance] Loaded step and tick sizes from existing file: 852 symbols 
+2026-08-13 16:49:28: [PP369] [AutoTrade] Đã nạp leverageInfo cho 436 coin từ cache. 
+2026-08-13 16:49:29: [PP369] [PP369Stream] Kết nối WebSocket thành công (market/stream) 
+2026-08-13 16:49:33: [PP369] [AutoTrade] Bắt đầu scan... 
+2026-08-13 16:49:35: ◇ injected env (10) from .env // tip: ⌘ custom filepath { path: '/custom/path/.env' }
+2026-08-13 16:49:36: [PP369] [AI Reviewer] ✓ Đã nạp thành công mô hình AI (v1.1.0, mẫu N=19) 
+2026-08-13 16:49:36: [PP369] [AI Reviewer] 🔄 Tự động kích hoạt Python re-train mô hình AI trong nền... 
+2026-08-13 16:49:36: [PP369] [369] initH4Cache: Tất cả 803 coin đã có nến H4 đầu năm. 
+2026-08-13 16:49:36: [AutoTrade] Bỏ qua 170 coin có grid ngoài khoảng 3–25% (theo giá hiện tại): 4(2.7%), XRP(29.7%), ETC(47.8%), LINK(34.5%), BAT(51.5%), QTUM(44.7%), KNC(29.8%), DOT(38.8%), SOL(39.5%), AVAX(46.2%), AAVE(33.7%), FIL(44.6%), RSR(25.3%), BEL(2.9%), COTI(28.4%), ALICE(2.6%), ONE(38.2%), NKN(2.6%), DGB(1.6%), ATA(1.8%), DYDX(2.7%), KLAY(2.4%), IMX(27.4%), APE(2.4%), WOO(28.2%), DAR(2.1%), OP(34.6%), STG(2.1%), SPELL(38.5%), APT(53.2%), FET(2.2%), CKB(36.3%), USDC(30.0%), AMB(2.5%), LEVER(26.7%), RDNT(2.9%), SUI(43.5%), MAV(34.2%), DODOX(1.3%), ARK(33.1%), BOND(28.1%), GAS(32.7%), SUPER(35.3%), 1000SATS(293.3%), ACE(28.4%), MOVR(37.1%), JUP(1.8%), GLM(33.9%), PORTAL(2.8%), MYRO(3.0%), W(36.8%), BB(25.9%), IO(2.7%), ZK(40.5%), ZRO(36.2%), RARE(25.3%), SYN(2.9%), SYS(1.7%), ALPACA(25.2%), SUN(1.6%), DOGS(85.2%), BSW(2.5%), QUICK(2.3%), NEIRO(45.6%), FIO(2.5%), GHST(1.8%), LOKA(2.6%), COS(2.5%), SANTOS(62.9%), COW(29.2%), 1000000MOG(30.1%), DRIFT(26.3%), ACT(29.7%), HIPPO(2.9%), DEGEN(2.9%), 1000WHY(197.4%), THE(50.3%), CHILLGUY(2.5%), ORCA(29.1%), MOVE(47.7%), KOMA(2.2%), VELODROME(1.7%), MOCA(41.4%), VANA(35.5%), USUAL(34.2%), DF(2.6%), GRIFFAIN(2.6%), COOKIE(25.3%), D(2.2%), AVAAI(2.3%), PIPPIN(177.8%), TST(1.9%), HEI(2.4%), RED(35.2%), MUBARAK(1.7%), TUT(0.5%), BROCCOLI714(1.8%), BR(1.3%), PLUME(2.5%), FUN(1.7%), BABY(2.9%), SIGN(45.9%), PUNDIX(40.4%), CTK(28.3%), SXT(41.0%), ASR(34.8%), MILK(3.0%), OG(120.1%), AGT(1.9%), B(2.0%), MERL(163.1%), PORT3(2.5%), 1000000BOB(1.6%), LA(62.5%), HOME(2.8%), PUMPBTC(28.5%), MYX(397.2%), DMC(2.3%), OL(1.7%), SAHARA(38.6%), M(27.5%), TANSSI(2.4%), PUMP(1.1%), CROSS(3.0%), VELVET(0.4%), ZORA(60.9%), TAG(2.4%), ESPORTS(185.2%), A2Z(2.1%), YALA(1.8%), SOMI(33.4%), BAS(1.1%), Q(1.3%), PTB(34.0%), OPEN(1.5%), AVNT(29.2%), UB(2.3%), TOSHI(29.8%), BARD(25.5%), TRADOOR(46.6%), BLESS(2.9%), FLUID(26.2%), HANA(0.9%), AKE(0.7%), LIGHT(174.0%), XAN(2.7%), TRUTH(2.2%), YB(38.7%), EUL(26.7%), CLO(26.3%), LAB(2.6%), RIVER(115.6%), 币安人生(0.6%), BLUAI(2.3%), APR(0.6%), ON(0.8%), KITE(2.9%), AT(1.9%), UAI(1.2%), STABLE(0.9%), JCT(0.8%), ALLO(1.0%), BEAT(31.2%), BOB(2.8%), RLS(2.8%), POWER(31.3%), US(1.4%), CYS(2.2%), BREV(43.8%), MAGMA(1.6%)
+2026-08-13 16:49:37: [PP369] [Binance] Đang lấy leverage brackets cho 436 coin... 
+2026-08-13 16:49:38: [PP369] [Binance] Đã lưu leverage cho 436 coin vào step_sizes.json 
+2026-08-13 16:49:38: [PP369] [AutoTrade] Khởi động: 436 coin | margin=$10 | 10x | type=LIMIT 
+2026-08-13 16:49:38: [PP369] [Binance] Loaded step and tick sizes from existing file: 852 symbols 
+2026-08-13 16:49:38: [PP369] [AutoTrade] Đã nạp leverageInfo cho 436 coin từ cache. 
+2026-08-13 16:49:38: [PP369] [PP369Stream] Kết nối WebSocket thành công (market/stream) 
+2026-08-13 16:49:42: [PP369] [AutoTrade] Bắt đầu scan... 
+2026-08-13 16:52:21: [PP369] [AutoTrade] BANK → SHORT (Score: +4đ) tại $0.04135 
+2026-08-13 16:52:21: [PP369] [AutoTrade] Phân bổ Ký quỹ BANK: $65 (Gốc PP369+Vol $50 + Bonus $15 từ +3.4đ các tiêu chí bổ trợ | Score tổng: +4.0đ) 
+2026-08-13 16:52:21: [PP369] [AutoTrade] BANK SHORT: Từ khi chạm mốc Long ($0.03926), nến M1 đã xát mốc entry SHORT ($0.041350) rồi nảy xuống đáy $0.039050 (-5.56% >= 1.06% Khung/5) — HỦY LIMIT stale. 
+2026-08-13 16:52:31: [PP369] [AutoTrade] Phân bổ Ký quỹ BANK: $65 (Gốc PP369+Vol $50 + Bonus $15 từ +3.4đ các tiêu chí bổ trợ | Score tổng: +4.0đ) 
+2026-08-13 16:52:45: [PP369] [AutoTrade] Phân bổ Ký quỹ BANK: $65 (Gốc PP369+Vol $50 + Bonus $15 từ +3.4đ các tiêu chí bổ trợ | Score tổng: +4.0đ) 
+2026-08-13 16:52:47: [PP369] [AutoTrade] Phân bổ Ký quỹ BANK: $65 (Gốc PP369+Vol $50 + Bonus $15 từ +3.4đ các tiêu chí bổ trợ | Score tổng: +4.0đ) 
+2026-08-13 17:04:43: [PP369] [AutoTrade] 🟢 Hệ thống hoạt động bình thường | Theo dõi: 436 coin | Tiệm cận sát mốc (<=0.5%): 49 coin 
+2026-08-13 17:19:43: [PP369] [AutoTrade] 🟢 Hệ thống hoạt động bình thường | Theo dõi: 436 coin | Tiệm cận sát mốc (<=0.5%): 48 coin 
+2026-08-13 17:33:19: [PP369] [AutoTrade] Trailing SL (chạm mốc 45đ): MMT đạt ROI 4.64% -> Dịch SL trên sàn về entry +5đ ($0.1686, ROI ~0.59%) [Mức: +5đ (Khóa lãi)] 
+2026-08-13 17:33:19: [PP369] [AutoTrade] Đã hủy SL cũ của MMT (orderId=1000002504967574) 
+2026-08-13 17:33:19: [PP369] [AutoTrade] ✓ Đã dịch SL mới cho MMT @ $0.1686000 (orderId=1000002505029576) 
+2026-08-13 17:34:43: [PP369] [AutoTrade] 🟢 Hệ thống hoạt động bình thường | Theo dõi: 436 coin | Tiệm cận sát mốc (<=0.5%): 43 coin 
+2026-08-13 17:49:43: [PP369] [AutoTrade] 🟢 Hệ thống hoạt động bình thường | Theo dõi: 436 coin | Tiệm cận sát mốc (<=0.5%): 42 coin 
+2026-08-13 18:04:43: [PP369] [AutoTrade] 🟢 Hệ thống hoạt động bình thường | Theo dõi: 436 coin | Tiệm cận sát mốc (<=0.5%): 49 coin 
+2026-08-13 18:08:05: [PP369] [AutoTrade] BANK → SHORT (Score: +4.8đ) tại $0.04435 
+2026-08-13 18:08:05: [PP369] [AutoTrade] BANK SHORT không đạt Tiêu chí 2 (M15 biến động mạnh) — Đưa vào Watchlist chờ Retest H1 
+2026-08-13 18:19:43: [PP369] [AutoTrade] 🟢 Hệ thống hoạt động bình thường | Theo dõi: 436 coin | Tiệm cận sát mốc (<=0.5%): 43 coin 
+2026-08-13 18:35:13: [PP369] [AutoTrade] 🟢 Hệ thống hoạt động bình thường | Theo dõi: 436 coin | Tiệm cận sát mốc (<=0.5%): 44 coin 
+2026-08-13 18:41:59: [PP369] [AutoTrade] SKYAI → SHORT (Score: +3.8đ) tại $0.07686 
+2026-08-13 18:41:59: [PP369] [AutoTrade] SKYAI SHORT không đạt Tiêu chí 2 (M15 biến động mạnh) — Đưa vào Watchlist chờ Retest H1 
+2026-08-13 18:50:13: [PP369] [AutoTrade] 🟢 Hệ thống hoạt động bình thường | Theo dõi: 436 coin | Tiệm cận sát mốc (<=0.5%): 45 coin 
+2026-08-13 18:56:49: [PP369] [AutoTrade] AERO → LONG (Score: +5.3đ) tại $0.4042 
+2026-08-13 18:56:49: [PP369] [AutoTrade] Phân bổ Ký quỹ AERO: $70 (Gốc PP369+Vol $50 + Bonus $20 từ +4.3đ các tiêu chí bổ trợ | Score tổng: +5.3đ) 
+2026-08-13 18:56:49: [PP369] [AI Reviewer (Shadow)] 🟡 Khuyên BỎ QUA AERO (LONG) - Xác suất thắng 56.2% < 65% (- RANK_MIDCAP_150 (x0.9659), + VOL_ULTRA (x1.0594), - RSI_NEUTRAL (x0.8586), + LS_DIVERGENCE (x1.1039), - OI_STABLE (x0.9043), - VOL_STABLE (x0.9659), + BTC_NEUTRAL (x1.0861), + GRID_WIDE (x1.0474)) 
+2026-08-13 18:56:49: [PP369] [AutoTrade] Set leverage AEROUSDT = 5x (Bước 300đ: 7.42% → tính được 5x, giới hạn: 75x | Ký quỹ mục tiêu: $70) 
+2026-08-13 18:56:49: [PP369] [AutoTrade] ✓ AERO BUY 865.9 @ $0.4042 orderId=1508835674 status=NEW 
+2026-08-13 19:00:03: [PP369] [H1Retest] === Kiểm tra 2 coin trong Watchlist: [BANK(SHORT @$0.04435), SKYAI(SHORT @$0.07686)] === 
+2026-08-13 19:00:03: [PP369] [H1Retest] BANK SHORT nến H1 rút chân nhưng ĐÃ PHẢN ỨNG NẢY ROI = +26.83% (>= 5.0%) sau khi chạm entry. Bỏ qua không đặt limit. 
+2026-08-13 19:00:03: [PP369] [H1Retest] SKYAI SHORT nến H1 đã chạm mốc $0.07686 nhưng đâm thủng mốc (Close: $0.07773) — XÓA KHỎI WATCHLIST 
+2026-08-13 19:00:47: [PP369] [AutoTrade] BANK → LONG (Score: +5.7đ) tại $0.04226 
+2026-08-13 19:00:47: [PP369] [AutoTrade] Phân bổ Ký quỹ BANK: $75 (Gốc PP369+Vol $50 + Bonus $25 từ +5.1đ các tiêu chí bổ trợ | Score tổng: +5.7đ) 
+2026-08-13 19:00:47: [PP369] [AutoTrade] BANK LONG: Từ khi chạm mốc Short ($0.04435), nến M1 đã xát mốc entry LONG ($0.042260) rồi nảy lên đỉnh $0.044900 (+6.25% >= 0.99% Khung/5) — HỦY LIMIT stale. 
+2026-08-13 19:05:13: [PP369] [AutoTrade] 🟢 Hệ thống hoạt động bình thường | Theo dõi: 436 coin | Tiệm cận sát mốc (<=0.5%): 44 coin 
+2026-08-13 19:10:08: [PP369] [AutoTrade] SKYAI → SHORT (Score: +3.8đ) tại $0.07986 
+2026-08-13 19:10:08: [PP369] [AutoTrade] SKYAI SHORT không đạt Tiêu chí 2 (M15 biến động mạnh) — Đưa vào Watchlist chờ Retest H1 
+2026-08-13 19:20:13: [PP369] [AutoTrade] 🟢 Hệ thống hoạt động bình thường | Theo dõi: 436 coin | Tiệm cận sát mốc (<=0.5%): 41 coin 
+2026-08-13 19:35:13: [PP369] [AutoTrade] 🟢 Hệ thống hoạt động bình thường | Theo dõi: 436 coin | Tiệm cận sát mốc (<=0.5%): 50 coin 
+2026-08-13 19:35:34: [PP369] [AutoTrade] [BounceCancel] TA LONG: entry=$0.06187, current=$0.062427 (+0.90% >= 0.88%) → Hủy LIMIT ngay lập tức 
+2026-08-13 19:36:14: [PP369] [AutoTrade] TA → LONG (Score: +3.8đ) tại $0.06187 
+2026-08-13 19:36:14: [PP369] [AutoTrade] Phân bổ Ký quỹ TA: $60 (Gốc PP369+Vol $50 + Bonus $10 từ +2.8đ các tiêu chí bổ trợ | Score tổng: +3.8đ) 
+2026-08-13 19:36:14: [PP369] [AI Reviewer (Shadow)] 🟡 Khuyên BỎ QUA TA (LONG) - Xác suất thắng 55.1% < 65% (+ VOL_ULTRA (x1.0594), - RSI_NEUTRAL (x0.8586), + PA_4_LEVELS (x1.1039), - OI_STABLE (x0.9043), - VOL_STABLE (x0.9659), - FUNDING_DANGER (x0.9659), + BTC_NEUTRAL (x1.0861), - GRID_NORMAL (x0.9455)) 
+2026-08-13 19:36:14: [PP369] [AutoTrade] Set leverage TAUSDT = 8x (Bước 300đ: 4.85% → tính được 8x, giới hạn: 10x | Ký quỹ mục tiêu: $60) 
+2026-08-13 19:36:14: [PP369] [AutoTrade] ✓ TA BUY 7758 @ $0.06187 orderId=1303162987 status=NEW 
+2026-08-13 19:50:43: [PP369] [AutoTrade] 🟢 Hệ thống hoạt động bình thường | Theo dõi: 436 coin | Tiệm cận sát mốc (<=0.5%): 46 coin 
+2026-08-13 19:51:58: [PP369] [AutoTrade] [BounceCancel] AERO LONG: entry=$0.4042, current=$0.409773 (+1.38% >= 1.35%) → Hủy LIMIT ngay lập tức 
+2026-08-13 20:00:04: [PP369] [H1Retest] === Kiểm tra 1 coin trong Watchlist: [SKYAI(SHORT @$0.07986)] === 
+2026-08-13 20:00:04: [PP369] [H1Retest] SKYAI SHORT nến H1 rút chân nhưng ĐÃ PHẢN ỨNG NẢY ROI = +30.05% (>= 5.0%) sau khi chạm entry. Bỏ qua không đặt limit. 
+2026-08-13 20:06:13: [PP369] [AutoTrade] 🟢 Hệ thống hoạt động bình thường | Theo dõi: 436 coin | Tiệm cận sát mốc (<=0.5%): 45 coin 
+2026-08-13 20:10:36: [PP369] [AutoTrade] NOT → SHORT (Score: +5.5đ) tại $0.0003975 
+2026-08-13 20:10:36: [PP369] [AutoTrade] Phân bổ Ký quỹ NOT: $70 (Gốc PP369+Vol $50 + Bonus $20 từ +4.5đ các tiêu chí bổ trợ | Score tổng: +5.5đ) 
+2026-08-13 20:10:36: [PP369] [AI Reviewer (Shadow)] 🟡 Khuyên BỎ QUA NOT (SHORT) - Xác suất thắng 62.4% < 65% (+ VOL_ULTRA (x1.0594), + PA_4_LEVELS (x1.1039), + OI_SURGE (x1.0474), + VOL_SURGE (x1.0758), - FUNDING_DANGER (x0.9659), - BTC_ALIGNED (x0.8972), + GRID_WIDE (x1.0474)) 
+2026-08-13 20:10:36: [PP369] [AutoTrade] Set leverage NOTUSDT = 5x (Bước 300đ: 7.55% → tính được 5x, giới hạn: 50x | Ký quỹ mục tiêu: $70) 
+2026-08-13 20:10:36: [PP369] [AutoTrade] ✓ NOT SELL 880503 @ $0.0003975 orderId=8210251134 status=NEW 
+2026-08-13 20:11:15: [PP369] [AutoTrade] ✓ Đặt TP NOT @ $0.0003885 (đối ứng BUY) orderId=1000002505204866 
+2026-08-13 20:11:15: [PP369] [AutoTrade] ✓ Đặt SL NOT @ $0.0004078 (đối ứng BUY) orderId=1000002505204869 
+2026-08-13 20:17:51: [PP369] [AutoTrade] Trailing SL (chạm mốc 45đ): NOT đạt ROI 5.16% -> Dịch SL trên sàn về entry +5đ ($0.0003970, ROI ~0.63%) [Mức: +5đ (Khóa lãi)] 
+2026-08-13 20:17:51: [PP369] [AutoTrade] Đã hủy SL cũ của NOT (orderId=1000002505204869) 
+2026-08-13 20:17:51: [PP369] [AutoTrade] ✓ Đã dịch SL mới cho NOT @ $0.0003970 (orderId=1000002505211706) 
+2026-08-13 20:21:43: [PP369] [AutoTrade] 🟢 Hệ thống hoạt động bình thường | Theo dõi: 436 coin | Tiệm cận sát mốc (<=0.5%): 38 coin 
+2026-08-13 20:24:19: [PP369] [AutoTrade] NIL → SHORT (Score: +2.7đ) tại $0.04318 
+2026-08-13 20:24:19: [PP369] [AutoTrade] Phân bổ Ký quỹ NIL: $60 (Gốc PP369+Vol $50 + Bonus $10 từ +2.1đ các tiêu chí bổ trợ | Score tổng: +2.7đ) 
+2026-08-13 20:24:19: [PP369] [AI Reviewer (Shadow)] 🟡 Khuyên BỎ QUA NIL (SHORT) - Xác suất thắng 44.3% < 65% (- VOL_MID (x0.9091), - RSI_NEUTRAL (x0.8586), + LS_DIVERGENCE (x1.1039), - PA_0_LEVEL (x0.8586), - OI_STABLE (x0.9043), - VOL_DRY (x0.9152), - BTC_ALIGNED (x0.8972), + GRID_WIDE (x1.0474)) 
+2026-08-13 20:24:19: [PP369] [AutoTrade] Set leverage NILUSDT = 5x (Bước 300đ: 6.95% → tính được 5x, giới hạn: 50x | Ký quỹ mục tiêu: $60) 
+2026-08-13 20:24:19: [PP369] [AutoTrade] ✓ NIL SELL 6947.6 @ $0.04318 orderId=1402015468 status=NEW 
+2026-08-13 20:24:21: [PP369] [AutoTrade] ✓ Đặt TP NIL @ $0.042280 (đối ứng BUY) orderId=1000002505218454 
+2026-08-13 20:24:21: [PP369] [AutoTrade] ✓ Đặt SL NIL @ $0.044210 (đối ứng BUY) orderId=1000002505218461 
+2026-08-13 20:32:03: [PP369] [AutoTrade] Trailing SL (chạm mốc 45đ): NIL đạt ROI 4.75% -> Dịch SL trên sàn về entry +5đ ($0.04313, ROI ~0.58%) [Mức: +5đ (Khóa lãi)] 
+2026-08-13 20:32:03: [PP369] [AutoTrade] Đã hủy SL cũ của NIL (orderId=1000002505218461) 
+2026-08-13 20:32:03: [PP369] [AutoTrade] ✓ Đã dịch SL mới cho NIL @ $0.043130 (orderId=1000002505230596) 
+2026-08-13 20:36:08: [PP369] [AutoTrade] SKYAI → LONG (Score: +2.6đ) tại $0.07709 
+2026-08-13 20:36:08: [PP369] [AutoTrade] Phân bổ Ký quỹ SKYAI: $60 (Gốc PP369+Vol $50 + Bonus $10 từ +2.3đ các tiêu chí bổ trợ | Score tổng: +2.6đ) 
+2026-08-13 20:36:08: [PP369] [AI Reviewer (Shadow)] 🟡 Khuyên BỎ QUA SKYAI (LONG) - Xác suất thắng 48.7% < 65% (- RSI_NEUTRAL (x0.8586), - PA_0_LEVEL (x0.8586), - OI_STABLE (x0.9043), - VOL_STABLE (x0.9659), + BTC_NEUTRAL (x1.0861), - GRID_NORMAL (x0.9455)) 
+2026-08-13 20:36:08: [PP369] [AutoTrade] Set leverage SKYAIUSDT = 10x (Bước 300đ: 3.89% → tính được 10x, giới hạn: 10x | Ký quỹ mục tiêu: $60) 
+2026-08-13 20:36:09: [PP369] [AutoTrade] ✓ SKYAI BUY 7783 @ $0.07709 orderId=2592495977 status=NEW 
+2026-08-13 20:36:14: [PP369] [AutoTrade] Phân bổ Ký quỹ SKYAI: $60 (Gốc PP369+Vol $50 + Bonus $10 từ +2.3đ các tiêu chí bổ trợ | Score tổng: +2.6đ) 
+2026-08-13 20:36:15: [PP369] [AutoTrade] ✓ Đặt TP SKYAI @ $0.0778500 (đối ứng SELL) orderId=1000002505239583 
+2026-08-13 20:36:15: [PP369] [AutoTrade] ✓ Đặt SL SKYAI @ $0.0759200 (đối ứng SELL) orderId=1000002505239586 
+2026-08-13 20:36:20: [PP369] [AutoTrade] Phân bổ Ký quỹ SKYAI: $60 (Gốc PP369+Vol $50 + Bonus $10 từ +2.3đ các tiêu chí bổ trợ | Score tổng: +2.6đ) 
+2026-08-13 20:36:40: [PP369] [AutoTrade] Phân bổ Ký quỹ SKYAI: $60 (Gốc PP369+Vol $50 + Bonus $10 từ +2.3đ các tiêu chí bổ trợ | Score tổng: +2.6đ) 
+2026-08-13 20:36:43: [PP369] [AutoTrade] 🟢 Hệ thống hoạt động bình thường | Theo dõi: 436 coin | Tiệm cận sát mốc (<=0.5%): 44 coin 
+2026-08-13 20:37:46: [PP369] [AutoTrade] HOLO → LONG (Score: +3.3đ) tại $0.06869 
+2026-08-13 20:37:46: [PP369] [AutoTrade] Phân bổ Ký quỹ HOLO: $65 (Gốc PP369+Vol $50 + Bonus $15 từ +3.0đ các tiêu chí bổ trợ | Score tổng: +3.3đ) 
+2026-08-13 20:37:46: [PP369] [AutoTrade] HOLO LONG: Từ khi chạm mốc Short ($0.07083), nến M1 đã xát mốc entry LONG ($0.068750) rồi nảy lên đỉnh $0.069320 (+0.83% >= 0.62% Khung/5) — HỦY LIMIT stale. 
+2026-08-13 20:39:22: [PP369] [AutoTrade] Phân bổ Ký quỹ HOLO: $65 (Gốc PP369+Vol $50 + Bonus $15 từ +3.0đ các tiêu chí bổ trợ | Score tổng: +3.3đ) 
+2026-08-13 20:39:39: [PP369] [AutoTrade] Phân bổ Ký quỹ HOLO: $65 (Gốc PP369+Vol $50 + Bonus $15 từ +3.0đ các tiêu chí bổ trợ | Score tổng: +3.3đ) 
+2026-08-13 20:39:46: [PP369] [AutoTrade] Phân bổ Ký quỹ HOLO: $65 (Gốc PP369+Vol $50 + Bonus $15 từ +3.0đ các tiêu chí bổ trợ | Score tổng: +3.3đ) 
+2026-08-13 20:40:16: [PP369] [AutoTrade] Phân bổ Ký quỹ HOLO: $65 (Gốc PP369+Vol $50 + Bonus $15 từ +3.0đ các tiêu chí bổ trợ | Score tổng: +3.3đ) 
+2026-08-13 20:41:04: [PP369] [AutoTrade] Phân bổ Ký quỹ HOLO: $65 (Gốc PP369+Vol $50 + Bonus $15 từ +3.0đ các tiêu chí bổ trợ | Score tổng: +3.3đ) 
+2026-08-13 20:41:35: [PP369] [AutoTrade] Phân bổ Ký quỹ HOLO: $65 (Gốc PP369+Vol $50 + Bonus $15 từ +3.0đ các tiêu chí bổ trợ | Score tổng: +3.3đ) 
+2026-08-13 20:41:44: [PP369] [AutoTrade] Phân bổ Ký quỹ HOLO: $65 (Gốc PP369+Vol $50 + Bonus $15 từ +3.0đ các tiêu chí bổ trợ | Score tổng: +3.3đ) 
+2026-08-13 20:41:53: [PP369] [AutoTrade] Phân bổ Ký quỹ HOLO: $65 (Gốc PP369+Vol $50 + Bonus $15 từ +3.0đ các tiêu chí bổ trợ | Score tổng: +3.3đ) 
+2026-08-13 20:49:38: [PP369] [AutoTrade] [CoinRefresh] Tái kiểm tra danh sách: 436 → 438 coin hợp lệ theo giá hiện tại. 
+2026-08-13 20:51:43: [PP369] [AutoTrade] 🟢 Hệ thống hoạt động bình thường | Theo dõi: 438 coin | Tiệm cận sát mốc (<=0.5%): 40 coin 
+2026-08-13 20:56:10: [PP369] [AutoTrade] SKYAI → LONG (Score: +2.3đ) tại $0.07409 
+2026-08-13 20:56:10: [PP369] [AutoTrade] SKYAI LONG không đạt Tiêu chí 2 (M15 biến động mạnh) — Đưa vào Watchlist chờ Retest H1 
+2026-08-13 21:00:04: [PP369] [H1Retest] === Kiểm tra 1 coin trong Watchlist: [SKYAI(LONG @$0.07409)] === 
+2026-08-13 21:00:05: [PP369] [H1Retest] SKYAI LONG nến H1 đã chạm mốc $0.07409 nhưng đâm thủng mốc (Close: $0.07328) — XÓA KHỎI WATCHLIST 
+2026-08-13 21:06:43: [PP369] [AutoTrade] 🟢 Hệ thống hoạt động bình thường | Theo dõi: 438 coin | Tiệm cận sát mốc (<=0.5%): 41 coin 
+2026-08-13 21:21:43: [PP369] [AutoTrade] 🟢 Hệ thống hoạt động bình thường | Theo dõi: 438 coin | Tiệm cận sát mốc (<=0.5%): 39 coin 
+2026-08-13 21:26:25: [PP369] [AutoTrade] HOLO → SHORT (Score: +3.1đ) tại $0.07083 
+2026-08-13 21:26:25: [PP369] [AutoTrade] Phân bổ Ký quỹ HOLO: $60 (Gốc PP369+Vol $50 + Bonus $10 từ +2.8đ các tiêu chí bổ trợ | Score tổng: +3.1đ) 
+2026-08-13 21:26:25: [PP369] [AI Reviewer (Shadow)] 🟡 Khuyên BỎ QUA HOLO (SHORT) - Xác suất thắng 55.1% < 65% (- RSI_NEUTRAL (x0.8586), + LS_DIVERGENCE (x1.1039), + PA_4_LEVELS (x1.1039), + OI_COOLING (x1.0559), - VOL_DRY (x0.9152), - BTC_ALIGNED (x0.8972), - GRID_NORMAL (x0.9455)) 
+2026-08-13 21:26:26: [PP369] [AutoTrade] Set leverage HOLOUSDT = 9x (Bước 300đ: 4.24% → tính được 9x, giới hạn: 50x | Ký quỹ mục tiêu: $60) 
+2026-08-13 21:26:26: [PP369] [AutoTrade] ✓ HOLO SELL 7623 @ $0.07083 orderId=896361171 status=NEW 
+2026-08-13 21:32:03: [PP369] [AutoTrade] [BounceCancel] HOLO SHORT: entry=$0.07083, current=$0.070280 (-0.78% >= 0.77%) → Hủy LIMIT ngay lập tức 
+2026-08-13 21:33:10: [PP369] [GridBlacklist] Đã tự động giải phóng AUCTION khỏi Blacklist sau 1 tuần. 
+2026-08-13 21:33:10: [PP369] [GridBlacklist] ĐÃ THÊM AUCTION VÀO BLACKLIST 7 NGÀY (Lý do: x*2 (10.27%) > y (5.13%)). Sẽ tự động giải phóng sau 7 ngày. 
+2026-08-13 21:34:29: [PP369] [AutoTrade] HYPE → SHORT (Score: +5.3đ) tại $58.452 
+2026-08-13 21:34:29: [PP369] [AutoTrade] Phân bổ Ký quỹ HYPE: $70 (Gốc PP369+Vol $50 + Bonus $20 từ +4.3đ các tiêu chí bổ trợ | Score tổng: +5.3đ) 
+2026-08-13 21:34:29: [PP369] [AI Reviewer (Shadow)] 🟡 Khuyên BỎ QUA HYPE (SHORT) - Xác suất thắng 63.3% < 65% (+ RANK_TOP10 (x1.0559), + VOL_ULTRA (x1.0594), + RSI_NEAR (x1.1818), - PA_0_LEVEL (x0.8586), + OI_SURGE (x1.0474), + VOL_SURGE (x1.0758), - BTC_ALIGNED (x0.8972), + GRID_WIDE (x1.0474)) 
+2026-08-13 21:34:29: [PP369] [AutoTrade] Set leverage HYPEUSDT = 7x (Bước 300đ: 5.13% → tính được 7x, giới hạn: 75x | Ký quỹ mục tiêu: $70) 
+2026-08-13 21:34:29: [PP369] [AutoTrade] ✓ HYPE SELL 8.38 @ $58.452 orderId=11825960605 status=NEW 
+2026-08-13 21:36:43: [PP369] [AutoTrade] 🟢 Hệ thống hoạt động bình thường | Theo dõi: 438 coin | Tiệm cận sát mốc (<=0.5%): 48 coin 
+2026-08-13 21:36:57: [PP369] [AutoTrade] Phân bổ Ký quỹ HOLO: $60 (Gốc PP369+Vol $50 + Bonus $10 từ +2.8đ các tiêu chí bổ trợ | Score tổng: +3.1đ) 
+2026-08-13 21:36:57: [PP369] [AI Reviewer (Shadow)] 🟡 Khuyên BỎ QUA HOLO (SHORT) - Xác suất thắng 55.1% < 65% (- RSI_NEUTRAL (x0.8586), + LS_DIVERGENCE (x1.1039), + PA_4_LEVELS (x1.1039), + OI_COOLING (x1.0559), - VOL_DRY (x0.9152), - BTC_ALIGNED (x0.8972), - GRID_NORMAL (x0.9455)) 
+2026-08-13 21:36:58: [PP369] [AutoTrade] Set leverage HOLOUSDT = 9x (Bước 300đ: 4.24% → tính được 9x, giới hạn: 50x | Ký quỹ mục tiêu: $60) 
+2026-08-13 21:36:58: [PP369] [AutoTrade] ✓ HOLO SELL 7623 @ $0.07083 orderId=896397627 status=NEW 
+2026-08-13 21:37:16: [PP369] [AutoTrade] ✓ Đặt TP HOLO @ $0.0699300 (đối ứng BUY) orderId=1000002505343608 
+2026-08-13 21:37:16: [PP369] [AutoTrade] ✓ Đặt SL HOLO @ $0.0718600 (đối ứng BUY) orderId=1000002505343621 
+2026-08-13 21:45:58: [PP369] [AutoTrade] ✓ Đặt TP TA @ $0.0627700 (đối ứng SELL) orderId=1000002505356716 
+2026-08-13 21:45:58: [PP369] [AutoTrade] ✓ Đặt SL TA @ $0.0608400 (đối ứng SELL) orderId=1000002505356719 
+2026-08-13 21:46:13: [PP369] [AutoTrade] Lệnh LIMIT của HYPE đã chạm/vượt Entry ($58.452) quá 10 phút không khớp (10.0 phút) -> Tiến hành hủy... 
+2026-08-13 21:46:13: [PP369] [AutoTrade] ✓ Đã hủy thành công lệnh LIMIT treo của HYPE 
+2026-08-13 21:47:10: [PP369] [AutoTrade] Phân bổ Ký quỹ HYPE: $70 (Gốc PP369+Vol $50 + Bonus $20 từ +4.3đ các tiêu chí bổ trợ | Score tổng: +5.3đ) 
+2026-08-13 21:47:10: [PP369] [AI Reviewer (Shadow)] 🟡 Khuyên BỎ QUA HYPE (SHORT) - Xác suất thắng 63.3% < 65% (+ RANK_TOP10 (x1.0559), + VOL_ULTRA (x1.0594), + RSI_NEAR (x1.1818), - PA_0_LEVEL (x0.8586), + OI_SURGE (x1.0474), + VOL_SURGE (x1.0758), - BTC_ALIGNED (x0.8972), + GRID_WIDE (x1.0474)) 
+2026-08-13 21:47:10: [PP369] [AutoTrade] Set leverage HYPEUSDT = 7x (Bước 300đ: 5.13% → tính được 7x, giới hạn: 75x | Ký quỹ mục tiêu: $70) 
+2026-08-13 21:47:10: [PP369] [AutoTrade] ✓ HYPE SELL 8.38 @ $58.452 orderId=11826315981 status=NEW 
+2026-08-13 21:51:12: [PP369] [AutoTrade] TA → LONG (Score: +3.3đ) tại $0.05587 
+2026-08-13 21:51:12: [PP369] [AutoTrade] TA LONG không đạt Tiêu chí 2 (M15 biến động mạnh) — Đưa vào Watchlist chờ Retest H1 
+2026-08-13 21:51:43: [PP369] [AutoTrade] 🟢 Hệ thống hoạt động bình thường | Theo dõi: 438 coin | Tiệm cận sát mốc (<=0.5%): 44 coin 
+2026-08-13 21:59:35: [PP369] [AutoTrade] BANANAS31 → LONG (Score: +3.5999999999999996đ) tại $0.008085 
+2026-08-13 21:59:35: [PP369] [AutoTrade] Phân bổ Ký quỹ BANANAS31: $60 (Gốc PP369+Vol $50 + Bonus $10 từ +2.6đ các tiêu chí bổ trợ | Score tổng: +3.6đ) 
+2026-08-13 21:59:35: [PP369] [AI Reviewer (Shadow)] 🟡 Khuyên BỎ QUA BANANAS31 (LONG) - Xác suất thắng 53.1% < 65% (+ VOL_ULTRA (x1.0594), - RSI_NEUTRAL (x0.8586), + PA_1_LEVEL (x1.0559), - OI_STABLE (x0.9043), - VOL_DRY (x0.9152), + BTC_NEUTRAL (x1.0861), - GRID_NORMAL (x0.9455)) 
+2026-08-13 21:59:35: [PP369] [AutoTrade] Set leverage BANANAS31USDT = 10x (Bước 300đ: 3.71% → tính được 10x, giới hạn: 25x | Ký quỹ mục tiêu: $60) 
+2026-08-13 21:59:35: [PP369] [AutoTrade] ✓ BANANAS31 BUY 74211 @ $0.008085 orderId=2249592907 status=NEW 
+2026-08-13 22:00:05: [PP369] [H1Retest] === Kiểm tra 1 coin trong Watchlist: [TA(LONG @$0.05587)] === 
+2026-08-13 22:00:05: [PP369] [H1Retest] TA LONG nến H1 đã chạm mốc $0.05587 nhưng đâm thủng mốc (Close: $0.05174) — XÓA KHỎI WATCHLIST 
+2026-08-13 22:03:28: [PP369] [AutoTrade] [BounceCancel] BANANAS31 LONG: entry=$0.008085, current=$0.008140 (+0.68% >= 0.67%) → Hủy LIMIT ngay lập tức 
+2026-08-13 22:06:43: [PP369] [AutoTrade] 🟢 Hệ thống hoạt động bình thường | Theo dõi: 438 coin | Tiệm cận sát mốc (<=0.5%): 44 coin 
+2026-08-13 22:14:40: [PP369] [AutoTrade] SKYAI → SHORT (Score: +3.3đ) tại $0.07686 
+2026-08-13 22:14:40: [PP369] [AutoTrade] SKYAI SHORT không đạt Tiêu chí 2 (M15 biến động mạnh) — Đưa vào Watchlist chờ Retest H1 
+2026-08-13 22:19:27: [PP369] [AutoTrade] BANK → LONG (Score: +4.9đ) tại $0.03926 
+2026-08-13 22:19:27: [PP369] [AutoTrade] Phân bổ Ký quỹ BANK: $70 (Gốc PP369+Vol $50 + Bonus $20 từ +4.3đ các tiêu chí bổ trợ | Score tổng: +4.9đ) 
+2026-08-13 22:19:27: [PP369] [AI Reviewer (Shadow)] 🟡 Khuyên BỎ QUA BANK (LONG) - Xác suất thắng 48.4% < 65% (- VOL_MID (x0.9091), - RSI_NEUTRAL (x0.8586), - PA_0_LEVEL (x0.8586), - OI_STABLE (x0.9043), - VOL_STABLE (x0.9659), + BTC_NEUTRAL (x1.0861), + GRID_WIDE (x1.0474)) 
+2026-08-13 22:19:27: [PP369] [AutoTrade] Set leverage BANKUSDT = 5x (Bước 300đ: 7.64% → tính được 5x, giới hạn: 50x | Ký quỹ mục tiêu: $70) 
+2026-08-13 22:19:27: [PP369] [AutoTrade] ✓ BANK BUY 8914 @ $0.03926 orderId=3307881502 status=NEW 
+2026-08-13 22:19:58: [PP369] [AutoTrade] ✓ Đặt TP BANK @ $0.0401600 (đối ứng SELL) orderId=1000002505412885 
+2026-08-13 22:19:58: [PP369] [AutoTrade] ✓ Đặt SL BANK @ $0.0382300 (đối ứng SELL) orderId=1000002505412888 
+2026-08-13 22:21:43: [PP369] [AutoTrade] 🟢 Hệ thống hoạt động bình thường | Theo dõi: 438 coin | Tiệm cận sát mốc (<=0.5%): 36 coin 
+2026-08-13 22:22:16: [PP369] [AutoTrade] ✓ Đặt TP HYPE @ $57.55200 (đối ứng BUY) orderId=1000002505417237 
+2026-08-13 22:22:16: [PP369] [AutoTrade] ✓ Đặt SL HYPE @ $59.48200 (đối ứng BUY) orderId=1000002505417242 
+2026-08-13 22:22:29: [PP369] [AutoTrade] TA → LONG (Score: +3.8đ) tại $0.05887 
+2026-08-13 22:22:29: [PP369] [AutoTrade] TA LONG không đạt Tiêu chí 2 (M15 biến động mạnh) — Đưa vào Watchlist chờ Retest H1 
+2026-08-13 22:25:47: [PP369] [AutoTrade] BANANAS31 → LONG (Score: +3.1đ) tại $0.008085 
+2026-08-13 22:25:47: [PP369] [AutoTrade] Phân bổ Ký quỹ BANANAS31: $60 (Gốc PP369+Vol $50 + Bonus $10 từ +2.1đ các tiêu chí bổ trợ | Score tổng: +3.1đ) 
+2026-08-13 22:25:47: [PP369] [AutoTrade] BANANAS31 LONG: Từ khi chạm mốc Short ($0.008349), nến M1 đã xát mốc entry LONG ($0.008092) rồi nảy lên đỉnh $0.008199 (+1.32% >= 0.65% Khung/5) — HỦY LIMIT stale. 
+2026-08-13 22:29:04: [PP369] [AutoTrade] Trailing SL (chạm mốc 45đ): HYPE đạt ROI 5.05% -> Dịch SL trên sàn về entry +5đ ($58.402, ROI ~0.6%) [Mức: +5đ (Khóa lãi)] 
+2026-08-13 22:29:04: [PP369] [AutoTrade] Đã hủy SL cũ của HYPE (orderId=1000002505417242) 
+2026-08-13 22:29:05: [PP369] [AutoTrade] ✓ Đã dịch SL mới cho HYPE @ $58.40200 (orderId=1000002505430567) 
+2026-08-13 22:35:13: [PP369] [AutoTrade] Phân bổ Ký quỹ BANANAS31: $60 (Gốc PP369+Vol $50 + Bonus $10 từ +2.1đ các tiêu chí bổ trợ | Score tổng: +3.1đ) 
+2026-08-13 22:35:16: [PP369] [AutoTrade] Phân bổ Ký quỹ BANANAS31: $60 (Gốc PP369+Vol $50 + Bonus $10 từ +2.1đ các tiêu chí bổ trợ | Score tổng: +3.1đ) 
+2026-08-13 22:35:29: [PP369] [AutoTrade] Phân bổ Ký quỹ BANANAS31: $60 (Gốc PP369+Vol $50 + Bonus $10 từ +2.1đ các tiêu chí bổ trợ | Score tổng: +3.1đ) 
+2026-08-13 22:35:47: [PP369] [AutoTrade] Phân bổ Ký quỹ BANANAS31: $60 (Gốc PP369+Vol $50 + Bonus $10 từ +2.1đ các tiêu chí bổ trợ | Score tổng: +3.1đ) 
+2026-08-13 22:36:00: [PP369] [AutoTrade] Phân bổ Ký quỹ BANANAS31: $60 (Gốc PP369+Vol $50 + Bonus $10 từ +2.1đ các tiêu chí bổ trợ | Score tổng: +3.1đ) 
+2026-08-13 22:36:18: [PP369] [AutoTrade] Phân bổ Ký quỹ BANANAS31: $60 (Gốc PP369+Vol $50 + Bonus $10 từ +2.1đ các tiêu chí bổ trợ | Score tổng: +3.1đ) 
+2026-08-13 22:36:37: [PP369] [AutoTrade] Phân bổ Ký quỹ BANANAS31: $60 (Gốc PP369+Vol $50 + Bonus $10 từ +2.1đ các tiêu chí bổ trợ | Score tổng: +3.1đ) 
+2026-08-13 22:36:43: [PP369] [AutoTrade] 🟢 Hệ thống hoạt động bình thường | Theo dõi: 438 coin | Tiệm cận sát mốc (<=0.5%): 38 coin 
+2026-08-13 22:36:46: [PP369] [AutoTrade] Phân bổ Ký quỹ BANANAS31: $60 (Gốc PP369+Vol $50 + Bonus $10 từ +2.1đ các tiêu chí bổ trợ | Score tổng: +3.1đ) 
+2026-08-13 22:36:51: [PP369] [AutoTrade] Phân bổ Ký quỹ BANANAS31: $60 (Gốc PP369+Vol $50 + Bonus $10 từ +2.1đ các tiêu chí bổ trợ | Score tổng: +3.1đ) 
+2026-08-13 22:45:12: [PP369] [GridBlacklist] Đã tự động giải phóng 1000CAT khỏi Blacklist sau 1 tuần. 
+2026-08-13 22:45:12: [PP369] [GridBlacklist] ĐÃ THÊM 1000CAT VÀO BLACKLIST 7 NGÀY (Lý do: x*2 (12.89%) > y (11.97%)). Sẽ tự động giải phóng sau 7 ngày. 
+2026-08-13 22:47:33: [PP369] [AutoTrade] PIEVERSE → LONG (Score: +3.1đ) tại $0.7328 
+2026-08-13 22:47:33: [PP369] [AutoTrade] Phân bổ Ký quỹ PIEVERSE: $60 (Gốc PP369+Vol $50 + Bonus $10 từ +2.1đ các tiêu chí bổ trợ | Score tổng: +3.1đ) 
+2026-08-13 22:47:33: [PP369] [AI Reviewer (Shadow)] 🟡 Khuyên BỎ QUA PIEVERSE (LONG) - Xác suất thắng 48.8% < 65% (+ VOL_ULTRA (x1.0594), - RSI_NEUTRAL (x0.8586), - PA_0_LEVEL (x0.8586), - OI_STABLE (x0.9043), - VOL_DRY (x0.9152), + BTC_NEUTRAL (x1.0861), - GRID_NORMAL (x0.9455)) 
+2026-08-13 22:47:33: [PP369] [AutoTrade] Set leverage PIEVERSEUSDT = 9x (Bước 300đ: 4.09% → tính được 9x, giới hạn: 20x | Ký quỹ mục tiêu: $60) 
+2026-08-13 22:47:34: [PP369] [AutoTrade] ✓ PIEVERSE BUY 736 @ $0.7328 orderId=1759476528 status=NEW 
+2026-08-13 22:51:43: [PP369] [AutoTrade] 🟢 Hệ thống hoạt động bình thường | Theo dõi: 438 coin | Tiệm cận sát mốc (<=0.5%): 40 coin 
+2026-08-13 22:57:01: [PP369] [AutoTrade] HOLO → LONG (Score: +2.9000000000000004đ) tại $0.06869 
+2026-08-13 22:57:01: [PP369] [AutoTrade] Phân bổ Ký quỹ HOLO: $60 (Gốc PP369+Vol $50 + Bonus $10 từ +2.3đ các tiêu chí bổ trợ | Score tổng: +2.9đ) 
+2026-08-13 22:57:01: [PP369] [AI Reviewer (Shadow)] 🟡 Khuyên BỎ QUA HOLO (LONG) - Xác suất thắng 48.9% < 65% (- VOL_MID (x0.9091), - RSI_NEUTRAL (x0.8586), - PA_0_LEVEL (x0.8586), + OI_COOLING (x1.0559), - VOL_DRY (x0.9152), + BTC_NEUTRAL (x1.0861), - GRID_NORMAL (x0.9455)) 
+2026-08-13 22:57:01: [PP369] [AutoTrade] Set leverage HOLOUSDT = 8x (Bước 300đ: 4.37% → tính được 8x, giới hạn: 50x | Ký quỹ mục tiêu: $60) 
+2026-08-13 22:57:01: [PP369] [AutoTrade] ✓ HOLO BUY 6987 @ $0.06869 orderId=896648427 status=NEW 
+2026-08-13 22:57:05: [PP369] [AutoTrade] ✓ Đặt TP HOLO @ $0.0695300 (đối ứng SELL) orderId=1000002505477804 
+2026-08-13 22:57:05: [PP369] [AutoTrade] ✓ Đặt SL HOLO @ $0.0676000 (đối ứng SELL) orderId=1000002505477807 
+2026-08-13 22:57:53: [PP369] [AutoTrade] ✓ Đặt TP PIEVERSE @ $0.7418000 (đối ứng SELL) orderId=1000002505479155 
+2026-08-13 22:57:53: [PP369] [AutoTrade] ✓ Đặt SL PIEVERSE @ $0.7225000 (đối ứng SELL) orderId=1000002505479163 
+2026-08-13 22:57:54: [PP369] [GridBlacklist] Đã tự động giải phóng TURTLE khỏi Blacklist sau 1 tuần. 
+2026-08-13 22:57:54: [PP369] [GridBlacklist] ĐÃ THÊM TURTLE VÀO BLACKLIST 7 NGÀY (Lý do: x*2 (5.11%) > y (4.54%)). Sẽ tự động giải phóng sau 7 ngày. 
+2026-08-13 23:00:05: [PP369] [H1Retest] === Kiểm tra 2 coin trong Watchlist: [SKYAI(SHORT @$0.07686), TA(LONG @$0.05887)] === 
+2026-08-13 23:00:05: [PP369] [H1Retest] SKYAI SHORT nến H1 rút chân nhưng ĐÃ PHẢN ỨNG NẢY ROI = +27.17% (>= 5.0%) sau khi chạm entry. Bỏ qua không đặt limit. 
+2026-08-13 23:00:05: [PP369] [H1Retest] TA LONG nến H1 đã chạm mốc $0.05887 nhưng đâm thủng mốc (Close: $0.05952) — XÓA KHỎI WATCHLIST 
+2026-08-13 23:05:17: [PP369] [AutoTrade] Trailing SL (chạm mốc 70đ): HOLO đạt ROI 7.65% -> Dịch SL trên sàn về entry +5đ ($0.06868, ROI ~0.58%) [Mức: +5đ (Khóa lãi)] 
+2026-08-13 23:05:17: [PP369] [AutoTrade] Đã hủy SL cũ của HOLO (orderId=1000002505477807) 
+2026-08-13 23:05:17: [PP369] [AutoTrade] ✓ Đã dịch SL mới cho HOLO @ $0.0686800 (orderId=1000002505493263) 
+2026-08-13 23:06:11: [PP369] [AutoTrade] 🎯 Near-TP Lock (Đạt >=90% TP): HOLO đạt ROI 9.65% -> Dịch SL trên sàn về mốc 75% Lợi Nhuận TP ($0.06931, ROI ~+7.87%) 
+2026-08-13 23:06:11: [PP369] [AutoTrade] Đã hủy SL cũ của HOLO (orderId=1000002505493263) 
+2026-08-13 23:06:11: [PP369] [AutoTrade] ✓ Đã dịch SL mới cho HOLO @ $0.0693100 (orderId=1000002505494771) 
+2026-08-13 23:06:43: [PP369] [AutoTrade] 🟢 Hệ thống hoạt động bình thường | Theo dõi: 438 coin | Tiệm cận sát mốc (<=0.5%): 41 coin 
+2026-08-13 23:19:58: [PP369] [AutoTrade] BOME → LONG (Score: +3.4đ) tại $0.0007522 
+2026-08-13 23:19:58: [PP369] [AutoTrade] Phân bổ Ký quỹ BOME: $60 (Gốc PP369+Vol $50 + Bonus $10 từ +2.6đ các tiêu chí bổ trợ | Score tổng: +3.4đ) 
+2026-08-13 23:19:58: [PP369] [AI Reviewer (Shadow)] 🟡 Khuyên BỎ QUA BOME (LONG) - Xác suất thắng 53.1% < 65% (+ VOL_ULTRA (x1.0594), - RSI_NEUTRAL (x0.8586), + PA_1_LEVEL (x1.0559), - OI_STABLE (x0.9043), - VOL_DRY (x0.9152), + BTC_NEUTRAL (x1.0861), - GRID_NORMAL (x0.9455)) 
+2026-08-13 23:19:59: [PP369] [AutoTrade] Set leverage BOMEUSDT = 9x (Bước 300đ: 3.99% → tính được 9x, giới hạn: 50x | Ký quỹ mục tiêu: $60) 
+2026-08-13 23:19:59: [PP369] [AutoTrade] ✓ BOME BUY 717894 @ $0.0007522 orderId=8503700453 status=NEW 
+2026-08-13 23:20:05: [PP369] [AutoTrade] ✓ Đặt TP BOME @ $0.0007612 (đối ứng SELL) orderId=1000002505513958 
+2026-08-13 23:20:05: [PP369] [AutoTrade] ✓ Đặt SL BOME @ $0.0007419 (đối ứng SELL) orderId=1000002505513960 
+2026-08-13 23:21:43: [PP369] [AutoTrade] 🟢 Hệ thống hoạt động bình thường | Theo dõi: 438 coin | Tiệm cận sát mốc (<=0.5%): 39 coin 
+2026-08-13 23:28:59: [PP369] [AutoTrade] 🎯 Near-TP Lock (Đạt >=90% TP): HYPE đạt ROI 9.82% -> Dịch SL trên sàn về mốc 75% Lợi Nhuận TP ($57.777, ROI ~+8.08%) 
+2026-08-13 23:28:59: [PP369] [AutoTrade] Đã hủy SL cũ của HYPE (orderId=1000002505430567) 
+2026-08-13 23:28:59: [PP369] [AutoTrade] ✓ Đã dịch SL mới cho HYPE @ $57.77700 (orderId=1000002505524812) 
+2026-08-13 23:36:22: [PP369] [AutoTrade] HOLO → SHORT (Score: +3.8999999999999995đ) tại $0.07083 
+2026-08-13 23:36:22: [PP369] [AutoTrade] Phân bổ Ký quỹ HOLO: $65 (Gốc PP369+Vol $50 + Bonus $15 từ +3.1đ các tiêu chí bổ trợ | Score tổng: +3.9đ) 
+2026-08-13 23:36:22: [PP369] [AutoTrade] HOLO SHORT: Từ khi chạm mốc Long ($0.06869), nến M1 đã xát mốc entry SHORT ($0.070830) rồi nảy xuống đáy $0.068500 (-3.29% >= 0.62% Khung/5) — HỦY LIMIT stale. 
+2026-08-13 23:36:39: [PP369] [AutoTrade] Phân bổ Ký quỹ HOLO: $65 (Gốc PP369+Vol $50 + Bonus $15 từ +3.1đ các tiêu chí bổ trợ | Score tổng: +3.9đ) 
+2026-08-13 23:36:43: [PP369] [AutoTrade] 🟢 Hệ thống hoạt động bình thường | Theo dõi: 438 coin | Tiệm cận sát mốc (<=0.5%): 30 coin 
+2026-08-13 23:36:43: [PP369] [AutoTrade] Phân bổ Ký quỹ HOLO: $65 (Gốc PP369+Vol $50 + Bonus $15 từ +3.1đ các tiêu chí bổ trợ | Score tổng: +3.9đ) 
+2026-08-13 23:36:54: [PP369] [AutoTrade] Phân bổ Ký quỹ HOLO: $65 (Gốc PP369+Vol $50 + Bonus $15 từ +3.1đ các tiêu chí bổ trợ | Score tổng: +3.9đ) 
+2026-08-13 23:39:25: [PP369] [AutoTrade] G → LONG (Score: +5.3đ) tại $0.00349 
+2026-08-13 23:39:25: [PP369] [AutoTrade] Phân bổ Ký quỹ G: $70 (Gốc PP369+Vol $50 + Bonus $20 từ +4.3đ các tiêu chí bổ trợ | Score tổng: +5.3đ) 
+2026-08-13 23:39:25: [PP369] [AI Reviewer (Shadow)] 🟡 Khuyên BỎ QUA G (LONG) - Xác suất thắng 63.1% < 65% (+ VOL_ULTRA (x1.0594), - RSI_NEUTRAL (x0.8586), + PA_1_LEVEL (x1.0559), + OI_SURGE (x1.0474), + VOL_SURGE (x1.0758), + BTC_NEUTRAL (x1.0861), + GRID_WIDE (x1.0474)) 
+2026-08-13 23:39:25: [PP369] [AutoTrade] Set leverage GUSDT = 4x (Bước 300đ: 8.60% → tính được 4x, giới hạn: 50x | Ký quỹ mục tiêu: $70) 
+2026-08-13 23:39:25: [PP369] [AutoTrade] ✓ G BUY 80229 @ $0.00349 orderId=1067304083 status=NEW 
+2026-08-13 23:39:29: [PP369] [AutoTrade] ✓ Đặt TP G @ $0.0035800 (đối ứng SELL) orderId=1000002505540039 
+2026-08-13 23:39:29: [PP369] [AutoTrade] ✓ Đặt SL G @ $0.0033870 (đối ứng SELL) orderId=1000002505540045 
+2026-08-13 23:41:55: [PP369] [AutoTrade] KERNEL → LONG (Score: +3.4đ) tại $0.0336 
+2026-08-13 23:41:55: [PP369] [AutoTrade] Phân bổ Ký quỹ KERNEL: $60 (Gốc PP369+Vol $50 + Bonus $10 từ +2.4đ các tiêu chí bổ trợ | Score tổng: +3.4đ) 
+2026-08-13 23:41:55: [PP369] [AI Reviewer (Shadow)] 🟢 Khuyên NÊN ĐẶT LỆNH KERNEL (LONG) - Xác suất thắng 70.2% >= 65% & EV = +4.20% ROI ($1.26) (+ VOL_ULTRA (x1.0594), + RSI_NEAR (x1.1818), + LS_DIVERGENCE (x1.1039), + PA_3_LEVELS (x1.0559), + OI_COOLING (x1.0559), - VOL_STABLE (x0.9659), + BTC_COUNTER (x1.0559), + GRID_WIDE (x1.0474)) 
+2026-08-13 23:41:55: [PP369] [AutoTrade] Set leverage KERNELUSDT = 4x (Bước 300đ: 8.93% → tính được 4x, giới hạn: 25x | Ký quỹ mục tiêu: $60) 
+2026-08-13 23:41:55: [PP369] [AutoTrade] ✓ KERNEL BUY 7142 @ $0.0336 orderId=1051772591 status=NEW 
+2026-08-13 23:42:23: [PP369] [AutoTrade] ✓ Đặt TP KERNEL @ $0.0345000 (đối ứng SELL) orderId=1000002505546328 
+2026-08-13 23:42:23: [PP369] [AutoTrade] ✓ Đặt SL KERNEL @ $0.0325700 (đối ứng SELL) orderId=1000002505546331 
+2026-08-13 23:42:32: [PP369] [AutoTrade] SWARMS → LONG (Score: +3.8999999999999995đ) tại $0.00798 
+2026-08-13 23:42:32: [PP369] [AutoTrade] SWARMS LONG không đạt Tiêu chí 2 (M15 biến động mạnh) — Đưa vào Watchlist chờ Retest H1 
+2026-08-13 23:51:43: [PP369] [AutoTrade] 🟢 Hệ thống hoạt động bình thường | Theo dõi: 438 coin | Tiệm cận sát mốc (<=0.5%): 35 coin 
+2026-08-13 23:53:43: [PP369] [AutoTrade] Lệnh LIMIT của G đã chạm/vượt Entry ($0.00349) quá 10 phút không khớp (10.0 phút) -> Tiến hành hủy... 
+2026-08-13 23:53:43: [PP369] [AutoTrade] ✓ Đã hủy thành công lệnh LIMIT treo của G 
+2026-08-13 23:59:36: [PP369] [AutoTrade] NIL → LONG (Score: +2.9000000000000004đ) tại $0.04035 
+2026-08-13 23:59:36: [PP369] [AutoTrade] Phân bổ Ký quỹ NIL: $60 (Gốc PP369+Vol $50 + Bonus $10 từ +2.1đ các tiêu chí bổ trợ | Score tổng: +2.9đ) 
+2026-08-13 23:59:36: [PP369] [AI Reviewer (Shadow)] 🟡 Khuyên BỎ QUA NIL (LONG) - Xác suất thắng 51.4% < 65% (+ VOL_ULTRA (x1.0594), - RSI_NEUTRAL (x0.8586), - PA_0_LEVEL (x0.8586), - OI_STABLE (x0.9043), - VOL_DRY (x0.9152), + BTC_NEUTRAL (x1.0861), + GRID_WIDE (x1.0474)) 
+2026-08-13 23:59:37: [PP369] [AutoTrade] Set leverage NILUSDT = 5x (Bước 300đ: 7.43% → tính được 5x, giới hạn: 50x | Ký quỹ mục tiêu: $60) 
+2026-08-13 23:59:37: [PP369] [AutoTrade] ✓ NIL BUY 7434.9 @ $0.04035 orderId=1402409509 status=NEW 
+2026-08-13 23:59:47: [PP369] [AutoTrade] ✓ Đặt TP NIL @ $0.041250 (đối ứng SELL) orderId=1000002505572178 
+2026-08-13 23:59:47: [PP369] [AutoTrade] ✓ Đặt SL NIL @ $0.039320 (đối ứng SELL) orderId=1000002505572179 
+2026-08-14 00:00:05: [PP369] [H1Retest] === Kiểm tra 1 coin trong Watchlist: [SWARMS(LONG @$0.00798)] === 
+2026-08-14 00:00:05: [PP369] [H1Retest] SWARMS LONG nến H1 rút chân nhưng ĐÃ PHẢN ỨNG NẢY ROI = +50.38% (>= 5.0%) sau khi chạm entry. Bỏ qua không đặt limit. 
+2026-08-14 00:01:41: [PP369] [AutoTrade] Trailing SL (chạm mốc 45đ): NIL đạt ROI 5.17% -> Dịch SL trên sàn về entry +5đ ($0.04040, ROI ~0.62%) [Mức: +5đ (Khóa lãi)] 
+2026-08-14 00:01:41: [PP369] [AutoTrade] Đã hủy SL cũ của NIL (orderId=1000002505572179) 
+2026-08-14 00:01:42: [PP369] [AutoTrade] ✓ Đã dịch SL mới cho NIL @ $0.040400 (orderId=1000002505574634) 
+2026-08-14 00:04:59: [PP369] [AutoTrade] EDEN → SHORT (Score: +5đ) tại $0.05047 
+2026-08-14 00:04:59: [PP369] [AutoTrade] Phân bổ Ký quỹ EDEN: $70 (Gốc PP369+Vol $50 + Bonus $20 từ +4.4đ các tiêu chí bổ trợ | Score tổng: +5.0đ) 
+2026-08-14 00:04:59: [PP369] [AutoTrade] EDEN SHORT: Từ khi chạm mốc Long ($0.04761), nến M1 đã xát mốc entry SHORT ($0.050420) rồi nảy xuống đáy $0.048350 (-4.11% >= 1.20% Khung/5) — HỦY LIMIT stale. 
+2026-08-14 00:05:16: [PP369] [AutoTrade] Phân bổ Ký quỹ EDEN: $70 (Gốc PP369+Vol $50 + Bonus $20 từ +4.4đ các tiêu chí bổ trợ | Score tổng: +5.0đ) 
+2026-08-14 00:06:43: [PP369] [AutoTrade] 🟢 Hệ thống hoạt động bình thường | Theo dõi: 438 coin | Tiệm cận sát mốc (<=0.5%): 37 coin 
+2026-08-14 00:21:43: [PP369] [AutoTrade] 🟢 Hệ thống hoạt động bình thường | Theo dõi: 438 coin | Tiệm cận sát mốc (<=0.5%): 40 coin 
+2026-08-14 00:24:58: [PP369] [AutoTrade] KAITO → LONG (Score: +4.9đ) tại $0.4463 
+2026-08-14 00:24:58: [PP369] [AutoTrade] Phân bổ Ký quỹ KAITO: $70 (Gốc PP369+Vol $50 + Bonus $20 từ +4.4đ các tiêu chí bổ trợ | Score tổng: +4.9đ) 
+2026-08-14 00:24:58: [PP369] [AI Reviewer (Shadow)] 🟡 Khuyên BỎ QUA KAITO (LONG) - Xác suất thắng 57.5% < 65% (- RSI_NEUTRAL (x0.8586), + PA_1_LEVEL (x1.0559), + OI_COOLING (x1.0559), - VOL_DRY (x0.9152), + BTC_NEUTRAL (x1.0861), + GRID_WIDE (x1.0474)) 
+2026-08-14 00:24:58: [PP369] [AutoTrade] Set leverage KAITOUSDT = 5x (Bước 300đ: 6.72% → tính được 5x, giới hạn: 75x | Ký quỹ mục tiêu: $70) 
+2026-08-14 00:24:58: [PP369] [AutoTrade] ✓ KAITO BUY 784.2 @ $0.4463 orderId=4937323580 status=NEW 
+2026-08-14 00:36:43: [PP369] [AutoTrade] 🟢 Hệ thống hoạt động bình thường | Theo dõi: 438 coin | Tiệm cận sát mốc (<=0.5%): 39 coin 
+2026-08-14 00:47:00: [PP369] [AutoTrade] ✓ Đặt TP KAITO @ $0.455300 (đối ứng SELL) orderId=1000002505620895 
+2026-08-14 00:47:00: [PP369] [AutoTrade] ✓ Đặt SL KAITO @ $0.436000 (đối ứng SELL) orderId=1000002505620899 
+2026-08-14 00:49:38: [PP369] [AutoTrade] [CoinRefresh] Tái kiểm tra danh sách: 438 → 436 coin hợp lệ theo giá hiện tại. 
+2026-08-14 00:51:43: [PP369] [AutoTrade] 🟢 Hệ thống hoạt động bình thường | Theo dõi: 436 coin | Tiệm cận sát mốc (<=0.5%): 36 coin 
+2026-08-14 01:06:43: [PP369] [AutoTrade] 🟢 Hệ thống hoạt động bình thường | Theo dõi: 436 coin | Tiệm cận sát mốc (<=0.5%): 36 coin 
+2026-08-14 01:06:54: [PP369] [AutoTrade] Trailing SL (chạm mốc 45đ): G đạt ROI 4.81% -> Dịch SL trên sàn về entry +5đ ($0.003495, ROI ~0.57%) [Mức: +5đ (Khóa lãi)] 
+2026-08-14 01:06:54: [PP369] [AutoTrade] Đã hủy SL cũ của G (orderId=1000002505540045) 
+2026-08-14 01:06:54: [PP369] [AutoTrade] ✓ Đã dịch SL mới cho G @ $0.0034950 (orderId=1000002505639414) 
+2026-08-14 01:11:38: [PP369] [AutoTrade] SKYAI → LONG (Score: +3.1đ) tại $0.07709 
+2026-08-14 01:11:38: [PP369] [AutoTrade] Phân bổ Ký quỹ SKYAI: $60 (Gốc PP369+Vol $50 + Bonus $10 từ +2.8đ các tiêu chí bổ trợ | Score tổng: +3.1đ) 
+2026-08-14 01:11:38: [PP369] [AutoTrade] SKYAI LONG: Từ khi chạm mốc Short ($0.07986), nến M1 đã xát mốc entry LONG ($0.077090) rồi nảy lên đỉnh $0.081180 (+5.31% >= 0.72% Khung/5) — HỦY LIMIT stale. 
+2026-08-14 01:11:55: [PP369] [AutoTrade] Phân bổ Ký quỹ SKYAI: $60 (Gốc PP369+Vol $50 + Bonus $10 từ +2.8đ các tiêu chí bổ trợ | Score tổng: +3.1đ) 
+2026-08-14 01:12:09: [PP369] [AutoTrade] Phân bổ Ký quỹ SKYAI: $60 (Gốc PP369+Vol $50 + Bonus $10 từ +2.8đ các tiêu chí bổ trợ | Score tổng: +3.1đ) 
+2026-08-14 01:12:16: [PP369] [AutoTrade] Phân bổ Ký quỹ SKYAI: $60 (Gốc PP369+Vol $50 + Bonus $10 từ +2.8đ các tiêu chí bổ trợ | Score tổng: +3.1đ) 
+2026-08-14 01:22:13: [PP369] [AutoTrade] 🟢 Hệ thống hoạt động bình thường | Theo dõi: 436 coin | Tiệm cận sát mốc (<=0.5%): 35 coin 
+2026-08-14 01:32:20: [PP369] [AutoTrade] TOWNS → LONG (Score: +5.1đ) tại $0.00213 
+2026-08-14 01:32:20: [PP369] [AutoTrade] Phân bổ Ký quỹ TOWNS: $70 (Gốc PP369+Vol $50 + Bonus $20 từ +4.1đ các tiêu chí bổ trợ | Score tổng: +5.1đ) 
+2026-08-14 01:32:20: [PP369] [AI Reviewer (Shadow)] 🟡 Khuyên BỎ QUA TOWNS (LONG) - Xác suất thắng 59.9% < 65% (+ VOL_ULTRA (x1.0594), + PA_3_LEVELS (x1.0559), - OI_STABLE (x0.9043), - VOL_DRY (x0.9152), + BTC_NEUTRAL (x1.0861), + GRID_WIDE (x1.0474)) 
+2026-08-14 01:32:20: [PP369] [AutoTrade] Set leverage TOWNSUSDT = 2x (Bước 300đ: 14.08% → tính được 2x, giới hạn: 10x | Ký quỹ mục tiêu: $70) 
+2026-08-14 01:32:20: [PP369] [AutoTrade] ✓ TOWNS BUY 65727 @ $0.00213 orderId=576801415 status=NEW 
+2026-08-14 01:37:13: [PP369] [AutoTrade] 🟢 Hệ thống hoạt động bình thường | Theo dõi: 436 coin | Tiệm cận sát mốc (<=0.5%): 36 coin 
+2026-08-14 01:39:27: [PP369] [AutoTrade] DOLO → LONG (Score: +5.8đ) tại $0.02162 
+2026-08-14 01:39:27: [PP369] [AutoTrade] Phân bổ Ký quỹ DOLO: $70 (Gốc PP369+Vol $50 + Bonus $20 từ +4.8đ các tiêu chí bổ trợ | Score tổng: +5.8đ) 
+2026-08-14 01:39:27: [PP369] [AI Reviewer (Shadow)] 🟢 Khuyên NÊN ĐẶT LỆNH DOLO (LONG) - Xác suất thắng 68.0% >= 65% & EV = +2.85% ROI ($0.86) (+ VOL_ULTRA (x1.0594), + PA_4_LEVELS (x1.1039), + OI_SURGE (x1.0474), + VOL_SURGE (x1.0758), + BTC_NEUTRAL (x1.0861), + GRID_WIDE (x1.0474)) 
+2026-08-14 01:39:27: [PP369] [AutoTrade] Set leverage DOLOUSDT = 2x (Bước 300đ: 13.88% → tính được 2x, giới hạn: 10x | Ký quỹ mục tiêu: $70) 
+2026-08-14 01:39:27: [PP369] [AutoTrade] ✓ DOLO BUY 6475 @ $0.02162 orderId=1350269619 status=NEW 
+2026-08-14 01:52:13: [PP369] [AutoTrade] 🟢 Hệ thống hoạt động bình thường | Theo dõi: 436 coin | Tiệm cận sát mốc (<=0.5%): 27 coin 
+2026-08-14 02:07:13: [PP369] [AutoTrade] 🟢 Hệ thống hoạt động bình thường | Theo dõi: 436 coin | Tiệm cận sát mốc (<=0.5%): 29 coin 
+2026-08-14 02:22:13: [PP369] [AutoTrade] 🟢 Hệ thống hoạt động bình thường | Theo dõi: 436 coin | Tiệm cận sát mốc (<=0.5%): 34 coin 
+2026-08-14 02:22:24: [PP369] [AutoTrade] AWE → SHORT (Score: +4.3đ) tại $0.05936 
+2026-08-14 02:22:24: [PP369] [AutoTrade] Phân bổ Ký quỹ AWE: $65 (Gốc PP369+Vol $50 + Bonus $15 từ +3.3đ các tiêu chí bổ trợ | Score tổng: +4.3đ) 
+2026-08-14 02:22:24: [PP369] [AutoTrade] AWE SHORT: Từ khi chạm mốc Long ($0.05714), nến M1 đã xát mốc entry SHORT ($0.059360) rồi nảy xuống đáy $0.058700 (-1.11% >= 0.78% Khung/5) — HỦY LIMIT stale. 
+2026-08-14 02:22:44: [PP369] [AutoTrade] Phân bổ Ký quỹ AWE: $65 (Gốc PP369+Vol $50 + Bonus $15 từ +3.3đ các tiêu chí bổ trợ | Score tổng: +4.3đ) 
+2026-08-14 02:22:53: [PP369] [AutoTrade] Phân bổ Ký quỹ AWE: $65 (Gốc PP369+Vol $50 + Bonus $15 từ +3.3đ các tiêu chí bổ trợ | Score tổng: +4.3đ) 
+2026-08-14 02:35:36: [PP369] [AutoTrade] BICO → LONG (Score: +3.9đ) tại $0.02718 
+2026-08-14 02:35:36: [PP369] [AutoTrade] Phân bổ Ký quỹ BICO: $65 (Gốc PP369+Vol $50 + Bonus $15 từ +3.1đ các tiêu chí bổ trợ | Score tổng: +3.9đ) 
+2026-08-14 02:35:36: [PP369] [AI Reviewer (Shadow)] 🟡 Khuyên BỎ QUA BICO (LONG) - Xác suất thắng 55.0% < 65% (- VOL_MID (x0.9091), + RSI_NEAR (x1.1818), - PA_0_LEVEL (x0.8586), - OI_STABLE (x0.9043), - VOL_DRY (x0.9152), + BTC_NEUTRAL (x1.0861), + GRID_WIDE (x1.0474)) 
+2026-08-14 02:35:36: [PP369] [AutoTrade] Set leverage BICOUSDT = 3x (Bước 300đ: 11.04% → tính được 3x, giới hạn: 20x | Ký quỹ mục tiêu: $65) 
+2026-08-14 02:35:36: [PP369] [AutoTrade] ✓ BICO BUY 7174 @ $0.02718 orderId=2708470063 status=NEW 
+2026-08-14 02:37:13: [PP369] [AutoTrade] 🟢 Hệ thống hoạt động bình thường | Theo dõi: 436 coin | Tiệm cận sát mốc (<=0.5%): 43 coin 
+2026-08-14 02:50:57: [PP369] [AutoTrade] [BounceCancel] BICO LONG: entry=$0.02718, current=$0.027740 (+2.06% >= 2.01%) → Hủy LIMIT ngay lập tức 
+2026-08-14 02:52:14: [PP369] [AutoTrade] 🟢 Hệ thống hoạt động bình thường | Theo dõi: 436 coin | Tiệm cận sát mốc (<=0.5%): 41 coin 
+2026-08-14 03:07:14: [PP369] [AutoTrade] 🟢 Hệ thống hoạt động bình thường | Theo dõi: 436 coin | Tiệm cận sát mốc (<=0.5%): 44 coin 
+2026-08-14 03:11:09: [PP369] [AutoTrade] HOLO → LONG (Score: +3.4đ) tại $0.06869 
+2026-08-14 03:11:09: [PP369] [AutoTrade] Phân bổ Ký quỹ HOLO: $60 (Gốc PP369+Vol $50 + Bonus $10 từ +2.6đ các tiêu chí bổ trợ | Score tổng: +3.4đ) 
+2026-08-14 03:11:09: [PP369] [AI Reviewer (Shadow)] 🟡 Khuyên BỎ QUA HOLO (LONG) - Xác suất thắng 44.1% < 65% (- VOL_MID (x0.9091), - RSI_NEUTRAL (x0.8586), - PA_0_LEVEL (x0.8586), - OI_STABLE (x0.9043), - VOL_DRY (x0.9152), + BTC_NEUTRAL (x1.0861), - GRID_NORMAL (x0.9455)) 
+2026-08-14 03:11:09: [PP369] [AutoTrade] Set leverage HOLOUSDT = 8x (Bước 300đ: 4.37% → tính được 8x, giới hạn: 50x | Ký quỹ mục tiêu: $60) 
+2026-08-14 03:11:09: [PP369] [AutoTrade] ✓ HOLO BUY 6987 @ $0.06869 orderId=897425800 status=NEW 
+2026-08-14 03:16:58: [PP369] [AutoTrade] [BounceCancel] HOLO LONG: entry=$0.06869, current=$0.069342 (+0.95% >= 0.79%) → Hủy LIMIT ngay lập tức 
+2026-08-14 03:17:52: [PP369] [AutoTrade] EDEN → LONG (Score: +5đ) tại $0.05961 
+2026-08-14 03:17:52: [PP369] [AutoTrade] EDEN LONG không đạt Tiêu chí 2 (M15 biến động mạnh) — Đưa vào Watchlist chờ Retest H1 
+2026-08-14 03:22:14: [PP369] [AutoTrade] 🟢 Hệ thống hoạt động bình thường | Theo dõi: 436 coin | Tiệm cận sát mốc (<=0.5%): 43 coin 
+2026-08-14 03:37:14: [PP369] [AutoTrade] 🟢 Hệ thống hoạt động bình thường | Theo dõi: 436 coin | Tiệm cận sát mốc (<=0.5%): 44 coin 
+2026-08-14 03:52:14: [PP369] [AutoTrade] 🟢 Hệ thống hoạt động bình thường | Theo dõi: 436 coin | Tiệm cận sát mốc (<=0.5%): 43 coin 
+2026-08-14 04:00:07: [PP369] [H1Retest] === Kiểm tra 1 coin trong Watchlist: [EDEN(LONG @$0.05961)] === 
+2026-08-14 04:00:07: [PP369] [H1Retest] EDEN LONG nến H1 rút chân nhưng ĐÃ PHẢN ỨNG NẢY ROI = +68.81% (>= 5.0%) sau khi chạm entry. Bỏ qua không đặt limit. 
+2026-08-14 04:07:14: [PP369] [AutoTrade] 🟢 Hệ thống hoạt động bình thường | Theo dõi: 436 coin | Tiệm cận sát mốc (<=0.5%): 39 coin 
+2026-08-14 04:13:38: [PP369] [AutoTrade] HOLO → LONG (Score: +3.1đ) tại $0.06869 
+2026-08-14 04:13:38: [PP369] [AutoTrade] Phân bổ Ký quỹ HOLO: $60 (Gốc PP369+Vol $50 + Bonus $10 từ +2.1đ các tiêu chí bổ trợ | Score tổng: +3.1đ) 
+2026-08-14 04:13:38: [PP369] [AI Reviewer (Shadow)] 🟡 Khuyên BỎ QUA HOLO (LONG) - Xác suất thắng 48.8% < 65% (+ VOL_ULTRA (x1.0594), - RSI_NEUTRAL (x0.8586), - PA_0_LEVEL (x0.8586), - OI_STABLE (x0.9043), - VOL_DRY (x0.9152), + BTC_NEUTRAL (x1.0861), - GRID_NORMAL (x0.9455)) 
+2026-08-14 04:13:38: [PP369] [AutoTrade] Set leverage HOLOUSDT = 8x (Bước 300đ: 4.37% → tính được 8x, giới hạn: 50x | Ký quỹ mục tiêu: $60) 
+2026-08-14 04:13:39: [PP369] [AutoTrade] ✓ HOLO BUY 6987 @ $0.06869 orderId=897558240 status=NEW 
+2026-08-14 04:13:50: [PP369] [AutoTrade] ✓ Đặt TP HOLO @ $0.0695900 (đối ứng SELL) orderId=1000002505803679 
+2026-08-14 04:13:50: [PP369] [AutoTrade] ✓ Đặt SL HOLO @ $0.0676600 (đối ứng SELL) orderId=1000002505803681 
+2026-08-14 04:22:14: [PP369] [AutoTrade] 🟢 Hệ thống hoạt động bình thường | Theo dõi: 436 coin | Tiệm cận sát mốc (<=0.5%): 48 coin 
+2026-08-14 04:37:14: [PP369] [AutoTrade] 🟢 Hệ thống hoạt động bình thường | Theo dõi: 436 coin | Tiệm cận sát mốc (<=0.5%): 50 coin 
+2026-08-14 04:39:32: [PP369] [AutoTrade] Trailing SL (chạm mốc 70đ): HOLO đạt ROI 7.83% -> Dịch SL trên sàn về entry +5đ ($0.06874, ROI ~0.58%) [Mức: +5đ (Khóa lãi)] 
+2026-08-14 04:39:32: [PP369] [AutoTrade] Đã hủy SL cũ của HOLO (orderId=1000002505803681) 
+2026-08-14 04:39:32: [PP369] [AutoTrade] ✓ Đã dịch SL mới cho HOLO @ $0.0687400 (orderId=1000002505820968) 
+2026-08-14 04:40:14: [PP369] [AutoTrade] 🎯 Near-TP Lock (Đạt >=90% TP): G đạt ROI 9.28% -> Dịch SL trên sàn về mốc 75% Lợi Nhuận TP ($0.003558, ROI ~+7.74%) 
+2026-08-14 04:40:14: [PP369] [AutoTrade] Đã hủy SL cũ của G (orderId=1000002505639414) 
+2026-08-14 04:40:14: [PP369] [AutoTrade] ✓ Đã dịch SL mới cho G @ $0.0035580 (orderId=1000002505821552) 
+2026-08-14 04:41:21: [PP369] [AutoTrade] [BounceCancel] TOWNS LONG: entry=$0.00213, current=$0.002187 (+2.69% >= 2.56%) → Hủy LIMIT ngay lập tức 
+2026-08-14 04:49:38: [PP369] [AutoTrade] [CoinRefresh] Tái kiểm tra danh sách: 436 → 434 coin hợp lệ theo giá hiện tại. 
+2026-08-14 04:52:14: [PP369] [AutoTrade] 🟢 Hệ thống hoạt động bình thường | Theo dõi: 434 coin | Tiệm cận sát mốc (<=0.5%): 53 coin 
+2026-08-14 04:58:14: [PP369] [AutoTrade] 🎯 Near-TP Lock (Đạt >=90% TP): HOLO đạt ROI 9.32% -> Dịch SL trên sàn về mốc 75% Lợi Nhuận TP ($0.06936, ROI ~+7.86%) 
+2026-08-14 04:58:14: [PP369] [AutoTrade] Đã hủy SL cũ của HOLO (orderId=1000002505820968) 
+2026-08-14 04:58:14: [PP369] [AutoTrade] ✓ Đã dịch SL mới cho HOLO @ $0.0693600 (orderId=1000002505835138) 
+2026-08-14 05:07:14: [PP369] [AutoTrade] 🟢 Hệ thống hoạt động bình thường | Theo dõi: 434 coin | Tiệm cận sát mốc (<=0.5%): 40 coin 
+2026-08-14 05:22:14: [PP369] [AutoTrade] 🟢 Hệ thống hoạt động bình thường | Theo dõi: 434 coin | Tiệm cận sát mốc (<=0.5%): 51 coin 
+2026-08-14 05:30:22: [PP369] [AutoTrade] EDEN → LONG (Score: +5đ) tại $0.06861 
+2026-08-14 05:30:22: [PP369] [AutoTrade] EDEN LONG không đạt Tiêu chí 2 (M15 biến động mạnh) — Đưa vào Watchlist chờ Retest H1 
+2026-08-14 05:37:14: [PP369] [AutoTrade] 🟢 Hệ thống hoạt động bình thường | Theo dõi: 434 coin | Tiệm cận sát mốc (<=0.5%): 45 coin 
+2026-08-14 05:47:31: [PP369] [AutoTrade] HOLO → SHORT (Score: +3.4đ) tại $0.07083 
+2026-08-14 05:47:31: [PP369] [AutoTrade] Phân bổ Ký quỹ HOLO: $60 (Gốc PP369+Vol $50 + Bonus $10 từ +2.6đ các tiêu chí bổ trợ | Score tổng: +3.4đ) 
+2026-08-14 05:47:31: [PP369] [AI Reviewer (Shadow)] 🟡 Khuyên BỎ QUA HOLO (SHORT) - Xác suất thắng 52.7% < 65% (+ VOL_ULTRA (x1.0594), - RSI_NEUTRAL (x0.8586), + LS_DIVERGENCE (x1.1039), + PA_4_LEVELS (x1.1039), - OI_STABLE (x0.9043), - VOL_DRY (x0.9152), - BTC_ALIGNED (x0.8972), - GRID_NORMAL (x0.9455)) 
+2026-08-14 05:47:31: [PP369] [AutoTrade] Set leverage HOLOUSDT = 9x (Bước 300đ: 4.24% → tính được 9x, giới hạn: 50x | Ký quỹ mục tiêu: $60) 
+2026-08-14 05:47:32: [PP369] [AutoTrade] ✓ HOLO SELL 7623 @ $0.07083 orderId=897730692 status=NEW 
+2026-08-14 05:47:39: [PP369] [AutoTrade] ✓ Đặt TP HOLO @ $0.0699300 (đối ứng BUY) orderId=1000002505870972 
+2026-08-14 05:47:39: [PP369] [AutoTrade] ✓ Đặt SL HOLO @ $0.0718600 (đối ứng BUY) orderId=1000002505870974 
+2026-08-14 05:49:43: [PP369] [AutoTrade] BICO → LONG (Score: +4.1đ) tại $0.02718 
+2026-08-14 05:49:43: [PP369] [AutoTrade] Phân bổ Ký quỹ BICO: $65 (Gốc PP369+Vol $50 + Bonus $15 từ +3.1đ các tiêu chí bổ trợ | Score tổng: +4.1đ) 
+2026-08-14 05:49:43: [PP369] [AI Reviewer (Shadow)] 🟡 Khuyên BỎ QUA BICO (LONG) - Xác suất thắng 58.8% < 65% (+ VOL_ULTRA (x1.0594), + RSI_NEAR (x1.1818), - PA_0_LEVEL (x0.8586), - OI_STABLE (x0.9043), - VOL_DRY (x0.9152), + BTC_NEUTRAL (x1.0861), + GRID_WIDE (x1.0474)) 
+2026-08-14 05:49:43: [PP369] [AutoTrade] Set leverage BICOUSDT = 3x (Bước 300đ: 11.04% → tính được 3x, giới hạn: 20x | Ký quỹ mục tiêu: $65) 
+2026-08-14 05:49:44: [PP369] [AutoTrade] ✓ BICO BUY 7174 @ $0.02718 orderId=2709017228 status=NEW 
+2026-08-14 05:51:45: [PP369] [AutoTrade] ✓ Đặt TP BICO @ $0.0280800 (đối ứng SELL) orderId=1000002505873992 
+2026-08-14 05:51:45: [PP369] [AutoTrade] ✓ Đặt SL BICO @ $0.0261500 (đối ứng SELL) orderId=1000002505873993 
+2026-08-14 05:52:44: [PP369] [AutoTrade] 🟢 Hệ thống hoạt động bình thường | Theo dõi: 434 coin | Tiệm cận sát mốc (<=0.5%): 48 coin 
+2026-08-14 06:00:07: [PP369] [H1Retest] === Kiểm tra 1 coin trong Watchlist: [EDEN(LONG @$0.06861)] === 
+2026-08-14 06:00:08: [PP369] [H1Retest] EDEN LONG nến H1 rút chân nhưng ĐÃ PHẢN ỨNG NẢY ROI = +70.66% (>= 5.0%) sau khi chạm entry. Bỏ qua không đặt limit. 
+2026-08-14 06:07:44: [PP369] [AutoTrade] 🟢 Hệ thống hoạt động bình thường | Theo dõi: 434 coin | Tiệm cận sát mốc (<=0.5%): 50 coin 
+2026-08-14 06:16:31: [PP369] [AutoTrade] EDEN → LONG (Score: +5đ) tại $0.07461 
+2026-08-14 06:16:31: [PP369] [AutoTrade] EDEN LONG không đạt Tiêu chí 2 (M15 biến động mạnh) — Đưa vào Watchlist chờ Retest H1 
+2026-08-14 06:22:44: [PP369] [AutoTrade] 🟢 Hệ thống hoạt động bình thường | Theo dõi: 434 coin | Tiệm cận sát mốc (<=0.5%): 42 coin 
+2026-08-14 06:37:44: [PP369] [AutoTrade] 🟢 Hệ thống hoạt động bình thường | Theo dõi: 434 coin | Tiệm cận sát mốc (<=0.5%): 40 coin 
+2026-08-14 06:41:54: [PP369] [AutoTrade] EDEN → LONG (Score: +5đ) tại $0.07161 
+2026-08-14 06:41:54: [PP369] [AutoTrade] EDEN LONG không đạt Tiêu chí 2 (M15 biến động mạnh) — Đưa vào Watchlist chờ Retest H1 
+2026-08-14 06:52:44: [PP369] [AutoTrade] 🟢 Hệ thống hoạt động bình thường | Theo dõi: 434 coin | Tiệm cận sát mốc (<=0.5%): 36 coin 
+2026-08-14 06:54:10: [PP369] [AutoTrade] Trailing SL (chạm mốc 70đ): PIEVERSE đạt ROI 8.00% -> Dịch SL trên sàn về entry +5đ ($0.7333, ROI ~0.61%) [Mức: +5đ (Khóa lãi)] 
+2026-08-14 06:54:10: [PP369] [AutoTrade] Đã hủy SL cũ của PIEVERSE (orderId=1000002505479163) 
+2026-08-14 06:54:10: [PP369] [AutoTrade] ✓ Đã dịch SL mới cho PIEVERSE @ $0.7333000 (orderId=1000002505925538) 
+2026-08-14 06:56:10: [PP369] [AutoTrade] PIEVERSE → SHORT (Score: +5.2đ) tại $0.7576 
+2026-08-14 06:56:10: [PP369] [AutoTrade] PIEVERSE SHORT không đạt Tiêu chí 2 (M15 biến động mạnh) — Đưa vào Watchlist chờ Retest H1 
+2026-08-14 07:00:08: [PP369] [H1Retest] === Kiểm tra 2 coin trong Watchlist: [EDEN(LONG @$0.07161), PIEVERSE(SHORT @$0.7576)] === 
+2026-08-14 07:00:08: [PP369] [H1Retest] EDEN LONG nến H1 đã chạm mốc $0.07161 nhưng đâm thủng mốc (Close: $0.0714) — XÓA KHỎI WATCHLIST 
+2026-08-14 07:00:08: [PP369] [H1Retest] PIEVERSE SHORT nến H1 đã chạm mốc $0.7576 nhưng đâm thủng mốc (Close: $0.7678) — XÓA KHỎI WATCHLIST 
+2026-08-14 07:07:44: [PP369] [AutoTrade] 🟢 Hệ thống hoạt động bình thường | Theo dõi: 434 coin | Tiệm cận sát mốc (<=0.5%): 40 coin 
+2026-08-14 07:14:08: [PP369] [AutoTrade] TRUST → LONG (Score: +3.3đ) tại $0.0501 
+2026-08-14 07:14:08: [PP369] [AutoTrade] Phân bổ Ký quỹ TRUST: $60 (Gốc PP369+Vol $50 + Bonus $10 từ +2.5đ các tiêu chí bổ trợ | Score tổng: +3.3đ) 
+2026-08-14 07:14:08: [PP369] [AI Reviewer (Shadow)] 🟡 Khuyên BỎ QUA TRUST (LONG) - Xác suất thắng 57.6% < 65% (+ VOL_ULTRA (x1.0594), - RSI_NEUTRAL (x0.8586), + PA_4_LEVELS (x1.1039), - OI_STABLE (x0.9043), - VOL_DRY (x0.9152), + BTC_NEUTRAL (x1.0861), + GRID_WIDE (x1.0474)) 
+2026-08-14 07:14:08: [PP369] [AutoTrade] Set leverage TRUSTUSDT = 6x (Bước 300đ: 5.99% → tính được 6x, giới hạn: 10x | Ký quỹ mục tiêu: $60) 
+2026-08-14 07:14:08: [PP369] [AutoTrade] ✓ TRUST BUY 7185 @ $0.0501 orderId=516148118 status=NEW 
+2026-08-14 07:15:22: [PP369] [AutoTrade] [BounceCancel] TRUST LONG: entry=$0.0501, current=$0.050672 (+1.14% >= 1.09%) → Hủy LIMIT ngay lập tức 
+2026-08-14 07:17:03: [PP369] [AutoTrade] EDEN → LONG (Score: +5đ) tại $0.07161 
+2026-08-14 07:17:03: [PP369] [AutoTrade] EDEN LONG không đạt Tiêu chí 2 (M15 biến động mạnh) — Đưa vào Watchlist chờ Retest H1 
+2026-08-14 07:18:02: [PP369] [AutoTrade] EDEN → LONG (Score: +5đ) tại $0.06861 
+2026-08-14 07:18:02: [PP369] [AutoTrade] EDEN LONG không đạt Tiêu chí 2 (M15 biến động mạnh) — Đưa vào Watchlist chờ Retest H1 
+2026-08-14 07:22:44: [PP369] [AutoTrade] 🟢 Hệ thống hoạt động bình thường | Theo dõi: 434 coin | Tiệm cận sát mốc (<=0.5%): 47 coin 
+2026-08-14 07:37:44: [PP369] [AutoTrade] 🟢 Hệ thống hoạt động bình thường | Theo dõi: 434 coin | Tiệm cận sát mốc (<=0.5%): 55 coin 
+2026-08-14 07:52:44: [PP369] [AutoTrade] 🟢 Hệ thống hoạt động bình thường | Theo dõi: 434 coin | Tiệm cận sát mốc (<=0.5%): 46 coin 
+2026-08-14 08:00:08: [PP369] [H1Retest] === Kiểm tra 1 coin trong Watchlist: [EDEN(LONG @$0.06861)] === 
+2026-08-14 08:00:08: [PP369] [H1Retest] EDEN LONG nến H1 rút chân nhưng ĐÃ PHẢN ỨNG NẢY ROI = +165.46% (>= 5.0%) sau khi chạm entry. Bỏ qua không đặt limit. 
+2026-08-14 08:06:37: [PP369] [AutoTrade] NXPC → LONG (Score: +3.3đ) tại $0.1753 
+2026-08-14 08:06:37: [PP369] [AutoTrade] Phân bổ Ký quỹ NXPC: $60 (Gốc PP369+Vol $50 + Bonus $10 từ +2.3đ các tiêu chí bổ trợ | Score tổng: +3.3đ) 
+2026-08-14 08:06:37: [PP369] [AI Reviewer (Shadow)] 🟡 Khuyên BỎ QUA NXPC (LONG) - Xác suất thắng 62.8% < 65% (+ VOL_ULTRA (x1.0594), + RSI_NEAR (x1.1818), + LS_DIVERGENCE (x1.1039), - PA_0_LEVEL (x0.8586), - OI_STABLE (x0.9043), - VOL_STABLE (x0.9659), + BTC_NEUTRAL (x1.0861), + GRID_WIDE (x1.0474)) 
+2026-08-14 08:06:37: [PP369] [AutoTrade] Set leverage NXPCUSDT = 2x (Bước 300đ: 17.11% → tính được 2x, giới hạn: 50x | Ký quỹ mục tiêu: $60) 
+2026-08-14 08:06:37: [PP369] [AutoTrade] ✓ NXPC BUY 684 @ $0.1753 orderId=1783928577 status=NEW 
+2026-08-14 08:06:40: [PP369] [AutoTrade] ✓ Đặt TP NXPC @ $0.1835000 (đối ứng SELL) orderId=1000002505996166 
+2026-08-14 08:06:41: [PP369] [AutoTrade] ✓ Đặt SL NXPC @ $0.1642000 (đối ứng SELL) orderId=1000002505996172 
+2026-08-14 08:07:44: [PP369] [AutoTrade] 🟢 Hệ thống hoạt động bình thường | Theo dõi: 434 coin | Tiệm cận sát mốc (<=0.5%): 48 coin 
+2026-08-14 08:17:17: [PP369] [AutoTrade] SWARMS → LONG (Score: +2.3đ) tại $0.00888 
+2026-08-14 08:17:17: [PP369] [AutoTrade] SWARMS LONG không đạt Tiêu chí 2 (M15 biến động mạnh) — Đưa vào Watchlist chờ Retest H1 
+2026-08-14 08:21:08: [PP369] [AutoTrade] GUA → LONG (Score: +4.1đ) tại $0.04374 
+2026-08-14 08:21:08: [PP369] [AutoTrade] Phân bổ Ký quỹ GUA: $65 (Gốc PP369+Vol $50 + Bonus $15 từ +3.1đ các tiêu chí bổ trợ | Score tổng: +4.1đ) 
+2026-08-14 08:21:08: [PP369] [AI Reviewer (Shadow)] 🟡 Khuyên BỎ QUA GUA (LONG) - Xác suất thắng 63.3% < 65% (+ VOL_ULTRA (x1.0594), + RSI_NEAR (x1.1818), + PA_1_LEVEL (x1.0559), - OI_STABLE (x0.9043), - VOL_DRY (x0.9152), + BTC_NEUTRAL (x1.0861), + GRID_WIDE (x1.0474)) 
+2026-08-14 08:21:08: [PP369] [AutoTrade] Set leverage GUAUSDT = 5x (Bước 300đ: 6.86% → tính được 5x, giới hạn: 10x | Ký quỹ mục tiêu: $65) 
+2026-08-14 08:21:08: [PP369] [AutoTrade] ✓ GUA BUY 7430 @ $0.04374 orderId=965594148 status=NEW 
+2026-08-14 08:21:11: [PP369] [AutoTrade] ✓ Đặt TP GUA @ $0.0445500 (đối ứng SELL) orderId=1000002506009052 
+2026-08-14 08:21:11: [PP369] [AutoTrade] ✓ Đặt SL GUA @ $0.0426200 (đối ứng SELL) orderId=1000002506009054 
+2026-08-14 08:22:32: [PP369] [AutoTrade] BANANAS31 → SHORT (Score: +3.1đ) tại $0.008349 
+2026-08-14 08:22:32: [PP369] [AutoTrade] Phân bổ Ký quỹ BANANAS31: $60 (Gốc PP369+Vol $50 + Bonus $10 từ +2.1đ các tiêu chí bổ trợ | Score tổng: +3.1đ) 
+2026-08-14 08:22:32: [PP369] [AI Reviewer (Shadow)] 🟡 Khuyên BỎ QUA BANANAS31 (SHORT) - Xác suất thắng 46.0% < 65% (+ VOL_ULTRA (x1.0594), - RSI_NEUTRAL (x0.8586), + LS_DIVERGENCE (x1.1039), - PA_0_LEVEL (x0.8586), - OI_STABLE (x0.9043), - VOL_DRY (x0.9152), - BTC_ALIGNED (x0.8972), - GRID_NORMAL (x0.9455)) 
+2026-08-14 08:22:32: [PP369] [AutoTrade] Set leverage BANANAS31USDT = 10x (Bước 300đ: 3.59% → tính được 10x, giới hạn: 25x | Ký quỹ mục tiêu: $60) 
+2026-08-14 08:22:32: [PP369] [AutoTrade] ✓ BANANAS31 SELL 71864 @ $0.008349 orderId=2250003897 status=NEW 
+2026-08-14 08:22:44: [PP369] [AutoTrade] 🟢 Hệ thống hoạt động bình thường | Theo dõi: 434 coin | Tiệm cận sát mốc (<=0.5%): 47 coin 
+2026-08-14 08:23:38: [PP369] [AutoTrade] BANK → LONG (Score: +4.1đ) tại $0.03626 
+2026-08-14 08:23:38: [PP369] [AutoTrade] Phân bổ Ký quỹ BANK: $65 (Gốc PP369+Vol $50 + Bonus $15 từ +3.1đ các tiêu chí bổ trợ | Score tổng: +4.1đ) 
+2026-08-14 08:23:38: [PP369] [AI Reviewer (Shadow)] 🟡 Khuyên BỎ QUA BANK (LONG) - Xác suất thắng 54.7% < 65% (+ VOL_ULTRA (x1.0594), - RSI_NEUTRAL (x0.8586), - OI_STABLE (x0.9043), - VOL_DRY (x0.9152), + BTC_NEUTRAL (x1.0861), + GRID_WIDE (x1.0474)) 
+2026-08-14 08:23:38: [PP369] [AutoTrade] Set leverage BANKUSDT = 4x (Bước 300đ: 8.27% → tính được 4x, giới hạn: 50x | Ký quỹ mục tiêu: $65) 
+2026-08-14 08:23:38: [PP369] [AutoTrade] ✓ BANK BUY 7170 @ $0.03626 orderId=3317230855 status=NEW 
+2026-08-14 08:31:17: [PP369] [AutoTrade] ✓ Đặt TP BANANAS31 @ $0.0082590 (đối ứng BUY) orderId=1000002506017808 
+2026-08-14 08:31:17: [PP369] [AutoTrade] ✓ Đặt SL BANANAS31 @ $0.0084520 (đối ứng BUY) orderId=1000002506017810 
+2026-08-14 08:31:20: [PP369] [AutoTrade] Phân bổ Ký quỹ BANANAS31: $60 (Gốc PP369+Vol $50 + Bonus $10 từ +2.1đ các tiêu chí bổ trợ | Score tổng: +3.1đ) 
+2026-08-14 08:31:20: [PP369] [AutoTrade] BANANAS31 đang có vị thế mở — bỏ qua 
+2026-08-14 08:37:44: [PP369] [AutoTrade] 🟢 Hệ thống hoạt động bình thường | Theo dõi: 434 coin | Tiệm cận sát mốc (<=0.5%): 47 coin 
+2026-08-14 08:37:58: ◇ injected env (10) from .env // tip: ⌘ multiple files { path: ['.env.local', '.env'] }
+2026-08-14 08:37:58: [PP369] [AI Reviewer] ✓ Đã nạp thành công mô hình AI (v1.1.0, mẫu N=19) 
+2026-08-14 08:37:58: [PP369] [AI Reviewer] 🔄 Tự động kích hoạt Python re-train mô hình AI trong nền... 
+2026-08-14 08:37:58: [PP369] [369] initH4Cache: Tất cả 803 coin đã có nến H4 đầu năm. 
+2026-08-14 08:37:58: [AutoTrade] Bỏ qua 169 coin có grid ngoài khoảng 3–25% (theo giá hiện tại): 4(3.0%), XRP(29.7%), ETC(48.2%), LINK(33.9%), BAT(52.9%), QTUM(45.3%), KNC(30.1%), DOT(38.9%), SOL(39.5%), AVAX(46.4%), AAVE(34.0%), FIL(44.4%), RSR(25.7%), BEL(2.9%), COTI(27.2%), ALICE(2.6%), ONE(44.0%), NKN(2.6%), DGB(1.6%), ATA(1.8%), DYDX(2.7%), KLAY(2.4%), IMX(27.5%), APE(2.4%), WOO(28.1%), DAR(2.1%), OP(33.9%), STG(2.1%), SPELL(38.5%), APT(54.4%), FET(2.2%), CKB(36.7%), USDC(30.0%), AMB(2.5%), LEVER(26.7%), RDNT(2.9%), SUI(43.6%), MAV(33.8%), DODOX(1.3%), ARK(33.3%), BOND(28.1%), GAS(32.4%), SUPER(35.4%), 1000SATS(298.8%), MOVR(36.6%), JUP(1.8%), GLM(34.3%), PORTAL(2.8%), MYRO(3.0%), W(36.6%), BB(26.3%), IO(2.7%), ZK(41.0%), ZRO(37.8%), RARE(25.5%), SYN(2.7%), SYS(1.7%), ALPACA(25.2%), SUN(1.6%), DOGS(85.3%), BSW(2.5%), QUICK(2.3%), NEIRO(45.4%), FIO(2.5%), GHST(1.8%), LOKA(2.6%), COS(2.5%), SANTOS(63.2%), COW(29.7%), 1000000MOG(30.1%), DRIFT(26.5%), ACT(31.7%), HIPPO(2.9%), DEGEN(2.9%), 1000WHY(197.4%), THE(51.1%), CHILLGUY(2.8%), ORCA(29.0%), MOVE(48.5%), KOMA(2.2%), VELODROME(1.8%), MOCA(41.3%), VANA(35.6%), USUAL(34.9%), DF(2.6%), GRIFFAIN(2.6%), D(2.2%), AVAAI(2.1%), PIPPIN(180.4%), TST(2.1%), HEI(2.4%), GPS(2.8%), RED(34.3%), MUBARAK(1.9%), TUT(0.9%), BROCCOLI714(1.9%), BR(1.1%), PLUME(2.4%), FUN(1.7%), BABY(3.0%), SIGN(46.4%), PUNDIX(40.4%), CTK(28.9%), SXT(41.8%), ASR(34.7%), MILK(3.0%), OG(120.4%), AGT(1.9%), B(1.9%), MERL(168.4%), PORT3(2.5%), 1000000BOB(1.6%), LA(64.5%), HOME(2.9%), PUMPBTC(29.5%), MYX(385.6%), DMC(2.3%), H(2.8%), OL(1.7%), SAHARA(38.4%), M(26.5%), TANSSI(2.4%), PUMP(1.0%), CROSS(3.0%), VELVET(0.4%), ZORA(62.4%), TAG(2.4%), ESPORTS(180.2%), A2Z(2.1%), YALA(1.8%), SOMI(33.5%), BAS(1.2%), Q(1.4%), PTB(34.8%), OPEN(1.6%), AVNT(28.4%), UB(2.3%), TOSHI(30.0%), BARD(27.1%), TRADOOR(46.6%), BLESS(2.9%), FLUID(26.0%), HANA(0.9%), AKE(0.4%), LIGHT(173.4%), XAN(2.7%), TRUTH(2.2%), YB(37.9%), EUL(26.4%), CLO(25.9%), RIVER(114.8%), 币安人生(0.6%), BLUAI(2.2%), APR(0.6%), ON(0.7%), KITE(3.0%), AT(1.9%), UAI(1.2%), STABLE(0.9%), JCT(0.9%), ALLO(1.1%), BEAT(35.5%), BOB(2.8%), RLS(2.8%), POWER(32.9%), US(1.1%), CYS(2.7%), BREV(44.2%), MAGMA(1.6%)
+2026-08-14 08:37:59: [PP369] [Binance] Đang lấy leverage brackets cho 437 coin... 
+2026-08-14 08:37:59: [PP369] [Binance] Đã lưu leverage cho 437 coin vào step_sizes.json 
+2026-08-14 08:37:59: [PP369] [AutoTrade] Khởi động: 437 coin | margin=$10 | 10x | type=LIMIT 
+2026-08-14 08:37:59: [PP369] [Binance] Loaded step and tick sizes from existing file: 852 symbols 
+2026-08-14 08:37:59: [PP369] [AutoTrade] Đã nạp leverageInfo cho 437 coin từ cache. 
+2026-08-14 08:38:00: [PP369] [PP369Stream] Kết nối WebSocket thành công (market/stream) 
+2026-08-14 08:38:04: [PP369] [AutoTrade] Bắt đầu scan... 
+2026-08-14 08:38:07: [PP369] [AutoTrade] [BounceCancel] DOLO LONG: entry=$0.02162, current=$0.021954 (+2.50% >= 1.85%) → Hủy LIMIT ngay lập tức 
+2026-08-14 08:38:07: [PP369] [AutoTrade] [BounceCancel] BANK LONG: entry=$0.03626, current=$0.036430 (+1.17% >= 1.10%) → Hủy LIMIT ngay lập tức 
+2026-08-14 08:39:22: [PP369] [AutoTrade] EDEN → LONG (Score: +4.5đ) tại $0.08361 
+2026-08-14 08:39:22: [PP369] [AutoTrade] EDEN LONG không đạt Tiêu chí 2 (M15 biến động mạnh) — Đưa vào Watchlist chờ Retest H1 
+2026-08-14 08:46:04: [PP369] [AutoTrade] EDEN → LONG (Score: +4.5đ) tại $0.08061 
+2026-08-14 08:46:04: [PP369] [AutoTrade] EDEN LONG không đạt Tiêu chí 2 (M15 biến động mạnh) — Đưa vào Watchlist chờ Retest H1 
+2026-08-14 08:53:04: [PP369] [AutoTrade] 🟢 Hệ thống hoạt động bình thường | Theo dõi: 437 coin | Tiệm cận sát mốc (<=0.5%): 51 coin 
+2026-08-14 08:54:45: [PP369] [AutoTrade] EDEN → LONG (Score: +4.5đ) tại $0.07761 
+2026-08-14 08:54:45: [PP369] [AutoTrade] EDEN LONG không đạt Tiêu chí 2 (M15 biến động mạnh) — Đưa vào Watchlist chờ Retest H1 
+2026-08-14 09:00:04: [PP369] [H1Retest] === Kiểm tra 1 coin trong Watchlist: [EDEN(LONG @$0.07761)] === 
+2026-08-14 09:00:04: [PP369] [H1Retest] EDEN LONG nến H1 rút chân nhưng ĐÃ PHẢN ỨNG NẢY ROI = +119.19% (>= 5.0%) sau khi chạm entry. Bỏ qua không đặt limit. 
+2026-08-14 09:08:05: [PP369] [AutoTrade] 🟢 Hệ thống hoạt động bình thường | Theo dõi: 437 coin | Tiệm cận sát mốc (<=0.5%): 51 coin 
+2026-08-14 09:12:03: ◇ injected env (10) from .env // tip: ⌘ custom filepath { path: '/custom/path/.env' }
+2026-08-14 09:12:03: [PP369] [AI Reviewer] ✓ Đã nạp thành công mô hình AI (v1.1.0, mẫu N=19) 
+2026-08-14 09:12:03: [PP369] [AI Reviewer] 🔄 Tự động kích hoạt Python re-train mô hình AI trong nền... 
+2026-08-14 09:12:03: [PP369] [369] initH4Cache: Tất cả 803 coin đã có nến H4 đầu năm. 
+2026-08-14 09:12:04: [AutoTrade] Bỏ qua 169 coin có grid ngoài khoảng 3–25% (theo giá hiện tại): 4(3.0%), XRP(29.6%), ETC(48.2%), LINK(33.9%), BAT(52.9%), QTUM(45.3%), KNC(30.0%), DOT(38.9%), SOL(39.4%), AVAX(46.4%), AAVE(34.0%), FIL(44.3%), RSR(25.7%), BEL(2.9%), COTI(27.1%), ALICE(2.6%), ONE(42.9%), NKN(2.6%), DGB(1.6%), ATA(1.8%), DYDX(2.7%), KLAY(2.4%), IMX(27.5%), APE(2.4%), WOO(28.1%), DAR(2.1%), OP(33.9%), STG(2.1%), SPELL(38.3%), APT(54.4%), FET(2.2%), CKB(36.7%), USDC(30.0%), AMB(2.5%), LEVER(26.7%), RDNT(2.9%), SUI(43.7%), MAV(33.7%), DODOX(1.3%), ARK(33.3%), BOND(28.1%), GAS(32.4%), SUPER(35.4%), 1000SATS(297.0%), MOVR(36.6%), JUP(1.8%), GLM(34.3%), PORTAL(2.8%), MYRO(3.0%), W(36.5%), BB(26.2%), IO(2.7%), ZK(40.9%), ZRO(37.9%), RARE(25.3%), SYN(2.7%), SYS(1.7%), ALPACA(25.2%), SUN(1.6%), DOGS(85.1%), BSW(2.5%), QUICK(2.3%), NEIRO(45.1%), FIO(2.5%), GHST(1.8%), LOKA(2.6%), COS(2.5%), SANTOS(63.1%), COW(29.6%), 1000000MOG(30.2%), DRIFT(26.6%), ACT(31.4%), HIPPO(2.9%), DEGEN(2.9%), 1000WHY(197.4%), THE(51.0%), CHILLGUY(2.8%), ORCA(29.0%), MOVE(48.3%), KOMA(2.2%), VELODROME(1.7%), MOCA(41.3%), VANA(35.7%), USUAL(34.8%), DF(2.6%), GRIFFAIN(2.6%), D(2.2%), AVAAI(2.2%), PIPPIN(179.3%), TST(2.1%), HEI(2.4%), GPS(2.7%), RED(33.7%), MUBARAK(1.9%), TUT(0.9%), BROCCOLI714(1.9%), BR(1.1%), PLUME(2.4%), FUN(1.7%), BABY(3.0%), SIGN(46.4%), PUNDIX(40.2%), CTK(28.9%), SXT(42.0%), ASR(34.7%), MILK(3.0%), OG(120.6%), AGT(1.9%), B(1.8%), MERL(168.0%), PORT3(2.5%), 1000000BOB(1.6%), LA(64.3%), HOME(2.9%), PUMPBTC(29.4%), MYX(393.2%), DMC(2.3%), H(2.8%), OL(1.7%), SAHARA(38.4%), M(26.2%), TANSSI(2.4%), PUMP(1.0%), CROSS(3.0%), VELVET(0.4%), ZORA(62.3%), TAG(2.4%), ESPORTS(181.1%), A2Z(2.1%), YALA(1.8%), SOMI(33.2%), BAS(1.2%), Q(1.4%), PTB(34.7%), OPEN(1.6%), AVNT(26.6%), UB(2.3%), TOSHI(30.0%), BARD(27.2%), TRADOOR(47.1%), BLESS(2.9%), FLUID(26.1%), HANA(0.9%), AKE(0.4%), LIGHT(173.6%), XAN(2.7%), TRUTH(2.2%), YB(37.6%), EUL(26.4%), CLO(25.9%), RIVER(114.5%), 币安人生(0.6%), BLUAI(2.2%), APR(0.6%), ON(0.8%), KITE(3.0%), AT(1.9%), UAI(1.2%), STABLE(0.9%), JCT(0.9%), ALLO(1.1%), BEAT(35.1%), BOB(2.8%), RLS(2.8%), POWER(32.5%), US(1.1%), CYS(2.8%), BREV(43.8%), MAGMA(1.7%)
+2026-08-14 09:12:04: [PP369] [Binance] Đang lấy leverage brackets cho 437 coin... 
+2026-08-14 09:12:05: [PP369] [Binance] Đã lưu leverage cho 437 coin vào step_sizes.json 
+2026-08-14 09:12:05: [PP369] [AutoTrade] Khởi động: 437 coin | margin=$10 | 10x | type=LIMIT 
+2026-08-14 09:12:05: [PP369] [Binance] Loaded step and tick sizes from existing file: 852 symbols 
+2026-08-14 09:12:05: [PP369] [AutoTrade] Đã nạp leverageInfo cho 437 coin từ cache. 
+2026-08-14 09:12:05: [PP369] [PP369Stream] Kết nối WebSocket thành công (market/stream) 
+2026-08-14 09:12:09: [PP369] [AutoTrade] Bắt đầu scan... 
+2026-08-14 09:18:36: [PP369] [AutoTrade] KAITO → LONG (Score: +4.1đ) tại $0.4163 
+2026-08-14 09:18:36: [PP369] [AutoTrade] Phân bổ Ký quỹ KAITO: $65 (Gốc PP369+Vol $50 + Bonus $15 từ +3.3đ các tiêu chí bổ trợ | Score tổng: +4.1đ) 
+2026-08-14 09:18:36: [PP369] [AutoTrade] KAITO LONG: Từ khi chạm mốc Short ($0.4462), nến M1 đã xát mốc entry LONG ($0.416300) rồi nảy lên đỉnh $0.420400 (+0.98% >= 0.96% Khung/5) — HỦY LIMIT stale. 
+2026-08-14 09:27:10: [PP369] [AutoTrade] 🟢 Hệ thống hoạt động bình thường | Theo dõi: 437 coin | Tiệm cận sát mốc (<=0.5%): 50 coin 
+2026-08-14 09:33:40: [PP369] [AutoTrade] EDEN → LONG (Score: +4.5đ) tại $0.07761 
+2026-08-14 09:33:40: [PP369] [AutoTrade] EDEN LONG không đạt Tiêu chí 2 (M15 biến động mạnh) — Đưa vào Watchlist chờ Retest H1 
+2026-08-14 09:35:20: [PP369] [AutoTrade] PIEVERSE → SHORT (Score: +5.1đ) tại $0.7876 
+2026-08-14 09:35:20: [PP369] [AutoTrade] Phân bổ Ký quỹ PIEVERSE: $70 (Gốc PP369+Vol $50 + Bonus $20 từ +4.8đ các tiêu chí bổ trợ | Score tổng: +5.1đ) 
+2026-08-14 09:35:20: [PP369] [AI Reviewer (Shadow)] 🟡 Khuyên BỎ QUA PIEVERSE (SHORT) - Xác suất thắng 64.9% < 65% (+ RSI_NEAR (x1.1818), + LS_DIVERGENCE (x1.1039), + PA_1_LEVEL (x1.0559), + OI_SURGE (x1.0474), + VOL_SURGE (x1.0758), - BTC_ALIGNED (x0.8972), - GRID_NORMAL (x0.9455)) 
+2026-08-14 09:35:20: [PP369] [AutoTrade] Set leverage PIEVERSEUSDT = 10x (Bước 300đ: 3.81% → tính được 10x, giới hạn: 20x | Ký quỹ mục tiêu: $70) 
+2026-08-14 09:35:20: [PP369] [AutoTrade] ✓ PIEVERSE SELL 888 @ $0.7876 orderId=1760081289 status=NEW 
+2026-08-14 09:36:10: [PP369] [AutoTrade] ✓ Đặt TP PIEVERSE @ $0.7786000 (đối ứng BUY) orderId=1000002506078692 
+2026-08-14 09:36:10: [PP369] [AutoTrade] ✓ Đặt SL PIEVERSE @ $0.7979000 (đối ứng BUY) orderId=1000002506078694 
+2026-08-14 09:38:04: [PP369] [AutoTrade] Trailing SL (chạm mốc 45đ): BANANAS31 đạt ROI 5.03% -> Dịch SL trên sàn về entry +5đ ($0.008344, ROI ~0.6%) [Mức: +5đ (Khóa lãi)] 
+2026-08-14 09:38:04: [PP369] [AutoTrade] Đã hủy SL cũ của BANANAS31 (orderId=1000002506017810) 
+2026-08-14 09:38:04: [PP369] [AutoTrade] ✓ Đã dịch SL mới cho BANANAS31 @ $0.0083440 (orderId=1000002506080537) 
+2026-08-14 09:41:54: ◇ injected env (10) from .env // tip: ⌁ auth for agents [www.vestauth.com]
+2026-08-14 09:41:55: [PP369] [AI Reviewer] ✓ Đã nạp thành công mô hình AI (v1.1.0, mẫu N=19) 
+2026-08-14 09:41:55: [PP369] [AI Reviewer] 🔄 Tự động kích hoạt Python re-train mô hình AI trong nền... 
+2026-08-14 09:41:55: [PP369] [369] initH4Cache: Tất cả 803 coin đã có nến H4 đầu năm. 
+2026-08-14 09:41:55: [AutoTrade] Bỏ qua 169 coin có grid ngoài khoảng 3–25% (theo giá hiện tại): 4(3.0%), XRP(29.6%), ETC(48.4%), LINK(34.0%), BAT(52.9%), QTUM(45.5%), KNC(30.1%), DOT(38.9%), SOL(39.4%), AVAX(46.6%), AAVE(34.1%), FIL(44.5%), RSR(25.8%), BEL(2.9%), COTI(27.0%), ALICE(2.6%), ONE(43.5%), NKN(2.6%), DGB(1.6%), ATA(1.8%), DYDX(2.7%), KLAY(2.4%), IMX(27.5%), APE(2.4%), WOO(28.3%), DAR(2.1%), OP(34.0%), STG(2.1%), SPELL(38.4%), APT(54.3%), FET(2.2%), CKB(36.8%), USDC(30.0%), AMB(2.5%), LEVER(26.7%), RDNT(2.9%), SUI(43.8%), MAV(33.8%), DODOX(1.3%), ARK(33.3%), BOND(28.1%), GAS(32.4%), SUPER(35.4%), 1000SATS(296.7%), MOVR(37.0%), JUP(1.8%), GLM(34.3%), PORTAL(2.8%), MYRO(3.0%), W(36.6%), BB(26.3%), IO(2.7%), ZK(41.0%), ZRO(38.0%), RARE(25.4%), SYN(2.6%), SYS(1.7%), ALPACA(25.2%), SUN(1.6%), DOGS(85.5%), BSW(2.5%), QUICK(2.3%), NEIRO(45.0%), FIO(2.5%), GHST(1.8%), LOKA(2.6%), COS(2.5%), SANTOS(63.4%), COW(29.8%), 1000000MOG(30.3%), DRIFT(26.6%), ACT(31.3%), HIPPO(2.9%), DEGEN(2.9%), 1000WHY(197.4%), THE(51.2%), CHILLGUY(2.8%), ORCA(29.1%), MOVE(47.9%), KOMA(2.2%), VELODROME(1.8%), MOCA(41.3%), VANA(35.6%), USUAL(35.0%), DF(2.6%), GRIFFAIN(2.5%), D(2.2%), AVAAI(2.2%), PIPPIN(178.7%), TST(2.1%), HEI(2.4%), GPS(2.7%), RED(33.0%), MUBARAK(1.9%), TUT(0.8%), BROCCOLI714(1.9%), BR(1.1%), PLUME(2.4%), FUN(1.7%), BABY(3.0%), SIGN(46.3%), PUNDIX(40.3%), CTK(29.0%), SXT(42.1%), ASR(34.7%), MILK(3.0%), OG(120.9%), AGT(1.9%), B(1.8%), MERL(167.9%), PORT3(2.5%), 1000000BOB(1.6%), LA(64.5%), HOME(2.8%), PUMPBTC(29.4%), MYX(395.4%), DMC(2.3%), H(2.8%), OL(1.7%), SAHARA(38.3%), M(26.0%), TANSSI(2.4%), PUMP(1.0%), CROSS(3.0%), VELVET(0.4%), ZORA(62.4%), TAG(2.4%), ESPORTS(186.3%), A2Z(2.1%), YALA(1.8%), SOMI(33.3%), BAS(1.2%), Q(1.4%), PTB(34.8%), OPEN(1.6%), AVNT(28.0%), UB(2.3%), TOSHI(30.1%), BARD(27.2%), TRADOOR(47.0%), BLESS(3.0%), FLUID(26.3%), HANA(0.9%), AKE(0.4%), LIGHT(174.0%), XAN(2.6%), TRUTH(2.2%), YB(37.7%), EUL(26.7%), CLO(25.8%), RIVER(114.5%), 币安人生(0.6%), BLUAI(2.2%), APR(0.7%), ON(0.8%), KITE(3.0%), AT(1.9%), UAI(1.2%), STABLE(0.9%), JCT(0.9%), ALLO(1.1%), BEAT(34.9%), BOB(2.8%), RLS(2.8%), POWER(32.5%), US(1.1%), CYS(2.7%), BREV(44.1%), MAGMA(1.7%)
+2026-08-14 09:41:56: [PP369] [Binance] Đang lấy leverage brackets cho 437 coin... 
+2026-08-14 09:41:56: [PP369] [Binance] Đã lưu leverage cho 437 coin vào step_sizes.json 
+2026-08-14 09:41:56: [PP369] [AutoTrade] Khởi động: 437 coin | margin=$10 | 10x | type=LIMIT 
+2026-08-14 09:41:56: [PP369] [Binance] Loaded step and tick sizes from existing file: 852 symbols 
+2026-08-14 09:41:56: [PP369] [AutoTrade] Đã nạp leverageInfo cho 437 coin từ cache. 
+2026-08-14 09:41:56: [PP369] [PP369Stream] Kết nối WebSocket thành công (market/stream) 
+2026-08-14 09:42:00: [PP369] [AutoTrade] Bắt đầu scan... 
+2026-08-14 09:46:32: [PP369] [AutoTrade] EDEN → LONG (Score: +4.5đ) tại $0.07461 
+2026-08-14 09:46:32: [PP369] [AutoTrade] EDEN LONG không đạt Tiêu chí 2 (M15 biến động mạnh) — Đưa vào Watchlist chờ Retest H1 
+2026-08-14 09:57:01: [PP369] [AutoTrade] 🟢 Hệ thống hoạt động bình thường | Theo dõi: 437 coin | Tiệm cận sát mốc (<=0.5%): 46 coin 
+2026-08-14 10:00:00: [PP369] [H1Retest] === Kiểm tra 1 coin trong Watchlist: [EDEN(LONG @$0.07461)] === 
+2026-08-14 10:00:01: [PP369] [H1Retest] EDEN LONG nến H1 rút chân nhưng ĐÃ PHẢN ỨNG NẢY ROI = +97.35% (>= 5.0%) sau khi chạm entry. Bỏ qua không đặt limit. 
+2026-08-14 10:01:01: [PP369] [AutoTrade] ⚠️ GUA LONG: Nến H1 đóng cửa xấu ($0.04303 <= Entry - 35 ticks $0.043303) -> Kích hoạt dời TP về Entry $0.04365257873485868 
+2026-08-14 10:01:01: [PP369] [AutoTrade] ⚠️ Đã dời TP GUA về Entry (Hòa vốn) @ $0.04365 do H1 gãy cản (đối ứng SELL) orderId=1000002506101515 
+2026-08-14 10:12:01: [PP369] [AutoTrade] 🟢 Hệ thống hoạt động bình thường | Theo dõi: 437 coin | Tiệm cận sát mốc (<=0.5%): 44 coin 
+2026-08-14 10:27:01: [PP369] [AutoTrade] 🟢 Hệ thống hoạt động bình thường | Theo dõi: 437 coin | Tiệm cận sát mốc (<=0.5%): 40 coin 
+2026-08-14 10:30:51: [PP369] [AutoTrade] JASMY → SHORT (Score: +4.5đ) tại $0.004325 
+2026-08-14 10:30:51: [PP369] [AutoTrade] Phân bổ Ký quỹ JASMY: $65 (Gốc PP369+Vol $50 + Bonus $15 từ +3.5đ các tiêu chí bổ trợ | Score tổng: +4.5đ) 
+2026-08-14 10:30:51: [PP369] [AI Reviewer (Shadow)] 🟡 Khuyên BỎ QUA JASMY (SHORT) - Xác suất thắng 56.3% < 65% (+ VOL_ULTRA (x1.0594), - PA_0_LEVEL (x0.8586), + OI_SURGE (x1.0474), + VOL_SURGE (x1.0758), - FUNDING_DANGER (x0.9659), - BTC_ALIGNED (x0.8972), + GRID_WIDE (x1.0474)) 
+2026-08-14 10:30:51: [PP369] [AutoTrade] Set leverage JASMYUSDT = 5x (Bước 300đ: 6.94% → tính được 5x, giới hạn: 75x | Ký quỹ mục tiêu: $65) 
+2026-08-14 10:30:52: [PP369] [AutoTrade] ✓ JASMY SELL 75144 @ $0.004325 orderId=8814941793 status=NEW 
+2026-08-14 10:34:01: [PP369] [AutoTrade] [BounceCancel] JASMY SHORT: entry=$0.004325, current=$0.004284 (-0.95% >= 0.92%) → Hủy LIMIT ngay lập tức 
+2026-08-14 10:35:42: [PP369] [AutoTrade] BMT → LONG (Score: +4.9đ) tại $0.01548 
+2026-08-14 10:35:42: [PP369] [AutoTrade] Phân bổ Ký quỹ BMT: $65 (Gốc PP369+Vol $50 + Bonus $15 từ +3.9đ các tiêu chí bổ trợ | Score tổng: +4.9đ) 
+2026-08-14 10:35:42: [PP369] [AI Reviewer (Shadow)] 🟡 Khuyên BỎ QUA BMT (LONG) - Xác suất thắng 56.4% < 65% (+ VOL_ULTRA (x1.0594), - RSI_NEUTRAL (x0.8586), + PA_3_LEVELS (x1.0559), - OI_STABLE (x0.9043), - VOL_STABLE (x0.9659), + BTC_NEUTRAL (x1.0861), + GRID_WIDE (x1.0474)) 
+2026-08-14 10:35:43: [PP369] [AutoTrade] Set leverage BMTUSDT = 2x (Bước 300đ: 19.38% → tính được 2x, giới hạn: 20x | Ký quỹ mục tiêu: $65) 
+2026-08-14 10:35:43: [PP369] [AutoTrade] ✓ BMT BUY 8397 @ $0.01548 orderId=1433737375 status=NEW 
+2026-08-14 10:36:01: [PP369] [AutoTrade] ✓ Đặt TP BMT @ $0.0163800 (đối ứng SELL) orderId=1000002506132262 
+2026-08-14 10:36:01: [PP369] [AutoTrade] ✓ Đặt SL BMT @ $0.0144500 (đối ứng SELL) orderId=1000002506132266 
+2026-08-14 10:38:25: [PP369] [AutoTrade] [BounceCancel] PIEVERSE SHORT: entry=$0.7876, current=$0.782677 (-0.63% >= 0.51%) → Hủy LIMIT ngay lập tức 
+2026-08-14 10:42:01: [PP369] [AutoTrade] 🟢 Hệ thống hoạt động bình thường | Theo dõi: 437 coin | Tiệm cận sát mốc (<=0.5%): 43 coin 
+2026-08-14 10:46:09: [PP369] [AutoTrade] RAYSOL → LONG (Score: +3.9999999999999996đ) tại $0.6166 
+2026-08-14 10:46:09: [PP369] [AutoTrade] Phân bổ Ký quỹ RAYSOL: $60 (Gốc PP369+Vol $50 + Bonus $10 từ +3.0đ các tiêu chí bổ trợ | Score tổng: +4.0đ) 
+2026-08-14 10:46:09: [PP369] [AI Reviewer (Shadow)] 🟡 Khuyên BỎ QUA RAYSOL (LONG) - Xác suất thắng 61.7% < 65% (+ VOL_ULTRA (x1.0594), + RSI_NEAR (x1.1818), + PA_3_LEVELS (x1.0559), - OI_STABLE (x0.9043), - VOL_DRY (x0.9152), + BTC_NEUTRAL (x1.0861), - GRID_NORMAL (x0.9455)) 
+2026-08-14 10:46:09: [PP369] [AutoTrade] Set leverage RAYSOLUSDT = 8x (Bước 300đ: 4.87% → tính được 8x, giới hạn: 75x | Ký quỹ mục tiêu: $60) 
+2026-08-14 10:46:09: [PP369] [AutoTrade] ✓ RAYSOL BUY 778.4 @ $0.6166 orderId=2264690838 status=NEW 
+2026-08-14 10:46:56: [PP369] [GridBlacklist] Đã tự động giải phóng HBAR khỏi Blacklist sau 1 tuần. 
+2026-08-14 10:46:56: [PP369] [GridBlacklist] ĐÃ THÊM HBAR VÀO BLACKLIST 7 NGÀY (Lý do: x*2 (3.13%) > y (3.03%)). Sẽ tự động giải phóng sau 7 ngày. 
+2026-08-14 10:57:01: [PP369] [AutoTrade] 🟢 Hệ thống hoạt động bình thường | Theo dõi: 437 coin | Tiệm cận sát mốc (<=0.5%): 43 coin 
+2026-08-14 11:08:13: ◇ injected env (10) from .env // tip: ⌁ auth for agents [www.vestauth.com]
+2026-08-14 11:08:13: [PP369] [AI Reviewer] ✓ Đã nạp thành công mô hình AI (v1.1.0, mẫu N=19) 
+2026-08-14 11:08:13: [PP369] [AI Reviewer] 🔄 Tự động kích hoạt Python re-train mô hình AI trong nền... 
+2026-08-14 11:08:13: [PP369] [369] initH4Cache: Tất cả 803 coin đã có nến H4 đầu năm. 
+2026-08-14 11:08:14: [AutoTrade] Bỏ qua 167 coin có grid ngoài khoảng 3–25% (theo giá hiện tại): 4(3.0%), XRP(29.7%), ETC(48.6%), LINK(34.0%), BAT(53.1%), QTUM(45.5%), KNC(30.0%), DOT(39.3%), SOL(39.6%), AVAX(46.8%), AAVE(34.3%), FIL(44.6%), RSR(25.9%), BEL(2.9%), COTI(27.9%), ALICE(2.6%), ONE(42.4%), NKN(2.6%), DGB(1.6%), ATA(1.8%), DYDX(2.7%), KLAY(2.4%), IMX(27.5%), APE(2.5%), WOO(28.5%), DAR(2.1%), OP(34.2%), STG(2.1%), SPELL(38.5%), APT(54.6%), FET(2.2%), CKB(36.9%), USDC(30.0%), AMB(2.5%), LEVER(26.7%), RDNT(2.9%), SUI(43.9%), MAV(33.8%), DODOX(1.3%), ARK(33.3%), BOND(28.1%), GAS(32.5%), SUPER(35.5%), 1000SATS(299.7%), MOVR(37.6%), JUP(1.8%), GLM(34.1%), PORTAL(2.8%), MYRO(3.0%), W(36.8%), BB(25.9%), IO(2.7%), ZK(41.3%), ZRO(37.8%), RARE(25.5%), SYN(2.6%), SYS(1.7%), ALPACA(25.2%), SUN(1.6%), DOGS(85.7%), BSW(2.5%), QUICK(2.3%), NEIRO(45.3%), FIO(2.5%), GHST(1.8%), LOKA(2.6%), COS(2.5%), SANTOS(63.6%), COW(29.8%), 1000000MOG(30.3%), DRIFT(26.8%), ACT(31.2%), HIPPO(2.9%), DEGEN(2.9%), 1000WHY(197.4%), THE(51.0%), CHILLGUY(2.8%), ORCA(29.1%), MOVE(48.2%), KOMA(2.2%), VELODROME(1.7%), MOCA(41.4%), VANA(35.5%), USUAL(35.0%), DF(2.6%), GRIFFAIN(2.5%), D(2.2%), AVAAI(2.2%), PIPPIN(181.6%), TST(2.2%), HEI(2.4%), GPS(2.7%), RED(34.0%), MUBARAK(1.9%), TUT(0.9%), BROCCOLI714(2.0%), BR(1.2%), PLUME(2.4%), FUN(1.7%), BABY(3.0%), SIGN(46.5%), PUNDIX(40.3%), CTK(29.0%), SXT(42.4%), ASR(34.6%), MILK(3.0%), OG(121.1%), AGT(1.9%), B(1.9%), MERL(168.9%), PORT3(2.5%), 1000000BOB(1.6%), LA(64.4%), HOME(2.7%), PUMPBTC(28.6%), MYX(395.2%), DMC(2.3%), H(2.7%), OL(1.7%), SAHARA(38.5%), M(25.5%), TANSSI(2.4%), PUMP(1.0%), VELVET(0.4%), ZORA(62.4%), TAG(2.4%), ESPORTS(190.0%), A2Z(2.1%), YALA(1.8%), SOMI(33.3%), BAS(1.2%), Q(1.4%), PTB(35.0%), OPEN(1.6%), AVNT(28.2%), UB(2.3%), TOSHI(30.2%), BARD(27.3%), TRADOOR(47.0%), BLESS(2.9%), FLUID(26.2%), HANA(0.9%), AKE(0.4%), LIGHT(171.1%), XAN(2.6%), TRUTH(2.2%), YB(37.1%), EUL(27.1%), CLO(25.8%), RIVER(114.9%), 币安人生(0.6%), BLUAI(2.2%), APR(0.5%), ON(0.7%), AT(1.9%), UAI(1.2%), STABLE(0.9%), JCT(0.9%), ALLO(1.1%), BEAT(35.0%), BOB(2.8%), RLS(2.8%), POWER(32.5%), US(1.3%), CYS(2.8%), BREV(44.2%), MAGMA(1.7%)
+2026-08-14 11:08:14: [PP369] [Binance] Đang lấy leverage brackets cho 439 coin... 
+2026-08-14 11:08:15: [PP369] [Binance] Đã lưu leverage cho 439 coin vào step_sizes.json 
+2026-08-14 11:08:15: [PP369] [AutoTrade] Khởi động: 439 coin | margin=$10 | 10x | type=LIMIT 
+2026-08-14 11:08:15: [PP369] [Binance] Loaded step and tick sizes from existing file: 852 symbols 
+2026-08-14 11:08:15: [PP369] [AutoTrade] Đã nạp leverageInfo cho 439 coin từ cache. 
+2026-08-14 11:08:15: [PP369] [PP369Stream] Kết nối WebSocket thành công (market/stream) 
+2026-08-14 11:08:19: [PP369] [AutoTrade] Bắt đầu scan... 
+2026-08-14 11:15:49: [PP369] [AutoTrade] BANANAS31 → SHORT (Score: +3.1đ) tại $0.008649 
+2026-08-14 11:15:49: [PP369] [AutoTrade] Phân bổ Ký quỹ BANANAS31: $60 (Gốc PP369+Vol $50 + Bonus $10 từ +2.3đ các tiêu chí bổ trợ | Score tổng: +3.1đ) 
+2026-08-14 11:15:50: [PP369] [AI Reviewer (Shadow)] 🟡 Khuyên BỎ QUA BANANAS31 (SHORT) - Xác suất thắng 52.5% < 65% (+ VOL_ULTRA (x1.0594), - RSI_NEUTRAL (x0.8586), + LS_DIVERGENCE (x1.1039), + PA_1_LEVEL (x1.0559), - OI_STABLE (x0.9043), - VOL_STABLE (x0.9659), - BTC_ALIGNED (x0.8972), - GRID_NORMAL (x0.9455)) 
+2026-08-14 11:15:50: [PP369] [AutoTrade] Set leverage BANANAS31USDT = 11x (Bước 300đ: 3.47% → tính được 11x, giới hạn: 25x | Ký quỹ mục tiêu: $60) 
+2026-08-14 11:15:50: [PP369] [AutoTrade] ✓ BANANAS31 SELL 76309 @ $0.008649 orderId=2250183920 status=NEW 
+2026-08-14 11:15:56: [PP369] [AutoTrade] ✓ Đặt TP BANANAS31 @ $0.0085590 (đối ứng BUY) orderId=1000002506171372 
+2026-08-14 11:15:56: [PP369] [AutoTrade] ✓ Đặt SL BANANAS31 @ $0.0087520 (đối ứng BUY) orderId=1000002506171379 
+2026-08-14 11:16:53: [PP369] [AutoTrade] [BounceCancel] RAYSOL LONG: entry=$0.6166, current=$0.620643 (+0.66% >= 0.65%) → Hủy LIMIT ngay lập tức 
+2026-08-14 11:23:17: [PP369] [AutoTrade] BANANAS31 → SHORT (Score: +2.8đ) tại $0.008949 
+2026-08-14 11:23:17: [PP369] [AutoTrade] BANANAS31 SHORT không đạt Tiêu chí 2 (M15 biến động mạnh) — Đưa vào Watchlist chờ Retest H1 
+2026-08-14 11:23:19: [PP369] [AutoTrade] 🟢 Hệ thống hoạt động bình thường | Theo dõi: 439 coin | Tiệm cận sát mốc (<=0.5%): 45 coin 
+2026-08-14 11:25:59: ◇ injected env (10) from .env // tip: ⌘ custom filepath { path: '/custom/path/.env' }
+2026-08-14 11:26:00: [PP369] [AI Reviewer] ✓ Đã nạp thành công mô hình AI (v1.1.0, mẫu N=19) 
+2026-08-14 11:26:00: [PP369] [AI Reviewer] 🔄 Tự động kích hoạt Python re-train mô hình AI trong nền... 
+2026-08-14 11:26:00: [PP369] [369] initH4Cache: Tất cả 803 coin đã có nến H4 đầu năm. 
+2026-08-14 11:26:00: [AutoTrade] Bỏ qua 168 coin có grid ngoài khoảng 3–25% (theo giá hiện tại): 4(2.9%), XRP(29.7%), ETC(48.5%), LINK(34.0%), BAT(52.9%), QTUM(45.5%), KNC(30.0%), DOT(39.3%), SOL(39.5%), AVAX(46.7%), AAVE(34.2%), FIL(44.6%), RSR(25.9%), BEL(2.9%), COTI(27.6%), ALICE(2.6%), ONE(42.4%), NKN(2.6%), DGB(1.6%), ATA(1.8%), DYDX(2.7%), KLAY(2.4%), IMX(27.5%), APE(2.4%), WOO(28.5%), DAR(2.1%), OP(34.1%), STG(2.1%), SPELL(38.4%), APT(54.5%), FET(2.2%), CKB(36.9%), USDC(30.0%), AMB(2.5%), LEVER(26.7%), RDNT(2.9%), SUI(43.9%), MAV(33.9%), DODOX(1.3%), ARK(33.3%), BOND(28.1%), GAS(32.5%), SUPER(35.5%), 1000SATS(299.7%), MOVR(38.0%), JUP(1.8%), GLM(34.1%), PORTAL(2.8%), MYRO(3.0%), W(36.6%), BB(26.0%), IO(2.7%), ZK(41.3%), ZRO(37.8%), RARE(25.6%), SYN(2.6%), SYS(1.7%), ALPACA(25.2%), SUN(1.6%), DOGS(85.3%), BSW(2.5%), QUICK(2.3%), NEIRO(45.5%), FIO(2.5%), GHST(1.8%), LOKA(2.6%), COS(2.5%), SANTOS(63.5%), COW(29.8%), 1000000MOG(30.3%), DRIFT(26.8%), ACT(31.3%), HIPPO(2.9%), DEGEN(2.9%), 1000WHY(197.4%), THE(51.2%), CHILLGUY(2.8%), ORCA(29.0%), MOVE(47.6%), KOMA(2.2%), VELODROME(1.7%), MOCA(41.3%), VANA(35.5%), USUAL(35.0%), DF(2.6%), GRIFFAIN(2.5%), D(2.2%), AVAAI(2.2%), PIPPIN(181.3%), TST(2.2%), HEI(2.4%), GPS(2.8%), RED(34.1%), MUBARAK(1.9%), TUT(0.9%), BROCCOLI714(2.0%), BR(1.2%), PLUME(2.4%), FUN(1.7%), BABY(3.0%), SIGN(46.4%), PUNDIX(40.2%), CTK(29.0%), SXT(42.5%), ASR(34.6%), MILK(3.0%), OG(121.2%), AGT(1.9%), B(1.9%), MERL(168.6%), PORT3(2.5%), 1000000BOB(1.6%), LA(64.5%), HOME(2.7%), PUMPBTC(29.0%), MYX(396.0%), DMC(2.3%), H(2.7%), OL(1.7%), SAHARA(38.6%), M(25.3%), TANSSI(2.4%), PUMP(1.0%), CROSS(3.0%), VELVET(0.4%), ZORA(62.5%), TAG(2.4%), ESPORTS(191.4%), A2Z(2.1%), YALA(1.8%), SOMI(33.0%), BAS(1.2%), Q(1.4%), PTB(35.1%), OPEN(1.6%), AVNT(28.4%), UB(2.3%), TOSHI(30.2%), BARD(27.3%), TRADOOR(47.0%), BLESS(2.9%), FLUID(26.2%), HANA(0.9%), AKE(0.4%), LIGHT(172.4%), XAN(2.6%), TRUTH(2.2%), YB(37.4%), EUL(27.2%), CLO(25.8%), RIVER(115.2%), 币安人生(0.6%), BLUAI(2.3%), APR(0.6%), ON(0.7%), AT(1.9%), UAI(1.2%), STABLE(0.9%), JCT(0.9%), ALLO(1.1%), BEAT(34.9%), BOB(2.8%), RLS(2.8%), POWER(32.5%), US(1.2%), CYS(2.8%), BREV(44.2%), MAGMA(1.6%)
+2026-08-14 11:26:01: [PP369] [Binance] Đang lấy leverage brackets cho 438 coin... 
+2026-08-14 11:26:01: [PP369] [Binance] Đã lưu leverage cho 438 coin vào step_sizes.json 
+2026-08-14 11:26:01: [PP369] [AutoTrade] Khởi động: 438 coin | margin=$30 | 10x | type=LIMIT 
+2026-08-14 11:26:01: [PP369] [Binance] Loaded step and tick sizes from existing file: 852 symbols 
+2026-08-14 11:26:01: [PP369] [AutoTrade] Đã nạp leverageInfo cho 438 coin từ cache. 
+2026-08-14 11:26:02: [PP369] [PP369Stream] Kết nối WebSocket thành công (market/stream) 
+2026-08-14 11:26:05: [PP369] [AutoTrade] Bắt đầu scan... 
