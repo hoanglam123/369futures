@@ -372,11 +372,13 @@ async function startAutoTrade(coins) {
             const meta = activeTradesMetadata[sym];
             const markPrice = getMarkPrice(sym);
 
-            if (meta && markPrice && meta.gridStepPct) {
+            if (meta && markPrice) {
               const entryPrice = parseFloat(order.price);
-              const stepPct = meta.gridStepPct;
+              const stepVal = meta.step || getStep(entryPrice);
+              const unit = stepVal / 3;
               const touchThresholdPct = 0.12;             // fixed 0.12% — khoảng cách tuyệt đối từ entry (không phụ thuộc grid)
-              const bouncePct = stepPct / 5.5;          // ví dụ 3.7/5.5 = 0.67%
+              const bounceDistance = unit * 0.40;         // Cố định 40 ticks (0.40 * unit) nảy khỏi entry/điểm chạm là hủy LIMIT ngay
+              const bouncePct = (bounceDistance / entryPrice) * 100;
 
               if (order.side === 'BUY') {
                 // LONG: kiểm tra xem giá hiện tại có bật nảy đi xa mốc entry hay chưa
@@ -512,9 +514,10 @@ async function startAutoTrade(coins) {
       }
 
       const levelCache = getLevelCache();
-      // 1. WebSocket lắng nghe biến động giá cho tất cả coin trong bán kính 1.0% (0 REST API calls)
+      // 1. WebSocket lắng nghe biến động giá cho tất cả coin trong bán kính 1.0% + toàn bộ coin đang có vị thế/lệnh chờ
       const wsNearby = getNearbySymbols(activeCoinList, levelCache, 0.01);
-      syncWebSocketSubscriptions(wsNearby);
+      const wsAllSymbols = Array.from(new Set([...wsNearby, ...activeSymbols]));
+      syncWebSocketSubscriptions(wsAllSymbols);
 
       // 2. Vòng lặp Scan định kỳ chỉ xử lý các coin đang thực sự TIỆM CẬN SÁT MỐC (<= 0.5%) để tối ưu tốc độ treo LIMIT
       const scanNearby = getNearbySymbols(activeCoinList, levelCache, 0.005, true);
@@ -700,19 +703,11 @@ async function startAutoTrade(coins) {
         return;
       }
 
-      // [BUG-5 FIX] Guard against NaN khi sig.condLevel undefined/null
-      // Nếu condLevel hợp lệ: tính theo khoảng cách 2 mốc / 5
-      // Nếu condLevel thiếu: fallback về gridStepPct / 5.5 (tương đương bouncePct trong checkPendingLimits)
-      let preEntryBouncePct;
-      if (sig.condLevel && sig.targetLevel && isFinite(sig.condLevel) && isFinite(sig.targetLevel)) {
-        const gridWidth = Math.abs(sig.condLevel - sig.targetLevel);
-        const pct = (gridWidth / Math.min(sig.targetLevel, sig.condLevel)) * 100;
-        preEntryBouncePct = pct / 5.0;
-      } else {
-        const fallbackGridStepPct = sig.step ? (sig.step / sig.targetLevel) * 100 : 4.5;
-        preEntryBouncePct = fallbackGridStepPct / 5.5;
-        log.warn(`[AutoTrade] ${sym}: sig.condLevel thiếu → dùng preEntryBouncePct fallback = ${preEntryBouncePct.toFixed(3)}%`);
-      }
+      // Ngưỡng nảy xa trước khi đặt lệnh (Pre-entry bounce): Cố định 40 ticks (0.40 * unit)
+      const entryPrice = sig.targetLevel;
+      const stepVal = sig.step || getStep(entryPrice);
+      const unit = stepVal / 3;
+      const preEntryBouncePct = (unit * 0.40 / entryPrice) * 100; // Cố định 40 ticks (0.40 * unit)
       const touchThresholdPct = 0.12;
       let maxRecentBouncePct = null;
 
@@ -1078,10 +1073,13 @@ async function checkPendingLimits(client, activeSymbols) {
       }
 
       const markPrice = getMarkPrice(sym);
-      if (!markPrice || !meta.entryPrice || !meta.gridStepPct) continue;
+      if (!markPrice || !meta.entryPrice) continue;
 
       const entry = meta.entryPrice;
-      const bouncePct = meta.gridStepPct / 5.5; // ngưỡng bounce tối thiểu để ghi nhận
+      const stepVal = meta.step || getStep(entry);
+      const unit = stepVal / 3;
+      const bounceDistance = unit * 0.40; // Cố định 40 ticks (0.40 * unit) nảy khỏi entry là hủy LIMIT ngay
+      const bouncePct = (bounceDistance / entry) * 100;
 
       if (meta.side === 'BUY') {
         // ── LONG: giá tốt khi đi LÊN khỏi entry ──────────────────────────────
@@ -1342,8 +1340,8 @@ async function checkH1RetestSignals(client) {
           // VD: BAN SHORT entry $0.07543, h1MaxHigh $0.07539 (cách 4 ticks < step*0.1=0.0003)
           //     → nảy từ $0.07539 xuống $0.074x → đã test mốc → xóa
           const nearTouchRange = step * 0.1; // ~10% bước giá = 10 ticks cho coin bước 0.001
-          const gridStepPct = (step / targetLevel) * 100;
-          const bouncePct = gridStepPct / 5.5; // Ngưỡng nảy xa: tương đương BounceCancel
+          const unit = step / 3;
+          const bouncePct = (unit * 0.40 / targetLevel) * 100; // Cố định 40 ticks (0.40 * unit) nảy khỏi cản là hủy khỏi Watchlist
 
           if (isLong) {
             const isNearTouched = h1MinLow <= targetLevel + nearTouchRange;
@@ -1684,13 +1682,10 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
       // 3. Tính khoảng cách giá tuyệt đối (Dynamic Trailing SL - Option B):
       //    SL = entry +/- unit (tương đương đúng -13% Margin với đòn bẩy = 39 / gridStepPct)
       //    TP = entry +/- (unit * tpMultiplier) -> 90, 120, 150 ticks với step=300
-      //    Trail Trigger: GridWidthPct <= 5.0% hoặc Retest H1 -> 70 ticks (0.70 * unit); GridWidthPct > 5.0% -> 45 ticks (0.45 * unit)
+      //    Trail Trigger: CỐ ĐỊNH 45 ticks (0.45 * unit) cho TẤT CẢ các thang điểm và mọi độ rộng lưới
       //    Trail SL = entry +/- (unit * 0.05) -> Dời SL +5đ (+5 ticks tùy bước giá, tương đương 0.05 * unit) khi chạm mốc Trail Trigger
       //    LƯU Ý OPTION B: Một khi lệnh đã dời SL về +5đ thì giữ nguyên SL hòa, không rollback về âm.
-      const posGridWidthPct = meta?.gridWidthPct || meta?.gridStepPct || 4.5;
-      // Đặt trailMultiplier = 0.45 (45 ticks) cho mọi coin lưới rộng > 5.0%.
-      // Chỉ áp dụng 0.70 (70 ticks) nếu chính bản thân độ rộng lưới posGridWidthPct <= 5.0%.
-      const trailMultiplier = posGridWidthPct <= 5.0 ? 0.70 : 0.45;
+      const trailMultiplier = 0.45; // Cố định 45 ticks (0.45 * unit) cho mọi thang điểm và độ rộng lưới
       const tpDistance = unit * tpMultiplier;
       const trailDistance = unit * trailMultiplier;
       const trailSlDistance = unit * 0.05; // Dời SL +5 ticks (0.05 * unit) khi chạm mốc Trail Trigger
@@ -1773,7 +1768,7 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
       // Dùng peakPrice (giá đỉnh/đáy tốt nhất được theo dõi liên tục) thay vì chỉ markPrice hiện tại.
       const peakPrice = meta?.maxFavorablePrice || markPrice;
 
-      // a. Ngưỡng Kích hoạt Trailing SL cơ bản (45đ hoặc 70đ, kèm đệm 5 ticks để tránh trượt WebSocket)
+      // a. Ngưỡng Kích hoạt Trailing SL cơ bản (45đ cố định, kèm đệm 5 ticks để tránh trượt WebSocket)
       const triggerBuffer = unit * 0.05;
       const isTrailTriggerReached = isLong
         ? (peakPrice >= trailTriggerPriceExact - triggerBuffer)

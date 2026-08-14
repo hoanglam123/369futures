@@ -161,8 +161,7 @@ async function runBacktest() {
       const leverage = Math.min(20, Math.max(3, Math.floor(39 / stepPct)));
 
       const unit = step / 3;
-      const posGridWidthPct = stepPct;
-      const trailMultiplier = posGridWidthPct <= 5.0 ? 0.70 : 0.45;
+      const trailMultiplier = 0.45;
       const tpDistance = unit * (score >= 7.5 ? 1.5 : (score >= 6.5 ? 1.2 : 0.9));
       const trailDistance = unit * trailMultiplier;
       const slDistance = unit * 1.03; // -13% margin equivalent + 3 ticks buffer
