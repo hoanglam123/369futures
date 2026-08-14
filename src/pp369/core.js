@@ -1811,32 +1811,55 @@ async function score369Method(sig369, direction) {
         volReasons.push(`H1: thiếu nến (+0đ)`);
       }
 
-      // 2.2 Kiểm tra biến động M15 (Tối đa 0.5đ) - Check cả cây M15 chuẩn đã đóng cửa trước đó VÀ cây M15 hiện tại đang chạy
+      // 2.2 Kiểm tra biến động & Khối lượng M15 (Tối đa 0.5đ) - Check cả Range % VÀ Đột biến Volume M15
       try {
         let m15Klines = m15Data;
-        if (!m15Klines || m15Klines.length < 2) {
-          m15Klines = await fetchBinanceKlines(sig369.symbol, '15m', Date.now() - 3 * 3600_000, 10);
+        if (!m15Klines || m15Klines.length < 22) {
+          m15Klines = await fetchBinanceKlines(sig369.symbol, '15m', Date.now() - 6 * 3600_000, 22);
         }
         if (m15Klines && m15Klines.length >= 2) {
           const prevM15 = m15Klines[m15Klines.length - 2];
           const currM15 = m15Klines[m15Klines.length - 1];
 
-          const prevM15Pct = ((prevM15.high - prevM15.low) / price) * 100;
-          const currM15Pct = ((currM15.high - currM15.low) / price) * 100;
-          const maxM15RangePct = Math.max(prevM15Pct, currM15Pct);
+          // 2.2a Kiểm tra Đột biến Volume M15 (gấp >= 2.5x TB 20 nến M15 trước)
+          let isM15VolSurge = false;
+          if (m15Klines.length >= 22) {
+            const base20 = m15Klines.slice(-22, -2);
+            const avgBaseVolM15 = base20.reduce((s, c) => s + c.volume, 0) / 20;
+            if (avgBaseVolM15 > 0) {
+              const nowMs = Date.now();
+              const elapsedMin = Math.max(1, Math.min(15, (nowMs - currM15.openTime) / 60000));
+              const projectedCurrVol = (currM15.volume / elapsedMin) * 15;
+              const currVolRatio = projectedCurrVol / avgBaseVolM15;
+              const prevVolRatio = prevM15.volume / avgBaseVolM15;
+              const maxVolRatio = Math.max(prevVolRatio, currVolRatio);
 
-          const m15LimitPct = 0.69 * stepPct;
-          const m15SuperLimitPct = 0.345 * stepPct;
+              if (maxVolRatio >= 2.5) {
+                isM15VolSurge = true;
+                isM15Volatile = true;
+                volReasons.push(`🚨 M15 đột biến Volume (${prevM15.volume.toFixed(0)} gấp ${maxVolRatio.toFixed(2)}x TB 20 nến): Nguy cơ bão xả/bơm mạnh → Chuyển Watchlist Retest (+0đ)`);
+              }
+            }
+          }
 
-          if (maxM15RangePct <= m15SuperLimitPct) {
-            volScore += 0.5;
-            volReasons.push(`M15 siêu nén (cây trước ${prevM15Pct.toFixed(2)}%, hiện tại ${currM15Pct.toFixed(2)}%): max <= ${m15SuperLimitPct.toFixed(2)}% (+0.5đ)`);
-          } else if (maxM15RangePct <= m15LimitPct) {
-            volScore += 0.3;
-            volReasons.push(`M15 nén vừa (cây trước ${prevM15Pct.toFixed(2)}%, hiện tại ${currM15Pct.toFixed(2)}%): max <= ${m15LimitPct.toFixed(2)}% (+0.3đ)`);
-          } else {
-            isM15Volatile = true;
-            volReasons.push(`M15 biến động mạnh (cây trước ${prevM15Pct.toFixed(2)}%, hiện tại ${currM15Pct.toFixed(2)}%): max > ${m15LimitPct.toFixed(2)}% (+0đ)`);
+          if (!isM15VolSurge) {
+            const prevM15Pct = ((prevM15.high - prevM15.low) / price) * 100;
+            const currM15Pct = ((currM15.high - currM15.low) / price) * 100;
+            const maxM15RangePct = Math.max(prevM15Pct, currM15Pct);
+
+            const m15LimitPct = 0.69 * stepPct;
+            const m15SuperLimitPct = 0.345 * stepPct;
+
+            if (maxM15RangePct <= m15SuperLimitPct) {
+              volScore += 0.5;
+              volReasons.push(`M15 siêu nén (cây trước ${prevM15Pct.toFixed(2)}%, hiện tại ${currM15Pct.toFixed(2)}%): max <= ${m15SuperLimitPct.toFixed(2)}% (+0.5đ)`);
+            } else if (maxM15RangePct <= m15LimitPct) {
+              volScore += 0.3;
+              volReasons.push(`M15 nén vừa (cây trước ${prevM15Pct.toFixed(2)}%, hiện tại ${currM15Pct.toFixed(2)}%): max <= ${m15LimitPct.toFixed(2)}% (+0.3đ)`);
+            } else {
+              isM15Volatile = true;
+              volReasons.push(`M15 biến động mạnh (cây trước ${prevM15Pct.toFixed(2)}%, hiện tại ${currM15Pct.toFixed(2)}%): max > ${m15LimitPct.toFixed(2)}% (+0đ)`);
+            }
           }
         } else {
           volReasons.push(`M15: thiếu nến (+0đ)`);
