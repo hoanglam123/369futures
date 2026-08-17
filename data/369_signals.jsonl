@@ -487,3 +487,5 @@
 {"ts":"2026-08-17T07:31:06","symbol":"SKYAI","signal":"SHORT","price":0.07065,"leverage":9,"score":3,"margin":40}
 {"ts":"2026-08-17T08:29:39","symbol":"ARB","signal":"SHORT","price":0.07477671,"leverage":9,"score":3.3,"margin":40}
 {"ts":"2026-08-17T08:42:57","symbol":"NIL","signal":"SHORT","price":0.04904,"leverage":6,"score":2.2,"margin":35}
+{"ts":"2026-08-17T09:53:30","symbol":"ARB","signal":"SHORT","price":0.07478,"leverage":9,"score":3.8,"margin":40}
+{"ts":"2026-08-17T10:03:13","symbol":"BANANAS31","signal":"LONG","price":0.00871095,"leverage":11,"score":5.1,"margin":50}

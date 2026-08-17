@@ -31581,3 +31581,30 @@
 2026-08-17 09:18:31: [PP369] [AutoTrade] 🟢 Hệ thống hoạt động bình thường | Theo dõi: 441 coin | Tiệm cận sát mốc (<=0.5%): 42 coin 
 2026-08-17 09:23:07: [PP369] [AutoTrade] ALGO → SHORT (Score: +6.7đ) tại $0.0801 
 2026-08-17 09:23:07: [PP369] [AutoTrade] ALGO SHORT không đạt Tiêu chí 2 (Đột biến Volume 3 nến H1 (gấp >= 2.5x)) — Đưa vào Watchlist chờ Retest H1 
+2026-08-17 09:33:31: [PP369] [AutoTrade] 🟢 Hệ thống hoạt động bình thường | Theo dõi: 441 coin | Tiệm cận sát mốc (<=0.5%): 46 coin 
+2026-08-17 09:48:31: [PP369] [AutoTrade] 🟢 Hệ thống hoạt động bình thường | Theo dõi: 441 coin | Tiệm cận sát mốc (<=0.5%): 39 coin 
+2026-08-17 09:50:07: [PP369] [AutoTrade] XNY → LONG (Score: +3.1đ) tại $0.007102 
+2026-08-17 09:50:07: [PP369] [AutoTrade] XNY LONG không đạt Tiêu chí 2 (M15 biến động mạnh) — Đưa vào Watchlist chờ Retest H1 
+2026-08-17 09:51:31: [PP369] [AutoTrade] ALGO → SHORT (Score: +6.7đ) tại $0.0801 
+2026-08-17 09:51:31: [PP369] [AutoTrade] ALGO SHORT không đạt Tiêu chí 2 (Đột biến Volume 3 nến H1 (gấp >= 2.5x)) — Đưa vào Watchlist chờ Retest H1 
+2026-08-17 09:53:29: [PP369] [AutoTrade] ARB → SHORT (Score: +3.8đ) tại $0.075 
+2026-08-17 09:53:29: [PP369] [AutoTrade] Phân bổ Ký quỹ ARB: $40 (Gốc PP369+Vol $30 + Bonus $10 từ +2.8đ các tiêu chí bổ trợ | Score tổng: +3.8đ) 
+2026-08-17 09:53:29: [PP369] [AI Reviewer (Shadow)] 🟡 Khuyên BỎ QUA ARB (SHORT) - Xác suất thắng 53.2% < 65% (- RANK_MIDCAP_150 (x0.9659), + VOL_ULTRA (x1.0594), - RSI_NEUTRAL (x0.8586), + LS_DIVERGENCE (x1.1039), - PA_0_LEVEL (x0.8586), + OI_SURGE (x1.0474), + VOL_SURGE (x1.0758), - BTC_ALIGNED (x0.8972), - GRID_NORMAL (x0.9455)) 
+2026-08-17 09:53:30: [PP369] [AutoTrade] Set leverage ARBUSDT = 9x (Bước 300đ: 4.00% → tính được 9x, giới hạn: 75x | Ký quỹ mục tiêu: $40) 
+2026-08-17 09:53:30: [PP369] [AutoTrade] ✓ ARB SELL 4800 @ $0.075 orderId=16194572389 status=NEW 
+2026-08-17 10:00:02: [PP369] [H1Retest] === Kiểm tra 5 coin trong Watchlist: [METIS(LONG @$2.309), COAI(LONG @$0.3214), ALGO(SHORT @$0.0801), HOLO(LONG @$0.05369), XNY(LONG @$0.007102)] === 
+2026-08-17 10:00:02: [PP369] [H1Retest] METIS LONG nến H1 chưa chạm mốc $2.309 (Low: $2.353) — Tiếp tục giữ trong Watchlist 
+2026-08-17 10:00:02: [PP369] [H1Retest] COAI LONG gần chạm mốc $0.3214 (Low: $0.3225, cách 0.342%) và đã nảy +1.43% >= 1.24% — XÓA KHỎI WATCHLIST 
+2026-08-17 10:00:02: [PP369] [H1Retest] ALGO SHORT gần chạm mốc $0.0801 (High: $0.08002, cách 0.100%) và đã nảy -0.57% >= 0.50% — XÓA KHỎI WATCHLIST 
+2026-08-17 10:00:03: [PP369] [H1Retest] HOLO LONG gần chạm mốc $0.05369 (Low: $0.05373, cách 0.075%) và đã nảy +2.36% >= 0.75% — XÓA KHỎI WATCHLIST 
+2026-08-17 10:00:03: [PP369] [H1Retest] XNY LONG nến H1 rút chân nhưng ĐÃ PHẢN ỨNG NẢY ROI = +60.83% (>= 5.0%) sau khi chạm entry. Bỏ qua không đặt limit. 
+2026-08-17 10:03:13: [PP369] [AutoTrade] BANANAS31 → LONG (Score: +5.1đ) tại $0.008685 
+2026-08-17 10:03:13: [PP369] [AutoTrade] Phân bổ Ký quỹ BANANAS31: $50 (Gốc PP369+Vol $30 + Bonus $20 từ +4.1đ các tiêu chí bổ trợ | Score tổng: +5.1đ) 
+2026-08-17 10:03:13: [PP369] [AI Reviewer (Shadow)] 🟡 Khuyên BỎ QUA BANANAS31 (LONG) - Xác suất thắng 48.4% < 65% (+ VOL_ULTRA (x1.0594), - RSI_NEUTRAL (x0.8586), - PA_0_LEVEL (x0.8586), - OI_STABLE (x0.9043), - VOL_DRY (x0.9152), + BTC_NEUTRAL (x1.0861), - GRID_NORMAL (x0.9455)) 
+2026-08-17 10:03:13: [PP369] [AutoTrade] Set leverage BANANAS31USDT = 11x (Bước 300đ: 3.45% → tính được 11x, giới hạn: 25x | Ký quỹ mục tiêu: $50) 
+2026-08-17 10:03:13: [PP369] [AutoTrade] ✓ BANANAS31 BUY 63327 @ $0.008685 orderId=2256005915 status=NEW 
+2026-08-17 10:04:01: [PP369] [AutoTrade] 🟢 Hệ thống hoạt động bình thường | Theo dõi: 441 coin | Tiệm cận sát mốc (<=0.5%): 40 coin 
+2026-08-17 10:05:27: [PP369] [AutoTrade] [BounceCancel] BANANAS31 LONG: entry=$0.008685, current=$0.008729 (+0.51% >= 0.46%) → Hủy LIMIT ngay lập tức 
+2026-08-17 10:19:01: [PP369] [AutoTrade] 🟢 Hệ thống hoạt động bình thường | Theo dõi: 441 coin | Tiệm cận sát mốc (<=0.5%): 43 coin 
+2026-08-17 10:19:33: [PP369] [AutoTrade] [BounceCancel] ARB SHORT: entry=$0.075, current=$0.074600 (-0.56% >= 0.53%) → Hủy LIMIT ngay lập tức 
+2026-08-17 10:34:01: [PP369] [AutoTrade] 🟢 Hệ thống hoạt động bình thường | Theo dõi: 441 coin | Tiệm cận sát mốc (<=0.5%): 37 coin 
