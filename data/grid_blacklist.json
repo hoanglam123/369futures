@@ -9,76 +9,6 @@
     "xPct": 24.23,
     "yPct": 22.17
   },
-  "PROM": {
-    "symbol": "PROM",
-    "addedAt": 1785919891892,
-    "addedAtStr": "2026-08-05 15:51:31",
-    "expiresAt": 1786524691892,
-    "expiresAtStr": "2026-08-12 15:51:31",
-    "reason": "x*2 (15.07%) > y (7.34%)",
-    "xPct": 15.07,
-    "yPct": 7.34
-  },
-  "ONT": {
-    "symbol": "ONT",
-    "addedAt": 1785926102699,
-    "addedAtStr": "2026-08-05 17:35:02",
-    "expiresAt": 1786530902699,
-    "expiresAtStr": "2026-08-12 17:35:02",
-    "reason": "x*2 (25.84%) > y (12.36%)",
-    "xPct": 25.84,
-    "yPct": 12.36
-  },
-  "STORJ": {
-    "symbol": "STORJ",
-    "addedAt": 1785926102707,
-    "addedAtStr": "2026-08-05 17:35:02",
-    "expiresAt": 1786530902707,
-    "expiresAtStr": "2026-08-12 17:35:02",
-    "reason": "x*2 (5.48%) > y (4.11%)",
-    "xPct": 5.48,
-    "yPct": 4.11
-  },
-  "SKL": {
-    "symbol": "SKL",
-    "addedAt": 1785926102713,
-    "addedAtStr": "2026-08-05 17:35:02",
-    "expiresAt": 1786530902713,
-    "expiresAtStr": "2026-08-12 17:35:02",
-    "reason": "x*2 (7.98%) > y (4.56%)",
-    "xPct": 7.98,
-    "yPct": 4.56
-  },
-  "GMT": {
-    "symbol": "GMT",
-    "addedAt": 1785926132709,
-    "addedAtStr": "2026-08-05 17:35:32",
-    "expiresAt": 1786530932709,
-    "expiresAtStr": "2026-08-12 17:35:32",
-    "reason": "x*2 (10.89%) > y (3.89%)",
-    "xPct": 10.89,
-    "yPct": 3.89
-  },
-  "ID": {
-    "symbol": "ID",
-    "addedAt": 1785926132897,
-    "addedAtStr": "2026-08-05 17:35:32",
-    "expiresAt": 1786530932897,
-    "expiresAtStr": "2026-08-12 17:35:32",
-    "reason": "x*2 (25.88%) > y (10.52%)",
-    "xPct": 25.88,
-    "yPct": 10.52
-  },
-  "CYBER": {
-    "symbol": "CYBER",
-    "addedAt": 1785926132901,
-    "addedAtStr": "2026-08-05 17:35:32",
-    "expiresAt": 1786530932901,
-    "expiresAtStr": "2026-08-12 17:35:32",
-    "reason": "x*2 (36.14%) > y (13.88%)",
-    "xPct": 36.14,
-    "yPct": 13.88
-  },
   "POLYX": {
     "symbol": "POLYX",
     "addedAt": 1785926132904,
@@ -89,56 +19,6 @@
     "xPct": 15.53,
     "yPct": 12.23
   },
-  "MEME": {
-    "symbol": "MEME",
-    "addedAt": 1785926132908,
-    "addedAtStr": "2026-08-05 17:35:32",
-    "expiresAt": 1786530932908,
-    "expiresAtStr": "2026-08-12 17:35:32",
-    "reason": "x*2 (5.31%) > y (3.47%)",
-    "xPct": 5.31,
-    "yPct": 3.47
-  },
-  "ONG": {
-    "symbol": "ONG",
-    "addedAt": 1785926132913,
-    "addedAtStr": "2026-08-05 17:35:32",
-    "expiresAt": 1786530932913,
-    "expiresAtStr": "2026-08-12 17:35:32",
-    "reason": "x*2 (7.94%) > y (3.43%)",
-    "xPct": 7.94,
-    "yPct": 3.43
-  },
-  "XAI": {
-    "symbol": "XAI",
-    "addedAt": 1785926132922,
-    "addedAtStr": "2026-08-05 17:35:32",
-    "expiresAt": 1786530932922,
-    "expiresAtStr": "2026-08-12 17:35:32",
-    "reason": "x*2 (12.17%) > y (3.78%)",
-    "xPct": 12.17,
-    "yPct": 3.78
-  },
-  "REZ": {
-    "symbol": "REZ",
-    "addedAt": 1785926132926,
-    "addedAtStr": "2026-08-05 17:35:32",
-    "expiresAt": 1786530932926,
-    "expiresAtStr": "2026-08-12 17:35:32",
-    "reason": "x*2 (10.63%) > y (6.59%)",
-    "xPct": 10.63,
-    "yPct": 6.59
-  },
-  "SCRT": {
-    "symbol": "SCRT",
-    "addedAt": 1785926132931,
-    "addedAtStr": "2026-08-05 17:35:32",
-    "expiresAt": 1786530932931,
-    "expiresAtStr": "2026-08-12 17:35:32",
-    "reason": "x*2 (7.03%) > y (6.07%)",
-    "xPct": 7.03,
-    "yPct": 6.07
-  },
   "GPS": {
     "symbol": "GPS",
     "addedAt": 1785926132938,
@@ -148,16 +28,6 @@
     "reason": "x*2 (5.21%) > y (3.91%)",
     "xPct": 5.21,
     "yPct": 3.91
-  },
-  "WAL": {
-    "symbol": "WAL",
-    "addedAt": 1785926132942,
-    "addedAtStr": "2026-08-05 17:35:32",
-    "expiresAt": 1786530932942,
-    "expiresAtStr": "2026-08-12 17:35:32",
-    "reason": "x*2 (17.54%) > y (17.54%)",
-    "xPct": 17.54,
-    "yPct": 17.54
   },
   "CARV": {
     "symbol": "CARV",
@@ -209,76 +79,6 @@
     "xPct": 30.92,
     "yPct": 20.08
   },
-  "RAVE": {
-    "symbol": "RAVE",
-    "addedAt": 1785926132973,
-    "addedAtStr": "2026-08-05 17:35:32",
-    "expiresAt": 1786530932973,
-    "expiresAtStr": "2026-08-12 17:35:32",
-    "reason": "x*2 (10.37%) > y (5.82%)",
-    "xPct": 10.37,
-    "yPct": 5.82
-  },
-  "BROCCOLIF3B": {
-    "symbol": "BROCCOLIF3B",
-    "addedAt": 1785952713167,
-    "addedAtStr": "2026-08-06 00:58:33",
-    "expiresAt": 1786557513167,
-    "expiresAtStr": "2026-08-13 00:58:33",
-    "reason": "x*2 (11.79%) > y (3.54%)",
-    "xPct": 11.79,
-    "yPct": 3.54
-  },
-  "TURTLE": {
-    "symbol": "TURTLE",
-    "addedAt": 1785960543535,
-    "addedAtStr": "2026-08-06 03:09:03",
-    "expiresAt": 1786565343535,
-    "expiresAtStr": "2026-08-13 03:09:03",
-    "reason": "x*2 (5.11%) > y (4.54%)",
-    "xPct": 5.11,
-    "yPct": 4.54
-  },
-  "ACH": {
-    "symbol": "ACH",
-    "addedAt": 1785974883525,
-    "addedAtStr": "2026-08-06 07:08:03",
-    "expiresAt": 1786579683525,
-    "expiresAtStr": "2026-08-13 07:08:03",
-    "reason": "x*2 (7.27%) > y (3.31%)",
-    "xPct": 7.27,
-    "yPct": 3.31
-  },
-  "HIVE": {
-    "symbol": "HIVE",
-    "addedAt": 1785978746240,
-    "addedAtStr": "2026-08-06 08:12:26",
-    "expiresAt": 1786583546240,
-    "expiresAtStr": "2026-08-13 08:12:26",
-    "reason": "x*2 (5.91%) > y (4.14%)",
-    "xPct": 5.91,
-    "yPct": 4.14
-  },
-  "BULLA": {
-    "symbol": "BULLA",
-    "addedAt": 1785978747195,
-    "addedAtStr": "2026-08-06 08:12:27",
-    "expiresAt": 1786583547195,
-    "expiresAtStr": "2026-08-13 08:12:27",
-    "reason": "x*2 (23.86%) > y (8.88%)",
-    "xPct": 23.86,
-    "yPct": 8.88
-  },
-  "MITO": {
-    "symbol": "MITO",
-    "addedAt": 1785978747901,
-    "addedAtStr": "2026-08-06 08:12:27",
-    "expiresAt": 1786583547901,
-    "expiresAtStr": "2026-08-13 08:12:27",
-    "reason": "x*2 (11.65%) > y (8.04%)",
-    "xPct": 11.65,
-    "yPct": 8.04
-  },
   "COLLECT": {
     "symbol": "COLLECT",
     "addedAt": 1785979973607,
@@ -299,16 +99,6 @@
     "xPct": 33.67,
     "yPct": 23.41
   },
-  "FHE": {
-    "symbol": "FHE",
-    "addedAt": 1785986019602,
-    "addedAtStr": "2026-08-06 10:13:39",
-    "expiresAt": 1786590819602,
-    "expiresAtStr": "2026-08-13 10:13:39",
-    "reason": "x*2 (8.50%) > y (8.01%)",
-    "xPct": 8.5,
-    "yPct": 8.01
-  },
   "STRK": {
     "symbol": "STRK",
     "addedAt": 1785996165566,
@@ -318,26 +108,6 @@
     "reason": "x*2 (7.94%) > y (7.94%)",
     "xPct": 7.94,
     "yPct": 7.94
-  },
-  "IOTX": {
-    "symbol": "IOTX",
-    "addedAt": 1785997725492,
-    "addedAtStr": "2026-08-06 13:28:45",
-    "expiresAt": 1786602525492,
-    "expiresAtStr": "2026-08-13 13:28:45",
-    "reason": "x*2 (10.05%) > y (8.68%)",
-    "xPct": 10.05,
-    "yPct": 8.68
-  },
-  "AUCTION": {
-    "symbol": "AUCTION",
-    "addedAt": 1785997725502,
-    "addedAtStr": "2026-08-06 13:28:45",
-    "expiresAt": 1786602525502,
-    "expiresAtStr": "2026-08-13 13:28:45",
-    "reason": "x*2 (10.27%) > y (5.13%)",
-    "xPct": 10.27,
-    "yPct": 5.13
   },
   "POL": {
     "symbol": "POL",
@@ -349,26 +119,6 @@
     "xPct": 3.57,
     "yPct": 2.3
   },
-  "1000CAT": {
-    "symbol": "1000CAT",
-    "addedAt": 1785997725511,
-    "addedAtStr": "2026-08-06 13:28:45",
-    "expiresAt": 1786602525511,
-    "expiresAtStr": "2026-08-13 13:28:45",
-    "reason": "x*2 (15.80%) > y (14.67%)",
-    "xPct": 15.8,
-    "yPct": 14.67
-  },
-  "DOOD": {
-    "symbol": "DOOD",
-    "addedAt": 1785997755478,
-    "addedAtStr": "2026-08-06 13:29:15",
-    "expiresAt": 1786602555478,
-    "expiresAtStr": "2026-08-13 13:29:15",
-    "reason": "x*2 (25.58%) > y (12.96%)",
-    "xPct": 25.58,
-    "yPct": 12.96
-  },
   "SQD": {
     "symbol": "SQD",
     "addedAt": 1785997755577,
@@ -379,36 +129,6 @@
     "xPct": 52.15,
     "yPct": 10.78
   },
-  "ARIA": {
-    "symbol": "ARIA",
-    "addedAt": 1785997755591,
-    "addedAtStr": "2026-08-06 13:29:15",
-    "expiresAt": 1786602555591,
-    "expiresAtStr": "2026-08-13 13:29:15",
-    "reason": "x*2 (10.11%) > y (6.43%)",
-    "xPct": 10.11,
-    "yPct": 6.43
-  },
-  "LQTY": {
-    "symbol": "LQTY",
-    "addedAt": 1785998296077,
-    "addedAtStr": "2026-08-06 13:38:16",
-    "expiresAt": 1786603096077,
-    "expiresAtStr": "2026-08-13 13:38:16",
-    "reason": "x*2 (11.76%) > y (10.92%)",
-    "xPct": 11.76,
-    "yPct": 10.92
-  },
-  "AIXBT": {
-    "symbol": "AIXBT",
-    "addedAt": 1785998302291,
-    "addedAtStr": "2026-08-06 13:38:22",
-    "expiresAt": 1786603102291,
-    "expiresAtStr": "2026-08-13 13:38:22",
-    "reason": "x*2 (18.97%) > y (7.76%)",
-    "xPct": 18.97,
-    "yPct": 7.76
-  },
   "WLFI": {
     "symbol": "WLFI",
     "addedAt": 1785998313219,
@@ -418,16 +138,6 @@
     "reason": "x*2 (5.78%) > y (2.89%)",
     "xPct": 5.78,
     "yPct": 2.89
-  },
-  "FOLKS": {
-    "symbol": "FOLKS",
-    "addedAt": 1785998315521,
-    "addedAtStr": "2026-08-06 13:38:35",
-    "expiresAt": 1786603115521,
-    "expiresAtStr": "2026-08-13 13:38:35",
-    "reason": "x*2 (17.96%) > y (6.78%)",
-    "xPct": 17.96,
-    "yPct": 6.78
   },
   "VANRY": {
     "symbol": "VANRY",
@@ -449,16 +159,6 @@
     "xPct": 20.87,
     "yPct": 15.65
   },
-  "LUNA2": {
-    "symbol": "LUNA2",
-    "addedAt": 1786066789336,
-    "addedAtStr": "2026-08-07 08:39:49",
-    "expiresAt": 1786671589336,
-    "expiresAtStr": "2026-08-14 08:39:49",
-    "reason": "x*2 (5.87%) > y (4.40%)",
-    "xPct": 5.87,
-    "yPct": 4.4
-  },
   "CC": {
     "symbol": "CC",
     "addedAt": 1786066791785,
@@ -469,36 +169,6 @@
     "xPct": 9.46,
     "yPct": 5.53
   },
-  "HBAR": {
-    "symbol": "HBAR",
-    "addedAt": 1786074379309,
-    "addedAtStr": "2026-08-07 10:46:19",
-    "expiresAt": 1786679179309,
-    "expiresAtStr": "2026-08-14 10:46:19",
-    "reason": "x*2 (2.99%) > y (2.90%)",
-    "xPct": 2.99,
-    "yPct": 2.9
-  },
-  "EGLD": {
-    "symbol": "EGLD",
-    "addedAt": 1786082463020,
-    "addedAtStr": "2026-08-07 13:01:03",
-    "expiresAt": 1786687263020,
-    "expiresAtStr": "2026-08-14 13:01:03",
-    "reason": "x*2 (9.93%) > y (6.86%)",
-    "xPct": 9.93,
-    "yPct": 6.86
-  },
-  "BANANA": {
-    "symbol": "BANANA",
-    "addedAt": 1786082468204,
-    "addedAtStr": "2026-08-07 13:01:08",
-    "expiresAt": 1786687268204,
-    "expiresAtStr": "2026-08-14 13:01:08",
-    "reason": "x*2 (5.62%) > y (5.62%)",
-    "xPct": 5.62,
-    "yPct": 5.62
-  },
   "DRIFT": {
     "symbol": "DRIFT",
     "addedAt": 1786107810368,
@@ -508,16 +178,6 @@
     "reason": "x*2 (69.81%) > y (21.70%)",
     "xPct": 69.81,
     "yPct": 21.7
-  },
-  "SIREN": {
-    "symbol": "SIREN",
-    "addedAt": 1786197871721,
-    "addedAtStr": "2026-08-08 21:04:31",
-    "expiresAt": 1786802671721,
-    "expiresAtStr": "2026-08-15 21:04:31",
-    "reason": "x*2 (7.52%) > y (5.12%)",
-    "xPct": 7.52,
-    "yPct": 5.12
   },
   "QNT": {
     "symbol": "QNT",
@@ -628,5 +288,395 @@
     "reason": "x*2 (34.49%) > y (9.47%)",
     "xPct": 34.49,
     "yPct": 9.47
+  },
+  "F": {
+    "symbol": "F",
+    "addedAt": 1786516371561,
+    "addedAtStr": "2026-08-12 13:32:51",
+    "expiresAt": 1787121171561,
+    "expiresAtStr": "2026-08-19 13:32:51",
+    "reason": "x*2 (13.40%) > y (4.72%)",
+    "xPct": 13.4,
+    "yPct": 4.72
+  },
+  "USELESS": {
+    "symbol": "USELESS",
+    "addedAt": 1786516440487,
+    "addedAtStr": "2026-08-12 13:34:00",
+    "expiresAt": 1787121240487,
+    "expiresAtStr": "2026-08-19 13:34:00",
+    "reason": "x*2 (8.81%) > y (4.12%)",
+    "xPct": 8.81,
+    "yPct": 4.12
+  },
+  "PROM": {
+    "symbol": "PROM",
+    "addedAt": 1786527464353,
+    "addedAtStr": "2026-08-12 16:37:44",
+    "expiresAt": 1787132264353,
+    "expiresAtStr": "2026-08-19 16:37:44",
+    "reason": "x*2 (10.42%) > y (5.07%)",
+    "xPct": 10.42,
+    "yPct": 5.07
+  },
+  "ONT": {
+    "symbol": "ONT",
+    "addedAt": 1786530903160,
+    "addedAtStr": "2026-08-12 17:35:03",
+    "expiresAt": 1787135703160,
+    "expiresAtStr": "2026-08-19 17:35:03",
+    "reason": "x*2 (25.84%) > y (3.93%)",
+    "xPct": 25.84,
+    "yPct": 3.93
+  },
+  "STORJ": {
+    "symbol": "STORJ",
+    "addedAt": 1786530903168,
+    "addedAtStr": "2026-08-12 17:35:03",
+    "expiresAt": 1787135703168,
+    "expiresAtStr": "2026-08-19 17:35:03",
+    "reason": "x*2 (4.82%) > y (3.61%)",
+    "xPct": 4.82,
+    "yPct": 3.61
+  },
+  "SKL": {
+    "symbol": "SKL",
+    "addedAt": 1786530903265,
+    "addedAtStr": "2026-08-12 17:35:03",
+    "expiresAt": 1787135703265,
+    "expiresAtStr": "2026-08-19 17:35:03",
+    "reason": "x*2 (8.72%) > y (4.98%)",
+    "xPct": 8.72,
+    "yPct": 4.98
+  },
+  "GMT": {
+    "symbol": "GMT",
+    "addedAt": 1786530933258,
+    "addedAtStr": "2026-08-12 17:35:33",
+    "expiresAt": 1787135733258,
+    "expiresAtStr": "2026-08-19 17:35:33",
+    "reason": "x*2 (10.89%) > y (3.89%)",
+    "xPct": 10.89,
+    "yPct": 3.89
+  },
+  "ID": {
+    "symbol": "ID",
+    "addedAt": 1786530933267,
+    "addedAtStr": "2026-08-12 17:35:33",
+    "expiresAt": 1787135733267,
+    "expiresAtStr": "2026-08-19 17:35:33",
+    "reason": "x*2 (25.88%) > y (10.52%)",
+    "xPct": 25.88,
+    "yPct": 10.52
+  },
+  "CYBER": {
+    "symbol": "CYBER",
+    "addedAt": 1786530933272,
+    "addedAtStr": "2026-08-12 17:35:33",
+    "expiresAt": 1787135733272,
+    "expiresAtStr": "2026-08-19 17:35:33",
+    "reason": "x*2 (36.14%) > y (3.23%)",
+    "xPct": 36.14,
+    "yPct": 3.23
+  },
+  "MEME": {
+    "symbol": "MEME",
+    "addedAt": 1786530933375,
+    "addedAtStr": "2026-08-12 17:35:33",
+    "expiresAt": 1787135733375,
+    "expiresAtStr": "2026-08-19 17:35:33",
+    "reason": "x*2 (5.31%) > y (3.47%)",
+    "xPct": 5.31,
+    "yPct": 3.47
+  },
+  "ONG": {
+    "symbol": "ONG",
+    "addedAt": 1786530933380,
+    "addedAtStr": "2026-08-12 17:35:33",
+    "expiresAt": 1787135733380,
+    "expiresAtStr": "2026-08-19 17:35:33",
+    "reason": "x*2 (7.94%) > y (3.43%)",
+    "xPct": 7.94,
+    "yPct": 3.43
+  },
+  "XAI": {
+    "symbol": "XAI",
+    "addedAt": 1786530933386,
+    "addedAtStr": "2026-08-12 17:35:33",
+    "expiresAt": 1787135733386,
+    "expiresAtStr": "2026-08-19 17:35:33",
+    "reason": "x*2 (11.60%) > y (3.61%)",
+    "xPct": 11.6,
+    "yPct": 3.61
+  },
+  "REZ": {
+    "symbol": "REZ",
+    "addedAt": 1786530933393,
+    "addedAtStr": "2026-08-12 17:35:33",
+    "expiresAt": 1787135733393,
+    "expiresAtStr": "2026-08-19 17:35:33",
+    "reason": "x*2 (10.63%) > y (6.59%)",
+    "xPct": 10.63,
+    "yPct": 6.59
+  },
+  "SCRT": {
+    "symbol": "SCRT",
+    "addedAt": 1786530933400,
+    "addedAtStr": "2026-08-12 17:35:33",
+    "expiresAt": 1787135733400,
+    "expiresAtStr": "2026-08-19 17:35:33",
+    "reason": "x*2 (7.77%) > y (6.71%)",
+    "xPct": 7.77,
+    "yPct": 6.71
+  },
+  "WAL": {
+    "symbol": "WAL",
+    "addedAt": 1786530933413,
+    "addedAtStr": "2026-08-12 17:35:33",
+    "expiresAt": 1787135733413,
+    "expiresAtStr": "2026-08-19 17:35:33",
+    "reason": "x*2 (20.20%) > y (5.05%)",
+    "xPct": 20.2,
+    "yPct": 5.05
+  },
+  "RAVE": {
+    "symbol": "RAVE",
+    "addedAt": 1786530933729,
+    "addedAtStr": "2026-08-12 17:35:33",
+    "expiresAt": 1787135733729,
+    "expiresAtStr": "2026-08-19 17:35:33",
+    "reason": "x*2 (9.34%) > y (5.25%)",
+    "xPct": 9.34,
+    "yPct": 5.25
+  },
+  "BULLA": {
+    "symbol": "BULLA",
+    "addedAt": 1786585261817,
+    "addedAtStr": "2026-08-13 08:41:01",
+    "expiresAt": 1787190061817,
+    "expiresAtStr": "2026-08-20 08:41:01",
+    "reason": "x*2 (23.86%) > y (8.88%)",
+    "xPct": 23.86,
+    "yPct": 8.88
+  },
+  "BROCCOLIF3B": {
+    "symbol": "BROCCOLIF3B",
+    "addedAt": 1786586210349,
+    "addedAtStr": "2026-08-13 08:56:50",
+    "expiresAt": 1787191010349,
+    "expiresAtStr": "2026-08-20 08:56:50",
+    "reason": "x*2 (11.26%) > y (3.38%)",
+    "xPct": 11.26,
+    "yPct": 3.38
+  },
+  "HIVE": {
+    "symbol": "HIVE",
+    "addedAt": 1786594895455,
+    "addedAtStr": "2026-08-13 11:21:35",
+    "expiresAt": 1787199695455,
+    "expiresAtStr": "2026-08-20 11:21:35",
+    "reason": "x*2 (6.36%) > y (4.45%)",
+    "xPct": 6.36,
+    "yPct": 4.45
+  },
+  "DOOD": {
+    "symbol": "DOOD",
+    "addedAt": 1786602564105,
+    "addedAtStr": "2026-08-13 13:29:24",
+    "expiresAt": 1787207364105,
+    "expiresAtStr": "2026-08-20 13:29:24",
+    "reason": "x*2 (25.58%) > y (12.96%)",
+    "xPct": 25.58,
+    "yPct": 12.96
+  },
+  "FHE": {
+    "symbol": "FHE",
+    "addedAt": 1786602683914,
+    "addedAtStr": "2026-08-13 13:31:23",
+    "expiresAt": 1787207483914,
+    "expiresAtStr": "2026-08-20 13:31:23",
+    "reason": "x*2 (8.50%) > y (8.01%)",
+    "xPct": 8.5,
+    "yPct": 8.01
+  },
+  "FOLKS": {
+    "symbol": "FOLKS",
+    "addedAt": 1786603121769,
+    "addedAtStr": "2026-08-13 13:38:41",
+    "expiresAt": 1787207921769,
+    "expiresAtStr": "2026-08-20 13:38:41",
+    "reason": "x*2 (17.96%) > y (6.78%)",
+    "xPct": 17.96,
+    "yPct": 6.78
+  },
+  "ACH": {
+    "symbol": "ACH",
+    "addedAt": 1786605332482,
+    "addedAtStr": "2026-08-13 14:15:32",
+    "expiresAt": 1787210132482,
+    "expiresAtStr": "2026-08-20 14:15:32",
+    "reason": "x*2 (7.81%) > y (3.56%)",
+    "xPct": 7.81,
+    "yPct": 3.56
+  },
+  "LQTY": {
+    "symbol": "LQTY",
+    "addedAt": 1786609298977,
+    "addedAtStr": "2026-08-13 15:21:38",
+    "expiresAt": 1787214098977,
+    "expiresAtStr": "2026-08-20 15:21:38",
+    "reason": "x*2 (11.76%) > y (10.92%)",
+    "xPct": 11.76,
+    "yPct": 10.92
+  },
+  "ARIA": {
+    "symbol": "ARIA",
+    "addedAt": 1786609534032,
+    "addedAtStr": "2026-08-13 15:25:34",
+    "expiresAt": 1787214334032,
+    "expiresAtStr": "2026-08-20 15:25:34",
+    "reason": "x*2 (8.22%) > y (5.23%)",
+    "xPct": 8.22,
+    "yPct": 5.23
+  },
+  "MITO": {
+    "symbol": "MITO",
+    "addedAt": 1786614002309,
+    "addedAtStr": "2026-08-13 16:40:02",
+    "expiresAt": 1787218802309,
+    "expiresAtStr": "2026-08-20 16:40:02",
+    "reason": "x*2 (10.23%) > y (7.06%)",
+    "xPct": 10.23,
+    "yPct": 7.06
+  },
+  "AUCTION": {
+    "symbol": "AUCTION",
+    "addedAt": 1786631590278,
+    "addedAtStr": "2026-08-13 21:33:10",
+    "expiresAt": 1787236390278,
+    "expiresAtStr": "2026-08-20 21:33:10",
+    "reason": "x*2 (10.27%) > y (5.13%)",
+    "xPct": 10.27,
+    "yPct": 5.13
+  },
+  "1000CAT": {
+    "symbol": "1000CAT",
+    "addedAt": 1786635912378,
+    "addedAtStr": "2026-08-13 22:45:12",
+    "expiresAt": 1787240712378,
+    "expiresAtStr": "2026-08-20 22:45:12",
+    "reason": "x*2 (12.89%) > y (11.97%)",
+    "xPct": 12.89,
+    "yPct": 11.97
+  },
+  "TURTLE": {
+    "symbol": "TURTLE",
+    "addedAt": 1786636674806,
+    "addedAtStr": "2026-08-13 22:57:54",
+    "expiresAt": 1787241474806,
+    "expiresAtStr": "2026-08-20 22:57:54",
+    "reason": "x*2 (5.11%) > y (4.54%)",
+    "xPct": 5.11,
+    "yPct": 4.54
+  },
+  "HBAR": {
+    "symbol": "HBAR",
+    "addedAt": 1786679216153,
+    "addedAtStr": "2026-08-14 10:46:56",
+    "expiresAt": 1787284016153,
+    "expiresAtStr": "2026-08-21 10:46:56",
+    "reason": "x*2 (3.13%) > y (3.03%)",
+    "xPct": 3.13,
+    "yPct": 3.03
+  },
+  "LUNA2": {
+    "symbol": "LUNA2",
+    "addedAt": 1786692610323,
+    "addedAtStr": "2026-08-14 14:30:10",
+    "expiresAt": 1787297410323,
+    "expiresAtStr": "2026-08-21 14:30:10",
+    "reason": "x*2 (5.47%) > y (4.10%)",
+    "xPct": 5.47,
+    "yPct": 4.1
+  },
+  "IOTX": {
+    "symbol": "IOTX",
+    "addedAt": 1786702428748,
+    "addedAtStr": "2026-08-14 17:13:48",
+    "expiresAt": 1787307228748,
+    "expiresAtStr": "2026-08-21 17:13:48",
+    "reason": "x*2 (8.84%) > y (7.63%)",
+    "xPct": 8.84,
+    "yPct": 7.63
+  },
+  "AIXBT": {
+    "symbol": "AIXBT",
+    "addedAt": 1786709355106,
+    "addedAtStr": "2026-08-14 19:09:15",
+    "expiresAt": 1787314155106,
+    "expiresAtStr": "2026-08-21 19:09:15",
+    "reason": "x*2 (18.97%) > y (7.76%)",
+    "xPct": 18.97,
+    "yPct": 7.76
+  },
+  "BANANA": {
+    "symbol": "BANANA",
+    "addedAt": 1786722027977,
+    "addedAtStr": "2026-08-14 22:40:27",
+    "expiresAt": 1787326827977,
+    "expiresAtStr": "2026-08-21 22:40:27",
+    "reason": "x*2 (5.62%) > y (5.62%)",
+    "xPct": 5.62,
+    "yPct": 5.62
+  },
+  "EGLD": {
+    "symbol": "EGLD",
+    "addedAt": 1786755145626,
+    "addedAtStr": "2026-08-15 07:52:25",
+    "expiresAt": 1787359945626,
+    "expiresAtStr": "2026-08-22 07:52:25",
+    "reason": "x*2 (9.93%) > y (6.86%)",
+    "xPct": 9.93,
+    "yPct": 6.86
+  },
+  "SIREN": {
+    "symbol": "SIREN",
+    "addedAt": 1786818613945,
+    "addedAtStr": "2026-08-16 01:30:13",
+    "expiresAt": 1787423413945,
+    "expiresAtStr": "2026-08-23 01:30:13",
+    "reason": "x*2 (9.15%) > y (6.23%)",
+    "xPct": 9.15,
+    "yPct": 6.23
+  },
+  "LAB": {
+    "symbol": "LAB",
+    "addedAt": 1786845148002,
+    "addedAtStr": "2026-08-16 08:52:28",
+    "expiresAt": 1787449948002,
+    "expiresAtStr": "2026-08-23 08:52:28",
+    "reason": "x*2 (9.63%) > y (3.04%)",
+    "xPct": 9.63,
+    "yPct": 3.04
+  },
+  "IOTA": {
+    "symbol": "IOTA",
+    "addedAt": 1786862301412,
+    "addedAtStr": "2026-08-16 13:38:21",
+    "expiresAt": 1787467101412,
+    "expiresAtStr": "2026-08-23 13:38:21",
+    "reason": "x*2 (6.73%) > y (6.73%)",
+    "xPct": 6.73,
+    "yPct": 6.73
+  },
+  "ZBT": {
+    "symbol": "ZBT",
+    "addedAt": 1786925028047,
+    "addedAtStr": "2026-08-17 07:03:48",
+    "expiresAt": 1787529828047,
+    "expiresAtStr": "2026-08-24 07:03:48",
+    "reason": "x*2 (40.41%) > y (3.11%)",
+    "xPct": 40.41,
+    "yPct": 3.11
   }
 }
