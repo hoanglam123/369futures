@@ -834,10 +834,18 @@ async function startAutoTrade(coins) {
       const aiEval = evaluateSignalWithAI(sig);
       recordAIEvaluation(sig, aiEval);
 
+      // ── Tiêu chí 3: Bộ Lọc Phủ Quyết AI Veto Filter ──
+      // Chặn các tín hiệu có WinProb < 45.0% hoặc đồng thời cạn thanh khoản (VOL_DRY) & OI tháo chạy (OI_COOLING)
+      const isAiVeto = (aiEval.winProbability < 45.0) || (aiEval.reason.includes('VOL_DRY') && aiEval.reason.includes('OI_COOLING'));
+      if (isAiVeto) {
+        log.system(`[AutoTrade] 🛑 [AI Veto] ${sym} (${sig.signal}) bị phủ quyết: ${aiEval.reason} — Bỏ qua không đặt lệnh.`);
+        return;
+      }
+
       if (aiEval.isApproved) {
-        log.system(`[AI Reviewer (Shadow)] 🟢 Khuyên NÊN ĐẶT LỆNH ${sym} (${sig.signal}) - ${aiEval.reason}`);
+        log.system(`[AI Reviewer] 🟢 Khuyên NÊN ĐẶT LỆNH ${sym} (${sig.signal}) - ${aiEval.reason}`);
       } else {
-        log.system(`[AI Reviewer (Shadow)] 🟡 Khuyên BỎ QUA ${sym} (${sig.signal}) - ${aiEval.reason}`);
+        log.system(`[AI Reviewer] 🟡 ${sym} (${sig.signal}) - ${aiEval.reason}`);
       }
 
       const calculatedLeverage = Math.floor(39 / gridStepPct);
@@ -1432,7 +1440,7 @@ async function checkH1RetestSignals(client) {
         continue;
       }
 
-      // ── AI Reviewer Machine Learning Offline (Shadow Retest H1 — 0ms, 100% Cục bộ) ──
+      // ── AI Reviewer Machine Learning Offline (Retest H1) ──
       const sigForAI = {
         symbol: sym,
         signal: signal,
@@ -1445,10 +1453,18 @@ async function checkH1RetestSignals(client) {
       const aiEval = evaluateSignalWithAI(sigForAI);
       recordAIEvaluation(sigForAI, aiEval);
 
+      // Tiêu chí 3: AI Veto Filter cho Retest H1
+      const isAiVeto = (aiEval.winProbability < 45.0) || (aiEval.reason.includes('VOL_DRY') && aiEval.reason.includes('OI_COOLING'));
+      if (isAiVeto) {
+        log.system(`[AutoTrade (Retest H1)] 🛑 [AI Veto] ${sym} (${signal}) bị phủ quyết: ${aiEval.reason} — Hủy đặt lệnh Retest.`);
+        delete lowScoreWatchlist[sym];
+        return;
+      }
+
       if (aiEval.isApproved) {
-        log.system(`[AI Reviewer (Shadow Retest H1)] 🟢 Khuyên NÊN ĐẶT LỆNH ${sym} (${signal}) - ${aiEval.reason}`);
+        log.system(`[AI Reviewer (Retest H1)] 🟢 Khuyên NÊN ĐẶT LỆNH ${sym} (${signal}) - ${aiEval.reason}`);
       } else {
-        log.system(`[AI Reviewer (Shadow Retest H1)] 🟡 Khuyên BỎ QUA ${sym} (${signal}) - ${aiEval.reason}`);
+        log.system(`[AI Reviewer (Retest H1)] 🟡 ${sym} (${signal}) - ${aiEval.reason}`);
       }
 
       try {
@@ -1688,32 +1704,36 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
       }
 
       // 2.5 Kiểm tra Nến H1 Không Phản Ứng (Gãy cản 35% ticks -> Dời TP về Entry hòa vốn)
-      //     Áp dụng thuần túy theo Giá Đóng Cửa (Close Price):
-      //     - LONG:  Đóng H1 <= Entry - 0.35*unit
-      //     - SHORT: Đóng H1 >= Entry + 0.35*unit
+      //     Áp dụng thuần túy theo Giá Đóng Cửa (Close Price) của cây nến H1 đầu tiên đóng sau khi vào lệnh:
+      //     - LONG:  Đóng H1 <= Entry - 0.35*unit (gãy sâu 35 ticks)
+      //     - SHORT: Đóng H1 >= Entry + 0.35*unit (gãy sâu 35 ticks)
       const invalidationDistance = unit * 0.35; // 35% Unit = 35 ticks
       if (meta && !meta.isH1Failed && !meta.isPanicEscape) {
         const nowMs = Date.now();
-        if (!meta._lastH1Check || (nowMs - meta._lastH1Check >= 60000)) {
+        if (!meta._lastH1Check || (nowMs - meta._lastH1Check >= 15000)) {
           meta._lastH1Check = nowMs;
           try {
             const h1s = await fetchBinanceKlines(sym, '1h', nowMs - 3 * 3600_000, 3);
             if (h1s && h1s.length >= 2) {
               const lastClosedH1 = h1s[h1s.length - 2];
-              if (lastClosedH1 && lastClosedH1.openTime > (meta.time || (nowMs - 3600_000))) {
+              const h1CloseTime = lastClosedH1 ? (lastClosedH1.openTime + 3600_000) : 0;
+              const entryTime = meta.time || (nowMs - 3600_000);
+
+              // Cây nến H1 vừa đóng phải kết thúc sau thời điểm vào lệnh
+              if (lastClosedH1 && h1CloseTime > entryTime) {
                 const cClose = lastClosedH1.close;
 
                 if (isLong) {
                   const isClosedBelow = cClose <= (entryPrice - invalidationDistance);
                   if (isClosedBelow) {
                     meta.isH1Failed = true;
-                    log.system(`[AutoTrade] ⚠️ ${sym} LONG: Nến H1 đóng cửa xấu ($${cClose} <= Entry - 35 ticks $${(entryPrice - invalidationDistance).toFixed(6)}) -> Kích hoạt dời TP về Entry $${entryPrice}`);
+                    log.system(`[AutoTrade] ⚠️ ${sym} LONG: Nến H1 đóng cửa gãy sâu 35 ticks ($${cClose} <= $${(entryPrice - invalidationDistance).toFixed(6)}) -> Kích hoạt dời TP về Entry hòa vốn $${entryPrice}`);
                   }
                 } else {
                   const isClosedAbove = cClose >= (entryPrice + invalidationDistance);
                   if (isClosedAbove) {
                     meta.isH1Failed = true;
-                    log.system(`[AutoTrade] ⚠️ ${sym} SHORT: Nến H1 đóng cửa xấu ($${cClose} >= Entry + 35 ticks $${(entryPrice + invalidationDistance).toFixed(6)}) -> Kích hoạt dời TP về Entry $${entryPrice}`);
+                    log.system(`[AutoTrade] ⚠️ ${sym} SHORT: Nến H1 đóng cửa gãy sâu 35 ticks ($${cClose} >= $${(entryPrice + invalidationDistance).toFixed(6)}) -> Kích hoạt dời TP về Entry hòa vốn $${entryPrice}`);
                   }
                 }
               }
@@ -1824,6 +1844,38 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
       const tpPct = meta?.isPanicEscape ? -1.3 : (meta?.isH1Failed ? 0 : parseFloat(((tpDistance / entryPrice) * leverageVal * 100).toFixed(2)));
       const trailTrigger = parseFloat(((trailDistance / entryPrice) * leverageVal * 100).toFixed(2));
       const trailSlRoi = parseFloat(((trailSlDistance / entryPrice) * leverageVal * 100).toFixed(2)); // ROI tương đương +5đ
+      const unrealizedPnlUsd = (roi / 100) * (meta?.margin || notional / leverageVal);
+
+      // ----------------------------------------------------
+      // 0. HARD MAX LOSS GUARD (Khống chế trần lỗ tối đa -4.0 USDT)
+      // ----------------------------------------------------
+      if (unrealizedPnlUsd <= -4.0) {
+        log.system(`[AutoTrade] 🚨 [Hard Max Loss Guard] Kích hoạt cho ${sym}: Lỗ thả nổi $${unrealizedPnlUsd.toFixed(2)} (${roi.toFixed(2)}%) chạm ngưỡng trần -$4.0 USDT. Cắt lỗ MARKET ngay lập tức!`);
+        try {
+          justClosedByBot.add(sym);
+          await client.placeMarket(sym, oppositeSide, absAmt);
+          await sendTelegram(`🚨 <b>[Hard Max Loss Guard] Cắt Lỗ Khẩn Cấp</b>\n• Coin: <b>${sym} (${isLong ? 'LONG' : 'SHORT'})</b>\n• Lỗ chặn tại: <b>$${unrealizedPnlUsd.toFixed(2)} USDT (${roi.toFixed(2)}%)</b>`);
+          if (meta) {
+            const holdingDurationMinutes = (Date.now() - (meta.time || Date.now())) / 60000;
+            recordTradeExit({
+              tradeId: `${sym}-${meta.orderId || 'vHardLoss'}`,
+              orderId: String(meta.orderId || ''),
+              symbol: sym,
+              exitPrice: markPrice,
+              exitTimestamp: Date.now(),
+              exitType: 'HARD_MAX_LOSS',
+              pnlPercent: roi,
+              pnlUsd: unrealizedPnlUsd,
+              holdingDurationMinutes: holdingDurationMinutes,
+              isWin: false,
+            });
+          }
+        } catch (e) {
+          justClosedByBot.delete(sym);
+          log.error(`[AutoTrade] [Hard Max Loss Guard] Lỗi đóng vị thế ${sym}: ${e.message}`);
+        }
+        continue;
+      }
 
       // ----------------------------------------------------
       // 1. Quản lý TAKE PROFIT (Virtual & Real)
