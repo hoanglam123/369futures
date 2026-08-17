@@ -675,10 +675,12 @@ async function startAutoTrade(coins) {
       const tradeAmount = Math.min(100, baseEnvMargin + bonusMargin);
 
       const rank = getMarketCapRank ? getMarketCapRank(sym) : 999;
-      log.system(
-        `[AutoTrade] Phân bổ Ký quỹ ${sym}: $${tradeAmount} ` +
-        `(Gốc PP369+Vol $${baseEnvMargin} + Bonus $${bonusMargin} từ +${otherScore.toFixed(1)}đ các tiêu chí bổ trợ | Score tổng: +${score.toFixed(1)}đ)`
-      );
+      if (isNewSignalLog) {
+        log.system(
+          `[AutoTrade] Phân bổ Ký quỹ ${sym}: $${tradeAmount} ` +
+          `(Gốc PP369+Vol $${baseEnvMargin} + Bonus $${bonusMargin} từ +${otherScore.toFixed(1)}đ các tiêu chí bổ trợ | Score tổng: +${score.toFixed(1)}đ)`
+        );
+      }
 
       if (_isDebounced(sig)) {
         if (isNewSignalLog) {
