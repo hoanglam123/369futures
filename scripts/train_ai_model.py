@@ -173,13 +173,18 @@ def train_and_export_model():
         entries = {}
         with open(DATASET_PATH, 'r', encoding='utf-8') as f:
             for l in f:
-                if not l.strip(): continue
-                rec = json.loads(l)
+                l_str = l.strip()
+                if not l_str or l_str.startswith('<') or l_str.startswith('='): continue
+                try:
+                    rec = json.loads(l_str)
+                except Exception:
+                    continue
+
                 if rec.get("type") == "ENTRY":
                     entries[rec.get("tradeId")] = rec
                 elif rec.get("type") == "EXIT":
                     tid = rec.get("tradeId")
-                    if rec.get("exitType") in ["TP", "SL", "TRAILING_SL"] and tid in entries:
+                    if rec.get("exitType") in ["TP", "SL", "TRAILING_SL", "HARD_MAX_LOSS", "BE_EXIT"] and tid in entries:
                         entry = entries[tid]
                         dataset.append({
                             "is_win": rec.get("isWin", False),

@@ -1,220 +1,256 @@
 {
   "version": "1.1.0",
-  "trainedAt": "2026-08-10 08:45:36",
-  "totalSamples": 19,
-  "priorWinProb": 0.5789,
+  "trainedAt": "2026-08-18 10:25:08",
+  "totalSamples": 115,
+  "priorWinProb": 0.5652,
   "thresholdApprovalPct": 65.0,
   "minExpectedEvRoi": 0.5,
   "featureWeights": {
-    "score_group:SCORE_LOW_5_TO_6": {
-      "winCount": 7,
-      "lossCount": 5,
-      "winProb": 0.5811,
-      "multiplier": 1.0038
-    },
-    "rank_group:RANK_LOWCAP_OUT150": {
-      "winCount": 7,
-      "lossCount": 5,
-      "winProb": 0.5811,
-      "multiplier": 1.0038
-    },
-    "trend:TREND_CONFLICT": {
-      "winCount": 6,
-      "lossCount": 4,
-      "winProb": 0.5885,
-      "multiplier": 1.0165
-    },
-    "volatility:VOL_ULTRA": {
-      "winCount": 9,
-      "lossCount": 5,
-      "winProb": 0.6134,
-      "multiplier": 1.0594
-    },
-    "rsi:RSI_EXTREME": {
-      "winCount": 5,
-      "lossCount": 4,
-      "winProb": 0.5689,
-      "multiplier": 0.9827
-    },
-    "ls_flow:LS_GOLD": {
-      "winCount": 2,
-      "lossCount": 3,
-      "winProb": 0.5263,
-      "multiplier": 0.9091
-    },
-    "price_action:PA_4_LEVELS": {
+    "score_group:SCORE_HIGH_GE7": {
       "winCount": 2,
       "lossCount": 0,
-      "winProb": 0.6391,
-      "multiplier": 1.1039
-    },
-    "oi_change:OI_STABLE": {
-      "winCount": 3,
-      "lossCount": 4,
-      "winProb": 0.5235,
-      "multiplier": 0.9043
-    },
-    "volume:VOL_DRY": {
-      "winCount": 1,
-      "lossCount": 2,
-      "winProb": 0.5298,
-      "multiplier": 0.9152
-    },
-    "funding:FUNDING_NORMAL": {
-      "winCount": 9,
-      "lossCount": 6,
-      "winProb": 0.5906,
-      "multiplier": 1.0202
-    },
-    "btc_wave:BTC_NEUTRAL": {
-      "winCount": 5,
-      "lossCount": 2,
-      "winProb": 0.6288,
-      "multiplier": 1.0861
-    },
-    "grid_width:GRID_NORMAL": {
-      "winCount": 4,
-      "lossCount": 4,
-      "winProb": 0.5474,
-      "multiplier": 0.9455
-    },
-    "trend:TREND_PERFECT": {
-      "winCount": 4,
-      "lossCount": 3,
-      "winProb": 0.5762,
-      "multiplier": 0.9952
-    },
-    "rsi:RSI_NEAR": {
-      "winCount": 4,
-      "lossCount": 0,
-      "winProb": 0.6842,
-      "multiplier": 1.1818
-    },
-    "ls_flow:LS_PARTIAL": {
-      "winCount": 7,
-      "lossCount": 5,
-      "winProb": 0.5811,
-      "multiplier": 1.0038
-    },
-    "price_action:PA_0_LEVEL": {
-      "winCount": 2,
-      "lossCount": 4,
-      "winProb": 0.4971,
-      "multiplier": 0.8586
-    },
-    "oi_change:OI_SURGE": {
-      "winCount": 7,
-      "lossCount": 4,
-      "winProb": 0.6064,
-      "multiplier": 1.0474
-    },
-    "volume:VOL_SURGE": {
-      "winCount": 8,
-      "lossCount": 4,
-      "winProb": 0.6228,
-      "multiplier": 1.0758
-    },
-    "grid_width:GRID_WIDE": {
-      "winCount": 7,
-      "lossCount": 4,
-      "winProb": 0.6064,
-      "multiplier": 1.0474
-    },
-    "volatility:VOL_MID": {
-      "winCount": 2,
-      "lossCount": 3,
-      "winProb": 0.5263,
-      "multiplier": 0.9091
-    },
-    "rsi:RSI_NEUTRAL": {
-      "winCount": 2,
-      "lossCount": 4,
-      "winProb": 0.4971,
-      "multiplier": 0.8586
-    },
-    "btc_wave:BTC_ALIGNED": {
-      "winCount": 5,
-      "lossCount": 6,
-      "winProb": 0.5195,
-      "multiplier": 0.8972
-    },
-    "price_action:PA_2_LEVELS": {
-      "winCount": 5,
-      "lossCount": 4,
-      "winProb": 0.5689,
-      "multiplier": 0.9827
-    },
-    "volume:VOL_STABLE": {
-      "winCount": 2,
-      "lossCount": 2,
-      "winProb": 0.5592,
-      "multiplier": 0.9659
-    },
-    "rank_group:RANK_MIDCAP_150": {
-      "winCount": 2,
-      "lossCount": 2,
-      "winProb": 0.5592,
-      "multiplier": 0.9659
-    },
-    "score_group:SCORE_MID_6_TO_7": {
-      "winCount": 4,
-      "lossCount": 3,
-      "winProb": 0.5762,
-      "multiplier": 0.9952
+      "winProb": 0.6273,
+      "multiplier": 1.1099
     },
     "rank_group:RANK_TOP10": {
-      "winCount": 1,
+      "winCount": 4,
       "lossCount": 0,
-      "winProb": 0.6113,
-      "multiplier": 1.0559
+      "winProb": 0.6739,
+      "multiplier": 1.1923
     },
     "trend:TREND_NEUTRAL": {
+      "winCount": 12,
+      "lossCount": 12,
+      "winProb": 0.5217,
+      "multiplier": 0.9231
+    },
+    "volatility:VOL_WEAK": {
+      "winCount": 6,
+      "lossCount": 3,
+      "winProb": 0.6087,
+      "multiplier": 1.0769
+    },
+    "rsi:RSI_NEUTRAL": {
+      "winCount": 36,
+      "lossCount": 32,
+      "winProb": 0.5348,
+      "multiplier": 0.9462
+    },
+    "ls_flow:LS_NEUTRAL": {
       "winCount": 1,
-      "lossCount": 1,
-      "winProb": 0.5677,
-      "multiplier": 0.9805
-    },
-    "ls_flow:LS_DIVERGENCE": {
-      "winCount": 2,
       "lossCount": 0,
-      "winProb": 0.6391,
-      "multiplier": 1.1039
+      "winProb": 0.5987,
+      "multiplier": 1.0592
     },
-    "price_action:PA_3_LEVELS": {
-      "winCount": 1,
-      "lossCount": 0,
-      "winProb": 0.6113,
-      "multiplier": 1.0559
+    "price_action:PA_0_LEVEL": {
+      "winCount": 23,
+      "lossCount": 20,
+      "winProb": 0.5415,
+      "multiplier": 0.958
     },
-    "oi_change:OI_COOLING": {
-      "winCount": 1,
-      "lossCount": 0,
-      "winProb": 0.6113,
-      "multiplier": 1.0559
+    "oi_change:OI_STABLE": {
+      "winCount": 40,
+      "lossCount": 35,
+      "winProb": 0.5377,
+      "multiplier": 0.9514
     },
-    "funding:FUNDING_DANGER": {
-      "winCount": 2,
-      "lossCount": 2,
-      "winProb": 0.5592,
-      "multiplier": 0.9659
+    "volume:VOL_DRY": {
+      "winCount": 30,
+      "lossCount": 25,
+      "winProb": 0.549,
+      "multiplier": 0.9713
+    },
+    "funding:FUNDING_NORMAL": {
+      "winCount": 52,
+      "lossCount": 41,
+      "winProb": 0.5598,
+      "multiplier": 0.9905
     },
     "btc_wave:BTC_COUNTER": {
-      "winCount": 1,
-      "lossCount": 0,
-      "winProb": 0.6113,
-      "multiplier": 1.0559
+      "winCount": 6,
+      "lossCount": 2,
+      "winProb": 0.6391,
+      "multiplier": 1.1308
+    },
+    "grid_width:GRID_NORMAL": {
+      "winCount": 24,
+      "lossCount": 26,
+      "winProb": 0.4965,
+      "multiplier": 0.8784
+    },
+    "score_group:SCORE_LOW_5_TO_6": {
+      "winCount": 15,
+      "lossCount": 12,
+      "winProb": 0.5585,
+      "multiplier": 0.9882
+    },
+    "rank_group:RANK_LOWCAP_OUT150": {
+      "winCount": 52,
+      "lossCount": 45,
+      "winProb": 0.5393,
+      "multiplier": 0.9541
+    },
+    "trend:TREND_CONFLICT": {
+      "winCount": 40,
+      "lossCount": 21,
+      "winProb": 0.6409,
+      "multiplier": 1.1338
+    },
+    "volatility:VOL_ULTRA": {
+      "winCount": 45,
+      "lossCount": 35,
+      "winProb": 0.5629,
+      "multiplier": 0.9958
+    },
+    "rsi:RSI_EXTREME": {
+      "winCount": 14,
+      "lossCount": 4,
+      "winProb": 0.6928,
+      "multiplier": 1.2256
+    },
+    "ls_flow:LS_GOLD": {
+      "winCount": 6,
+      "lossCount": 7,
+      "winProb": 0.5113,
+      "multiplier": 0.9046
+    },
+    "price_action:PA_4_LEVELS": {
+      "winCount": 5,
+      "lossCount": 6,
+      "winProb": 0.5123,
+      "multiplier": 0.9064
+    },
+    "btc_wave:BTC_NEUTRAL": {
+      "winCount": 35,
+      "lossCount": 25,
+      "winProb": 0.5803,
+      "multiplier": 1.0267
+    },
+    "trend:TREND_PERFECT": {
+      "winCount": 10,
+      "lossCount": 12,
+      "winProb": 0.4936,
+      "multiplier": 0.8733
+    },
+    "rsi:RSI_NEAR": {
+      "winCount": 15,
+      "lossCount": 14,
+      "winProb": 0.5313,
+      "multiplier": 0.94
+    },
+    "ls_flow:LS_PARTIAL": {
+      "winCount": 43,
+      "lossCount": 33,
+      "winProb": 0.5657,
+      "multiplier": 1.0009
+    },
+    "oi_change:OI_SURGE": {
+      "winCount": 15,
+      "lossCount": 11,
+      "winProb": 0.5732,
+      "multiplier": 1.0142
+    },
+    "volume:VOL_SURGE": {
+      "winCount": 17,
+      "lossCount": 12,
+      "winProb": 0.5801,
+      "multiplier": 1.0263
+    },
+    "grid_width:GRID_WIDE": {
+      "winCount": 41,
+      "lossCount": 24,
+      "winProb": 0.6206,
+      "multiplier": 1.0979
+    },
+    "volatility:VOL_MID": {
+      "winCount": 14,
+      "lossCount": 12,
+      "winProb": 0.5469,
+      "multiplier": 0.9676
+    },
+    "btc_wave:BTC_ALIGNED": {
+      "winCount": 24,
+      "lossCount": 23,
+      "winProb": 0.5217,
+      "multiplier": 0.9231
+    },
+    "price_action:PA_2_LEVELS": {
+      "winCount": 9,
+      "lossCount": 11,
+      "winProb": 0.4932,
+      "multiplier": 0.8726
+    },
+    "volume:VOL_STABLE": {
+      "winCount": 18,
+      "lossCount": 13,
+      "winProb": 0.5763,
+      "multiplier": 1.0197
+    },
+    "rank_group:RANK_MIDCAP_150": {
+      "winCount": 8,
+      "lossCount": 3,
+      "winProb": 0.6427,
+      "multiplier": 1.1371
+    },
+    "score_group:SCORE_MID_6_TO_7": {
+      "winCount": 6,
+      "lossCount": 9,
+      "winProb": 0.4734,
+      "multiplier": 0.8376
+    },
+    "ls_flow:LS_DIVERGENCE": {
+      "winCount": 15,
+      "lossCount": 10,
+      "winProb": 0.5887,
+      "multiplier": 1.0416
+    },
+    "price_action:PA_3_LEVELS": {
+      "winCount": 10,
+      "lossCount": 3,
+      "winProb": 0.6713,
+      "multiplier": 1.1877
+    },
+    "oi_change:OI_COOLING": {
+      "winCount": 10,
+      "lossCount": 4,
+      "winProb": 0.6455,
+      "multiplier": 1.142
+    },
+    "funding:FUNDING_DANGER": {
+      "winCount": 5,
+      "lossCount": 5,
+      "winProb": 0.5356,
+      "multiplier": 0.9476
     },
     "rank_group:RANK_TOP30": {
       "winCount": 1,
-      "lossCount": 1,
-      "winProb": 0.5677,
-      "multiplier": 0.9805
+      "lossCount": 2,
+      "winProb": 0.5188,
+      "multiplier": 0.9179
     },
     "price_action:PA_1_LEVEL": {
-      "winCount": 1,
-      "lossCount": 0,
-      "winProb": 0.6113,
-      "multiplier": 1.0559
+      "winCount": 18,
+      "lossCount": 10,
+      "winProb": 0.6196,
+      "multiplier": 1.0962
+    },
+    "funding:FUNDING_SQUEEZE": {
+      "winCount": 8,
+      "lossCount": 4,
+      "winProb": 0.6159,
+      "multiplier": 1.0897
+    },
+    "score_group:SCORE_WEAK_LT5": {
+      "winCount": 42,
+      "lossCount": 29,
+      "winProb": 0.5877,
+      "multiplier": 1.0399
+    },
+    "trend:TREND_EMA": {
+      "winCount": 3,
+      "lossCount": 5,
+      "winProb": 0.4891,
+      "multiplier": 0.8654
     }
   }
 }
