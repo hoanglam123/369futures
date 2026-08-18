@@ -1443,6 +1443,7 @@ async function checkH1RetestSignals(client) {
       }
 
       // ── AI Reviewer Machine Learning Offline (Retest H1) ──
+      const rank = getMarketCapRank ? getMarketCapRank(sym) : 999;
       const sigForAI = {
         symbol: sym,
         signal: signal,
@@ -1460,7 +1461,7 @@ async function checkH1RetestSignals(client) {
       if (isAiVeto) {
         log.system(`[AutoTrade (Retest H1)] 🛑 [AI Veto] ${sym} (${signal}) bị phủ quyết: ${aiEval.reason} — Hủy đặt lệnh Retest.`);
         delete lowScoreWatchlist[sym];
-        return;
+        continue;
       }
 
       if (aiEval.isApproved) {

@@ -29,9 +29,20 @@ function loadAIModel() {
 function runAutoRetrain() {
   log.system('[AI Reviewer] 🔄 Tự động kích hoạt Python re-train mô hình AI trong nền...');
   const scriptPath = path.join(process.cwd(), 'scripts', 'train_ai_model.py');
-  exec(`python "${scriptPath}"`, (error, stdout, stderr) => {
+  const pyCmd = process.env.PYTHON_BIN || 'python3';
+
+  exec(`${pyCmd} "${scriptPath}"`, (error, stdout, stderr) => {
     if (error) {
-      log.warn(`[AI Reviewer] Lỗi tự động re-train mô hình AI: ${error.message}`);
+      // Fallback thử tiếp lệnh 'python' nếu 'python3' thất bại (hoặc ngược lại)
+      const fallbackCmd = pyCmd === 'python3' ? 'python' : 'python3';
+      exec(`${fallbackCmd} "${scriptPath}"`, (err2, stdout2, stderr2) => {
+        if (err2) {
+          log.warn(`[AI Reviewer] Lỗi tự động re-train mô hình AI: ${error.message} (Fallback '${fallbackCmd}' cũng thất bại: ${err2.message})`);
+          return;
+        }
+        log.system('[AI Reviewer] 🎉 Đã hoàn tất tự động re-train mô hình AI! Nạp lại trọng số mới...');
+        loadAIModel();
+      });
       return;
     }
     log.system('[AI Reviewer] 🎉 Đã hoàn tất tự động re-train mô hình AI! Nạp lại trọng số mới...');
