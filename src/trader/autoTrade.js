@@ -1053,7 +1053,7 @@ async function startAutoTrade(coins) {
 
   // Luồng 4: Check Retest nến H1 cho các mã trong Watchlist (Mỗi 10s kiểm tra xem H1 vừa đóng chưa)
   const h1RetestTimer = setInterval(() => {
-    checkH1RetestSignals(client).catch(err => {
+    checkH1RetestSignals(client, activeSymbols).catch(err => {
       log.warn(`[AutoTrade] Lỗi luồng Check H1 Retest: ${err.message}`);
     });
   }, 10000);
@@ -1303,7 +1303,7 @@ async function markSymbolFailed(sym, reason) {
 /**
  * Luồng 4: Check Retest nến H1 cho các mã trong Watchlist (Chạy ở phút 00 của mỗi giờ)
  */
-async function checkH1RetestSignals(client) {
+async function checkH1RetestSignals(client, activeSymbols) {
   if (isIpBanned()) return;
   const currentH1Time = Math.floor(Date.now() / 3600000) * 3600000;
   if (currentH1Time === lastCheckedH1Time) return;
@@ -1332,6 +1332,10 @@ async function checkH1RetestSignals(client) {
 
     try {
       // Kiểm tra nếu đã có vị thế mở hoặc lệnh chờ -> Bỏ qua
+      if (activeSymbols && activeSymbols.has(sym)) {
+        delete lowScoreWatchlist[sym];
+        continue;
+      }
       const hasPos = await client.hasOpenPosition(sym);
       if (hasPos) {
         delete lowScoreWatchlist[sym];
@@ -1348,6 +1352,7 @@ async function checkH1RetestSignals(client) {
       // VD: coin thêm watchlist lúc giá $0.22 (step=0.03), nhưng targetLevel=$0.18 (step=0.003) → leverage sai 10x
       const step = getStep(targetLevel);
       const isLong = signal === 'LONG';
+      const side = isLong ? 'BUY' : 'SELL';
 
       // Lấy giá Open/Close/High/Low tổng quan của cả nến H1
       const h1Open = m1Candles[0].open;
@@ -1503,10 +1508,12 @@ async function checkH1RetestSignals(client) {
       }
 
       try {
-        try { await client.setLeverage(sym, leverage); } catch (_) { }
+        try { await client.setLeverage(sym, effectiveLeverageRetest); } catch (_) { }
 
         const limitOrder = await client.placeLimit(sym, side, qty, targetLevel, dec);
         const limitId = limitOrder.orderId || limitOrder.id || 'unknown';
+
+        if (activeSymbols) activeSymbols.add(sym);
 
         log.system(`[H1Retest] ✓ Đã đặt thành công lệnh LIMIT Retest H1 cho ${sym} ${side} ${qty} @ $${targetLevel} (orderId=${limitId})`);
 
@@ -1519,7 +1526,7 @@ async function checkH1RetestSignals(client) {
           time: Date.now(),
           score: watchData.score,
           isCounterTrend: watchData.isCounterTrend,
-          leverage: leverage,
+          leverage: effectiveLeverageRetest,
           step: step,
           gridWidthPct: watchData.gridWidthPct || gridStepPct,
           gridStepPct: gridStepPct,
@@ -1537,7 +1544,7 @@ async function checkH1RetestSignals(client) {
           `🎯 <b>[AutoTrade] Lệnh LIMIT Retest H1</b>\n` +
           `• Coin: <b>${sym}USDT (${signal})</b>\n` +
           `• Giá Entry: <b>$${targetLevel}</b>\n` +
-          `• Đòn bẩy: <b>${leverage}x</b> (Ký quỹ: $${tradeAmount})\n` +
+          `• Đòn bẩy: <b>${effectiveLeverageRetest}x</b> (Ký quỹ: $${tradeAmount})\n` +
           `• Score gốc: <b>${watchData.score}đ</b>\n` +
           `• Lý do: Nến H1 đóng rút chân chuẩn tại Entry, chưa nảy đủ 5% ROI (Max ROI: +${maxFavorableRoi.toFixed(2)}%)`
         );
