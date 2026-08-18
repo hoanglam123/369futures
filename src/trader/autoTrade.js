@@ -666,19 +666,35 @@ async function startAutoTrade(coins) {
         return;
       }
 
-      // Phân bổ ký quỹ (Margin): PP369 + H1/M15 Volatility làm móng gốc ($30)
-      // Mỗi +1.0đ từ các tiêu chí bổ trợ khác (Trend, RSI, Dòng tiền L/S, Volume, PA, OI, Funding, BTC) → +$5 Margin
+      // Phân bổ ký quỹ (Margin) theo Xếp Hạng Vốn Hóa (MarketCap Rank):
+      // - Top 10 (BTC, ETH, SOL...): $50 USDT
+      // - Top 11 - 50: $40 USDT
+      // - Top 51 - 150: $35 USDT
+      // - Ngoài Top 150: $30 USDT chuẩn
       const baseEnvMargin = parseFloat(process.env.TRADE_AMOUNT) || 30;
-      const score = sig.score ?? 0;
-      const otherScore = scoreRes?.otherScore != null ? scoreRes.otherScore : Math.max(0, score - volScore);
-      const bonusMargin = Math.floor(otherScore) * 5;
-      const tradeAmount = Math.min(100, baseEnvMargin + bonusMargin);
-
       const rank = getMarketCapRank ? getMarketCapRank(sym) : 999;
+      let tradeAmount = baseEnvMargin;
+      let rankTierLabel = 'Ngoài Top 150';
+
+      if (sym === 'BTC' || sym === 'ETH' || rank <= 10) {
+        tradeAmount = Math.max(baseEnvMargin, 50);
+        rankTierLabel = `Top 10 (Rank #${rank})`;
+      } else if (rank <= 50) {
+        tradeAmount = Math.max(baseEnvMargin, 40);
+        rankTierLabel = `Top 50 (Rank #${rank})`;
+      } else if (rank <= 150) {
+        tradeAmount = Math.max(baseEnvMargin, 35);
+        rankTierLabel = `Top 150 (Rank #${rank})`;
+      } else {
+        tradeAmount = baseEnvMargin;
+        rankTierLabel = `Lowcap (Rank #${rank})`;
+      }
+
+      const score = sig.score ?? 0;
       if (isNewSignalLog) {
         log.system(
           `[AutoTrade] Phân bổ Ký quỹ ${sym}: $${tradeAmount} ` +
-          `(Gốc PP369+Vol $${baseEnvMargin} + Bonus $${bonusMargin} từ +${otherScore.toFixed(1)}đ các tiêu chí bổ trợ | Score tổng: +${score.toFixed(1)}đ)`
+          `(Phân cấp Vốn hóa ${rankTierLabel} | Score: +${score.toFixed(1)}đ)`
         );
       }
 
@@ -852,12 +868,18 @@ async function startAutoTrade(coins) {
 
       const calculatedLeverage = Math.floor(39 / gridStepPct);
       const maxAllowed = leverageInfo[sym] ?? leverage;
-      const effectiveLeverage = Math.max(1, Math.min(calculatedLeverage, maxAllowed));
+
+      // Khống chế trần Notional để khi chạm cự ly SL 1 Unit (100 ticks), khoản lỗ tối đa luôn <= 4.0 USDT
+      // Công thức: SL_Loss = Notional * (gridStepPct / 300) <= 4.0 => Max_Notional = 1200 / gridStepPct
+      const maxNotionalForSlCap = (4.0 * 300) / gridStepPct;
+      const maxLeverageForSlCap = Math.max(1, Math.floor(maxNotionalForSlCap / tradeAmount));
+
+      const effectiveLeverage = Math.max(1, Math.min(calculatedLeverage, maxLeverageForSlCap, maxAllowed));
 
       sig.leverage = effectiveLeverage;
       sig.margin = tradeAmount;
 
-      const currentNotional = tradeAmount * effectiveLeverage;
+      const currentNotional = Math.min(tradeAmount * effectiveLeverage, maxNotionalForSlCap);
 
       const { qty } = calcQuantity(sym, currentNotional, sig.targetLevel);
       if (qty <= 0) {
@@ -1423,16 +1445,27 @@ async function checkH1RetestSignals(client) {
         continue;
       }
 
-      // CHƯA PHẢN ỨNG ĐỦ 5% ROI -> Tiến hành ĐẶT LỆNH LIMIT NGAY TẠI MỐC ENTRY!
-      log.system(`[H1Retest] 🎯 ${sym} ${signal} H1 đóng rút chân chuẩn tại Entry $${targetLevel}, chưa nảy đủ 5% ROI (Max ROI: +${maxFavorableRoi.toFixed(2)}%). ĐẶT LỆNH LIMIT TẠI ENTRY!`);
-
-      const side = isLong ? 'BUY' : 'SELL';
-      const volScoreRetest = watchData.volScore || 0;
+      // ── Phân bổ ký quỹ theo Vốn Hóa cho Retest H1 ──
       const baseEnvMarginRetest = parseFloat(process.env.TRADE_AMOUNT) || 30;
-      const otherScoreRetest = watchData.otherScore != null ? watchData.otherScore : Math.max(0, (watchData.score || 0) - volScoreRetest);
-      const bonusMarginRetest = Math.floor(otherScoreRetest) * 5;
-      const tradeAmount = Math.min(100, baseEnvMarginRetest + bonusMarginRetest);
-      const notional = tradeAmount * leverage;
+      const rank = getMarketCapRank ? getMarketCapRank(sym) : 999;
+      let tradeAmount = baseEnvMarginRetest;
+
+      if (sym === 'BTC' || sym === 'ETH' || rank <= 10) {
+        tradeAmount = Math.max(baseEnvMarginRetest, 50);
+      } else if (rank <= 50) {
+        tradeAmount = Math.max(baseEnvMarginRetest, 40);
+      } else if (rank <= 150) {
+        tradeAmount = Math.max(baseEnvMarginRetest, 35);
+      } else {
+        tradeAmount = baseEnvMarginRetest;
+      }
+
+      // Khống chế trần Notional để khi chạm cự ly SL 1 Unit, khoản lỗ tối đa luôn <= 4.0 USDT
+      const maxNotionalForSlCapRetest = (4.0 * 300) / gridStepPct;
+      const maxLeverageForSlCapRetest = Math.max(1, Math.floor(maxNotionalForSlCapRetest / tradeAmount));
+      const effectiveLeverageRetest = Math.max(1, Math.min(leverage, maxLeverageForSlCapRetest));
+
+      const notional = Math.min(tradeAmount * effectiveLeverageRetest, maxNotionalForSlCapRetest);
       const { qty } = calcQuantity(sym, notional, targetLevel);
       const dec = getDecimals(targetLevel);
 
@@ -1443,7 +1476,6 @@ async function checkH1RetestSignals(client) {
       }
 
       // ── AI Reviewer Machine Learning Offline (Retest H1) ──
-      const rank = getMarketCapRank ? getMarketCapRank(sym) : 999;
       const sigForAI = {
         symbol: sym,
         signal: signal,
@@ -1743,6 +1775,61 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
             }
           } catch (err) {
             log.warn(`[AutoTrade] Lỗi kiểm tra H1 cho vị thế ${sym}: ${err.message}`);
+          }
+        }
+      }
+
+      // 2.5b Kiểm tra Nến M15 Đóng Cửa Không Phản Ứng (Dời TP về Entry hòa vốn)
+      //     - LONG:  Giá thấp nhất (Low) > Entry - 30 ticks (không đâm quá 30 ticks)
+      //              VÀ Giá đóng cửa (Close) <= Entry - 5 ticks (đóng nến dưới Entry > 5 ticks)
+      //     - SHORT: Giá cao nhất (High) < Entry + 30 ticks (không vọt quá 30 ticks)
+      //              VÀ Giá đóng cửa (Close) >= Entry + 5 ticks (đóng nến trên Entry > 5 ticks)
+      const m15MaxPlungeDistance = unit * 0.30; // 30 ticks = 0.30 * unit
+      const m15CloseThresholdDistance = unit * 0.05; // 5 ticks = 0.05 * unit
+      if (meta && !meta.isH1Failed && !meta.isPanicEscape) {
+        const nowMs = Date.now();
+        if (!meta._lastM15Check || (nowMs - meta._lastM15Check >= 15000)) {
+          meta._lastM15Check = nowMs;
+          try {
+            const m15s = await fetchBinanceKlines(sym, '15m', nowMs - 3 * 3600_000, 3);
+            if (m15s && m15s.length >= 2) {
+              const lastClosedM15 = m15s[m15s.length - 2];
+              const m15CloseTime = lastClosedM15 ? (lastClosedM15.openTime + 15 * 60_000) : 0;
+              const entryTime = meta.time || (nowMs - 15 * 60_000);
+
+              // Cây nến M15 vừa đóng phải kết thúc sau thời điểm vào lệnh
+              if (lastClosedM15 && m15CloseTime > entryTime) {
+                const cClose = lastClosedM15.close;
+                const cLow = lastClosedM15.low;
+                const cHigh = lastClosedM15.high;
+
+                if (isLong) {
+                  const isLowAbove30Ticks = cLow > (entryPrice - m15MaxPlungeDistance);
+                  const isClosedBelow5Ticks = cClose <= (entryPrice - m15CloseThresholdDistance);
+
+                  if (isLowAbove30Ticks && isClosedBelow5Ticks) {
+                    meta.isH1Failed = true;
+                    log.system(
+                      `[AutoTrade] ⚠️ ${sym} LONG: Nến M15 đóng cửa dưới Entry -5 ticks ($${cClose} <= $${(entryPrice - m15CloseThresholdDistance).toFixed(6)}) ` +
+                      `kèm đáy nến Low > Entry - 30 ticks ($${cLow} > $${(entryPrice - m15MaxPlungeDistance).toFixed(6)}) -> Kích hoạt dời TP về Entry hòa vốn $${entryPrice}`
+                    );
+                  }
+                } else {
+                  const isHighBelow30Ticks = cHigh < (entryPrice + m15MaxPlungeDistance);
+                  const isClosedAbove5Ticks = cClose >= (entryPrice + m15CloseThresholdDistance);
+
+                  if (isHighBelow30Ticks && isClosedAbove5Ticks) {
+                    meta.isH1Failed = true;
+                    log.system(
+                      `[AutoTrade] ⚠️ ${sym} SHORT: Nến M15 đóng cửa trên Entry +5 ticks ($${cClose} >= $${(entryPrice + m15CloseThresholdDistance).toFixed(6)}) ` +
+                      `kèm đỉnh nến High < Entry + 30 ticks ($${cHigh} < $${(entryPrice + m15MaxPlungeDistance).toFixed(6)}) -> Kích hoạt dời TP về Entry hòa vốn $${entryPrice}`
+                    );
+                  }
+                }
+              }
+            }
+          } catch (err) {
+            log.warn(`[AutoTrade] Lỗi kiểm tra M15 cho vị thế ${sym}: ${err.message}`);
           }
         }
       }
