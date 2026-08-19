@@ -1882,7 +1882,7 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
         if (!meta._lastH1Check || (nowMs - meta._lastH1Check >= 15000)) {
           meta._lastH1Check = nowMs;
           try {
-            const h1s = await fetchBinanceKlines(sym, '1h', nowMs - 3 * 3600_000, 3);
+            const h1s = await fetchBinanceKlines(sym, '1h', null, 5);
             if (h1s && h1s.length >= 2) {
               const lastClosedH1 = h1s[h1s.length - 2];
               const h1CloseTime = lastClosedH1 ? (lastClosedH1.openTime + 3600_000) : 0;
@@ -1925,7 +1925,7 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
         if (!meta._lastM15Check || (nowMs - meta._lastM15Check >= 15000)) {
           meta._lastM15Check = nowMs;
           try {
-            const m15s = await fetchBinanceKlines(sym, '15m', nowMs - 3 * 3600_000, 3);
+            const m15s = await fetchBinanceKlines(sym, '15m', null, 5);
             if (m15s && m15s.length >= 2) {
               const lastClosedM15 = m15s[m15s.length - 2];
               const m15CloseTime = lastClosedM15 ? (lastClosedM15.openTime + 15 * 60_000) : 0;
@@ -1979,7 +1979,7 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
         if (!meta._lastM15VolCheck || (nowMs - meta._lastM15VolCheck >= 20000)) {
           meta._lastM15VolCheck = nowMs;
           try {
-            const m15s = await fetchBinanceKlines(sym, '15m', nowMs - 6 * 3600_000, 22);
+            const m15s = await fetchBinanceKlines(sym, '15m', null, 25);
             if (m15s && m15s.length >= 22) {
               const currentM15 = m15s[m15s.length - 1];
               const lastClosedM15 = m15s[m15s.length - 2];

@@ -324,8 +324,12 @@ async function fetchBinanceKlines(symbol, interval, startTimeMs, limit = 1500) {
   const url = 'https://fapi.binance.com/fapi/v1/klines';
   for (let attempt = 0; attempt < 4; attempt++) {
     try {
+      const params = { symbol: `${symbol}USDT`, interval, limit };
+      if (startTimeMs != null) {
+        params.startTime = startTimeMs;
+      }
       const res = await axios.get(url, {
-        params: { symbol: `${symbol}USDT`, interval, startTime: startTimeMs, limit },
+        params,
         timeout: 15000,
       });
       const data = (res.data || []).map(c => ({
