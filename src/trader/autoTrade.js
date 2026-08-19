@@ -12,7 +12,7 @@
 
 const path = require('path');
 const fs = require('fs');
-const { createClient, loadStepSizes, calcQuantity } = require('./binance');
+const { createClient, loadStepSizes, loadLeverageBrackets, calcQuantity } = require('./binance');
 const { isIpBanned } = require('./circuitBreaker');
 const {
   get369Signal,
@@ -34,6 +34,8 @@ const {
   isGridWidthValid,
   YEAR_START_MS,
   getMarketCapRank,
+  fetchH4Reference,
+  buildLevelGrid,
   recordTradeEntry,
   recordTradeExit,
   evaluateSignalWithAI,
@@ -47,6 +49,8 @@ const TRAILING_SL_INTERVAL_MS = 6_000; // kiểm tra vị thế để dịch SL 
 const MONITOR_LIMIT_INTERVAL_MS = 3_000; // Luồng 3: monitor lệnh LIMIT đang chờ mỗi 3 giây
 const DEBOUNCE_MS = 5 * 60_000; // 5 phút / tín hiệu
 const COIN_REFRESH_INTERVAL_MS = 4 * 60 * 60_000; // Tái kiểm tra danh sách coin mỗi 4 giờ
+const LEVERAGE_REFRESH_INTERVAL_MS = 6 * 60 * 60_000; // Tự động cập nhật trần đòn bẩy mỗi 6 giờ
+const MIN_CONFLUENCE_SCORE = parseFloat(process.env.MIN_CONFLUENCE_SCORE || '4.0'); // Ngưỡng Confluence Score tối thiểu (mặc định 4.0đ)
 
 // Debounce map: key → timestamp lần đặt lệnh gần nhất
 const _fired = new Map();
@@ -108,6 +112,78 @@ function saveActiveTradesMetadata() {
     log.warn(`[AutoTrade] Lỗi ghi active_trades.json: ${err.message}`);
   }
 }
+
+/**
+ * Tính toán Stoploss theo Vùng Tier, Take Profit 1:1, Dời SL 50% và Đòn bẩy/Margin động
+ *
+ * @param {string} symbol
+ * @param {'LONG'|'SHORT'} side
+ * @param {number} entryPrice
+ * @param {object} h4Ref - { upperPrice, lowerPrice, step, decimals }
+ * @param {number} tickSize
+ * @param {number} maxExchangeLeverage
+ * @param {number} [targetLossUSD=5.0]
+ */
+function calculateTierSLTP(symbol, side, entryPrice, h4Ref, tickSize, maxExchangeLeverage, targetLossUSD = 5.0) {
+  const step = h4Ref?.step || getStep(entryPrice);
+  const decimals = h4Ref?.decimals || getDecimals(entryPrice);
+  const upperPrice = h4Ref?.upperPrice || entryPrice;
+  const lowerPrice = h4Ref?.lowerPrice || entryPrice;
+
+  const distTicks = Math.ceil(Math.max(
+    Math.abs(upperPrice - entryPrice),
+    Math.abs(lowerPrice - entryPrice)
+  ) / step);
+  const levelsRange = Math.max(30, distTicks + 10);
+  const grid = buildLevelGrid(upperPrice, lowerPrice, step, decimals, levelsRange);
+
+  let tierLong, tierShort;
+  if (side === 'LONG' || side === 'BUY') {
+    tierLong = grid.filter(l => l.type === 'tren' && l.value <= entryPrice * 1.005).pop()?.value || entryPrice;
+    tierShort = grid.filter(l => l.type === 'duoi' && l.value <= entryPrice * 1.005).pop()?.value || (entryPrice - step * 0.1);
+  } else {
+    tierShort = grid.find(l => l.type === 'duoi' && l.value >= entryPrice * 0.995)?.value || entryPrice;
+    tierLong = grid.find(l => l.type === 'tren' && l.value >= entryPrice * 0.995)?.value || (entryPrice + step * 0.1);
+  }
+
+  // Buffer: max(33 ticks, 10% step, 0.3% price)
+  const effTickSize = tickSize || (decimals === 5 ? 0.00001 : (decimals === 4 ? 0.0001 : 0.000001));
+  const buffer = Math.max(33 * effTickSize, step * 0.10, entryPrice * 0.003);
+  let rawSL = (side === 'LONG' || side === 'BUY') ? (tierShort - buffer) : (tierLong + buffer);
+  let slDist = Math.abs(entryPrice - rawSL);
+  let slPct = (slDist / entryPrice) * 100;
+
+  // Min SL = 1.0%, Max SL = 3.5%
+  if (slPct < 1.0) {
+    slPct = 1.0;
+    slDist = entryPrice * 0.01;
+    rawSL = (side === 'LONG' || side === 'BUY') ? (entryPrice - slDist) : (entryPrice + slDist);
+  } else if (slPct > 3.5) {
+    return { valid: false, reason: `SL theo Tier quá rộng (${slPct.toFixed(2)}% > 3.5%)` };
+  }
+
+  const calcLeverage = Math.max(1, Math.floor(50 / slPct)); // target ~50% ROI SL
+  const leverage = Math.min(calcLeverage, maxExchangeLeverage || 20);
+
+  // Margin cần nạp để nếu dính SL thì lỗ đúng targetLossUSD
+  const actualMargin = targetLossUSD / (leverage * (slPct / 100));
+
+  const tpPrice = (side === 'LONG' || side === 'BUY') ? (entryPrice + slDist) : (entryPrice - slDist);
+  const beTriggerPrice = (side === 'LONG' || side === 'BUY') ? (entryPrice + slDist * 0.5) : (entryPrice - slDist * 0.5);
+
+  return {
+    valid: true,
+    slPrice: parseFloat(rawSL.toFixed(decimals)),
+    tpPrice: parseFloat(tpPrice.toFixed(decimals)),
+    beTriggerPrice: parseFloat(beTriggerPrice.toFixed(decimals)),
+    slDistance: slDist,
+    slPct: slPct,
+    leverage: leverage,
+    margin: actualMargin,
+    targetLossUSD: targetLossUSD
+  };
+}
+
 
 let stepSizesCache = null;
 function formatQuantity(sym, rawQty) {
@@ -187,11 +263,30 @@ async function startAutoTrade(coins) {
     if (fs.existsSync(filePath)) {
       const raw = JSON.parse(fs.readFileSync(filePath, 'utf8'));
       leverageInfo = raw.leverageInfo || {};
+    }
+    if (!leverageInfo || Object.keys(leverageInfo).length === 0) {
+      log.system(`[AutoTrade] Chưa có leverageInfo trong cache — đang tải từ Binance...`);
+      leverageInfo = await loadLeverageBrackets(activeCoinList, apiKey, secret);
+    } else {
       log.system(`[AutoTrade] Đã nạp leverageInfo cho ${Object.keys(leverageInfo).length} coin từ cache.`);
     }
   } catch (e) {
     log.warn(`[AutoTrade] Không đọc được leverageInfo: ${e.message} — dùng leverage mặc định ${leverage}x cho tất cả.`);
   }
+
+  // ── Định kỳ làm mới trần đòn bẩy (Leverage Brackets) mỗi 6 giờ vào step_sizes.json ────
+  setInterval(async () => {
+    try {
+      log.system('[AutoTrade] [LeverageRefresh] Đang cập nhật lại trần đòn bẩy các coin vào step_sizes.json...');
+      const updatedInfo = await loadLeverageBrackets(activeCoinList, apiKey, secret);
+      if (updatedInfo && Object.keys(updatedInfo).length > 0) {
+        leverageInfo = updatedInfo;
+        log.system(`[AutoTrade] [LeverageRefresh] Đã cập nhật thành công đòn bẩy cho ${Object.keys(updatedInfo).length} coin.`);
+      }
+    } catch (err) {
+      log.warn(`[AutoTrade] [LeverageRefresh] Lỗi cập nhật đòn bẩy: ${err.message}`);
+    }
+  }, LEVERAGE_REFRESH_INTERVAL_MS);
 
   // Lấy giá REST lần đầu để xác định các coin gần mốc
   await updatePricesRest();
@@ -849,6 +944,24 @@ async function startAutoTrade(coins) {
       sig.marketCapRank = rank;
       sig.gridWidthPct = gridStepPct;
 
+      // ── Tiêu chí 2: Bộ Lọc Confluence Score tối thiểu (Mặc định >= 4.5đ) ──
+      if ((sig.score || 0) < MIN_CONFLUENCE_SCORE) {
+        log.system(`[AutoTrade] ⏭️ ${sym} (${sig.signal}) Score = ${sig.score}đ < ${MIN_CONFLUENCE_SCORE}đ — Bỏ qua không đặt lệnh.`);
+        if (_shouldLogSignal(sym, sig.signal, sig.targetLevel, 'low_score_skipped')) {
+          recordSkippedSignal({
+            symbol: sym,
+            signal: sig.signal,
+            signalPrice: sig.targetLevel,
+            score: sig.score ?? 0,
+            scoreReasons: sig.scoreReasons || [],
+            skipReason: `SCORE_LOW_LT_${MIN_CONFLUENCE_SCORE}`,
+            markPrice: markPrice,
+            marketCapRank: rank,
+          });
+        }
+        return;
+      }
+
       const aiEval = evaluateSignalWithAI(sig);
       recordAIEvaluation(sig, aiEval);
 
@@ -866,24 +979,28 @@ async function startAutoTrade(coins) {
         log.system(`[AI Reviewer] 🟡 ${sym} (${sig.signal}) - ${aiEval.reason}`);
       }
 
-      const calculatedLeverage = Math.floor(39 / gridStepPct);
+      // ── LOGIC MỚI: TÍNH TOÁN STOPLOSS THEO TIER, TP 1:1, VÀ ĐÒN BẨY / MARGIN ĐỘNG ──
+      const h4Ref = await fetchH4Reference(sym);
+      const tickSize = getTickSizeCached(sym) || (getDecimals(sig.targetLevel) === 5 ? 0.00001 : (getDecimals(sig.targetLevel) === 4 ? 0.0001 : 0.000001));
+      const targetLossUSD = parseFloat(process.env.MAX_LOSS_PER_TRADE_USD || '5.0');
       const maxAllowed = leverageInfo[sym] ?? leverage;
 
-      // Khống chế trần Notional để khi chạm cự ly SL 1 Unit (100 ticks), khoản lỗ tối đa luôn <= 4.0 USDT
-      // Công thức: SL_Loss = Notional * (gridStepPct / 300) <= 4.0 => Max_Notional = 1200 / gridStepPct
-      const maxNotionalForSlCap = (4.0 * 300) / gridStepPct;
-      const maxLeverageForSlCap = Math.max(1, Math.floor(maxNotionalForSlCap / tradeAmount));
+      const tierSetup = calculateTierSLTP(sym, sig.signal, sig.targetLevel, h4Ref, tickSize, maxAllowed, targetLossUSD);
+      if (!tierSetup.valid) {
+        log.system(`[AutoTrade] ⏭️ ${sym} (${sig.signal}) bỏ qua: ${tierSetup.reason}`);
+        return;
+      }
 
-      const effectiveLeverage = Math.max(1, Math.min(calculatedLeverage, maxLeverageForSlCap, maxAllowed));
+      const effectiveLeverage = tierSetup.leverage;
+      const actualTradeMargin = Number(tierSetup.margin.toFixed(2));
+      const currentNotional = actualTradeMargin * effectiveLeverage;
 
       sig.leverage = effectiveLeverage;
-      sig.margin = tradeAmount;
-
-      const currentNotional = Math.min(tradeAmount * effectiveLeverage, maxNotionalForSlCap);
+      sig.margin = actualTradeMargin;
 
       const { qty } = calcQuantity(sym, currentNotional, sig.targetLevel);
       if (qty <= 0) {
-        log.warn(`[AutoTrade] ${sym}: quantity = 0 — tăng TRADE_AMOUNT hoặc LEVERAGE`);
+        log.warn(`[AutoTrade] ${sym}: quantity = 0 — không đủ khối lượng đặt lệnh`);
         return;
       }
 
@@ -892,7 +1009,7 @@ async function startAutoTrade(coins) {
       try {
         try {
           await client.setLeverage(sym, effectiveLeverage);
-          log.system(`[AutoTrade] Set leverage ${sym}USDT = ${effectiveLeverage}x (Bước 300đ: ${gridStepPct.toFixed(2)}% → tính được ${calculatedLeverage}x, giới hạn: ${maxAllowed}x | Ký quỹ mục tiêu: $${tradeAmount})`);
+          log.system(`[AutoTrade] Set leverage ${sym}USDT = ${effectiveLeverage}x (Tier SL: $${tierSetup.slPrice} (${tierSetup.slPct.toFixed(2)}%), TP 1:1: $${tierSetup.tpPrice}, Dời SL tại $${tierSetup.beTriggerPrice} | Ký quỹ: $${actualTradeMargin})`);
         } catch (e) {
           const binErr = e.response?.data;
           const errStr = _binanceErr(e);
@@ -935,8 +1052,15 @@ async function startAutoTrade(coins) {
           scoreReasons: sig.scoreReasons,
           marketCapRank: rank,
           leverage: effectiveLeverage,
-          margin: tradeAmount,
+          margin: actualTradeMargin,
           maxRecentBouncePct: maxRecentBouncePct ?? null,
+          // ── THÔNG SỐ TIER SL / TP MỚI ──
+          tierSlPrice: tierSetup.slPrice,
+          tierTpPrice: tierSetup.tpPrice,
+          beTriggerPrice: tierSetup.beTriggerPrice,
+          slDistance: tierSetup.slDistance,
+          slPct: tierSetup.slPct,
+          targetLossUSD: targetLossUSD,
         };
         saveActiveTradesMetadata();
 
@@ -1450,27 +1574,23 @@ async function checkH1RetestSignals(client, activeSymbols) {
         continue;
       }
 
-      // ── Phân bổ ký quỹ theo Vốn Hóa cho Retest H1 ──
-      const baseEnvMarginRetest = parseFloat(process.env.TRADE_AMOUNT) || 30;
-      const rank = getMarketCapRank ? getMarketCapRank(sym) : 999;
-      let tradeAmount = baseEnvMarginRetest;
+      // ── LOGIC MỚI: TÍNH TOÁN STOPLOSS THEO TIER, TP 1:1, VÀ ĐÒN BẨY / MARGIN ĐỘNG CHO RETEST H1 ──
+      const h4RefRetest = await fetchH4Reference(sym);
+      const tickSizeRetest = getTickSizeCached(sym) || (getDecimals(targetLevel) === 5 ? 0.00001 : (getDecimals(targetLevel) === 4 ? 0.0001 : 0.000001));
+      const targetLossUSDRetest = parseFloat(process.env.MAX_LOSS_PER_TRADE_USD || '5.0');
+      const maxAllowedRetest = leverageInfo[sym] ?? 20;
 
-      if (sym === 'BTC' || sym === 'ETH' || rank <= 10) {
-        tradeAmount = Math.max(baseEnvMarginRetest, 50);
-      } else if (rank <= 50) {
-        tradeAmount = Math.max(baseEnvMarginRetest, 40);
-      } else if (rank <= 150) {
-        tradeAmount = Math.max(baseEnvMarginRetest, 35);
-      } else {
-        tradeAmount = baseEnvMarginRetest;
+      const tierSetupRetest = calculateTierSLTP(sym, signal, targetLevel, h4RefRetest, tickSizeRetest, maxAllowedRetest, targetLossUSDRetest);
+      if (!tierSetupRetest.valid) {
+        log.system(`[H1Retest] ⏭️ ${sym} (${signal}) bỏ qua: ${tierSetupRetest.reason}`);
+        delete lowScoreWatchlist[sym];
+        continue;
       }
 
-      // Khống chế trần Notional để khi chạm cự ly SL 1 Unit, khoản lỗ tối đa luôn <= 4.0 USDT
-      const maxNotionalForSlCapRetest = (4.0 * 300) / gridStepPct;
-      const maxLeverageForSlCapRetest = Math.max(1, Math.floor(maxNotionalForSlCapRetest / tradeAmount));
-      const effectiveLeverageRetest = Math.max(1, Math.min(leverage, maxLeverageForSlCapRetest));
+      const effectiveLeverageRetest = tierSetupRetest.leverage;
+      const actualTradeMarginRetest = Number(tierSetupRetest.margin.toFixed(2));
+      const notional = actualTradeMarginRetest * effectiveLeverageRetest;
 
-      const notional = Math.min(tradeAmount * effectiveLeverageRetest, maxNotionalForSlCapRetest);
       const { qty } = calcQuantity(sym, notional, targetLevel);
       const dec = getDecimals(targetLevel);
 
@@ -1530,9 +1650,16 @@ async function checkH1RetestSignals(client, activeSymbols) {
           step: step,
           gridWidthPct: watchData.gridWidthPct || gridStepPct,
           gridStepPct: gridStepPct,
-          margin: tradeAmount,
+          margin: actualTradeMarginRetest,
           maxFavorablePrice: null,
-          isH1Retest: true
+          isH1Retest: true,
+          // ── THÔNG SỐ TIER SL / TP MỚI ──
+          tierSlPrice: tierSetupRetest.slPrice,
+          tierTpPrice: tierSetupRetest.tpPrice,
+          beTriggerPrice: tierSetupRetest.beTriggerPrice,
+          slDistance: tierSetupRetest.slDistance,
+          slPct: tierSetupRetest.slPct,
+          targetLossUSD: targetLossUSDRetest,
         };
         saveActiveTradesMetadata();
 
@@ -1909,45 +2036,67 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
       const tpDistance = unit * tpMultiplier;
       const trailDistance = unit * trailMultiplier;
       const trailSlDistance = unit * 0.05; // Dời SL +5 ticks (0.05 * unit) khi chạm mốc Trail Trigger
-      const slBufferDistance = unit * 0.03; // Đệm 3 ticks (0.03 * unit) chống quét râu nến 1-2 ticks
-
+      // 3. Tính khoảng cách giá và mục tiêu TP/SL theo Tier mới:
       let targetSlPriceExact, targetTpPriceExact, trailTriggerPriceExact, trailedSlPriceExact;
-      if (isLong) {
-        targetSlPriceExact = Number((entryPrice - unit - slBufferDistance).toFixed(8));
+      
+      if (meta?.tierSlPrice && meta?.tierTpPrice) {
+        targetSlPriceExact = meta.tierSlPrice;
         if (meta?.isPanicEscape) {
-          targetTpPriceExact = Number((entryPrice - escapeDistance).toFixed(8));
+          targetTpPriceExact = Number((isLong ? entryPrice - escapeDistance : entryPrice + escapeDistance).toFixed(8));
         } else if (meta?.isH1Failed) {
           targetTpPriceExact = Number(entryPrice.toFixed(8));
         } else {
-          targetTpPriceExact = Number((entryPrice + tpDistance).toFixed(8));
+          targetTpPriceExact = meta.tierTpPrice;
         }
-        trailTriggerPriceExact = Number((entryPrice + trailDistance).toFixed(8));
-        trailedSlPriceExact = Number((entryPrice + trailSlDistance).toFixed(8));
+        trailTriggerPriceExact = meta.beTriggerPrice;
+        // Dời SL về hòa vốn (+/- 3 ticks bù phí)
+        const beBuffer = unit * 0.03;
+        trailedSlPriceExact = isLong ? Number((entryPrice + beBuffer).toFixed(8)) : Number((entryPrice - beBuffer).toFixed(8));
       } else {
-        targetSlPriceExact = Number((entryPrice + unit + slBufferDistance).toFixed(8));
-        if (meta?.isPanicEscape) {
-          targetTpPriceExact = Number((entryPrice + escapeDistance).toFixed(8));
-        } else if (meta?.isH1Failed) {
-          targetTpPriceExact = Number(entryPrice.toFixed(8));
+        // Fallback theo unit nếu metadata cũ
+        const trailMultiplier = 0.45;
+        const tpDistance = unit * tpMultiplier;
+        const trailDistance = unit * trailMultiplier;
+        const trailSlDistance = unit * 0.05;
+        const slBufferDistance = unit * 0.03;
+        if (isLong) {
+          targetSlPriceExact = Number((entryPrice - unit - slBufferDistance).toFixed(8));
+          if (meta?.isPanicEscape) {
+            targetTpPriceExact = Number((entryPrice - escapeDistance).toFixed(8));
+          } else if (meta?.isH1Failed) {
+            targetTpPriceExact = Number(entryPrice.toFixed(8));
+          } else {
+            targetTpPriceExact = Number((entryPrice + tpDistance).toFixed(8));
+          }
+          trailTriggerPriceExact = Number((entryPrice + trailDistance).toFixed(8));
+          trailedSlPriceExact = Number((entryPrice + trailSlDistance).toFixed(8));
         } else {
-          targetTpPriceExact = Number((entryPrice - tpDistance).toFixed(8));
+          targetSlPriceExact = Number((entryPrice + unit + slBufferDistance).toFixed(8));
+          if (meta?.isPanicEscape) {
+            targetTpPriceExact = Number((entryPrice + escapeDistance).toFixed(8));
+          } else if (meta?.isH1Failed) {
+            targetTpPriceExact = Number(entryPrice.toFixed(8));
+          } else {
+            targetTpPriceExact = Number((entryPrice - tpDistance).toFixed(8));
+          }
+          trailTriggerPriceExact = Number((entryPrice - trailDistance).toFixed(8));
+          trailedSlPriceExact = Number((entryPrice - trailSlDistance).toFixed(8));
         }
-        trailTriggerPriceExact = Number((entryPrice - trailDistance).toFixed(8));
-        trailedSlPriceExact = Number((entryPrice - trailSlDistance).toFixed(8));
       }
 
       // Đổi sang ROI % tương đương để logging / telegram / dataset
-      const slPct = -13;
-      const tpPct = meta?.isPanicEscape ? -1.3 : (meta?.isH1Failed ? 0 : parseFloat(((tpDistance / entryPrice) * leverageVal * 100).toFixed(2)));
-      const trailTrigger = parseFloat(((trailDistance / entryPrice) * leverageVal * 100).toFixed(2));
-      const trailSlRoi = parseFloat(((trailSlDistance / entryPrice) * leverageVal * 100).toFixed(2)); // ROI tương đương +5đ
+      const slPct = meta?.slPct ? -meta.slPct : -13;
+      const tpPct = meta?.isPanicEscape ? -1.3 : (meta?.isH1Failed ? 0 : parseFloat(((Math.abs(targetTpPriceExact - entryPrice) / entryPrice) * leverageVal * 100).toFixed(2)));
+      const trailTrigger = parseFloat(((Math.abs(trailTriggerPriceExact - entryPrice) / entryPrice) * leverageVal * 100).toFixed(2));
+      const trailSlRoi = parseFloat(((Math.abs(trailedSlPriceExact - entryPrice) / entryPrice) * leverageVal * 100).toFixed(2));
       const unrealizedPnlUsd = (roi / 100) * (meta?.margin || notional / leverageVal);
 
       // ----------------------------------------------------
-      // 0. HARD MAX LOSS GUARD (Khống chế trần lỗ tối đa -4.0 USDT)
+      // 0. HARD MAX LOSS GUARD (Khống chế trần lỗ tối đa)
       // ----------------------------------------------------
-      if (unrealizedPnlUsd <= -4.0) {
-        log.system(`[AutoTrade] 🚨 [Hard Max Loss Guard] Kích hoạt cho ${sym}: Lỗ thả nổi $${unrealizedPnlUsd.toFixed(2)} (${roi.toFixed(2)}%) chạm ngưỡng trần -$4.0 USDT. Cắt lỗ MARKET ngay lập tức!`);
+      const hardLossCapUSD = (meta?.targetLossUSD ? meta.targetLossUSD : 5.0) * 1.10; // Đệm 10% trượt giá
+      if (unrealizedPnlUsd <= -hardLossCapUSD) {
+        log.system(`[AutoTrade] 🚨 [Hard Max Loss Guard] Kích hoạt cho ${sym}: Lỗ thả nổi $${unrealizedPnlUsd.toFixed(2)} (${roi.toFixed(2)}%) chạm ngưỡng trần -$${hardLossCapUSD.toFixed(2)} USDT. Cắt lỗ MARKET ngay lập tức!`);
         try {
           justClosedByBot.add(sym);
           await client.placeMarket(sym, oppositeSide, absAmt);

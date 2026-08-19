@@ -56,6 +56,8 @@ module.exports = {
   initH4Cache:           core.initH4Cache,
   YEAR_START_MS:         core.YEAR_START_MS,
   fetchBinanceKlines:    core.fetchBinanceKlines,
+  fetchH4Reference:      core.fetchH4Reference,
+  buildLevelGrid:        core.buildLevelGrid,
   PROXIMITY_PCT:         core.PROXIMITY_PCT,
   getDecimals:           core.getDecimals,
   getStep:               core.getStep,

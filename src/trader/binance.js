@@ -279,13 +279,19 @@ function calcQuantity(symbol, notional, price) {
 function createClient(apiKey, secret) {
   let _posCache = null;
   let _posCacheTime = 0;
+  const _appliedLeverageCache = new Map();
 
   return {
     /**
-     * Set đòn bẩy cho 1 symbol trước khi đặt lệnh.
+     * Set đòn bẩy cho 1 symbol trước khi đặt lệnh (có cache chống gọi trùng API).
      */
-    setLeverage(symbol, leverage) {
-      return _post('/fapi/v1/leverage', { symbol: `${symbol}USDT`, leverage }, apiKey, secret);
+    async setLeverage(symbol, leverage) {
+      if (_appliedLeverageCache.get(symbol) === leverage) {
+        return { symbol: `${symbol}USDT`, leverage, cached: true };
+      }
+      const res = await _post('/fapi/v1/leverage', { symbol: `${symbol}USDT`, leverage }, apiKey, secret);
+      _appliedLeverageCache.set(symbol, leverage);
+      return res;
     },
 
     /**
