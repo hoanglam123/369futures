@@ -126,6 +126,22 @@ function getLeverageCached(sym) {
   return 20;
 }
 
+function calcHalfQuantity(sym, totalQty) {
+  let stepSize = 0.001;
+  try {
+    const filePath = path.join(process.cwd(), 'data', 'step_sizes.json');
+    if (fs.existsSync(filePath)) {
+      const content = fs.readFileSync(filePath, 'utf8');
+      const data = JSON.parse(content);
+      stepSize = data.stepSizes?.[`${sym}USDT`] || data.steps?.[`${sym}USDT`] || 0.001;
+    }
+  } catch (_) {}
+  const half = totalQty / 2;
+  const qty = Math.floor(half / stepSize) * stepSize;
+  const dec = Math.max(0, Math.round(-Math.log10(stepSize)));
+  return parseFloat(qty.toFixed(dec));
+}
+
 /**
  * Tính toán Stoploss theo Vùng Tier, Take Profit 1:1, Dời SL 50% và Đòn bẩy/Margin động
  *
@@ -2408,6 +2424,29 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
               const levelLabel = currentSlPct === trailSlRoi ? '+5đ (Khóa lãi)' : 'Khóa lãi';
               const ticksLabel = (trailMultiplier * 100).toFixed(0);
               log.system(`[AutoTrade] Trailing SL (chạm mốc ${ticksLabel}đ): ${sym} đạt ROI ${roi.toFixed(2)}% -> Dịch SL trên sàn về entry +5đ ($${targetSlStr}, ROI ~${currentSlPct}%) [Mức: ${levelLabel}]`);
+
+              // ── THÊM MỚI: PARTIAL TP 50% (Chốt 50% khối lượng khi đạt 50% chặng đường TP) ──
+              if (meta && !meta.hasPartialTp50 && absAmt > 0) {
+                try {
+                  const halfQty = calcHalfQuantity(sym, absAmt);
+                  if (halfQty > 0) {
+                    log.system(`[AutoTrade] 🎯 [Partial TP 50%] ${sym}: Đạt 50% TP -> Tiến hành chốt 50% vị thế (${halfQty} ${sym}) MARKET...`);
+                    await client.placeMarket(sym, oppositeSide, halfQty);
+                    meta.hasPartialTp50 = true;
+                    saveActiveTradesMetadata();
+
+                    sendTelegram(
+                      `🎯 <b>[AutoTrade] Chốt Lời 50% Vị Thế (Partial TP)</b>\n` +
+                      `• Coin: <b>#${sym} (${isLong ? 'LONG' : 'SHORT'})</b>\n` +
+                      `• Đã chốt: <b>${halfQty} ${sym}</b> (50% khối lượng)\n` +
+                      `• ROI lúc chốt: <b>+${roi.toFixed(2)}%</b>\n` +
+                      `• 50% khối lượng còn lại tiếp tục gồng về TP với SL hòa vốn!`
+                    ).catch(() => { });
+                  }
+                } catch (partialErr) {
+                  log.warn(`[AutoTrade] Lỗi chốt Partial TP 50% cho ${sym}: ${partialErr.message}`);
+                }
+              }
             }
 
             // 🧹 Hủy sạch các lệnh LIMIT Entry còn treo dư (chống khớp lại phần dư khi giá hồi về Entry)
