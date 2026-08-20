@@ -746,13 +746,12 @@ async function startAutoTrade(coins) {
         log.system(`[AutoTrade] ${sym} → ${sig.signal} (Score: +${sig.score}đ) tại $${sig.targetLevel}`);
       }
 
-      const isBtc = sym === 'BTC';
       const volScore = scoreRes?.volScore || 0;
       const isM15Volatile = scoreRes?.isM15Volatile === true;
       const isStagnant = scoreRes?.isStagnant === true;
       const isH1VolSurge = scoreRes?.isH1VolSurge === true;
-      const hasCriterion2 = isBtc || (volScore >= 0.3 && !isM15Volatile && !isStagnant && !isH1VolSurge);
-      if (!isBtc && !hasCriterion2) {
+      const hasCriterion2 = (volScore >= 0.3 && !isM15Volatile && !isStagnant && !isH1VolSurge);
+      if (!hasCriterion2) {
         if (isNewSignalLog) {
           const failReason = isH1VolSurge
             ? 'Đột biến Volume 3 nến H1 (gấp >= 2.5x)'
@@ -1004,6 +1003,51 @@ async function startAutoTrade(coins) {
         log.system(`[AI Reviewer] 🟢 Khuyên NÊN ĐẶT LỆNH ${sym} (${sig.signal}) - ${aiEval.reason}`);
       } else {
         log.system(`[AI Reviewer] 🟡 ${sym} (${sig.signal}) - ${aiEval.reason}`);
+      }
+
+      // ── BỘ LỌC M15 SPIKE GUARD (Chặn đặt Limit khi M15 bùng nổ Vol >= 2.5x & Biên độ > 1.4%) ──
+      try {
+        const klinesM15 = await fetchBinanceKlines(sym, '15m', null, 21);
+        if (klinesM15 && klinesM15.length >= 20) {
+          const past20 = klinesM15.slice(0, klinesM15.length - 1);
+          const currM15 = klinesM15[klinesM15.length - 1];
+          const avgVol20 = past20.reduce((sum, c) => sum + c.volume, 0) / past20.length;
+          const m15VolRatio = avgVol20 > 0 ? (currM15.volume / avgVol20) : 1;
+          const m15RangePct = ((currM15.high - currM15.low) / (currM15.low || 1)) * 100;
+
+          if (m15RangePct > 1.4 && m15VolRatio >= 2.5) {
+            const alertMsg = `🛑 <b>[M15 Spike Guard - BỎ QUA LIMIT]</b>\n` +
+              `• <b>Coin:</b> #${sym} (${sig.signal})\n` +
+              `• <b>Mốc Entry:</b> $${sig.targetLevel}\n` +
+              `• <b>Biên độ M15:</b> ${m15RangePct.toFixed(2)}% (Ngưỡng > 1.4%)\n` +
+              `• <b>Volume M15:</b> ${m15VolRatio.toFixed(2)}x MA20 (Ngưỡng >= 2.5x)\n` +
+              `• <b>Lý do:</b> Nến M15 đang bão giá giật mạnh đâm cản. Tự động bỏ qua đặt Limit để tránh dính SL.`;
+
+            log.system(`[AutoTrade] 🛑 [M15 Spike Guard] ${sym} (${sig.signal}): Nến M15 bão giá (Biên độ ${m15RangePct.toFixed(2)}% > 1.4% & Vol ${m15VolRatio.toFixed(2)}x >= 2.5x) — BỎ QUA ĐẶT LIMIT`);
+
+            try {
+              await sendTelegram(alertMsg);
+            } catch (teleErr) {
+              log.warn(`[AutoTrade] Lỗi gửi telegram M15 Spike Guard cho ${sym}: ${teleErr.message}`);
+            }
+
+            if (_shouldLogSignal(sym, sig.signal, sig.targetLevel, 'm15_spike_skipped')) {
+              recordSkippedSignal({
+                symbol: sym,
+                signal: sig.signal,
+                signalPrice: sig.targetLevel,
+                score: sig.score ?? 0,
+                scoreReasons: sig.scoreReasons || [],
+                skipReason: 'M15_VOLATILITY_VOLUME_SPIKE',
+                markPrice: markPrice,
+                marketCapRank: rank,
+              });
+            }
+            return;
+          }
+        }
+      } catch (errM15) {
+        log.warn(`[AutoTrade] Không thể kiểm tra nến M15 Spike Guard cho ${sym}: ${errM15.message}`);
       }
 
       // ── LOGIC MỚI: TÍNH TOÁN STOPLOSS THEO TIER, TP 1:1, VÀ ĐÒN BẨY / MARGIN ĐỘNG ──
@@ -1652,6 +1696,40 @@ async function checkH1RetestSignals(client, activeSymbols, leverageInfo = {}) {
         log.system(`[AI Reviewer (Retest H1)] 🟢 Khuyên NÊN ĐẶT LỆNH ${sym} (${signal}) - ${aiEval.reason}`);
       } else {
         log.system(`[AI Reviewer (Retest H1)] 🟡 ${sym} (${signal}) - ${aiEval.reason}`);
+      }
+
+      // ── BỘ LỌC M15 SPIKE GUARD CHO RETEST H1 ──
+      try {
+        const klinesM15Retest = await fetchBinanceKlines(sym, '15m', null, 21);
+        if (klinesM15Retest && klinesM15Retest.length >= 20) {
+          const past20 = klinesM15Retest.slice(0, klinesM15Retest.length - 1);
+          const currM15 = klinesM15Retest[klinesM15Retest.length - 1];
+          const avgVol20 = past20.reduce((sum, c) => sum + c.volume, 0) / past20.length;
+          const m15VolRatio = avgVol20 > 0 ? (currM15.volume / avgVol20) : 1;
+          const m15RangePct = ((currM15.high - currM15.low) / (currM15.low || 1)) * 100;
+
+          if (m15RangePct > 1.4 && m15VolRatio >= 2.5) {
+            const alertMsg = `🛑 <b>[M15 Spike Guard - RETEST H1 BỎ QUA LIMIT]</b>\n` +
+              `• <b>Coin:</b> #${sym} (${signal})\n` +
+              `• <b>Mốc Entry:</b> $${targetLevel}\n` +
+              `• <b>Biên độ M15:</b> ${m15RangePct.toFixed(2)}% (Ngưỡng > 1.4%)\n` +
+              `• <b>Volume M15:</b> ${m15VolRatio.toFixed(2)}x MA20 (Ngưỡng >= 2.5x)\n` +
+              `• <b>Lý do:</b> Nến M15 đang bão giá giật mạnh đâm cản. Tự động bỏ qua đặt Limit Retest.`;
+
+            log.system(`[H1Retest] 🛑 [M15 Spike Guard] ${sym} (${signal}): Nến M15 bão giá (Biên độ ${m15RangePct.toFixed(2)}% > 1.4% & Vol ${m15VolRatio.toFixed(2)}x >= 2.5x) — BỎ QUA ĐẶT LIMIT RETEST`);
+
+            try {
+              await sendTelegram(alertMsg);
+            } catch (teleErr) {
+              log.warn(`[H1Retest] Lỗi gửi telegram M15 Spike Guard cho ${sym}: ${teleErr.message}`);
+            }
+
+            delete lowScoreWatchlist[sym];
+            continue;
+          }
+        }
+      } catch (errM15) {
+        log.warn(`[H1Retest] Không thể kiểm tra nến M15 Spike Guard cho ${sym}: ${errM15.message}`);
       }
 
       try {
