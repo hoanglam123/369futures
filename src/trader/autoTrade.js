@@ -2005,11 +2005,11 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
         }
       }
 
-      // 2.5 Kiểm tra Nến H1 Không Phản Ứng (Gãy cản 35% ticks -> Dời TP về Entry hòa vốn)
+      // 2.5 Kiểm tra Nến H1 Không Phản Ứng (Gãy cản 35% SL -> Dời TP về Entry hòa vốn)
       //     Áp dụng thuần túy theo Giá Đóng Cửa (Close Price) của cây nến H1 đầu tiên đóng sau khi vào lệnh:
-      //     - LONG:  Đóng H1 <= Entry - 0.35*unit (gãy sâu 35 ticks)
-      //     - SHORT: Đóng H1 >= Entry + 0.35*unit (gãy sâu 35 ticks)
-      const invalidationDistance = unit * 0.35; // 35% Unit = 35 ticks
+      //     - LONG:  Đóng H1 <= Entry - 35% slDistance
+      //     - SHORT: Đóng H1 >= Entry + 35% slDistance
+      const invalidationDistance = meta?.slDistance ? (meta.slDistance * 0.35) : (unit * 0.35);
       if (meta && !meta.isH1Failed && !meta.isPanicEscape) {
         const nowMs = Date.now();
         if (!meta._lastH1Check || (nowMs - meta._lastH1Check >= 15000)) {
@@ -2029,13 +2029,13 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
                   const isClosedBelow = cClose <= (entryPrice - invalidationDistance);
                   if (isClosedBelow) {
                     meta.isH1Failed = true;
-                    log.system(`[AutoTrade] ⚠️ ${sym} LONG: Nến H1 đóng cửa gãy sâu 35 ticks ($${cClose} <= $${(entryPrice - invalidationDistance).toFixed(6)}) -> Kích hoạt dời TP về Entry hòa vốn $${entryPrice}`);
+                    log.system(`[AutoTrade] ⚠️ ${sym} LONG: Nến H1 đóng cửa gãy sâu 35% SL ($${cClose} <= $${(entryPrice - invalidationDistance).toFixed(6)}) -> Kích hoạt dời TP về Entry hòa vốn $${entryPrice}`);
                   }
                 } else {
                   const isClosedAbove = cClose >= (entryPrice + invalidationDistance);
                   if (isClosedAbove) {
                     meta.isH1Failed = true;
-                    log.system(`[AutoTrade] ⚠️ ${sym} SHORT: Nến H1 đóng cửa gãy sâu 35 ticks ($${cClose} >= $${(entryPrice + invalidationDistance).toFixed(6)}) -> Kích hoạt dời TP về Entry hòa vốn $${entryPrice}`);
+                    log.system(`[AutoTrade] ⚠️ ${sym} SHORT: Nến H1 đóng cửa gãy sâu 35% SL ($${cClose} >= $${(entryPrice + invalidationDistance).toFixed(6)}) -> Kích hoạt dời TP về Entry hòa vốn $${entryPrice}`);
                   }
                 }
               }
@@ -2047,12 +2047,12 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
       }
 
       // 2.5b Kiểm tra Nến M15 Đóng Cửa Không Phản Ứng (Dời TP về Entry hòa vốn)
-      //     - LONG:  Giá thấp nhất (Low) <= Entry - 30 ticks (đã từng đâm sâu >= 30 ticks)
-      //              VÀ Giá đóng cửa (Close) <= Entry - 5 ticks (đóng nến dưới Entry >= 5 ticks)
-      //     - SHORT: Giá cao nhất (High) >= Entry + 30 ticks (đã từng vọt cao >= 30 ticks)
-      //              VÀ Giá đóng cửa (Close) >= Entry + 5 ticks (đóng nến trên Entry >= 5 ticks)
-      const m15MaxPlungeDistance = unit * 0.30; // 30 ticks = 0.30 * unit
-      const m15CloseThresholdDistance = unit * 0.05; // 5 ticks = 0.05 * unit
+      //     - LONG:  Giá thấp nhất (Low) <= Entry - 30% slDistance (đã từng đâm sâu >= 30% SL)
+      //              VÀ Giá đóng cửa (Close) <= Entry - 8% slDistance (đóng nến dưới Entry >= 8% SL)
+      //     - SHORT: Giá cao nhất (High) >= Entry + 30% slDistance (đã từng vọt cao >= 30% SL)
+      //              VÀ Giá đóng cửa (Close) >= Entry + 8% slDistance (đóng nến trên Entry >= 8% SL)
+      const m15MaxPlungeDistance = meta?.slDistance ? (meta.slDistance * 0.30) : (unit * 0.30);
+      const m15CloseThresholdDistance = meta?.slDistance ? (meta.slDistance * 0.08) : (unit * 0.08);
       if (meta && !meta.isH1Failed && !meta.isPanicEscape) {
         const nowMs = Date.now();
         if (!meta._lastM15Check || (nowMs - meta._lastM15Check >= 15000)) {
@@ -2071,25 +2071,25 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
                 const cHigh = lastClosedM15.high;
 
                 if (isLong) {
-                  const isLowBelow30Ticks = cLow <= (entryPrice - m15MaxPlungeDistance);
-                  const isClosedBelow5Ticks = cClose <= (entryPrice - m15CloseThresholdDistance);
+                  const isLowBelow30Pct = cLow <= (entryPrice - m15MaxPlungeDistance);
+                  const isClosedBelow8Pct = cClose <= (entryPrice - m15CloseThresholdDistance);
 
-                  if (isLowBelow30Ticks && isClosedBelow5Ticks) {
+                  if (isLowBelow30Pct && isClosedBelow8Pct) {
                     meta.isH1Failed = true;
                     log.system(
-                      `[AutoTrade] ⚠️ ${sym} LONG: Nến M15 đóng cửa dưới Entry -5 ticks ($${cClose} <= $${(entryPrice - m15CloseThresholdDistance).toFixed(6)}) ` +
-                      `kèm đáy nến Low <= Entry - 30 ticks ($${cLow} <= $${(entryPrice - m15MaxPlungeDistance).toFixed(6)}) -> Kích hoạt dời TP về Entry hòa vốn $${entryPrice}`
+                      `[AutoTrade] ⚠️ ${sym} LONG: Nến M15 đóng cửa dưới Entry -8% SL ($${cClose} <= $${(entryPrice - m15CloseThresholdDistance).toFixed(6)}) ` +
+                      `kèm đáy nến Low <= Entry - 30% SL ($${cLow} <= $${(entryPrice - m15MaxPlungeDistance).toFixed(6)}) -> Kích hoạt dời TP về Entry hòa vốn $${entryPrice}`
                     );
                   }
                 } else {
-                  const isHighAbove30Ticks = cHigh >= (entryPrice + m15MaxPlungeDistance);
-                  const isClosedAbove5Ticks = cClose >= (entryPrice + m15CloseThresholdDistance);
+                  const isHighAbove30Pct = cHigh >= (entryPrice + m15MaxPlungeDistance);
+                  const isClosedAbove8Pct = cClose >= (entryPrice + m15CloseThresholdDistance);
 
-                  if (isHighAbove30Ticks && isClosedAbove5Ticks) {
+                  if (isHighAbove30Pct && isClosedAbove8Pct) {
                     meta.isH1Failed = true;
                     log.system(
-                      `[AutoTrade] ⚠️ ${sym} SHORT: Nến M15 đóng cửa trên Entry +5 ticks ($${cClose} >= $${(entryPrice + m15CloseThresholdDistance).toFixed(6)}) ` +
-                      `kèm đỉnh nến High >= Entry + 30 ticks ($${cHigh} >= $${(entryPrice + m15MaxPlungeDistance).toFixed(6)}) -> Kích hoạt dời TP về Entry hòa vốn $${entryPrice}`
+                      `[AutoTrade] ⚠️ ${sym} SHORT: Nến M15 đóng cửa trên Entry +8% SL ($${cClose} >= $${(entryPrice + m15CloseThresholdDistance).toFixed(6)}) ` +
+                      `kèm đỉnh nến High >= Entry + 30% SL ($${cHigh} >= $${(entryPrice + m15MaxPlungeDistance).toFixed(6)}) -> Kích hoạt dời TP về Entry hòa vốn $${entryPrice}`
                     );
                   }
                 }
@@ -2101,12 +2101,12 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
         }
       }
 
-      // 2.6 Kiểm tra M15 Bùng Nổ Volume / Đâm Sâu (Panic Escape -> Dời TP về Entry -10 ticks / +10 ticks)
+      // 2.6 Kiểm tra M15 Bùng Nổ Volume / Đâm Sâu (Panic Escape -> Dời TP về Entry -10% SL / +10% SL)
       //     - Khi M15 (đang chạy hoặc vừa đóng) có Volume dự phóng >= 2.5x TB 20 nến M15
-      //     - VÀ Giá bị đâm lún sâu >= 40 ticks qua Entry
-      //     - LONG:  Dời TP về Entry - 10 ticks (chấp nhận SL nhỏ -10 ticks khi có râu hồi)
-      //     - SHORT: Dời TP về Entry + 10 ticks (chấp nhận SL nhỏ -10 ticks khi có râu hồi)
-      const escapeDistance = unit * 0.10; // 10 ticks = 0.10 * unit
+      //     - VÀ Giá bị đâm lún sâu >= 40% slDistance qua Entry
+      //     - LONG:  Dời TP về Entry - 10% slDistance (chấp nhận SL nhỏ khi có râu hồi)
+      //     - SHORT: Dời TP về Entry + 10% slDistance (chấp nhận SL nhỏ khi có râu hồi)
+      const escapeDistance = meta?.slDistance ? (meta.slDistance * 0.10) : (unit * 0.10);
       if (meta && !meta.isPanicEscape) {
         const nowMs = Date.now();
         if (!meta._lastM15VolCheck || (nowMs - meta._lastM15VolCheck >= 20000)) {
@@ -2126,8 +2126,8 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
               const maxM15Ratio = Math.max(currentRatio, closedRatio);
 
               if (avgBaseVolM15 > 0 && maxM15Ratio >= 2.5) {
-                // Kiểm tra xem giá có bị đâm lún sâu >= 40 ticks
-                const deepPlungeDistance = unit * 0.40;
+                // Kiểm tra xem giá có bị đâm lún sâu >= 40% slDistance
+                const deepPlungeDistance = meta?.slDistance ? (meta.slDistance * 0.40) : (unit * 0.40);
                 const isDeepPlunge = isLong
                   ? (Math.min(currentM15.low, lastClosedM15.low) <= entryPrice - deepPlungeDistance)
                   : (Math.max(currentM15.high, lastClosedM15.high) >= entryPrice + deepPlungeDistance);
@@ -2140,15 +2140,15 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
 
                   log.system(
                     `[AutoTrade] 🚨 [M15 Panic Escape] ${sym} (${isLong ? 'LONG' : 'SHORT'}): ` +
-                    `M15 bùng nổ Volume (${maxM15Ratio.toFixed(2)}x TB 20 nến) kèm đâm lún sâu >= 40 ticks ` +
-                    `-> Kích hoạt thoát hiểm -10 ticks @ $${escapePrice}`
+                    `M15 bùng nổ Volume (${maxM15Ratio.toFixed(2)}x TB 20 nến) kèm đâm lún sâu >= 40% SL ` +
+                    `-> Kích hoạt thoát hiểm -10% SL @ $${escapePrice}`
                   );
                   await sendTelegram(
-                    `🚨 <b>M15 Bùng Nổ Volume - Kích Hoạt Thoát Hiểm (-10 ticks)</b>\n` +
+                    `🚨 <b>M15 Bùng Nổ Volume - Kích Hoạt Thoát Hiểm (-10% SL)</b>\n` +
                     `• Coin: <b>${sym}</b> (${isLong ? 'LONG' : 'SHORT'})\n` +
                     `• Entry: <b>$${entryPrice}</b>\n` +
                     `• Volume M15: <b>${maxM15Ratio.toFixed(1)}x TB 20 nến</b>\n` +
-                    `• Đã dời TP thoát hiểm về: <b>$${escapePrice} (-10 ticks, lỗ ~1.3%)</b> để đón nhịp giật râu thoát hàng!`
+                    `• Đã dời TP thoát hiểm về: <b>$${escapePrice}</b> để đón nhịp giật râu thoát hàng!`
                   );
                 }
               }
