@@ -436,6 +436,13 @@ function createClient(apiKey, secret) {
     },
 
     /**
+     * Hủy tất cả các lệnh LIMIT và STOP thường của 1 symbol.
+     */
+    cancelAllOpenOrders(symbol) {
+      return _delete('/fapi/v1/allOpenOrders', { symbol: `${symbol}USDT` }, apiKey, secret);
+    },
+
+    /**
      * Kiểm tra có vị thế mở không (positionAmt != 0).
      */
     async hasOpenPosition(symbol) {

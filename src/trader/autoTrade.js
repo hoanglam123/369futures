@@ -303,13 +303,27 @@ async function startAutoTrade(coins) {
     const meta = activeTradesMetadata[sym];
     if (meta) {
       const isLong = meta.side === 'BUY' || meta.isLong === true;
-      if (isLong) {
-        if (meta.maxFavorablePrice == null || price > meta.maxFavorablePrice) {
-          meta.maxFavorablePrice = price;
+      if (meta.isFilled) {
+        // Vị thế ĐÃ MỞ: theo dõi giá tốt nhất sau khi vào lệnh cho Trailing SL
+        if (isLong) {
+          if (meta.maxFavorablePrice == null || price > meta.maxFavorablePrice) {
+            meta.maxFavorablePrice = price;
+          }
+        } else {
+          if (meta.maxFavorablePrice == null || price < meta.maxFavorablePrice) {
+            meta.maxFavorablePrice = price;
+          }
         }
-      } else {
-        if (meta.maxFavorablePrice == null || price < meta.maxFavorablePrice) {
-          meta.maxFavorablePrice = price;
+      } else if (meta.orderId) {
+        // Lệnh LIMIT ĐANG CHỜ KHỚP: theo dõi độ nảy để Bounce Cancel
+        if (isLong) {
+          if (meta.maxFavorablePrice == null || price > meta.maxFavorablePrice) {
+            meta.maxFavorablePrice = price;
+          }
+        } else {
+          if (meta.maxFavorablePrice == null || price < meta.maxFavorablePrice) {
+            meta.maxFavorablePrice = price;
+          }
         }
       }
     }
@@ -1702,6 +1716,14 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
       if (!isStillOpen) {
         partialClosedSymbols.delete(prevSym);
 
+        // 🧹 Hủy sạch tất cả các lệnh LIMIT Entry còn dư và SL/TP cũ trên sàn (chống cắn lại phần dư của lệnh limit)
+        client.cancelAllOpenOrders(prevSym).catch(() => {});
+        client.getOpenAlgoOrders(prevSym).then(algos => {
+          for (const a of (algos || [])) {
+            client.cancelAlgoOrder(prevSym, a.algoId || a.orderId).catch(() => {});
+          }
+        }).catch(() => {});
+
         // Get metadata before deleting
         const meta = activeTradesMetadata[prevSym];
 
@@ -1795,6 +1817,10 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
       // Thông báo Telegram khi lệnh LIMIT khớp mở vị thế
       if (metaForPeak && !metaForPeak.hasNotifiedFill) {
         metaForPeak.hasNotifiedFill = true;
+        metaForPeak.isFilled = true;
+        // 🛡️ RESET maxFavorablePrice về đúng giá Entry ngay khi khớp lệnh,
+        // triệt tiêu giá đỉnh cũ lúc đang chờ lệnh LIMIT để tránh bị kích hoạt dời SL ảo đóng lệnh sớm!
+        metaForPeak.maxFavorablePrice = entryPrice;
         saveActiveTradesMetadata();
         const fillSide = isLong ? 'LONG' : 'SHORT';
         sendTelegram(
@@ -2089,7 +2115,8 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
       const tpPct = meta?.isPanicEscape ? -1.3 : (meta?.isH1Failed ? 0 : parseFloat(((Math.abs(targetTpPriceExact - entryPrice) / entryPrice) * leverageVal * 100).toFixed(2)));
       const trailTrigger = parseFloat(((Math.abs(trailTriggerPriceExact - entryPrice) / entryPrice) * leverageVal * 100).toFixed(2));
       const trailSlRoi = parseFloat(((Math.abs(trailedSlPriceExact - entryPrice) / entryPrice) * leverageVal * 100).toFixed(2));
-      const unrealizedPnlUsd = (roi / 100) * (meta?.margin || notional / leverageVal);
+      const posNotional = absAmt * entryPrice;
+      const unrealizedPnlUsd = (roi / 100) * (meta?.margin || (posNotional / leverageVal));
 
       // ----------------------------------------------------
       // 0. HARD MAX LOSS GUARD (Khống chế trần lỗ tối đa)
@@ -2100,6 +2127,11 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
         try {
           justClosedByBot.add(sym);
           await client.placeMarket(sym, oppositeSide, absAmt);
+          // 🧹 Hủy sạch tất cả các lệnh còn dư trên sàn (chống cắn lại phần dư của lệnh limit)
+          client.cancelAllOpenOrders(sym).catch(() => {});
+          for (const algo of openAlgoOrders) {
+            client.cancelAlgoOrder(sym, algo.algoId || algo.orderId).catch(() => {});
+          }
           await sendTelegram(`🚨 <b>[Hard Max Loss Guard] Cắt Lỗ Khẩn Cấp</b>\n• Coin: <b>${sym} (${isLong ? 'LONG' : 'SHORT'})</b>\n• Lỗ chặn tại: <b>$${unrealizedPnlUsd.toFixed(2)} USDT (${roi.toFixed(2)}%)</b>`);
           if (meta) {
             const holdingDurationMinutes = (Date.now() - (meta.time || Date.now())) / 60000;
@@ -2135,6 +2167,11 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
         try {
           justClosedByBot.add(sym);
           await client.placeMarket(sym, oppositeSide, absAmt);
+          // 🧹 Hủy sạch tất cả các lệnh còn dư trên sàn (chống cắn lại phần dư của lệnh limit)
+          client.cancelAllOpenOrders(sym).catch(() => {});
+          for (const algo of openAlgoOrders) {
+            client.cancelAlgoOrder(sym, algo.algoId || algo.orderId).catch(() => {});
+          }
           await sendTelegram(`🎯 <b>${exitLabel} (Virtual)</b>\n• Coin: <b>${sym}</b>\n• Giá chạm: <b>$${markPrice}</b> (Target: $${targetTpPriceExact.toFixed(5)})\n• ROI đạt: <b>${roi.toFixed(2)}%</b>`);
           // ── Record trade exit for AI Dataset ──
           if (meta) {
@@ -2208,8 +2245,9 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
         : (peakPrice <= trailTriggerPriceExact + triggerBuffer);
 
       // b. Ngưỡng Kích hoạt Near-TP Lock (khi giá đạt >= 90% chặng đường TP -> Dời SL về 75% Lợi Nhuận TP)
-      const nearTpTriggerDistance = tpDistance * 0.90;
-      const nearTpLockedSlDistance = tpDistance * 0.75;
+      const actualTpDist = Math.abs(targetTpPriceExact - entryPrice);
+      const nearTpTriggerDistance = actualTpDist * 0.90;
+      const nearTpLockedSlDistance = actualTpDist * 0.75;
       let nearTpTriggerPriceExact, nearTpLockedSlPriceExact;
       if (isLong) {
         nearTpTriggerPriceExact = Number((entryPrice + nearTpTriggerDistance).toFixed(8));
@@ -2280,6 +2318,13 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
               const ticksLabel = (trailMultiplier * 100).toFixed(0);
               log.system(`[AutoTrade] Trailing SL (chạm mốc ${ticksLabel}đ): ${sym} đạt ROI ${roi.toFixed(2)}% -> Dịch SL trên sàn về entry +5đ ($${targetSlStr}, ROI ~${currentSlPct}%) [Mức: ${levelLabel}]`);
             }
+
+            // 🧹 Hủy sạch các lệnh LIMIT Entry còn treo dư (chống khớp lại phần dư khi giá hồi về Entry)
+            const remainingEntryLimits = openOrders.filter(o => o.type === 'LIMIT' || o.orderType === 'LIMIT');
+            for (const limitOrder of remainingEntryLimits) {
+              client.cancelOrder(sym, limitOrder.orderId).catch(() => {});
+            }
+
             // Hủy SL cũ
             for (const o of realSlOrders) {
               try {
@@ -2340,6 +2385,11 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
           try {
             justClosedByBot.add(sym);
             await client.placeMarket(sym, oppositeSide, absAmt);
+            // 🧹 Hủy sạch tất cả các lệnh còn dư trên sàn (chống cắn lại phần dư của lệnh limit)
+            client.cancelAllOpenOrders(sym).catch(() => {});
+            for (const algo of openAlgoOrders) {
+              client.cancelAlgoOrder(sym, algo.algoId || algo.orderId).catch(() => {});
+            }
             await sendTelegram(`🛡️ <b>${typeLabel} (Virtual)</b>\n• Coin: <b>${sym}</b>\n• ROI đạt: <b>${roi.toFixed(2)}%</b>`);
             // ── Record trade exit for AI Dataset ──
             if (meta) {
