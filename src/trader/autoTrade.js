@@ -113,6 +113,19 @@ function saveActiveTradesMetadata() {
   }
 }
 
+function getLeverageCached(sym) {
+  try {
+    const cachePath = path.join(process.cwd(), 'data', 'step_sizes.json');
+    if (fs.existsSync(cachePath)) {
+      const data = JSON.parse(fs.readFileSync(cachePath, 'utf8'));
+      if (data.leverageInfo && data.leverageInfo[sym] != null) {
+        return data.leverageInfo[sym];
+      }
+    }
+  } catch (_) {}
+  return 20;
+}
+
 /**
  * Tính toán Stoploss theo Vùng Tier, Take Profit 1:1, Dời SL 50% và Đòn bẩy/Margin động
  *
@@ -1191,7 +1204,7 @@ async function startAutoTrade(coins) {
 
   // Luồng 4: Check Retest nến H1 cho các mã trong Watchlist (Mỗi 10s kiểm tra xem H1 vừa đóng chưa)
   const h1RetestTimer = setInterval(() => {
-    checkH1RetestSignals(client, activeSymbols).catch(err => {
+    checkH1RetestSignals(client, activeSymbols, leverageInfo).catch(err => {
       log.warn(`[AutoTrade] Lỗi luồng Check H1 Retest: ${err.message}`);
     });
   }, 10000);
@@ -1441,7 +1454,7 @@ async function markSymbolFailed(sym, reason) {
 /**
  * Luồng 4: Check Retest nến H1 cho các mã trong Watchlist (Chạy ở phút 00 của mỗi giờ)
  */
-async function checkH1RetestSignals(client, activeSymbols) {
+async function checkH1RetestSignals(client, activeSymbols, leverageInfo = {}) {
   if (isIpBanned()) return;
   const currentH1Time = Math.floor(Date.now() / 3600000) * 3600000;
   if (currentH1Time === lastCheckedH1Time) return;
@@ -1592,7 +1605,7 @@ async function checkH1RetestSignals(client, activeSymbols) {
       const h4RefRetest = await fetchH4Reference(sym);
       const tickSizeRetest = getTickSizeCached(sym) || (getDecimals(targetLevel) === 5 ? 0.00001 : (getDecimals(targetLevel) === 4 ? 0.0001 : 0.000001));
       const targetLossUSDRetest = parseFloat(process.env.MAX_LOSS_PER_TRADE_USD || '5.0');
-      const maxAllowedRetest = leverageInfo[sym] ?? 20;
+      const maxAllowedRetest = (leverageInfo && leverageInfo[sym]) ?? getLeverageCached(sym) ?? 20;
 
       const tierSetupRetest = calculateTierSLTP(sym, signal, targetLevel, h4RefRetest, tickSizeRetest, maxAllowedRetest, targetLossUSDRetest);
       if (!tierSetupRetest.valid) {
@@ -2490,11 +2503,12 @@ async function notifyRealClose(client, sym, prevPos, meta) {
     // ── Record trade exit for AI Dataset ──
     if (meta) {
       const holdingDurationMinutes = (Date.now() - (meta.time || Date.now())) / 60000;
+      const fallbackPrice = (typeof getMarkPrice === 'function' ? getMarkPrice(sym) : null) || prevPos.entryPrice;
       recordTradeExit({
         tradeId: `${sym}-${meta.orderId || 'real'}`,
         orderId: String(meta.orderId || ''),
         symbol: sym,
-        exitPrice: closePrice || markPrice,
+        exitPrice: closePrice || fallbackPrice,
         exitTimestamp: Date.now(),
         exitType: exitType,
         pnlPercent: roi,
