@@ -407,6 +407,13 @@ async function startAutoTrade(coins) {
         const remainingOrders = [];
         for (const order of currentOrders) {
           const sym = order.symbol.replace('USDT', '');
+          const hasOpenPosition = currentPos.some(p => p.symbol === `${sym}USDT` && parseFloat(p.positionAmt) !== 0);
+          if (hasOpenPosition) {
+            // 🛡️ ĐÃ KHỚP VÀ ĐANG CÓ VỊ THẾ MỞ TRÊN SÀN -> Tuyệt đối không hủy và không báo "chạm entry không khớp"!
+            remainingOrders.push(order);
+            continue;
+          }
+
           const meta = activeTradesMetadata[sym];
           const isH1Retest = meta?.isH1Retest === true;
           const curTimeoutMs = isH1Retest ? h1RetestLimitTimeoutMs : limitTimeoutMs;
@@ -499,14 +506,6 @@ async function startAutoTrade(coins) {
             }
           } else {
             // ── Bounce Cancel: phát hiện giá đã chạm vùng entry rồi bật ra mạnh ───
-            const sym = order.symbol.replace('USDT', '');
-            const hasOpenPosition = currentPos.some(p => p.symbol === `${sym}USDT` && parseFloat(p.positionAmt) !== 0);
-            if (hasOpenPosition) {
-              // Nếu đã có vị thế mở trên sàn -> Không Bounce Cancel và KHÔNG xóa metadata vị thế!
-              remainingOrders.push(order);
-              continue;
-            }
-
             const meta = activeTradesMetadata[sym];
             const markPrice = getMarkPrice(sym);
 
