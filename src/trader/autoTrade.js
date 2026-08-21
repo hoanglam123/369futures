@@ -198,7 +198,7 @@ function calculateTierSLTP(symbol, side, entryPrice, h4Ref, tickSize, maxExchang
   const actualMargin = targetLossUSD / (leverage * (slPct / 100));
 
   const tpPrice = (side === 'LONG' || side === 'BUY') ? (entryPrice + slDist * 1.5) : (entryPrice - slDist * 1.5);
-  const beTriggerPrice = (side === 'LONG' || side === 'BUY') ? (entryPrice + slDist * 0.45) : (entryPrice - slDist * 0.45);
+  const beTriggerPrice = (side === 'LONG' || side === 'BUY') ? (entryPrice + slDist * 0.50) : (entryPrice - slDist * 0.50);
 
   return {
     valid: true,
@@ -2216,8 +2216,8 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
           targetTpPriceExact = meta.tierTpPrice;
         }
         trailTriggerPriceExact = meta.beTriggerPrice;
-        // Dời SL về hòa vốn (+/- 3 ticks bù phí)
-        const beBuffer = unit * 0.03;
+        // Dời SL về hòa vốn (+/- 5 ticks bù phí và trượt giá)
+        const beBuffer = unit * 0.05;
         trailedSlPriceExact = isLong ? Number((entryPrice + beBuffer).toFixed(8)) : Number((entryPrice - beBuffer).toFixed(8));
       } else {
         // Fallback theo unit nếu metadata cũ
