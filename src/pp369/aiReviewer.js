@@ -177,6 +177,17 @@ function extractSignalFeatures(reasons, score, rank, gridWidthPct, rawMarketData
     }
   }
 
+  // ── [MỚI] 15. BTC Flash Pump / Dump Market Regime ──
+  const isShort = signal === 'SHORT' || signal === 'SELL';
+  const isLong = signal === 'LONG' || signal === 'BUY';
+  if (rawMarketData?.btcFlashPump && isShort) {
+    features['btc_flash'] = 'BTC_FLASH_PUMP_ACTIVE';
+  } else if (rawMarketData?.btcFlashDump && isLong) {
+    features['btc_flash'] = 'BTC_FLASH_DUMP_ACTIVE';
+  } else {
+    features['btc_flash'] = 'BTC_FLASH_NORMAL';
+  }
+
   return features;
 }
 
@@ -184,7 +195,7 @@ function extractSignalFeatures(reasons, score, rank, gridWidthPct, rawMarketData
  * Evaluates signal context before placing order
  *
  * @param {object} sig - Signal object from core.js
- * @param {object} [rawMarketData=null] - Optional raw market metrics (candle geometry, touch count)
+ * @param {object} [rawMarketData=null] - Optional raw market metrics (candle geometry, touch count, btc flash)
  * @returns {object} { winProbability: number, isApproved: boolean, reason: string }
  */
 function evaluateSignalWithAI(sig, rawMarketData = null) {
@@ -204,7 +215,10 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
     'candle_shape:CANDLE_NORMAL': 1.00,
     'level_freshness:FRESH_LEVEL_TOUCH1': 1.12,
     'level_freshness:RETEST_LEVEL_TOUCH2': 0.95,
-    'level_freshness:EXHAUSTED_LEVEL_TOUCH3': 0.70
+    'level_freshness:EXHAUSTED_LEVEL_TOUCH3': 0.70,
+    'btc_flash:BTC_FLASH_PUMP_ACTIVE': 0.35,     // Phạt nặng bão BTC Flash Pump khi đánh SHORT -> Veto ngay
+    'btc_flash:BTC_FLASH_DUMP_ACTIVE': 0.35,     // Phạt nặng bão BTC Flash Dump khi đánh LONG -> Veto ngay
+    'btc_flash:BTC_FLASH_NORMAL': 1.00
   };
 
   const score = parseFloat(sig.score) || 0;
