@@ -54,6 +54,12 @@ const MIN_CONFLUENCE_SCORE = parseFloat(process.env.MIN_CONFLUENCE_SCORE || '4.0
 
 // Debounce map: key → timestamp lần đặt lệnh gần nhất
 const _fired = new Map();
+const bounceCancelledLevels = new Map(); // key: sym_targetLevel -> expireTimestamp (60 phút cooldown)
+
+function isBounceCooldown(sym, targetLevel) {
+  const exp = bounceCancelledLevels.get(`${sym}_${targetLevel}`);
+  return exp != null && Date.now() < exp;
+}
 
 // Tránh thông báo đóng vị thế trùng lặp giữa bot (Virtual) và sàn
 const justClosedByBot = new Set();
@@ -536,12 +542,13 @@ async function startAutoTrade(coins) {
                   try {
                     await client.cancelOrder(sym, order.orderId);
                     overrideLevelLastSide(sym, 'lower'); // Khóa mốc LONG cho đến khi giá chạm mốc trên
+                    bounceCancelledLevels.set(`${sym}_${entryPrice}`, Date.now() + 60 * 60_000);
                     sendTelegram(
                       `🔄 <b>[AutoTrade] Hủy LIMIT (Bounce Cancel)</b>\n` +
                       `• Coin: <b>${sym} LONG</b>\n` +
                       `• Entry: <b>$${entryPrice}</b>\n` +
                       `• Giá điểm chạm: <b>$${bounceRef.toFixed(6)}</b> | Giá hiện tại: <b>$${markPrice.toFixed(6)}</b> (+${bounceDisplayPct.toFixed(2)}%)\n` +
-                      `• Giá đã chạm sát mốc và bật nảy ra xa → Hủy lệnh ngay lập tức`
+                      `• Giá đã chạm sát mốc và bật nảy ra xa → Hủy lệnh ngay lập tức (Khóa mốc 60p)`
                     ).catch(() => { });
                     // ── Record trade exit for AI Dataset (BOUNCE_CANCEL) ──
                     if (activeTradesMetadata[sym]) {
@@ -592,12 +599,13 @@ async function startAutoTrade(coins) {
                   try {
                     await client.cancelOrder(sym, order.orderId);
                     overrideLevelLastSide(sym, 'upper'); // Khóa mốc SHORT cho đến khi giá chạm mốc dưới
+                    bounceCancelledLevels.set(`${sym}_${entryPrice}`, Date.now() + 60 * 60_000);
                     sendTelegram(
                       `🔄 <b>[AutoTrade] Hủy LIMIT (Bounce Cancel)</b>\n` +
                       `• Coin: <b>${sym} SHORT</b>\n` +
                       `• Entry: <b>$${entryPrice}</b>\n` +
                       `• Giá điểm chạm: <b>$${bounceRef.toFixed(6)}</b> | Giá hiện tại: <b>$${markPrice.toFixed(6)}</b> (-${bounceDisplayPct.toFixed(2)}%)\n` +
-                      `• Giá đã chạm sát mốc và bật nảy ra xa → Hủy lệnh ngay lập tức`
+                      `• Giá đã chạm sát mốc và bật nảy ra xa → Hủy lệnh ngay lập tức (Khóa mốc 60p)`
                     ).catch(() => { });
                     // ── Record trade exit for AI Dataset (BOUNCE_CANCEL) ──
                     if (activeTradesMetadata[sym]) {
@@ -851,6 +859,13 @@ async function startAutoTrade(coins) {
             markPrice: markPrice,
             marketCapRank: rank,
           });
+        }
+        return;
+      }
+
+      if (isBounceCooldown(sym, sig.targetLevel)) {
+        if (isNewSignalLog) {
+          log.system(`[AutoTrade] 🛑 ${sym} ${sig.signal} @ $${sig.targetLevel} vừa bị Bounce Cancel (đang trong Cooldown 60p) — bỏ qua khuyến nghị`);
         }
         return;
       }
@@ -1387,12 +1402,13 @@ async function checkPendingLimits(client, activeSymbols) {
           try {
             await client.cancelOrder(sym, meta.orderId);
             overrideLevelLastSide(sym, 'lower'); // Khóa mốc LONG cho đến khi giá chạm mốc trên
+            bounceCancelledLevels.set(`${sym}_${entry}`, Date.now() + 60 * 60_000);
             sendTelegram(
               `🔄 <b>[AutoTrade] Hủy LIMIT (Bounce Cancel)</b>\n` +
               `• Coin: <b>${sym} LONG</b>\n` +
               `• Entry: <b>$${entry}</b>\n` +
               `• Giá hiện tại: <b>$${markPrice.toFixed(6)}</b> (+${displayPct.toFixed(2)}%)\n` +
-              `• Giá đã nảy xa mốc → Hủy lệnh ngay lập tức`
+              `• Giá đã nảy xa mốc → Hủy lệnh ngay lập tức (Khóa mốc)`
             ).catch(() => { });
             // ── Record trade exit for AI Dataset (BOUNCE_CANCEL) ──
             const holdingDurationMinutes = (Date.now() - (meta.time || Date.now())) / 60000;
@@ -1461,12 +1477,13 @@ async function checkPendingLimits(client, activeSymbols) {
           try {
             await client.cancelOrder(sym, meta.orderId);
             overrideLevelLastSide(sym, 'upper'); // Khóa mốc SHORT cho đến khi giá chạm mốc dưới
+            bounceCancelledLevels.set(`${sym}_${entry}`, Date.now() + 60 * 60_000);
             sendTelegram(
               `🔄 <b>[AutoTrade] Hủy LIMIT (Bounce Cancel)</b>\n` +
               `• Coin: <b>${sym} SHORT</b>\n` +
               `• Entry: <b>$${entry}</b>\n` +
               `• Giá hiện tại: <b>$${markPrice.toFixed(6)}</b> (-${displayPct.toFixed(2)}%)\n` +
-              `• Giá đã nảy xa mốc → Hủy lệnh ngay lập tức`
+              `• Giá đã nảy xa mốc → Hủy lệnh ngay lập tức (Khóa mốc)`
             ).catch(() => { });
             // ── Record trade exit for AI Dataset (BOUNCE_CANCEL) ──
             const holdingDurationMinutes = (Date.now() - (meta.time || Date.now())) / 60000;
