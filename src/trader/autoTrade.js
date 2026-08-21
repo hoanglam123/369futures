@@ -197,8 +197,8 @@ function calculateTierSLTP(symbol, side, entryPrice, h4Ref, tickSize, maxExchang
   // Margin cần nạp để nếu dính SL thì lỗ đúng targetLossUSD
   const actualMargin = targetLossUSD / (leverage * (slPct / 100));
 
-  const tpPrice = (side === 'LONG' || side === 'BUY') ? (entryPrice + slDist) : (entryPrice - slDist);
-  const beTriggerPrice = (side === 'LONG' || side === 'BUY') ? (entryPrice + slDist * 0.5) : (entryPrice - slDist * 0.5);
+  const tpPrice = (side === 'LONG' || side === 'BUY') ? (entryPrice + slDist * 1.5) : (entryPrice - slDist * 1.5);
+  const beTriggerPrice = (side === 'LONG' || side === 'BUY') ? (entryPrice + slDist * 0.45) : (entryPrice - slDist * 0.45);
 
   return {
     valid: true,
@@ -1007,11 +1007,11 @@ async function startAutoTrade(coins) {
       const aiEval = evaluateSignalWithAI(sig);
       recordAIEvaluation(sig, aiEval);
 
-      // ── Tiêu chí 3: Bộ Lọc Phủ Quyết AI Veto Filter ──
-      // Chặn các tín hiệu có WinProb < 45.0% hoặc đồng thời cạn thanh khoản (VOL_DRY) & OI tháo chạy (OI_COOLING)
-      const isAiVeto = (aiEval.winProbability < 45.0) || (aiEval.reason.includes('VOL_DRY') && aiEval.reason.includes('OI_COOLING'));
+      // ── Tiêu chí 3: Bộ Lọc Phủ Quyết AI Veto Filter (Chỉ đánh khi WinProb >= 58%) ──
+      // Chặn các tín hiệu có WinProb < 58.0% hoặc đồng thời cạn thanh khoản (VOL_DRY) & OI tháo chạy (OI_COOLING)
+      const isAiVeto = (aiEval.winProbability < 58.0) || (aiEval.reason.includes('VOL_DRY') && aiEval.reason.includes('OI_COOLING'));
       if (isAiVeto) {
-        log.system(`[AutoTrade] 🛑 [AI Veto] ${sym} (${sig.signal}) bị phủ quyết: ${aiEval.reason} — Bỏ qua không đặt lệnh.`);
+        log.system(`[AutoTrade] 🛑 [AI Veto] ${sym} (${sig.signal}) bị phủ quyết (WinProb ${aiEval.winProbability.toFixed(1)}% < 58%): ${aiEval.reason} — Bỏ qua không đặt lệnh.`);
         return;
       }
 
@@ -1066,7 +1066,7 @@ async function startAutoTrade(coins) {
         log.warn(`[AutoTrade] Không thể kiểm tra nến M15 Spike Guard cho ${sym}: ${errM15.message}`);
       }
 
-      // ── LOGIC MỚI: TÍNH TOÁN STOPLOSS THEO TIER, TP 1:1, VÀ ĐÒN BẨY / MARGIN ĐỘNG ──
+      // ── LOGIC MỚI: TÍNH TOÁN STOPLOSS THEO TIER, TP 1:1.5, VÀ ĐÒN BẨY / MARGIN ĐỘNG ──
       const h4Ref = await fetchH4Reference(sym);
       const tickSize = getTickSizeCached(sym) || (getDecimals(sig.targetLevel) === 5 ? 0.00001 : (getDecimals(sig.targetLevel) === 4 ? 0.0001 : 0.000001));
       const targetLossUSD = parseFloat(process.env.MAX_LOSS_PER_TRADE_USD || '5.0');
@@ -1096,7 +1096,7 @@ async function startAutoTrade(coins) {
       try {
         try {
           await client.setLeverage(sym, effectiveLeverage);
-          log.system(`[AutoTrade] Set leverage ${sym}USDT = ${effectiveLeverage}x (Tier SL: $${tierSetup.slPrice} (${tierSetup.slPct.toFixed(2)}%), TP 1:1: $${tierSetup.tpPrice}, Dời SL tại $${tierSetup.beTriggerPrice} | Ký quỹ: $${actualTradeMargin})`);
+          log.system(`[AutoTrade] Set leverage ${sym}USDT = ${effectiveLeverage}x (Tier SL: $${tierSetup.slPrice} (${tierSetup.slPct.toFixed(2)}%), TP 1:1.5: $${tierSetup.tpPrice}, Dời SL tại $${tierSetup.beTriggerPrice} | Ký quỹ: $${actualTradeMargin})`);
         } catch (e) {
           const binErr = e.response?.data;
           const errStr = _binanceErr(e);
@@ -1700,10 +1700,10 @@ async function checkH1RetestSignals(client, activeSymbols, leverageInfo = {}) {
       const aiEval = evaluateSignalWithAI(sigForAI);
       recordAIEvaluation(sigForAI, aiEval);
 
-      // Tiêu chí 3: AI Veto Filter cho Retest H1
-      const isAiVeto = (aiEval.winProbability < 45.0) || (aiEval.reason.includes('VOL_DRY') && aiEval.reason.includes('OI_COOLING'));
+      // Tiêu chí 3: AI Veto Filter cho Retest H1 (Chỉ đánh khi WinProb >= 58%)
+      const isAiVeto = (aiEval.winProbability < 58.0) || (aiEval.reason.includes('VOL_DRY') && aiEval.reason.includes('OI_COOLING'));
       if (isAiVeto) {
-        log.system(`[AutoTrade (Retest H1)] 🛑 [AI Veto] ${sym} (${signal}) bị phủ quyết: ${aiEval.reason} — Hủy đặt lệnh Retest.`);
+        log.system(`[AutoTrade (Retest H1)] 🛑 [AI Veto] ${sym} (${signal}) bị phủ quyết (WinProb ${aiEval.winProbability.toFixed(1)}% < 58%): ${aiEval.reason} — Hủy đặt lệnh Retest.`);
         delete lowScoreWatchlist[sym];
         continue;
       }
@@ -2101,12 +2101,10 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
         }
       }
 
-      // 2.6 Kiểm tra M15 Bùng Nổ Volume / Đâm Sâu (Panic Escape -> Dời TP về Entry -10% SL / +10% SL)
+      // 2.6 Kiểm tra M15 Bùng Nổ Volume / Đâm Sâu (Panic Escape -> Dời TP về Entry hòa vốn)
       //     - Khi M15 (đang chạy hoặc vừa đóng) có Volume dự phóng >= 2.5x TB 20 nến M15
       //     - VÀ Giá bị đâm lún sâu >= 40% slDistance qua Entry
-      //     - LONG:  Dời TP về Entry - 10% slDistance (chấp nhận SL nhỏ khi có râu hồi)
-      //     - SHORT: Dời TP về Entry + 10% slDistance (chấp nhận SL nhỏ khi có râu hồi)
-      const escapeDistance = meta?.slDistance ? (meta.slDistance * 0.10) : (unit * 0.10);
+      //     - LONG & SHORT: Dời TP về Entry hòa vốn để thoát hàng khi có nhịp giật râu hồi
       if (meta && !meta.isPanicEscape) {
         const nowMs = Date.now();
         if (!meta._lastM15VolCheck || (nowMs - meta._lastM15VolCheck >= 20000)) {
@@ -2134,21 +2132,19 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
 
                 if (isDeepPlunge) {
                   meta.isPanicEscape = true;
-                  const escapePrice = isLong
-                    ? Number((entryPrice - escapeDistance).toFixed(8))
-                    : Number((entryPrice + escapeDistance).toFixed(8));
+                  const escapePrice = Number(entryPrice.toFixed(8));
 
                   log.system(
                     `[AutoTrade] 🚨 [M15 Panic Escape] ${sym} (${isLong ? 'LONG' : 'SHORT'}): ` +
                     `M15 bùng nổ Volume (${maxM15Ratio.toFixed(2)}x TB 20 nến) kèm đâm lún sâu >= 40% SL ` +
-                    `-> Kích hoạt thoát hiểm -10% SL @ $${escapePrice}`
+                    `-> Kích hoạt dời TP về Entry hòa vốn @ $${escapePrice}`
                   );
                   await sendTelegram(
-                    `🚨 <b>M15 Bùng Nổ Volume - Kích Hoạt Thoát Hiểm (-10% SL)</b>\n` +
+                    `🚨 <b>M15 Bùng Nổ Volume - Kích Hoạt Thoát Hiểm (Hòa Vốn Entry)</b>\n` +
                     `• Coin: <b>${sym}</b> (${isLong ? 'LONG' : 'SHORT'})\n` +
                     `• Entry: <b>$${entryPrice}</b>\n` +
                     `• Volume M15: <b>${maxM15Ratio.toFixed(1)}x TB 20 nến</b>\n` +
-                    `• Đã dời TP thoát hiểm về: <b>$${escapePrice}</b> để đón nhịp giật râu thoát hàng!`
+                    `• Đã dời TP thoát hiểm về Entry: <b>$${escapePrice}</b> để đón nhịp giật râu thoát hàng!`
                   );
                 }
               }
@@ -2174,9 +2170,7 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
       
       if (meta?.tierSlPrice && meta?.tierTpPrice) {
         targetSlPriceExact = meta.tierSlPrice;
-        if (meta?.isPanicEscape) {
-          targetTpPriceExact = Number((isLong ? entryPrice - escapeDistance : entryPrice + escapeDistance).toFixed(8));
-        } else if (meta?.isH1Failed) {
+        if (meta?.isPanicEscape || meta?.isH1Failed) {
           targetTpPriceExact = Number(entryPrice.toFixed(8));
         } else {
           targetTpPriceExact = meta.tierTpPrice;
@@ -2194,9 +2188,7 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
         const slBufferDistance = unit * 0.03;
         if (isLong) {
           targetSlPriceExact = Number((entryPrice - unit - slBufferDistance).toFixed(8));
-          if (meta?.isPanicEscape) {
-            targetTpPriceExact = Number((entryPrice - escapeDistance).toFixed(8));
-          } else if (meta?.isH1Failed) {
+          if (meta?.isPanicEscape || meta?.isH1Failed) {
             targetTpPriceExact = Number(entryPrice.toFixed(8));
           } else {
             targetTpPriceExact = Number((entryPrice + tpDistance).toFixed(8));
@@ -2205,9 +2197,7 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
           trailedSlPriceExact = Number((entryPrice + trailSlDistance).toFixed(8));
         } else {
           targetSlPriceExact = Number((entryPrice + unit + slBufferDistance).toFixed(8));
-          if (meta?.isPanicEscape) {
-            targetTpPriceExact = Number((entryPrice + escapeDistance).toFixed(8));
-          } else if (meta?.isH1Failed) {
+          if (meta?.isPanicEscape || meta?.isH1Failed) {
             targetTpPriceExact = Number(entryPrice.toFixed(8));
           } else {
             targetTpPriceExact = Number((entryPrice - tpDistance).toFixed(8));
@@ -2219,7 +2209,7 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
 
       // Đổi sang ROI % tương đương để logging / telegram / dataset
       const slPct = meta?.slPct ? -meta.slPct : -13;
-      const tpPct = meta?.isPanicEscape ? -1.3 : (meta?.isH1Failed ? 0 : parseFloat(((Math.abs(targetTpPriceExact - entryPrice) / entryPrice) * leverageVal * 100).toFixed(2)));
+      const tpPct = (meta?.isPanicEscape || meta?.isH1Failed) ? 0 : parseFloat(((Math.abs(targetTpPriceExact - entryPrice) / entryPrice) * leverageVal * 100).toFixed(2));
       const trailTrigger = parseFloat(((Math.abs(trailTriggerPriceExact - entryPrice) / entryPrice) * leverageVal * 100).toFixed(2));
       const trailSlRoi = parseFloat(((Math.abs(trailedSlPriceExact - entryPrice) / entryPrice) * leverageVal * 100).toFixed(2));
       const posNotional = absAmt * entryPrice;
@@ -2269,7 +2259,7 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
       // 1a. Virtual TP — đóng vị thế ngay khi giá chạm mốc TP mục tiêu
       const isTpReached = isLong ? (markPrice >= targetTpPriceExact - 1e-9) : (markPrice <= targetTpPriceExact + 1e-9);
       if (isTpReached) {
-        const exitLabel = meta?.isPanicEscape ? 'Thoát Hiểm -10 ticks' : (meta?.isH1Failed ? 'Hòa Vốn Entry' : 'Take Profit');
+        const exitLabel = meta?.isPanicEscape ? 'Thoát Hiểm Entry' : (meta?.isH1Failed ? 'Hòa Vốn Entry' : 'Take Profit');
         log.system(`[AutoTrade] [Virtual TP - ${exitLabel}] Kích hoạt cho ${sym}: Giá $${markPrice} chạm mốc $${targetTpPriceExact.toFixed(5)} (ROI ~${roi.toFixed(2)}%). Đóng vị thế MARKET.`);
         try {
           justClosedByBot.add(sym);
@@ -2318,7 +2308,7 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
         try {
           const tpOrder = await client.placeStopOrder(sym, oppositeSide, 'TAKE_PROFIT_MARKET', targetTpPriceExact);
           const tpId = tpOrder.orderId || tpOrder.algoId || 'unknown';
-          const tpLabel = meta?.isPanicEscape ? 'Thoát hiểm -10 ticks' : 'Hòa vốn Entry';
+          const tpLabel = meta?.isPanicEscape ? 'Thoát hiểm Entry' : 'Hòa vốn Entry';
           log.system(`[AutoTrade] ⚠️ Đã dời TP ${sym} về mốc [${tpLabel}] @ $${targetTpPriceExact.toFixed(5)} (đối ứng ${oppositeSide}) orderId=${tpId}`);
         } catch (e) {
           log.error(`[AutoTrade] Đặt TP thoát ${sym} thất bại: ${_binanceErr(e)}`);
@@ -2351,30 +2341,10 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
         ? (peakPrice >= trailTriggerPriceExact - triggerBuffer)
         : (peakPrice <= trailTriggerPriceExact + triggerBuffer);
 
-      // b. Ngưỡng Kích hoạt Near-TP Lock (khi giá đạt >= 90% chặng đường TP -> Dời SL về 75% Lợi Nhuận TP)
-      const actualTpDist = Math.abs(targetTpPriceExact - entryPrice);
-      const nearTpTriggerDistance = actualTpDist * 0.90;
-      const nearTpLockedSlDistance = actualTpDist * 0.75;
-      let nearTpTriggerPriceExact, nearTpLockedSlPriceExact;
-      if (isLong) {
-        nearTpTriggerPriceExact = Number((entryPrice + nearTpTriggerDistance).toFixed(8));
-        nearTpLockedSlPriceExact = Number((entryPrice + nearTpLockedSlDistance).toFixed(8));
-      } else {
-        nearTpTriggerPriceExact = Number((entryPrice - nearTpTriggerDistance).toFixed(8));
-        nearTpLockedSlPriceExact = Number((entryPrice - nearTpLockedSlDistance).toFixed(8));
-      }
-
-      const isNearTpReached = isLong
-        ? (peakPrice >= nearTpTriggerPriceExact - 1e-9)
-        : (peakPrice <= nearTpTriggerPriceExact + 1e-9);
-
       let targetSlPrice = targetSlPriceExact;
       let currentSlPct = slPct;
 
-      if (isNearTpReached) {
-        targetSlPrice = nearTpLockedSlPriceExact;
-        currentSlPct = parseFloat(((nearTpLockedSlDistance / entryPrice) * leverageVal * 100).toFixed(2));
-      } else if (isTrailTriggerReached) {
+      if (isTrailTriggerReached) {
         currentSlPct = trailSlRoi; // Dời SL về entry + 5đ (+5 ticks)
         targetSlPrice = trailedSlPriceExact;
       }
@@ -2418,34 +2388,30 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
           }
 
           if (!alreadyMoved && !betterOrEqualExists) {
-            if (isNearTpReached) {
-              log.system(`[AutoTrade] 🎯 Near-TP Lock (Đạt >=90% TP): ${sym} đạt ROI ${roi.toFixed(2)}% -> Dịch SL trên sàn về mốc 75% Lợi Nhuận TP ($${targetSlStr}, ROI ~+${currentSlPct}%)`);
-            } else {
-              const levelLabel = currentSlPct === trailSlRoi ? '+5đ (Khóa lãi)' : 'Khóa lãi';
-              const ticksLabel = (trailMultiplier * 100).toFixed(0);
-              log.system(`[AutoTrade] Trailing SL (chạm mốc ${ticksLabel}đ): ${sym} đạt ROI ${roi.toFixed(2)}% -> Dịch SL trên sàn về entry +5đ ($${targetSlStr}, ROI ~${currentSlPct}%) [Mức: ${levelLabel}]`);
+            const levelLabel = currentSlPct === trailSlRoi ? '+5đ (Khóa lãi)' : 'Khóa lãi';
+            const ticksLabel = (trailMultiplier * 100).toFixed(0);
+            log.system(`[AutoTrade] Trailing SL (chạm mốc ${ticksLabel}đ): ${sym} đạt ROI ${roi.toFixed(2)}% -> Dịch SL trên sàn về entry +5đ ($${targetSlStr}, ROI ~${currentSlPct}%) [Mức: ${levelLabel}]`);
 
-              // ── THÊM MỚI: PARTIAL TP 50% (Chốt 50% khối lượng khi đạt 50% chặng đường TP) ──
-              if (meta && !meta.hasPartialTp50 && absAmt > 0) {
-                try {
-                  const halfQty = calcHalfQuantity(sym, absAmt);
-                  if (halfQty > 0) {
-                    log.system(`[AutoTrade] 🎯 [Partial TP 50%] ${sym}: Đạt 50% TP -> Tiến hành chốt 50% vị thế (${halfQty} ${sym}) MARKET...`);
-                    await client.placeMarket(sym, oppositeSide, halfQty);
-                    meta.hasPartialTp50 = true;
-                    saveActiveTradesMetadata();
+            // ── PARTIAL TP 50% (Chốt 50% khối lượng khi đạt 45 ticks và dời SL về BE) ──
+            if (meta && !meta.hasPartialTp50 && absAmt > 0) {
+              try {
+                const halfQty = calcHalfQuantity(sym, absAmt);
+                if (halfQty > 0) {
+                  log.system(`[AutoTrade] 🎯 [Partial TP 50%] ${sym}: Đạt mốc ${ticksLabel}đ -> Tiến hành chốt 50% vị thế (${halfQty} ${sym}) MARKET...`);
+                  await client.placeMarket(sym, oppositeSide, halfQty);
+                  meta.hasPartialTp50 = true;
+                  saveActiveTradesMetadata();
 
-                    sendTelegram(
-                      `🎯 <b>[AutoTrade] Chốt Lời 50% Vị Thế (Partial TP)</b>\n` +
-                      `• Coin: <b>#${sym} (${isLong ? 'LONG' : 'SHORT'})</b>\n` +
-                      `• Đã chốt: <b>${halfQty} ${sym}</b> (50% khối lượng)\n` +
-                      `• ROI lúc chốt: <b>+${roi.toFixed(2)}%</b>\n` +
-                      `• 50% khối lượng còn lại tiếp tục gồng về TP với SL hòa vốn!`
-                    ).catch(() => { });
-                  }
-                } catch (partialErr) {
-                  log.warn(`[AutoTrade] Lỗi chốt Partial TP 50% cho ${sym}: ${partialErr.message}`);
+                  sendTelegram(
+                    `🎯 <b>[AutoTrade] Chốt Lời 50% Vị Thế (Partial TP)</b>\n` +
+                    `• Coin: <b>#${sym} (${isLong ? 'LONG' : 'SHORT'})</b>\n` +
+                    `• Đã chốt: <b>${halfQty} ${sym}</b> (50% khối lượng)\n` +
+                    `• ROI lúc chốt: <b>+${roi.toFixed(2)}%</b>\n` +
+                    `• 50% khối lượng còn lại tiếp tục gồng về TP 1.5R với SL hòa vốn!`
+                  ).catch(() => { });
                 }
+              } catch (partialErr) {
+                log.warn(`[AutoTrade] Lỗi chốt Partial TP 50% cho ${sym}: ${partialErr.message}`);
               }
             }
 
@@ -2476,22 +2442,14 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
               log.system(`[AutoTrade] ✓ Đã dịch SL mới cho ${sym} @ $${stopPriceStr} (orderId=${orderIdStr})`);
 
               // Gửi Telegram thông báo dời SL
-              if (isNearTpReached) {
-                sendTelegram(
-                  `🎯 <b>[AutoTrade] Khóa Lãi TP 75% (${sym})</b>\n` +
-                  `• Hướng: <b>${isLong ? 'LONG' : 'SHORT'}</b>\n` +
-                  `• ROI hiện tại: <b>+${roi.toFixed(2)}%</b>\n` +
-                  `• Đã dời SL bảo toàn 75% Lợi Nhuận: <b>$${targetSlStr}</b> (ROI ~+${currentSlPct}%)`
-                ).catch(() => { });
-              } else {
-                const ticksLabel = (trailMultiplier * 100).toFixed(0);
-                sendTelegram(
-                  `🛡️ <b>[AutoTrade] Khóa Lãi Hòa Vốn (+${ticksLabel} ticks)</b>\n` +
-                  `• Coin: <b>${sym} (${isLong ? 'LONG' : 'SHORT'})</b>\n` +
-                  `• ROI hiện tại: <b>+${roi.toFixed(2)}%</b>\n` +
-                  `• Đã dời SL trên sàn về: <b>$${targetSlStr}</b> (+5 ticks khóa lãi)`
-                ).catch(() => { });
-              }
+              const ticksLabel = (trailMultiplier * 100).toFixed(0);
+              sendTelegram(
+                `🛡️ <b>[AutoTrade] Khóa Lãi Hòa Vốn (+${ticksLabel} ticks)</b>\n` +
+                `• Coin: <b>${sym} (${isLong ? 'LONG' : 'SHORT'})</b>\n` +
+                `• ROI hiện tại: <b>+${roi.toFixed(2)}%</b>\n` +
+                `• Đã dời SL trên sàn về: <b>$${targetSlStr}</b> (+5 ticks khóa lãi)\n` +
+                `• 50% vị thế còn lại tiếp tục gồng về TP 1.5R!`
+              ).catch(() => { });
             } catch (e) {
               const errStr = _binanceErr(e);
               if (errStr.includes('-4509')) {

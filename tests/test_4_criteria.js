@@ -52,21 +52,21 @@ runTest('1.3 Lỗ thả nổi -6.5 USDT (trượt sâu) -> Kích hoạt cắt l�
 console.log('\n--- TRỤ CỘT 2: AI VETO FILTER (CHẶN TÍN HIỆU ĐỘC HẠI) ---');
 
 function checkAiVeto(aiEval) {
-  return (aiEval.winProbability < 45.0) || (aiEval.reason.includes('VOL_DRY') && aiEval.reason.includes('OI_COOLING'));
+  return (aiEval.winProbability < 58.0) || (aiEval.reason.includes('VOL_DRY') && aiEval.reason.includes('OI_COOLING'));
 }
 
-runTest('2.1 Tín hiệu có WinProb = 42.5% (< 45%) -> Bị AI Veto chặn thành công', () => {
-  const mockEval = { winProbability: 42.5, reason: 'Xác suất thắng 42.5% < 65%' };
+runTest('2.1 Tín hiệu có WinProb = 52.5% (< 58%) -> Bị AI Veto chặn thành công', () => {
+  const mockEval = { winProbability: 52.5, reason: 'Xác suất thắng 52.5% < 65%' };
   assert.strictEqual(checkAiVeto(mockEval), true);
 });
 
-runTest('2.2 Tín hiệu có WinProb = 52.0% nhưng dính cả VOL_DRY và OI_COOLING -> Bị AI Veto chặn thành công', () => {
-  const mockEval = { winProbability: 52.0, reason: 'Xác suất thắng 52.0% (- VOL_DRY, + OI_COOLING)' };
+runTest('2.2 Tín hiệu có WinProb = 62.0% nhưng dính cả VOL_DRY và OI_COOLING -> Bị AI Veto chặn thành công', () => {
+  const mockEval = { winProbability: 62.0, reason: 'Xác suất thắng 62.0% (- VOL_DRY, + OI_COOLING)' };
   assert.strictEqual(checkAiVeto(mockEval), true);
 });
 
-runTest('2.3 Tín hiệu có WinProb = 58.5% và điều kiện bình thường -> Không bị Veto (Cho phép đi tiếp)', () => {
-  const mockEval = { winProbability: 58.5, reason: 'Xác suất thắng 58.5% (+ VOL_ULTRA, - RSI_NEUTRAL)' };
+runTest('2.3 Tín hiệu có WinProb = 59.5% (> 58%) và điều kiện bình thường -> Không bị Veto (Cho phép đi tiếp)', () => {
+  const mockEval = { winProbability: 59.5, reason: 'Xác suất thắng 59.5% (+ VOL_ULTRA, - RSI_NEUTRAL)' };
   assert.strictEqual(checkAiVeto(mockEval), false);
 });
 

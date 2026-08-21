@@ -1,0 +1,800 @@
+﻿Γùç injected env (10) from .env // tip: Γîÿ multiple files { path: ['.env.local', '.env'] }
+B├üO C├üO CHI TIß║╛T C├üC Vß╗è THß║╛ ─É├â ─É├ôNG Tß╗¬ 12:00 20/08/2026 ─Éß║╛N NAY
+
+
+================================================================
+TOKEN: BLESSUSDT | Tß╗öNG PNL: +0.1670 USDT
+================================================================
+- Fills tr├¬n Binance (7 fills):
+  * [13:07:17 20/8/2026] BUY 24367 @ 0.0071200 (PnL: 0 USDT, Fee: 0.03469860 USDT)
+  * [13:07:17 20/8/2026] BUY 13797 @ 0.0071200 (PnL: 0 USDT, Fee: 0.01964692 USDT)
+  * [13:07:17 20/8/2026] BUY 806 @ 0.0071200 (PnL: 0 USDT, Fee: 0.00114774 USDT)
+  * [13:12:17 20/8/2026] SELL 11113 @ 0.0071250 (PnL: 0.05556500 USDT, Fee: 0.03959006 USDT)
+  * [13:12:17 20/8/2026] SELL 16856 @ 0.0071240 (PnL: 0.06742400 USDT, Fee: 0.06004107 USDT)
+  * [13:12:17 20/8/2026] SELL 9363 @ 0.0071240 (PnL: 0.03745200 USDT, Fee: 0.03335100 USDT)
+  * [13:12:17 20/8/2026] SELL 1638 @ 0.0071240 (PnL: 0.00655200 USDT, Fee: 0.00583455 USDT)
+
+- Orders tr├¬n Binance (2 orders):
+  * [13:10:19 20/8/2026] ID:2329909317 Type:LIMIT Side:BUY Status:CANCELED OrigQty:60224 ExecQty:38970 StopPrice:0 Price:0.0071200
+  * [13:12:17 20/8/2026] ID:2329928736 Type:MARKET Side:SELL Status:FILLED OrigQty:38970 ExecQty:38970 StopPrice:0 Price:0
+
+- Logs chi tiß║┐t tß╗½ bot VPS:
+  2026-08-20 13:06:55: [PP369] [AutoTrade] BLESS ΓåÆ LONG (Score: +4.5─æ) tß║íi $0.00712 
+  2026-08-20 13:06:55: [PP369] [AutoTrade] Ph├ón bß╗ò K├╜ quß╗╣ BLESS: $30 (Ph├ón cß║Ñp Vß╗æn h├│a Lowcap (Rank #999) | Score: +4.5─æ) 
+  2026-08-20 13:06:55: [PP369] [AI Reviewer] ≡ƒƒí BLESS (LONG) - X├íc suß║Ñt thß║»ng 52.0% < 65% (+ SCORE_WEAK_LT5 (x1.0399), - RANK_LOWCAP_OUT150 (x0.9541), + TREND_CONFLICT (x1.1338), - VOL_MID (x0.9676), - RSI_NEAR (x0.94), + PA_1_LEVEL (x1.0962), - OI_STABLE (x0.9514), - BTC_ALIGNED (x0.9231), - GRID_NORMAL (x0.8784)) 
+  2026-08-20 13:06:55: [PP369] [AutoTrade] Set leverage BLESSUSDT = 40x (Tier SL: $0.007037 (1.17%), TP 1:1: $0.007203, Dß╗¥i SL tß║íi $0.007161 | K├╜ quß╗╣: $10.72) 
+  2026-08-20 13:06:55: [PP369] [AutoTrade] Γ£ô BLESS BUY 60224 @ $0.00712 orderId=2329909317 status=NEW 
+  2026-08-20 13:07:23: [PP369] [AutoTrade] Γ£ô ─Éß║╖t TP BLESS @ $0.0072030 (─æß╗æi ß╗⌐ng SELL) orderId=1000002515459379 
+  2026-08-20 13:07:23: [PP369] [AutoTrade] Γ£ô ─Éß║╖t SL BLESS @ $0.0070370 (─æß╗æi ß╗⌐ng SELL) orderId=1000002515459383 
+  2026-08-20 13:10:18: [PP369] [AutoTrade] Trailing SL (chß║ím mß╗æc 45─æ): BLESS ─æß║ít ROI 20.45% -> Dß╗ïch SL tr├¬n s├án vß╗ü entry +5─æ ($0.007123, ROI ~1.69%) [Mß╗⌐c: +5─æ (Kh├│a l├úi)] 
+  2026-08-20 13:10:18: [PP369] [AutoTrade] ─É├ú hß╗ºy SL c┼⌐ cß╗ºa BLESS (orderId=1000002515459383) 
+  2026-08-20 13:10:18: [PP369] [AutoTrade] Γ£ô ─É├ú dß╗ïch SL mß╗¢i cho BLESS @ $0.0071230 (orderId=1000002515462010) 
+  2026-08-20 14:18:24: [PP369] [AutoTrade] BLESS ΓåÆ LONG (Score: +3.6─æ) tß║íi $0.00682 
+  2026-08-20 14:18:24: [PP369] [AutoTrade] BLESS LONG kh├┤ng ─æß║ít Ti├¬u ch├¡ 2 (M15 biß║┐n ─æß╗Öng mß║ính) ΓÇö ─É╞░a v├áo Watchlist chß╗¥ Retest H1 
+  2026-08-20 15:00:00: [PP369] [H1Retest] === Kiß╗âm tra 2 coin trong Watchlist: [BLESS(LONG @$0.00682), BIO(SHORT @$0.03135)] === 
+  2026-08-20 15:00:02: [PP369] [H1Retest] BLESS LONG nß║┐n H1 ─æ├ú chß║ím mß╗æc $0.00682 nh╞░ng ─æ├óm thß╗ºng mß╗æc (Close: $0.006717) ΓÇö X├ôA KHß╗ÄI WATCHLIST 
+  2026-08-20 18:14:39: [PP369] [AutoTrade] BLESS ΓåÆ SHORT (Score: +3.8999999999999995─æ) tß║íi $0.00707 
+  2026-08-20 18:14:39: [PP369] [AutoTrade] Ph├ón bß╗ò K├╜ quß╗╣ BLESS: $30 (Ph├ón cß║Ñp Vß╗æn h├│a Lowcap (Rank #999) | Score: +3.9─æ) 
+  2026-08-20 18:14:39: [PP369] [AutoTrade] ΓÅ¡∩╕Å BLESS (SHORT) Score = 3.8999999999999995─æ < 4─æ ΓÇö Bß╗Å qua kh├┤ng ─æß║╖t lß╗çnh. 
+  2026-08-20 18:14:45: [PP369] [AutoTrade] ΓÅ¡∩╕Å BLESS (SHORT) Score = 3.8999999999999995─æ < 4─æ ΓÇö Bß╗Å qua kh├┤ng ─æß║╖t lß╗çnh. 
+  2026-08-20 18:14:56: [PP369] [AutoTrade] ΓÅ¡∩╕Å BLESS (SHORT) Score = 3.8999999999999995─æ < 4─æ ΓÇö Bß╗Å qua kh├┤ng ─æß║╖t lß╗çnh. 
+  2026-08-20 18:15:09: [PP369] [AutoTrade] ΓÅ¡∩╕Å BLESS (SHORT) Score = 3.8999999999999995─æ < 4─æ ΓÇö Bß╗Å qua kh├┤ng ─æß║╖t lß╗çnh. 
+  2026-08-20 18:15:16: [PP369] [AutoTrade] ΓÅ¡∩╕Å BLESS (SHORT) Score = 3.8999999999999995─æ < 4─æ ΓÇö Bß╗Å qua kh├┤ng ─æß║╖t lß╗çnh. 
+  2026-08-20 21:20:34: [PP369] [AutoTrade] BLESS ΓåÆ LONG (Score: +2.9000000000000004─æ) tß║íi $0.00682 
+  2026-08-20 21:20:34: [PP369] [AutoTrade] BLESS LONG kh├┤ng ─æß║ít Ti├¬u ch├¡ 2 (M15 biß║┐n ─æß╗Öng mß║ính) ΓÇö ─É╞░a v├áo Watchlist chß╗¥ Retest H1 
+  2026-08-20 21:43:14: [PP369] [AutoTrade] BLESS ΓåÆ SHORT (Score: +3.3999999999999995─æ) tß║íi $0.00707 
+  2026-08-20 21:43:14: [PP369] [AutoTrade] BLESS SHORT kh├┤ng ─æß║ít Ti├¬u ch├¡ 2 (M15 biß║┐n ─æß╗Öng mß║ính) ΓÇö ─É╞░a v├áo Watchlist chß╗¥ Retest H1 
+  2026-08-20 22:00:07: [PP369] [H1Retest] === Kiß╗âm tra 6 coin trong Watchlist: [MASK(SHORT @$0.3857), KMNO(SHORT @$0.02054), RONIN(SHORT @$0.0513), BLESS(SHORT @$0.00707), MOODENG(SHORT @$0.0428), CELO(SHORT @$0.064)] === 
+  2026-08-20 22:00:07: [PP369] [H1Retest] BLESS SHORT nß║┐n H1 ─æ├ú chß║ím mß╗æc $0.00707 nh╞░ng ─æ├óm thß╗ºng mß╗æc (Close: $0.007238) ΓÇö X├ôA KHß╗ÄI WATCHLIST 
+  2026-08-21 01:11:07: [PP369] [AutoTrade] BLESS ΓåÆ LONG (Score: +3.4000000000000004─æ) tß║íi $0.00682 
+  2026-08-21 01:11:07: [PP369] [AutoTrade] Ph├ón bß╗ò K├╜ quß╗╣ BLESS: $30 (Ph├ón cß║Ñp Vß╗æn h├│a Lowcap (Rank #999) | Score: +3.4─æ) 
+  2026-08-21 01:11:07: [PP369] [AutoTrade] BLESS LONG: Tß╗½ khi chß║ím mß╗æc Short ($0.00707), nß║┐n M1 ─æ├ú x├ít mß╗æc entry LONG ($0.006824) rß╗ôi nß║úy l├¬n ─æß╗ënh $0.006875 (+0.75% >= 0.59% Khung/5) ΓÇö Hß╗ªY LIMIT stale. 
+  2026-08-21 03:24:59: [PP369] [AutoTrade] BLESS ΓåÆ LONG (Score: +3.5─æ) tß║íi $0.00712 
+  2026-08-21 03:24:59: [PP369] [AutoTrade] BLESS LONG kh├┤ng ─æß║ít Ti├¬u ch├¡ 2 (M15 biß║┐n ─æß╗Öng mß║ính) ΓÇö ─É╞░a v├áo Watchlist chß╗¥ Retest H1 
+  2026-08-21 04:00:02: [PP369] [H1Retest] === Kiß╗âm tra 3 coin trong Watchlist: [KERNEL(SHORT @$0.03574), BLESS(LONG @$0.00712), IOST(SHORT @$0.000575)] === 
+  2026-08-21 04:00:03: [PP369] [H1Retest] BLESS LONG nß║┐n H1 ─æ├ú chß║ím mß╗æc $0.00712 nh╞░ng ─æ├óm thß╗ºng mß╗æc (Close: $0.007596) ΓÇö X├ôA KHß╗ÄI WATCHLIST 
+  2026-08-21 05:02:39: [PP369] [AutoTrade] BLESS ΓåÆ LONG (Score: +3.5─æ) tß║íi $0.00742 
+  2026-08-21 05:02:39: [PP369] [AutoTrade] BLESS LONG kh├┤ng ─æß║ít Ti├¬u ch├¡ 2 (─Éß╗Öt biß║┐n Volume 3 nß║┐n H1 (gß║Ñp >= 2.5x)) ΓÇö ─É╞░a v├áo Watchlist chß╗¥ Retest H1 
+  2026-08-21 06:00:09: [PP369] [H1Retest] === Kiß╗âm tra 5 coin trong Watchlist: [WCT(SHORT @$0.03829), ANKR(SHORT @$0.003815), BLESS(LONG @$0.00742), CELO(LONG @$0.065), AIOT(LONG @$0.0434)] === 
+  2026-08-21 06:00:10: [PP369] [H1Retest] BLESS LONG nß║┐n H1 ─æ├ú chß║ím mß╗æc $0.00742 nh╞░ng ─æ├óm thß╗ºng mß╗æc (Close: $0.007195) ΓÇö X├ôA KHß╗ÄI WATCHLIST 
+  2026-08-21 06:39:36: [PP369] [AutoTrade] BLESS ΓåÆ SHORT (Score: +1.9000000000000001─æ) tß║íi $0.00767 
+  2026-08-21 06:39:36: [PP369] [AutoTrade] BLESS SHORT kh├┤ng ─æß║ít Ti├¬u ch├¡ 2 (─Éß╗Öt biß║┐n Volume 3 nß║┐n H1 (gß║Ñp >= 2.5x)) ΓÇö ─É╞░a v├áo Watchlist chß╗¥ Retest H1 
+  2026-08-21 07:00:00: [PP369] [H1Retest] === Kiß╗âm tra 5 coin trong Watchlist: [WCT(SHORT @$0.03829), ANKR(SHORT @$0.003815), EPIC(SHORT @$0.3777), ARC(LONG @$0.06855), BLESS(SHORT @$0.00767)] === 
+  2026-08-21 07:00:02: [PP369] [H1Retest] BLESS SHORT nß║┐n H1 r├║t ch├ón nh╞░ng ─É├â PHß║óN ß╗¿NG Nß║óY ROI = +55.38% (>= 5.0%) sau khi chß║ím entry. Bß╗Å qua kh├┤ng ─æß║╖t limit. 
+  2026-08-21 07:07:44: [PP369] [AutoTrade] BLESS ΓåÆ LONG (Score: +4.199999999999999─æ) tß║íi $0.00742 
+  2026-08-21 07:07:44: [PP369] [AutoTrade] BLESS LONG kh├┤ng ─æß║ít Ti├¬u ch├¡ 2 (M15 biß║┐n ─æß╗Öng mß║ính) ΓÇö ─É╞░a v├áo Watchlist chß╗¥ Retest H1 
+  2026-08-21 08:00:03: [PP369] [H1Retest] === Kiß╗âm tra 9 coin trong Watchlist: [WCT(SHORT @$0.03829), ANKR(SHORT @$0.003815), ARC(LONG @$0.06855), CELO(SHORT @$0.067), BLESS(LONG @$0.00742), SUSHI(SHORT @$0.184), NEO(SHORT @$2.004), EDU(SHORT @$0.04), NIL(SHORT @$0.04318)] === 
+  2026-08-21 08:00:03: [PP369] [H1Retest] BLESS LONG nß║┐n H1 ─æ├ú chß║ím mß╗æc $0.00742 nh╞░ng ─æ├óm thß╗ºng mß╗æc (Close: $0.007379) ΓÇö X├ôA KHß╗ÄI WATCHLIST 
+
+================================================================
+TOKEN: CRVUSDT | Tß╗öNG PNL: +0.3968 USDT
+================================================================
+- Fills tr├¬n Binance (3 fills):
+  * [12:28:07 20/8/2026] SELL 793.7 @ 0.268000 (PnL: 0 USDT, Fee: 0.04254232 USDT)
+  * [13:25:15 20/8/2026] BUY 383.3 @ 0.267500 (PnL: 0.19165000 USDT, Fee: 0.05126637 USDT)
+  * [13:25:15 20/8/2026] BUY 410.4 @ 0.267500 (PnL: 0.20520000 USDT, Fee: 0.05489100 USDT)
+
+- Orders tr├¬n Binance (2 orders):
+  * [12:28:07 20/8/2026] ID:46401190282 Type:LIMIT Side:SELL Status:FILLED OrigQty:793.7 ExecQty:793.7 StopPrice:0 Price:0.268000
+  * [13:25:15 20/8/2026] ID:46401473437 Type:MARKET Side:BUY Status:FILLED OrigQty:793.7 ExecQty:793.7 StopPrice:0 Price:0
+
+- Logs chi tiß║┐t tß╗½ bot VPS:
+  2026-08-20 12:22:48: [PP369] [AutoTrade] CRV ΓåÆ SHORT (Score: +4.199999999999999─æ) tß║íi $0.268 
+  2026-08-20 12:22:48: [PP369] [AutoTrade] Ph├ón bß╗ò K├╜ quß╗╣ CRV: $35 (Ph├ón cß║Ñp Vß╗æn h├│a Top 150 (Rank #110) | Score: +4.2─æ) 
+  2026-08-20 12:22:48: [PP369] [AI Reviewer] ≡ƒƒó Khuy├¬n N├èN ─Éß║╢T Lß╗åNH CRV (SHORT) - X├íc suß║Ñt thß║»ng 69.5% >= 65% & EV = +3.69% ROI ($1.11) (+ SCORE_WEAK_LT5 (x1.0399), + RANK_MIDCAP_150 (x1.1371), + TREND_CONFLICT (x1.1338), + RSI_EXTREME (x1.2256), + LS_DIVERGENCE (x1.0416), - PA_4_LEVELS (x0.9064), - OI_STABLE (x0.9514), + BTC_COUNTER (x1.1308), + GRID_WIDE (x1.0979)) 
+  2026-08-20 12:22:48: [PP369] [AutoTrade] Set leverage CRVUSDT = 21x (Tier SL: $0.2743 (2.35%), TP 1:1: $0.2617, Dß╗¥i SL tß║íi $0.2649 | K├╜ quß╗╣: $10.13) 
+  2026-08-20 12:22:49: [PP369] [AutoTrade] Γ£ô CRV SELL 793.7 @ $0.268 orderId=46401190282 status=NEW 
+  2026-08-20 12:28:10: [PP369] [AutoTrade] Γ£ô ─Éß║╖t TP CRV @ $0.261700 (─æß╗æi ß╗⌐ng BUY) orderId=1000002515423219 
+  2026-08-20 12:28:11: [PP369] [AutoTrade] Γ£ô ─Éß║╖t SL CRV @ $0.274300 (─æß╗æi ß╗⌐ng BUY) orderId=1000002515423220 
+  2026-08-20 13:14:24: [PP369] [AutoTrade] Trailing SL (chß║ím mß╗æc 45─æ): CRV ─æß║ít ROI 22.72% -> Dß╗ïch SL tr├¬n s├án vß╗ü entry +5─æ ($0.2677, ROI ~2.35%) [Mß╗⌐c: +5─æ (Kh├│a l├úi)] 
+  2026-08-20 13:14:24: [PP369] [AutoTrade] ─É├ú hß╗ºy SL c┼⌐ cß╗ºa CRV (orderId=1000002515423220) 
+  2026-08-20 13:14:25: [PP369] [AutoTrade] Γ£ô ─É├ú dß╗ïch SL mß╗¢i cho CRV @ $0.267700 (orderId=1000002515466185) 
+
+================================================================
+TOKEN: SFPUSDT | Tß╗öNG PNL: -6.4085 USDT
+================================================================
+- Fills tr├¬n Binance (6 fills):
+  * [13:22:35 20/8/2026] SELL 195 @ 0.2612 (PnL: 0 USDT, Fee: 0.01018679 USDT)
+  * [13:22:35 20/8/2026] SELL 295 @ 0.2612 (PnL: 0 USDT, Fee: 0.01541080 USDT)
+  * [13:23:00 20/8/2026] SELL 129 @ 0.2612 (PnL: 0 USDT, Fee: 0.00673896 USDT)
+  * [13:23:12 20/8/2026] SELL 289 @ 0.2612 (PnL: 0 USDT, Fee: 0.01509736 USDT)
+  * [14:07:17 20/8/2026] BUY 293 @ 0.2667 (PnL: -1.61150000 USDT, Fee: 0.03907154 USDT)
+  * [14:07:17 20/8/2026] BUY 615 @ 0.2690 (PnL: -4.79700000 USDT, Fee: 0.08271750 USDT)
+
+- Orders tr├¬n Binance (3 orders):
+  * [12:11:57 20/8/2026] ID:5123713190 Type:LIMIT Side:SELL Status:CANCELED OrigQty:908 ExecQty:0 StopPrice:0 Price:0.2612
+  * [13:23:12 20/8/2026] ID:5123722998 Type:LIMIT Side:SELL Status:FILLED OrigQty:908 ExecQty:908 StopPrice:0 Price:0.2612
+  * [14:07:17 20/8/2026] ID:5123745057 Type:MARKET Side:BUY Status:FILLED OrigQty:908 ExecQty:908 StopPrice:0 Price:0
+
+- Logs chi tiß║┐t tß╗½ bot VPS:
+  2026-08-20 11:10:00: [PP369] [AutoTrade] SFP ΓåÆ SHORT (Score: +4.199999999999999─æ) tß║íi $0.2612 
+  2026-08-20 11:10:00: [PP369] [AutoTrade] Ph├ón bß╗ò K├╜ quß╗╣ SFP: $30 (Ph├ón cß║Ñp Vß╗æn h├│a Lowcap (Rank #999) | Score: +4.2─æ) 
+  2026-08-20 11:10:00: [PP369] [AI Reviewer] ≡ƒƒó Khuy├¬n N├èN ─Éß║╢T Lß╗åNH SFP (SHORT) - X├íc suß║Ñt thß║»ng 69.0% >= 65% & EV = +3.50% ROI ($1.05) (+ SCORE_WEAK_LT5 (x1.0399), - RANK_LOWCAP_OUT150 (x0.9541), + TREND_CONFLICT (x1.1338), + RSI_EXTREME (x1.2256), + PA_1_LEVEL (x1.0962), - OI_STABLE (x0.9514), + BTC_COUNTER (x1.1308), + GRID_WIDE (x1.0979)) 
+  2026-08-20 11:10:00: [PP369] [AutoTrade] Set leverage SFPUSDT = 23x (Tier SL: $0.2667 (2.11%), TP 1:1: $0.2557, Dß╗¥i SL tß║íi $0.2584 | K├╜ quß╗╣: $10.32) 
+  2026-08-20 11:10:00: [PP369] [AutoTrade] Γ£ô SFP SELL 908 @ $0.2612 orderId=5123713190 status=NEW 
+  2026-08-20 12:11:56: [PP369] [AutoTrade] Lß╗çnh LIMIT cß╗ºa SFP ─æ├ú chß║ím/v╞░ß╗út Entry ($0.2612) qu├í 10 ph├║t kh├┤ng khß╗¢p (10.3 ph├║t) -> Tiß║┐n h├ánh hß╗ºy... 
+  2026-08-20 12:11:56: [PP369] [AutoTrade] Γ£ô ─É├ú hß╗ºy th├ánh c├┤ng lß╗çnh LIMIT treo cß╗ºa SFP 
+  2026-08-20 12:17:10: [PP369] [AutoTrade] SFP ΓåÆ SHORT (Score: +4.199999999999999─æ) tß║íi $0.2612 
+  2026-08-20 12:17:10: [PP369] [AutoTrade] Ph├ón bß╗ò K├╜ quß╗╣ SFP: $30 (Ph├ón cß║Ñp Vß╗æn h├│a Lowcap (Rank #999) | Score: +4.2─æ) 
+  2026-08-20 12:17:10: [PP369] [AI Reviewer] ≡ƒƒó Khuy├¬n N├èN ─Éß║╢T Lß╗åNH SFP (SHORT) - X├íc suß║Ñt thß║»ng 69.0% >= 65% & EV = +3.50% ROI ($1.05) (+ SCORE_WEAK_LT5 (x1.0399), - RANK_LOWCAP_OUT150 (x0.9541), + TREND_CONFLICT (x1.1338), + RSI_EXTREME (x1.2256), + PA_1_LEVEL (x1.0962), - OI_STABLE (x0.9514), + BTC_COUNTER (x1.1308), + GRID_WIDE (x1.0979)) 
+  2026-08-20 12:17:10: [PP369] [AutoTrade] Set leverage SFPUSDT = 23x (Tier SL: $0.2667 (2.11%), TP 1:1: $0.2557, Dß╗¥i SL tß║íi $0.2584 | K├╜ quß╗╣: $10.32) 
+  2026-08-20 12:17:10: [PP369] [AutoTrade] Γ£ô SFP SELL 908 @ $0.2612 orderId=5123722998 status=NEW 
+  2026-08-20 13:22:37: [PP369] [AutoTrade] Γ£ô ─Éß║╖t TP SFP @ $0.2557 (─æß╗æi ß╗⌐ng BUY) orderId=1000002515475891 
+  2026-08-20 13:22:37: [PP369] [AutoTrade] Γ£ô ─Éß║╖t SL SFP @ $0.2667 (─æß╗æi ß╗⌐ng BUY) orderId=1000002515475897 
+  2026-08-20 13:51:47: [PP369] [AutoTrade] Lß╗çnh TP SFP ─æ├ú tß╗ôn tß║íi tr├¬n s├án hoß║╖c vß╗ï thß║┐ ─æ├ú ─æ├│ng. Bß╗Å qua. 
+
+================================================================
+TOKEN: MONUSDT | Tß╗öNG PNL: -5.0996 USDT
+================================================================
+- Fills tr├¬n Binance (5 fills):
+  * [17:29:13 20/8/2026] SELL 2002 @ 0.0257700 (PnL: 0 USDT, Fee: 0.01031830 USDT)
+  * [17:29:13 20/8/2026] SELL 1003 @ 0.0257700 (PnL: 0 USDT, Fee: 0.00516946 USDT)
+  * [17:29:14 20/8/2026] SELL 6802 @ 0.0257700 (PnL: 0 USDT, Fee: 0.03505750 USDT)
+  * [18:08:34 20/8/2026] BUY 1480 @ 0.0262900 (PnL: -0.76960000 USDT, Fee: 0.01945460 USDT)
+  * [18:08:34 20/8/2026] BUY 8327 @ 0.0262900 (PnL: -4.33004000 USDT, Fee: 0.10945841 USDT)
+
+- Orders tr├¬n Binance (2 orders):
+  * [17:29:14 20/8/2026] ID:1001497676 Type:LIMIT Side:SELL Status:FILLED OrigQty:9807 ExecQty:9807 StopPrice:0 Price:0.0257700
+  * [18:08:34 20/8/2026] ID:1001611322 Type:MARKET Side:BUY Status:FILLED OrigQty:9807 ExecQty:9807 StopPrice:0 Price:0
+
+- Logs chi tiß║┐t tß╗½ bot VPS:
+  2026-08-20 17:27:42: [PP369] [AutoTrade] MON ΓåÆ SHORT (Score: +5.3999999999999995─æ) tß║íi $0.02577 
+  2026-08-20 17:27:42: [PP369] [AutoTrade] Ph├ón bß╗ò K├╜ quß╗╣ MON: $35 (Ph├ón cß║Ñp Vß╗æn h├│a Top 150 (Rank #132) | Score: +5.4─æ) 
+  2026-08-20 17:27:42: [PP369] [AI Reviewer] ≡ƒƒí MON (SHORT) - X├íc suß║Ñt thß║»ng 63.2% < 65% (+ RANK_MIDCAP_150 (x1.1371), - TREND_NEUTRAL (x0.9231), + RSI_EXTREME (x1.2256), - PA_2_LEVELS (x0.8726), - OI_STABLE (x0.9514), + BTC_COUNTER (x1.1308), + GRID_WIDE (x1.0979)) 
+  2026-08-20 17:27:42: [PP369] [AutoTrade] Set leverage MONUSDT = 25x (Tier SL: $0.02628 (1.98%), TP 1:1: $0.02526, Dß╗¥i SL tß║íi $0.02552 | K├╜ quß╗╣: $10.11) 
+  2026-08-20 17:27:43: [PP369] [AutoTrade] Γ£ô MON SELL 9807 @ $0.02577 orderId=1001497676 status=NEW 
+  2026-08-20 17:29:14: [PP369] [AutoTrade] Γ£ô ─Éß║╖t TP MON @ $0.0252600 (─æß╗æi ß╗⌐ng BUY) orderId=1000002515867871 
+  2026-08-20 17:29:14: [PP369] [AutoTrade] Γ£ô ─Éß║╖t SL MON @ $0.0262800 (─æß╗æi ß╗⌐ng BUY) orderId=1000002515867873 
+  2026-08-20 18:00:08: [PP369] [AutoTrade] ΓÜá∩╕Å MON SHORT: Nß║┐n H1 ─æ├│ng cß╗¡a g├úy s├óu 35% SL ($0.02597 >= $0.025948) -> K├¡ch hoß║ít dß╗¥i TP vß╗ü Entry h├▓a vß╗æn $0.025769999999999998 
+  2026-08-20 18:00:08: [PP369] [AutoTrade] ΓÜá∩╕Å ─É├ú dß╗¥i TP MON vß╗ü mß╗æc [H├▓a vß╗æn Entry] @ $0.02577 (─æß╗æi ß╗⌐ng BUY) orderId=1000002515906192 
+
+================================================================
+TOKEN: SPXUSDT | Tß╗öNG PNL: -4.9977 USDT
+================================================================
+- Fills tr├¬n Binance (3 fills):
+  * [15:12:41 20/8/2026] SELL 617 @ 0.3809000 (PnL: 0 USDT, Fee: 0.04700306 USDT)
+  * [18:47:47 20/8/2026] BUY 163 @ 0.3890000 (PnL: -1.32030000 USDT, Fee: 0.03170350 USDT)
+  * [18:47:47 20/8/2026] BUY 454 @ 0.3890000 (PnL: -3.67740000 USDT, Fee: 0.08830300 USDT)
+
+- Orders tr├¬n Binance (2 orders):
+  * [15:12:41 20/8/2026] ID:3020524025 Type:LIMIT Side:SELL Status:FILLED OrigQty:617 ExecQty:617 StopPrice:0 Price:0.3809000
+  * [18:47:47 20/8/2026] ID:3020755515 Type:MARKET Side:BUY Status:FILLED OrigQty:617 ExecQty:617 StopPrice:0 Price:0
+
+- Logs chi tiß║┐t tß╗½ bot VPS:
+  2026-08-20 15:09:27: [PP369] [AutoTrade] SPX ΓåÆ SHORT (Score: +5.3─æ) tß║íi $0.3809 
+  2026-08-20 15:09:27: [PP369] [AutoTrade] Ph├ón bß╗ò K├╜ quß╗╣ SPX: $35 (Ph├ón cß║Ñp Vß╗æn h├│a Top 150 (Rank #118) | Score: +5.3─æ) 
+  2026-08-20 15:09:27: [PP369] [AI Reviewer] ≡ƒƒó Khuy├¬n N├èN ─Éß║╢T Lß╗åNH SPX (SHORT) - X├íc suß║Ñt thß║»ng 74.1% >= 65% & EV = +5.31% ROI ($1.59) (+ RANK_MIDCAP_150 (x1.1371), + TREND_CONFLICT (x1.1338), + RSI_EXTREME (x1.2256), + PA_3_LEVELS (x1.1877), - OI_STABLE (x0.9514), + BTC_COUNTER (x1.1308), + GRID_WIDE (x1.0979)) 
+  2026-08-20 15:09:28: [PP369] [AutoTrade] Set leverage SPXUSDT = 23x (Tier SL: $0.389 (2.13%), TP 1:1: $0.3728, Dß╗¥i SL tß║íi $0.3769 | K├╜ quß╗╣: $10.22) 
+  2026-08-20 15:09:28: [PP369] [AutoTrade] Γ£ô SPX SELL 617 @ $0.3809 orderId=3020524025 status=NEW 
+  2026-08-20 15:12:47: [PP369] [AutoTrade] Γ£ô ─Éß║╖t TP SPX @ $0.3728000 (─æß╗æi ß╗⌐ng BUY) orderId=1000002515619640 
+  2026-08-20 15:12:47: [PP369] [AutoTrade] Γ£ô ─Éß║╖t SL SPX @ $0.3890000 (─æß╗æi ß╗⌐ng BUY) orderId=1000002515619642 
+  2026-08-20 15:15:11: [PP369] [AutoTrade] ΓÜá∩╕Å SPX SHORT: Nß║┐n M15 ─æ├│ng cß╗¡a tr├¬n Entry +8% SL ($0.3831 >= $0.381548) k├¿m ─æß╗ënh nß║┐n High >= Entry + 30% SL ($0.3835 >= $0.383330) -> K├¡ch hoß║ít dß╗¥i TP vß╗ü Entry h├▓a vß╗æn $0.38089999999999996 
+  2026-08-20 15:15:11: [PP369] [AutoTrade] ΓÜá∩╕Å ─É├ú dß╗¥i TP SPX vß╗ü mß╗æc [H├▓a vß╗æn Entry] @ $0.38090 (─æß╗æi ß╗⌐ng BUY) orderId=1000002515628670 
+  2026-08-20 15:15:59: [PP369] [AutoTrade] ≡ƒÜ¿ [M15 Panic Escape] SPX (SHORT): M15 b├╣ng nß╗ò Volume (12.78x TB 20 nß║┐n) k├¿m ─æ├óm l├║n s├óu >= 40% SL -> K├¡ch hoß║ít tho├ít hiß╗âm -10% SL @ $0.38171 
+
+================================================================
+TOKEN: VETUSDT | Tß╗öNG PNL: -0.4480 USDT
+================================================================
+- Fills tr├¬n Binance (6 fills):
+  * [18:37:48 20/8/2026] SELL 87723 @ 0.004990 (PnL: 0 USDT, Fee: 0.08754755 USDT)
+  * [18:55:44 20/8/2026] BUY 15623 @ 0.004995 (PnL: -0.07811500 USDT, Fee: 0.03901844 USDT)
+  * [18:55:44 20/8/2026] BUY 26146 @ 0.004995 (PnL: -0.13073000 USDT, Fee: 0.06529963 USDT)
+  * [18:55:44 20/8/2026] BUY 17412 @ 0.004995 (PnL: -0.08706000 USDT, Fee: 0.04348647 USDT)
+  * [18:55:44 20/8/2026] BUY 19195 @ 0.004995 (PnL: -0.09597500 USDT, Fee: 0.04793951 USDT)
+  * [18:55:44 20/8/2026] BUY 9347 @ 0.004996 (PnL: -0.05608200 USDT, Fee: 0.02334880 USDT)
+
+- Orders tr├¬n Binance (2 orders):
+  * [18:37:48 20/8/2026] ID:22408434058 Type:LIMIT Side:SELL Status:FILLED OrigQty:87723 ExecQty:87723 StopPrice:0 Price:0.004990
+  * [18:55:44 20/8/2026] ID:22408453987 Type:MARKET Side:BUY Status:FILLED OrigQty:87723 ExecQty:87723 StopPrice:0 Price:0
+
+- Logs chi tiß║┐t tß╗½ bot VPS:
+  2026-08-20 13:09:19: [AutoTrade] Bß╗Å qua 161 coin c├│ grid ngo├ái khoß║úng 3ΓÇô25% (theo gi├í hiß╗çn tß║íi): 4(2.7%), XRP(27.2%), ETC(45.8%), LINK(28.7%), BAT(48.3%), QTUM(41.8%), KNC(28.5%), DOT(38.1%), SOL(35.4%), AVAX(44.5%), AAVE(31.3%), FIL(44.8%), BEL(2.7%), COTI(30.2%), ALICE(2.1%), ONE(43.2%), NKN(2.6%), DGB(1.6%), ATA(1.8%), DYDX(2.7%), KLAY(2.4%), IMX(29.2%), APE(2.4%), WOO(27.3%), DAR(2.1%), OP(33.8%), STG(2.0%), SPELL(37.8%), APT(53.9%), FET(2.3%), CKB(35.1%), USDC(30.0%), AMB(2.5%), LEVER(26.7%), RDNT(2.9%), SUI(42.8%), MAV(31.2%), DODOX(1.5%), ARK(32.9%), BOND(28.1%), GAS(30.4%), SUPER(33.1%), 1000SATS(280.1%), MOVR(41.0%), JUP(1.7%), GLM(33.3%), PORTAL(2.7%), MYRO(3.0%), W(35.2%), BB(33.0%), IO(2.4%), ZK(36.1%), ZRO(33.9%), SYN(2.7%), SYS(1.7%), ALPACA(25.2%), SUN(1.8%), DOGS(83.0%), BSW(2.5%), QUICK(2.3%), NEIRO(43.6%), FIO(2.5%), GHST(1.8%), LOKA(2.6%), COS(2.5%), SANTOS(61.5%), COW(27.8%), 1000000MOG(28.9%), DRIFT(25.4%), ACT(29.0%), HIPPO(2.9%), DEGEN(2.9%), 1000WHY(197.4%), THE(47.0%), CHILLGUY(2.7%), ORCA(27.1%), MOVE(48.8%), KOMA(2.3%), VELODROME(1.6%), MOCA(39.5%), VANA(33.7%), USUAL(32.8%), DF(2.6%), GRIFFAIN(2.4%), COOKIE(26.4%), D(2.2%), AVAAI(2.1%), PIPPIN(164.7%), TST(2.0%), HEI(2.3%), GPS(2.5%), RED(27.1%), MUBARAK(1.5%), TUT(1.0%), BROCCOLI714(1.8%), BR(1.2%), PLUME(2.3%), FUN(1.7%), BABY(2.7%), SIGN(42.9%), PUNDIX(38.9%), CTK(27.8%), SXT(40.3%), ASR(34.5%), MILK(3.0%), OG(116.6%), AGT(1.9%), B(2.0%), MERL(159.6%), PORT3(2.5%), 1000000BOB(1.7%), LA(52.7%), PUMPBTC(28.8%), MYX(405.3%), DMC(2.3%), OL(1.7%), SAHARA(39.1%), TANSSI(2.4%), PUMP(0.9%), CROSS(2.8%), VELVET(0.4%), ZORA(59.5%), ESPORTS(182.5%), A2Z(2.1%), YALA(1.8%), SOMI(31.4%), BAS(1.1%), Q(1.4%), PTB(34.8%), OPEN(1.9%), AVNT(34.0%), XPIN(27.5%), UB(2.5%), TOSHI(28.3%), BARD(27.7%), TRADOOR(46.7%), FLUID(25.0%), HANA(1.5%), AKE(0.4%), LIGHT(174.1%), XAN(2.7%), TRUTH(2.3%), YB(38.5%), CLO(25.3%), RIVER(112.1%), σ╕üσ«ëΣ║║τöƒ(0.7%), BLUAI(2.3%), APR(1.6%), ON(1.1%), AT(2.0%), UAI(1.1%), STABLE(1.0%), JCT(1.6%), ALLO(1.0%), BEAT(201.6%), BOB(2.8%), RLS(2.8%), POWER(32.8%), US(1.8%), BREV(44.6%), MAGMA(1.3%)
+  2026-08-20 13:48:17: [AutoTrade] Bß╗Å qua 161 coin c├│ grid ngo├ái khoß║úng 3ΓÇô25% (theo gi├í hiß╗çn tß║íi): 4(2.7%), XRP(27.1%), ETC(45.4%), LINK(28.4%), BAT(48.1%), QTUM(41.4%), KNC(28.4%), DOT(37.9%), SOL(35.0%), AVAX(44.2%), AAVE(31.0%), FIL(44.6%), BEL(2.7%), COTI(30.3%), ALICE(2.2%), ONE(43.1%), NKN(2.6%), DGB(1.6%), ATA(1.8%), DYDX(2.7%), KLAY(2.4%), IMX(28.9%), APE(2.4%), WOO(27.1%), DAR(2.1%), OP(33.4%), STG(2.0%), SPELL(37.6%), APT(53.6%), FET(2.3%), CKB(34.8%), USDC(30.0%), AMB(2.5%), LEVER(26.7%), RDNT(2.9%), SUI(42.7%), MAV(31.0%), DODOX(1.5%), ARK(32.6%), BOND(28.1%), GAS(30.2%), SUPER(33.1%), 1000SATS(277.0%), MOVR(40.5%), JUP(1.7%), GLM(33.2%), PORTAL(2.8%), MYRO(3.0%), BOME(3.0%), W(34.9%), BB(33.6%), IO(2.4%), ZK(36.0%), ZRO(33.6%), SYN(2.7%), SYS(1.7%), ALPACA(25.2%), SUN(1.8%), DOGS(82.0%), BSW(2.5%), QUICK(2.3%), NEIRO(42.1%), FIO(2.5%), GHST(1.8%), LOKA(2.6%), COS(2.5%), SANTOS(61.2%), COW(27.6%), 1000000MOG(28.6%), DRIFT(25.3%), ACT(29.0%), HIPPO(2.9%), DEGEN(2.9%), 1000WHY(197.4%), THE(46.8%), CHILLGUY(2.7%), ORCA(26.8%), MOVE(48.9%), KOMA(2.3%), VELODROME(1.6%), MOCA(39.3%), VANA(33.6%), USUAL(32.6%), DF(2.6%), GRIFFAIN(2.4%), COOKIE(26.3%), D(2.2%), AVAAI(2.1%), PIPPIN(163.2%), TST(2.0%), HEI(2.4%), GPS(2.5%), RED(25.8%), MUBARAK(1.5%), TUT(1.0%), BROCCOLI714(1.7%), BR(1.3%), PLUME(2.4%), FUN(1.7%), BABY(2.7%), SIGN(42.8%), PUNDIX(38.7%), CTK(27.6%), SXT(39.8%), ASR(34.4%), MILK(3.0%), OG(116.2%), AGT(1.9%), B(2.0%), MERL(158.6%), PORT3(2.5%), 1000000BOB(1.7%), LA(53.1%), PUMPBTC(28.4%), MYX(403.3%), DMC(2.3%), OL(1.7%), SAHARA(38.7%), TANSSI(2.4%), PUMP(0.9%), CROSS(2.8%), VELVET(0.4%), ZORA(59.0%), ESPORTS(184.7%), A2Z(2.1%), YALA(1.8%), SOMI(31.2%), BAS(1.1%), Q(1.4%), PTB(34.7%), OPEN(1.9%), AVNT(33.5%), XPIN(27.7%), UB(2.5%), TOSHI(28.1%), BARD(27.6%), TRADOOR(46.8%), HANA(1.6%), AKE(0.4%), LIGHT(175.0%), XAN(2.7%), TRUTH(2.3%), YB(38.4%), CLO(25.5%), RIVER(111.9%), σ╕üσ«ëΣ║║τöƒ(0.7%), BLUAI(2.3%), APR(1.6%), ON(1.1%), AT(2.0%), UAI(1.1%), STABLE(1.0%), JCT(1.6%), ALLO(1.1%), BEAT(210.1%), BOB(2.8%), RLS(2.8%), POWER(32.5%), US(1.8%), BREV(44.3%), MAGMA(1.3%)
+  2026-08-20 14:14:04: [AutoTrade] Bß╗Å qua 161 coin c├│ grid ngo├ái khoß║úng 3ΓÇô25% (theo gi├í hiß╗çn tß║íi): 4(2.7%), XRP(27.0%), ETC(45.4%), LINK(28.4%), BAT(48.0%), QTUM(41.3%), KNC(28.4%), DOT(37.9%), SOL(34.9%), AVAX(44.1%), AAVE(31.1%), FIL(44.6%), BEL(2.7%), COTI(30.3%), ALICE(2.2%), ONE(43.0%), NKN(2.6%), DGB(1.6%), ATA(1.8%), DYDX(2.7%), KLAY(2.4%), IMX(29.1%), APE(2.4%), WOO(27.1%), DAR(2.1%), OP(33.4%), STG(2.0%), SPELL(37.5%), APT(53.7%), FET(2.3%), CKB(34.7%), USDC(30.0%), AMB(2.5%), LEVER(26.7%), RDNT(2.9%), SUI(42.6%), MAV(31.0%), DODOX(1.5%), ARK(32.6%), BOND(28.1%), GAS(30.2%), SUPER(33.1%), 1000SATS(276.5%), MOVR(40.6%), JUP(1.6%), GLM(33.1%), PORTAL(2.8%), MYRO(3.0%), BOME(2.9%), W(35.0%), BB(33.7%), IO(2.4%), ZK(36.0%), ZRO(33.9%), SYN(2.7%), SYS(1.7%), ALPACA(25.2%), SUN(1.8%), DOGS(81.9%), BSW(2.5%), QUICK(2.3%), NEIRO(41.9%), FIO(2.5%), GHST(1.8%), LOKA(2.6%), COS(2.5%), SANTOS(61.4%), COW(27.8%), 1000000MOG(28.5%), DRIFT(25.3%), ACT(28.9%), HIPPO(2.9%), DEGEN(2.9%), 1000WHY(197.4%), THE(46.9%), CHILLGUY(2.7%), ORCA(26.8%), MOVE(49.0%), KOMA(2.3%), VELODROME(1.6%), MOCA(39.4%), VANA(33.6%), USUAL(32.7%), DF(2.6%), GRIFFAIN(2.3%), COOKIE(26.2%), D(2.2%), AVAAI(1.9%), PIPPIN(162.9%), TST(2.0%), HEI(2.4%), GPS(2.5%), RED(25.9%), MUBARAK(1.5%), TUT(1.0%), BROCCOLI714(1.8%), BR(1.2%), PLUME(2.4%), FUN(1.7%), BABY(2.7%), SIGN(43.0%), PUNDIX(38.7%), CTK(27.7%), SXT(39.9%), ASR(34.5%), MILK(3.0%), OG(116.2%), AGT(1.9%), B(2.0%), MERL(159.2%), PORT3(2.5%), 1000000BOB(1.7%), LA(53.7%), PUMPBTC(28.4%), MYX(404.4%), DMC(2.3%), OL(1.7%), SAHARA(38.7%), TANSSI(2.4%), PUMP(0.9%), CROSS(2.8%), VELVET(0.5%), ZORA(59.0%), ESPORTS(184.5%), A2Z(2.1%), YALA(1.8%), SOMI(31.2%), BAS(1.1%), Q(1.4%), PTB(35.1%), OPEN(1.9%), AVNT(33.0%), XPIN(28.0%), UB(2.6%), TOSHI(28.1%), BARD(27.6%), TRADOOR(46.9%), HANA(1.5%), AKE(0.4%), LIGHT(176.4%), XAN(2.7%), TRUTH(2.3%), YB(38.4%), CLO(26.7%), RIVER(111.9%), σ╕üσ«ëΣ║║τöƒ(0.7%), BLUAI(2.3%), APR(1.6%), ON(1.1%), AT(2.0%), UAI(1.1%), STABLE(1.1%), JCT(1.6%), ALLO(1.0%), BEAT(223.0%), BOB(2.8%), RLS(2.8%), POWER(32.6%), US(1.8%), BREV(44.4%), MAGMA(1.3%)
+  2026-08-20 18:32:42: [PP369] [AutoTrade] VET ΓåÆ SHORT (Score: +4.7─æ) tß║íi $0.00499 
+  2026-08-20 18:32:42: [PP369] [AutoTrade] Ph├ón bß╗ò K├╜ quß╗╣ VET: $35 (Ph├ón cß║Ñp Vß╗æn h├│a Top 150 (Rank #108) | Score: +4.7─æ) 
+  2026-08-20 18:32:42: [PP369] [AI Reviewer] ≡ƒƒó Khuy├¬n N├èN ─Éß║╢T Lß╗åNH VET (SHORT) - X├íc suß║Ñt thß║»ng 72.6% >= 65% & EV = +4.94% ROI ($1.48) (+ SCORE_WEAK_LT5 (x1.0399), + RANK_MIDCAP_150 (x1.1371), + TREND_CONFLICT (x1.1338), + RSI_EXTREME (x1.2256), + PA_1_LEVEL (x1.0962), - OI_STABLE (x0.9514), + BTC_COUNTER (x1.1308), + GRID_WIDE (x1.0979)) 
+  2026-08-20 18:32:42: [PP369] [AutoTrade] Set leverage VETUSDT = 43x (Tier SL: $0.005047 (1.14%), TP 1:1: $0.004933, Dß╗¥i SL tß║íi $0.004961 | K├╜ quß╗╣: $10.18) 
+  2026-08-20 18:32:42: [PP369] [AutoTrade] Γ£ô VET SELL 87723 @ $0.00499 orderId=22408434058 status=NEW 
+  2026-08-20 18:37:50: [PP369] [AutoTrade] Γ£ô ─Éß║╖t TP VET @ $0.004933 (─æß╗æi ß╗⌐ng BUY) orderId=1000002515964397 
+  2026-08-20 18:37:50: [PP369] [AutoTrade] Γ£ô ─Éß║╖t SL VET @ $0.005047 (─æß╗æi ß╗⌐ng BUY) orderId=1000002515964399 
+  2026-08-20 18:45:21: [PP369] [AutoTrade] ΓÜá∩╕Å VET SHORT: Nß║┐n M15 ─æ├│ng cß╗¡a tr├¬n Entry +8% SL ($0.004995 >= $0.004995) k├¿m ─æß╗ënh nß║┐n High >= Entry + 30% SL ($0.005008 >= $0.005007) -> K├¡ch hoß║ít dß╗¥i TP vß╗ü Entry h├▓a vß╗æn $0.00499 
+  2026-08-20 18:45:21: [PP369] [AutoTrade] ΓÜá∩╕Å ─É├ú dß╗¥i TP VET vß╗ü mß╗æc [H├▓a vß╗æn Entry] @ $0.00499 (─æß╗æi ß╗⌐ng BUY) orderId=1000002515978112 
+
+================================================================
+TOKEN: GUAUSDT | Tß╗öNG PNL: -0.5664 USDT
+================================================================
+- Fills tr├¬n Binance (6 fills):
+  * [18:28:28 20/8/2026] BUY 5434 @ 0.0437400 (PnL: 0 USDT, Fee: 0.04753663 USDT)
+  * [19:10:17 20/8/2026] SELL 154 @ 0.0436400 (PnL: -0.01540000 USDT, Fee: 0.00336028 USDT)
+  * [19:10:17 20/8/2026] SELL 473 @ 0.0436400 (PnL: -0.04730000 USDT, Fee: 0.01032085 USDT)
+  * [19:10:17 20/8/2026] SELL 1955 @ 0.0436400 (PnL: -0.19550000 USDT, Fee: 0.04265810 USDT)
+  * [19:10:17 20/8/2026] SELL 548 @ 0.0436400 (PnL: -0.05480000 USDT, Fee: 0.01195736 USDT)
+  * [19:10:17 20/8/2026] SELL 2304 @ 0.0436300 (PnL: -0.25344000 USDT, Fee: 0.05026176 USDT)
+
+- Orders tr├¬n Binance (2 orders):
+  * [18:28:28 20/8/2026] ID:976989817 Type:LIMIT Side:BUY Status:FILLED OrigQty:5434 ExecQty:5434 StopPrice:0 Price:0.0437400
+  * [19:10:17 20/8/2026] ID:977027132 Type:MARKET Side:SELL Status:FILLED OrigQty:5434 ExecQty:5434 StopPrice:0 Price:0
+
+- Logs chi tiß║┐t tß╗½ bot VPS:
+  2026-08-20 18:18:32: [PP369] [AutoTrade] GUA ΓåÆ LONG (Score: +5.1─æ) tß║íi $0.04374 
+  2026-08-20 18:18:32: [PP369] [AutoTrade] Ph├ón bß╗ò K├╜ quß╗╣ GUA: $30 (Ph├ón cß║Ñp Vß╗æn h├│a Lowcap (Rank #999) | Score: +5.1─æ) 
+  2026-08-20 18:18:32: [PP369] [AI Reviewer] ≡ƒƒí GUA (LONG) - X├íc suß║Ñt thß║»ng 50.7% < 65% (- RANK_LOWCAP_OUT150 (x0.9541), - TREND_PERFECT (x0.8733), - RSI_NEUTRAL (x0.9462), + PA_1_LEVEL (x1.0962), - OI_STABLE (x0.9514), - BTC_ALIGNED (x0.9231), + GRID_WIDE (x1.0979)) 
+  2026-08-20 18:18:32: [PP369] [AutoTrade] Set leverage GUAUSDT = 10x (Tier SL: $0.04282 (2.10%), TP 1:1: $0.04466, Dß╗¥i SL tß║íi $0.0442 | K├╜ quß╗╣: $23.77) 
+  2026-08-20 18:18:33: [PP369] [AutoTrade] Γ£ô GUA BUY 5434 @ $0.04374 orderId=976989817 status=NEW 
+  2026-08-20 18:28:33: [PP369] [AutoTrade] Γ£ô ─Éß║╖t TP GUA @ $0.0446600 (─æß╗æi ß╗⌐ng SELL) orderId=1000002515945357 
+  2026-08-20 18:28:33: [PP369] [AutoTrade] Γ£ô ─Éß║╖t SL GUA @ $0.0428200 (─æß╗æi ß╗⌐ng SELL) orderId=1000002515945359 
+  2026-08-20 19:04:33: [PP369] [AutoTrade] ≡ƒÜ¿ [M15 Panic Escape] GUA (LONG): M15 b├╣ng nß╗ò Volume (3.01x TB 20 nß║┐n) k├¿m ─æ├óm l├║n s├óu >= 40% SL -> K├¡ch hoß║ít tho├ít hiß╗âm -10% SL @ $0.043648 
+  2026-08-20 19:04:34: [PP369] [AutoTrade] ΓÜá∩╕Å ─É├ú dß╗¥i TP GUA vß╗ü mß╗æc [Tho├ít hiß╗âm -10 ticks] @ $0.04365 (─æß╗æi ß╗⌐ng SELL) orderId=1000002516016352 
+
+================================================================
+TOKEN: 1MBABYDOGEUSDT | Tß╗öNG PNL: +3.5863 USDT
+================================================================
+- Fills tr├¬n Binance (5 fills):
+  * [18:35:36 20/8/2026] SELL 505114 @ 0.0003617 (PnL: 0 USDT, Fee: 0.03653994 USDT)
+  * [19:38:23 20/8/2026] BUY 100000 @ 0.0003569 (PnL: 0.48000000 USDT, Fee: 0.01784500 USDT)
+  * [19:38:23 20/8/2026] BUY 28022 @ 0.0003569 (PnL: 0.13450560 USDT, Fee: 0.00500052 USDT)
+  * [19:38:23 20/8/2026] BUY 124535 @ 0.0003569 (PnL: 0.59776800 USDT, Fee: 0.02222327 USDT)
+  * [19:47:00 20/8/2026] BUY 252557 @ 0.0003523 (PnL: 2.37403580 USDT, Fee: 0.04448791 USDT)
+
+- Orders tr├¬n Binance (3 orders):
+  * [18:35:36 20/8/2026] ID:3733317919 Type:LIMIT Side:SELL Status:FILLED OrigQty:505114 ExecQty:505114 StopPrice:0 Price:0.0003617
+  * [19:38:23 20/8/2026] ID:3733356819 Type:MARKET Side:BUY Status:FILLED OrigQty:252557 ExecQty:252557 StopPrice:0 Price:0
+  * [19:47:00 20/8/2026] ID:3733364902 Type:MARKET Side:BUY Status:FILLED OrigQty:252557 ExecQty:252557 StopPrice:0 Price:0
+
+- Logs chi tiß║┐t tß╗½ bot VPS:
+  2026-08-20 18:31:46: [PP369] [AutoTrade] 1MBABYDOGE ΓåÆ SHORT (Score: +3.9─æ) tß║íi $0.0003617 
+  2026-08-20 18:31:46: [PP369] [AutoTrade] 1MBABYDOGE SHORT kh├┤ng ─æß║ít Ti├¬u ch├¡ 2 (M15 biß║┐n ─æß╗Öng mß║ính) ΓÇö ─É╞░a v├áo Watchlist chß╗¥ Retest H1 
+  2026-08-20 18:31:59: [PP369] [AI Reviewer] ≡ƒƒó Khuy├¬n N├èN ─Éß║╢T Lß╗åNH 1MBABYDOGE (SHORT) - X├íc suß║Ñt thß║»ng 70.0% >= 65% & EV = +4.25% ROI ($1.28) (+ SCORE_WEAK_LT5 (x1.0399), - RANK_LOWCAP_OUT150 (x0.9541), + TREND_CONFLICT (x1.1338), + RSI_EXTREME (x1.2256), + PA_1_LEVEL (x1.0962), - OI_STABLE (x0.9514), + BTC_COUNTER (x1.1308), + GRID_WIDE (x1.0979)) 
+  2026-08-20 18:31:59: [PP369] [AutoTrade] Set leverage 1MBABYDOGEUSDT = 18x (Tier SL: $0.0003716 (2.74%), TP 1:1: $0.0003518, Dß╗¥i SL tß║íi $0.00035675 | K├╜ quß╗╣: $10.15) 
+  2026-08-20 18:32:00: [PP369] [AutoTrade] Γ£ô 1MBABYDOGE SELL 505114 @ $0.0003617 orderId=3733317919 status=NEW 
+  2026-08-20 18:35:38: [PP369] [AutoTrade] Γ£ô ─Éß║╖t TP 1MBABYDOGE @ $0.0003518 (─æß╗æi ß╗⌐ng BUY) orderId=1000002515960206 
+  2026-08-20 18:35:38: [PP369] [AutoTrade] Γ£ô ─Éß║╖t SL 1MBABYDOGE @ $0.0003716 (─æß╗æi ß╗⌐ng BUY) orderId=1000002515960211 
+  2026-08-20 19:00:04: [PP369] [H1Retest] === Kiß╗âm tra 10 coin trong Watchlist: [ALGO(SHORT @$0.0861), 1MBABYDOGE(SHORT @$0.0003617), PENGU(SHORT @$0.007151), SLP(SHORT @$0.0005761), MEW(SHORT @$0.000368), MANTA(SHORT @$0.05892), ARC(LONG @$0.06855), ORDI(SHORT @$4.456), FLOCK(SHORT @$0.0332), MASK(SHORT @$0.3857)] === 
+  2026-08-20 19:38:23: [PP369] [AutoTrade] Trailing SL (chß║ím mß╗æc 45─æ): 1MBABYDOGE ─æß║ít ROI 25.38% -> Dß╗ïch SL tr├¬n s├án vß╗ü entry +5─æ ($0.0003614, ROI ~1.49%) [Mß╗⌐c: +5─æ (Kh├│a l├úi)] 
+  2026-08-20 19:38:23: [PP369] [AutoTrade] ≡ƒÄ» [Partial TP 50%] 1MBABYDOGE: ─Éß║ít 50% TP -> Tiß║┐n h├ánh chß╗æt 50% vß╗ï thß║┐ (252557 1MBABYDOGE) MARKET... 
+  2026-08-20 19:38:23: [PP369] [AutoTrade] ─É├ú hß╗ºy SL c┼⌐ cß╗ºa 1MBABYDOGE (orderId=1000002515960211) 
+  2026-08-20 19:38:23: [PP369] [AutoTrade] Γ£ô ─É├ú dß╗ïch SL mß╗¢i cho 1MBABYDOGE @ $0.0003614 (orderId=1000002516080733) 
+
+================================================================
+TOKEN: ETHFIUSDT | Tß╗öNG PNL: +0.2033 USDT
+================================================================
+- Fills tr├¬n Binance (3 fills):
+  * [19:48:12 20/8/2026] BUY 169.5 @ 0.5376000 (PnL: 0 USDT, Fee: 0.01822464 USDT)
+  * [19:49:11 20/8/2026] SELL 84.7 @ 0.5397000 (PnL: 0.17787000 USDT, Fee: 0.02285629 USDT)
+  * [19:49:39 20/8/2026] SELL 84.8 @ 0.5379000 (PnL: 0.02544000 USDT, Fee: 0.02280696 USDT)
+
+- Orders tr├¬n Binance (3 orders):
+  * [19:49:11 20/8/2026] ID:7873524811 Type:LIMIT Side:BUY Status:CANCELED OrigQty:930 ExecQty:169.5 StopPrice:0 Price:0.5376000
+  * [19:49:11 20/8/2026] ID:7873574548 Type:MARKET Side:SELL Status:FILLED OrigQty:84.7 ExecQty:84.7 StopPrice:0 Price:0
+  * [19:49:39 20/8/2026] ID:7873575928 Type:MARKET Side:SELL Status:FILLED OrigQty:84.8 ExecQty:84.8 StopPrice:0 Price:0
+
+- Logs chi tiß║┐t tß╗½ bot VPS:
+  2026-08-20 19:36:01: [PP369] [AutoTrade] ETHFI ΓåÆ LONG (Score: +7.1─æ) tß║íi $0.5376 
+  2026-08-20 19:36:01: [PP369] [AutoTrade] Ph├ón bß╗ò K├╜ quß╗╣ ETHFI: $35 (Ph├ón cß║Ñp Vß╗æn h├│a Top 150 (Rank #97) | Score: +7.1─æ) 
+  2026-08-20 19:36:01: [PP369] [AI Reviewer] ≡ƒƒó Khuy├¬n N├èN ─Éß║╢T Lß╗åNH ETHFI (LONG) - X├íc suß║Ñt thß║»ng 65.3% >= 65% & EV = +5.69% ROI ($1.71) (+ SCORE_HIGH_GE7 (x1.1099), + RANK_MIDCAP_150 (x1.1371), - TREND_PERFECT (x0.8733), + VOL_WEAK (x1.0769), - RSI_NEUTRAL (x0.9462), + PA_1_LEVEL (x1.0962), + OI_COOLING (x1.142), - BTC_ALIGNED (x0.9231), + GRID_WIDE (x1.0979)) 
+  2026-08-20 19:36:02: [PP369] [AutoTrade] Set leverage ETHFIUSDT = 50x (Tier SL: $0.5322 (1.00%), TP 1:1: $0.543, Dß╗¥i SL tß║íi $0.5403 | K├╜ quß╗╣: $10) 
+  2026-08-20 19:36:02: [PP369] [AutoTrade] Γ£ô ETHFI BUY 930 @ $0.5376 orderId=7873524811 status=NEW 
+  2026-08-20 19:48:16: [PP369] [AutoTrade] Γ£ô ─Éß║╖t TP ETHFI @ $0.5430000 (─æß╗æi ß╗⌐ng SELL) orderId=1000002516096454 
+  2026-08-20 19:48:16: [PP369] [AutoTrade] Γ£ô ─Éß║╖t SL ETHFI @ $0.5322000 (─æß╗æi ß╗⌐ng SELL) orderId=1000002516096457 
+  2026-08-20 19:49:10: [PP369] [AutoTrade] Trailing SL (chß║ím mß╗æc 45─æ): ETHFI ─æß║ít ROI 20.69% -> Dß╗ïch SL tr├¬n s├án vß╗ü entry +5─æ ($0.5379, ROI ~2.79%) [Mß╗⌐c: +5─æ (Kh├│a l├úi)] 
+  2026-08-20 19:49:10: [PP369] [AutoTrade] ≡ƒÄ» [Partial TP 50%] ETHFI: ─Éß║ít 50% TP -> Tiß║┐n h├ánh chß╗æt 50% vß╗ï thß║┐ (84.7 ETHFI) MARKET... 
+  2026-08-20 19:49:10: [PP369] [AutoTrade] ─É├ú hß╗ºy SL c┼⌐ cß╗ºa ETHFI (orderId=1000002516096457) 
+  2026-08-20 19:49:10: [PP369] [AutoTrade] Γ£ô ─É├ú dß╗ïch SL mß╗¢i cho ETHFI @ $0.5379000 (orderId=1000002516098226) 
+
+================================================================
+TOKEN: ILVUSDT | Tß╗öNG PNL: +1.1727 USDT
+================================================================
+- Fills tr├¬n Binance (11 fills):
+  * [20:07:23 20/8/2026] SELL 47.2 @ 3.19300 (PnL: 0 USDT, Fee: 0.03014192 USDT)
+  * [20:07:37 20/8/2026] SELL 38.9 @ 3.19300 (PnL: 0 USDT, Fee: 0.02484154 USDT)
+  * [20:23:29 20/8/2026] BUY 4.4 @ 3.16700 (PnL: 0.11440000 USDT, Fee: 0.00696740 USDT)
+  * [20:23:29 20/8/2026] BUY 10 @ 3.16700 (PnL: 0.26000000 USDT, Fee: 0.01583499 USDT)
+  * [20:23:29 20/8/2026] BUY 2.5 @ 3.16700 (PnL: 0.06500000 USDT, Fee: 0.00395874 USDT)
+  * [20:23:29 20/8/2026] BUY 10.6 @ 3.16800 (PnL: 0.26500000 USDT, Fee: 0.01679040 USDT)
+  * [20:23:29 20/8/2026] BUY 15.5 @ 3.16800 (PnL: 0.38750000 USDT, Fee: 0.02455200 USDT)
+  * [22:02:34 20/8/2026] BUY 3.1 @ 3.19000 (PnL: 0.00930000 USDT, Fee: 0.00494450 USDT)
+  * [22:02:34 20/8/2026] BUY 31.5 @ 3.19100 (PnL: 0.06300000 USDT, Fee: 0.05025825 USDT)
+  * [22:02:34 20/8/2026] BUY 1.7 @ 3.19200 (PnL: 0.00170000 USDT, Fee: 0.00271320 USDT)
+  * [22:02:34 20/8/2026] BUY 6.8 @ 3.19200 (PnL: 0.00680000 USDT, Fee: 0.01085280 USDT)
+
+- Orders tr├¬n Binance (3 orders):
+  * [20:07:37 20/8/2026] ID:2487726869 Type:LIMIT Side:SELL Status:FILLED OrigQty:86.1 ExecQty:86.1 StopPrice:0 Price:3.19300
+  * [20:23:29 20/8/2026] ID:2487735500 Type:MARKET Side:BUY Status:FILLED OrigQty:43 ExecQty:43 StopPrice:0 Price:0
+  * [22:02:34 20/8/2026] ID:2487768487 Type:MARKET Side:BUY Status:FILLED OrigQty:43.1 ExecQty:43.1 StopPrice:0 Price:0
+
+- Logs chi tiß║┐t tß╗½ bot VPS:
+  2026-08-20 19:51:13: [PP369] [AutoTrade] ILV ΓåÆ SHORT (Score: +4.8─æ) tß║íi $3.193 
+  2026-08-20 19:51:13: [PP369] [AutoTrade] Ph├ón bß╗ò K├╜ quß╗╣ ILV: $30 (Ph├ón cß║Ñp Vß╗æn h├│a Lowcap (Rank #999) | Score: +4.8─æ) 
+  2026-08-20 19:51:13: [PP369] [AI Reviewer] ≡ƒƒó Khuy├¬n N├èN ─Éß║╢T Lß╗åNH ILV (SHORT) - X├íc suß║Ñt thß║»ng 70.0% >= 65% & EV = +4.09% ROI ($1.23) (+ SCORE_WEAK_LT5 (x1.0399), - RANK_LOWCAP_OUT150 (x0.9541), + TREND_CONFLICT (x1.1338), + RSI_EXTREME (x1.2256), + PA_1_LEVEL (x1.0962), - OI_STABLE (x0.9514), + BTC_COUNTER (x1.1308), + GRID_WIDE (x1.0979)) 
+  2026-08-20 19:51:13: [PP369] [AutoTrade] Set leverage ILVUSDT = 27x (Tier SL: $3.251 (1.82%), TP 1:1: $3.135, Dß╗¥i SL tß║íi $3.164 | K├╜ quß╗╣: $10.19) 
+  2026-08-20 19:51:13: [PP369] [AutoTrade] Γ£ô ILV SELL 86.1 @ $3.193 orderId=2487726869 status=NEW 
+  2026-08-20 20:07:22: [PP369] [AutoTrade] Γ£ô ─Éß║╖t TP ILV @ $3.13500 (─æß╗æi ß╗⌐ng BUY) orderId=1000002516126756 
+  2026-08-20 20:07:22: [PP369] [AutoTrade] Γ£ô ─Éß║╖t SL ILV @ $3.25100 (─æß╗æi ß╗⌐ng BUY) orderId=1000002516126758 
+  2026-08-20 20:23:28: [PP369] [AutoTrade] Trailing SL (chß║ím mß╗æc 45─æ): ILV ─æß║ít ROI 20.29% -> Dß╗ïch SL tr├¬n s├án vß╗ü entry +5─æ ($3.190, ROI ~2.54%) [Mß╗⌐c: +5─æ (Kh├│a l├úi)] 
+  2026-08-20 20:23:28: [PP369] [AutoTrade] ≡ƒÄ» [Partial TP 50%] ILV: ─Éß║ít 50% TP -> Tiß║┐n h├ánh chß╗æt 50% vß╗ï thß║┐ (43 ILV) MARKET... 
+  2026-08-20 20:23:29: [PP369] [AutoTrade] ─É├ú hß╗ºy SL c┼⌐ cß╗ºa ILV (orderId=1000002516126758) 
+  2026-08-20 20:23:29: [PP369] [AutoTrade] Γ£ô ─É├ú dß╗ïch SL mß╗¢i cho ILV @ $3.19000 (orderId=1000002516148350) 
+
+================================================================
+TOKEN: STEEMUSDT | Tß╗öNG PNL: -4.1631 USDT
+================================================================
+- Fills tr├¬n Binance (8 fills):
+  * [22:30:56 20/8/2026] SELL 9259 @ 0.038260 (PnL: 0 USDT, Fee: 0.07084986 USDT)
+  * [22:31:08 20/8/2026] BUY 1581 @ 0.038690 (PnL: -0.67983000 USDT, Fee: 0.03058444 USDT)
+  * [22:31:08 20/8/2026] BUY 1065 @ 0.038700 (PnL: -0.46860000 USDT, Fee: 0.02060775 USDT)
+  * [22:31:08 20/8/2026] BUY 1581 @ 0.038710 (PnL: -0.71145000 USDT, Fee: 0.03060025 USDT)
+  * [22:31:08 20/8/2026] BUY 1800 @ 0.038710 (PnL: -0.81000000 USDT, Fee: 0.03483900 USDT)
+  * [22:31:08 20/8/2026] BUY 1581 @ 0.038720 (PnL: -0.72726000 USDT, Fee: 0.03060816 USDT)
+  * [22:31:08 20/8/2026] BUY 1000 @ 0.038720 (PnL: -0.46000000 USDT, Fee: 0.01935999 USDT)
+  * [22:31:08 20/8/2026] BUY 651 @ 0.038730 (PnL: -0.30597000 USDT, Fee: 0.01260661 USDT)
+
+- Orders tr├¬n Binance (3 orders):
+  * [22:25:45 20/8/2026] ID:2285453488 Type:LIMIT Side:SELL Status:CANCELED OrigQty:9259 ExecQty:0 StopPrice:0 Price:0.038260
+  * [22:30:56 20/8/2026] ID:2285458943 Type:LIMIT Side:SELL Status:FILLED OrigQty:9259 ExecQty:9259 StopPrice:0 Price:0.038260
+  * [22:31:08 20/8/2026] ID:2285470409 Type:MARKET Side:BUY Status:FILLED OrigQty:9259 ExecQty:9259 StopPrice:0 Price:0
+
+- Logs chi tiß║┐t tß╗½ bot VPS:
+  2026-08-20 22:04:03: [PP369] [AutoTrade] STEEM ΓåÆ SHORT (Score: +4.4─æ) tß║íi $0.03826 
+  2026-08-20 22:04:03: [PP369] [AutoTrade] Ph├ón bß╗ò K├╜ quß╗╣ STEEM: $30 (Ph├ón cß║Ñp Vß╗æn h├│a Lowcap (Rank #999) | Score: +4.4─æ) 
+  2026-08-20 22:04:03: [PP369] [AI Reviewer] ≡ƒƒó Khuy├¬n N├èN ─Éß║╢T Lß╗åNH STEEM (SHORT) - X├íc suß║Ñt thß║»ng 70.0% >= 65% & EV = +4.30% ROI ($1.29) (+ SCORE_WEAK_LT5 (x1.0399), - RANK_LOWCAP_OUT150 (x0.9541), + TREND_CONFLICT (x1.1338), + RSI_EXTREME (x1.2256), + PA_1_LEVEL (x1.0962), - OI_STABLE (x0.9514), + BTC_COUNTER (x1.1308), + GRID_WIDE (x1.0979)) 
+  2026-08-20 22:04:03: [PP369] [AutoTrade] Set leverage STEEMUSDT = 25x (Tier SL: $0.0388 (1.41%), TP 1:1: $0.03772, Dß╗¥i SL tß║íi $0.03799 | K├╜ quß╗╣: $14.17) 
+  2026-08-20 22:04:03: [PP369] [AutoTrade] Γ£ô STEEM SELL 9259 @ $0.03826 orderId=2285453488 status=NEW 
+  2026-08-20 22:25:44: [PP369] [AutoTrade] Lß╗çnh LIMIT cß╗ºa STEEM ─æ├ú chß║ím/v╞░ß╗út Entry ($0.03826) qu├í 10 ph├║t kh├┤ng khß╗¢p (10.0 ph├║t) -> Tiß║┐n h├ánh hß╗ºy... 
+  2026-08-20 22:25:44: [PP369] [AutoTrade] Γ£ô ─É├ú hß╗ºy th├ánh c├┤ng lß╗çnh LIMIT treo cß╗ºa STEEM 
+  2026-08-20 22:27:03: [PP369] [AutoTrade] STEEM ΓåÆ SHORT (Score: +4.4─æ) tß║íi $0.03826 
+  2026-08-20 22:27:03: [PP369] [AutoTrade] Ph├ón bß╗ò K├╜ quß╗╣ STEEM: $30 (Ph├ón cß║Ñp Vß╗æn h├│a Lowcap (Rank #999) | Score: +4.4─æ) 
+  2026-08-20 22:27:03: [PP369] [AI Reviewer] ≡ƒƒó Khuy├¬n N├èN ─Éß║╢T Lß╗åNH STEEM (SHORT) - X├íc suß║Ñt thß║»ng 70.0% >= 65% & EV = +4.30% ROI ($1.29) (+ SCORE_WEAK_LT5 (x1.0399), - RANK_LOWCAP_OUT150 (x0.9541), + TREND_CONFLICT (x1.1338), + RSI_EXTREME (x1.2256), + PA_1_LEVEL (x1.0962), - OI_STABLE (x0.9514), + BTC_COUNTER (x1.1308), + GRID_WIDE (x1.0979)) 
+  2026-08-20 22:27:03: [PP369] [AutoTrade] Set leverage STEEMUSDT = 25x (Tier SL: $0.0388 (1.41%), TP 1:1: $0.03772, Dß╗¥i SL tß║íi $0.03799 | K├╜ quß╗╣: $14.17) 
+  2026-08-20 22:27:03: [PP369] [AutoTrade] Γ£ô STEEM SELL 9259 @ $0.03826 orderId=2285458943 status=NEW 
+  2026-08-20 22:31:02: [PP369] [AutoTrade] ≡ƒÜ¿ [M15 Panic Escape] STEEM (SHORT): M15 b├╣ng nß╗ò Volume (30.80x TB 20 nß║┐n) k├¿m ─æ├óm l├║n s├óu >= 40% SL -> K├¡ch hoß║ít tho├ít hiß╗âm -10% SL @ $0.038314 
+  2026-08-20 22:31:03: [PP369] [AutoTrade] Γ£ô ─Éß║╖t TP STEEM @ $0.038310 (─æß╗æi ß╗⌐ng BUY) orderId=1000002516458361 
+  2026-08-20 22:31:03: [PP369] [AutoTrade] Lß╗çnh SL STEEM ─æ├ú tß╗ôn tß║íi, lß║¡p tß╗⌐c k├¡ch hoß║ít hoß║╖c vß╗ï thß║┐ ─æ├ú ─æ├│ng tr├¬n s├án. Bß╗Å qua. 
+  2026-08-20 22:31:08: [PP369] [AutoTrade] ≡ƒÜ¿ [Hard Max Loss Guard] K├¡ch hoß║ít cho STEEM: Lß╗ù thß║ú nß╗òi $-9.91 (-69.91%) chß║ím ng╞░ß╗íng trß║ºn -$5.50 USDT. Cß║»t lß╗ù MARKET ngay lß║¡p tß╗⌐c! 
+
+================================================================
+TOKEN: SLPUSDT | Tß╗öNG PNL: -0.5081 USDT
+================================================================
+- Fills tr├¬n Binance (17 fills):
+  * [21:02:41 20/8/2026] SELL 410489 @ 0.0005761 (PnL: 0 USDT, Fee: 0.04729654 USDT)
+  * [21:08:16 20/8/2026] SELL 28236 @ 0.0005761 (PnL: 0 USDT, Fee: 0.00325335 USDT)
+  * [22:47:10 20/8/2026] BUY 10403 @ 0.0005769 (PnL: -0.00832240 USDT, Fee: 0.00300074 USDT)
+  * [22:47:10 20/8/2026] BUY 10403 @ 0.0005769 (PnL: -0.00832240 USDT, Fee: 0.00300074 USDT)
+  * [22:47:10 20/8/2026] BUY 17341 @ 0.0005769 (PnL: -0.01387280 USDT, Fee: 0.00500201 USDT)
+  * [22:47:10 20/8/2026] BUY 63485 @ 0.0005770 (PnL: -0.05713650 USDT, Fee: 0.01831542 USDT)
+  * [22:47:10 20/8/2026] BUY 8845 @ 0.0005771 (PnL: -0.00884500 USDT, Fee: 0.00255222 USDT)
+  * [22:47:10 20/8/2026] BUY 63485 @ 0.0005772 (PnL: -0.06983350 USDT, Fee: 0.01832177 USDT)
+  * [22:47:10 20/8/2026] BUY 8842 @ 0.0005772 (PnL: -0.00972620 USDT, Fee: 0.00255180 USDT)
+  * [22:47:10 20/8/2026] BUY 9148 @ 0.0005772 (PnL: -0.01006280 USDT, Fee: 0.00264011 USDT)
+  * [22:47:10 20/8/2026] BUY 63485 @ 0.0005773 (PnL: -0.07618200 USDT, Fee: 0.01832494 USDT)
+  * [22:47:10 20/8/2026] BUY 9148 @ 0.0005773 (PnL: -0.01097760 USDT, Fee: 0.00264057 USDT)
+  * [22:47:10 20/8/2026] BUY 8747 @ 0.0005774 (PnL: -0.01137110 USDT, Fee: 0.00252525 USDT)
+  * [22:47:10 20/8/2026] BUY 62763 @ 0.0005774 (PnL: -0.08159190 USDT, Fee: 0.01811967 USDT)
+  * [22:47:10 20/8/2026] BUY 8841 @ 0.0005774 (PnL: -0.01149330 USDT, Fee: 0.00255239 USDT)
+  * [22:47:10 20/8/2026] BUY 9148 @ 0.0005774 (PnL: -0.01189240 USDT, Fee: 0.00264102 USDT)
+  * [22:47:10 20/8/2026] BUY 84641 @ 0.0005775 (PnL: -0.11849740 USDT, Fee: 0.02444008 USDT)
+
+- Orders tr├¬n Binance (4 orders):
+  * [18:53:13 20/8/2026] ID:435986649 Type:LIMIT Side:SELL Status:CANCELED OrigQty:438725 ExecQty:0 StopPrice:0 Price:0.0005761
+  * [19:06:53 20/8/2026] ID:435995270 Type:LIMIT Side:SELL Status:CANCELED OrigQty:438725 ExecQty:0 StopPrice:0 Price:0.0005761
+  * [21:08:16 20/8/2026] ID:436066576 Type:LIMIT Side:SELL Status:FILLED OrigQty:438725 ExecQty:438725 StopPrice:0 Price:0.0005761
+  * [22:47:10 20/8/2026] ID:436136543 Type:MARKET Side:BUY Status:FILLED OrigQty:438725 ExecQty:438725 StopPrice:0 Price:0
+
+- Logs chi tiß║┐t tß╗½ bot VPS:
+  2026-08-20 18:38:28: [PP369] [AutoTrade] SLP ΓåÆ SHORT (Score: +4.1─æ) tß║íi $0.0005761 
+  2026-08-20 18:38:28: [PP369] [AutoTrade] SLP SHORT kh├┤ng ─æß║ít Ti├¬u ch├¡ 2 (M15 biß║┐n ─æß╗Öng mß║ính) ΓÇö ─É╞░a v├áo Watchlist chß╗¥ Retest H1 
+  2026-08-20 18:39:17: [PP369] [AI Reviewer] ≡ƒƒó Khuy├¬n N├èN ─Éß║╢T Lß╗åNH SLP (SHORT) - X├íc suß║Ñt thß║»ng 70.7% >= 65% & EV = +4.46% ROI ($1.34) (+ SCORE_WEAK_LT5 (x1.0399), - RANK_LOWCAP_OUT150 (x0.9541), + TREND_CONFLICT (x1.1338), + RSI_EXTREME (x1.2256), + PA_3_LEVELS (x1.1877), - OI_STABLE (x0.9514), + BTC_COUNTER (x1.1308), + GRID_WIDE (x1.0979)) 
+  2026-08-20 18:39:17: [PP369] [AutoTrade] Set leverage SLPUSDT = 25x (Tier SL: $0.0005875 (1.98%), TP 1:1: $0.0005647, Dß╗¥i SL tß║íi $0.0005704 | K├╜ quß╗╣: $10.11) 
+  2026-08-20 18:39:17: [PP369] [AutoTrade] Γ£ô SLP SELL 438725 @ $0.0005761 orderId=435986649 status=NEW 
+  2026-08-20 18:53:12: [PP369] [AutoTrade] Lß╗çnh LIMIT cß╗ºa SLP ─æ├ú chß║ím/v╞░ß╗út Entry ($0.0005761) qu├í 10 ph├║t kh├┤ng khß╗¢p (10.1 ph├║t) -> Tiß║┐n h├ánh hß╗ºy... 
+  2026-08-20 18:53:12: [PP369] [AutoTrade] Γ£ô ─É├ú hß╗ºy th├ánh c├┤ng lß╗çnh LIMIT treo cß╗ºa SLP 
+  2026-08-20 18:53:15: [PP369] [AI Reviewer] ≡ƒƒó Khuy├¬n N├èN ─Éß║╢T Lß╗åNH SLP (SHORT) - X├íc suß║Ñt thß║»ng 70.7% >= 65% & EV = +4.46% ROI ($1.34) (+ SCORE_WEAK_LT5 (x1.0399), - RANK_LOWCAP_OUT150 (x0.9541), + TREND_CONFLICT (x1.1338), + RSI_EXTREME (x1.2256), + PA_3_LEVELS (x1.1877), - OI_STABLE (x0.9514), + BTC_COUNTER (x1.1308), + GRID_WIDE (x1.0979)) 
+  2026-08-20 18:53:15: [PP369] [AutoTrade] Set leverage SLPUSDT = 25x (Tier SL: $0.0005875 (1.98%), TP 1:1: $0.0005647, Dß╗¥i SL tß║íi $0.0005704 | K├╜ quß╗╣: $10.11) 
+  2026-08-20 18:53:16: [PP369] [AutoTrade] Γ£ô SLP SELL 438725 @ $0.0005761 orderId=435995270 status=NEW 
+  2026-08-20 19:00:04: [PP369] [H1Retest] === Kiß╗âm tra 10 coin trong Watchlist: [ALGO(SHORT @$0.0861), 1MBABYDOGE(SHORT @$0.0003617), PENGU(SHORT @$0.007151), SLP(SHORT @$0.0005761), MEW(SHORT @$0.000368), MANTA(SHORT @$0.05892), ARC(LONG @$0.06855), ORDI(SHORT @$4.456), FLOCK(SHORT @$0.0332), MASK(SHORT @$0.3857)] === 
+  2026-08-20 19:06:52: [PP369] [AutoTrade] [BounceCancel] SLP SHORT: entry=$0.0005761, current=$0.000572 (-0.76% >= 0.69%) ΓåÆ Hß╗ºy LIMIT ngay lß║¡p tß╗⌐c 
+  2026-08-20 20:51:13: [PP369] [AutoTrade] SLP ΓåÆ SHORT (Score: +4.1─æ) tß║íi $0.0005761 
+  2026-08-20 20:51:13: [PP369] [AutoTrade] Ph├ón bß╗ò K├╜ quß╗╣ SLP: $30 (Ph├ón cß║Ñp Vß╗æn h├│a Lowcap (Rank #999) | Score: +4.1─æ) 
+  2026-08-20 20:51:13: [PP369] [AI Reviewer] ≡ƒƒí SLP (SHORT) - X├íc suß║Ñt thß║»ng 64.9% < 65% (+ SCORE_WEAK_LT5 (x1.0399), - RANK_LOWCAP_OUT150 (x0.9541), + TREND_CONFLICT (x1.1338), - RSI_NEAR (x0.94), + PA_3_LEVELS (x1.1877), - OI_STABLE (x0.9514), + BTC_COUNTER (x1.1308), + GRID_WIDE (x1.0979)) 
+  2026-08-20 20:51:13: [PP369] [AutoTrade] Set leverage SLPUSDT = 25x (Tier SL: $0.0005875 (1.98%), TP 1:1: $0.0005647, Dß╗¥i SL tß║íi $0.0005704 | K├╜ quß╗╣: $10.11) 
+  2026-08-20 20:51:13: [PP369] [AutoTrade] Γ£ô SLP SELL 438725 @ $0.0005761 orderId=436066576 status=NEW 
+  2026-08-20 21:02:42: [PP369] [AutoTrade] Γ£ô ─Éß║╖t TP SLP @ $0.0005647 (─æß╗æi ß╗⌐ng BUY) orderId=1000002516261972 
+  2026-08-20 21:02:42: [PP369] [AutoTrade] Γ£ô ─Éß║╖t SL SLP @ $0.0005875 (─æß╗æi ß╗⌐ng BUY) orderId=1000002516261976 
+  2026-08-20 22:30:20: [PP369] [AutoTrade] ΓÜá∩╕Å SLP SHORT: Nß║┐n M15 ─æ├│ng cß╗¡a tr├¬n Entry +8% SL ($0.0005792 >= $0.000577) k├¿m ─æß╗ënh nß║┐n High >= Entry + 30% SL ($0.0005802 >= $0.000580) -> K├¡ch hoß║ít dß╗¥i TP vß╗ü Entry h├▓a vß╗æn $0.0005761 
+  2026-08-20 22:30:20: [PP369] [AutoTrade] ΓÜá∩╕Å ─É├ú dß╗¥i TP SLP vß╗ü mß╗æc [H├▓a vß╗æn Entry] @ $0.00058 (─æß╗æi ß╗⌐ng BUY) orderId=1000002516456537 
+  2026-08-20 22:47:08: [PP369] [AutoTrade] ≡ƒÜ¿ [M15 Panic Escape] SLP (SHORT): M15 b├╣ng nß╗ò Volume (2.97x TB 20 nß║┐n) k├¿m ─æ├óm l├║n s├óu >= 40% SL -> K├¡ch hoß║ít tho├ít hiß╗âm -10% SL @ $0.00057724 
+  2026-08-20 22:47:09: [PP369] [AutoTrade] [Virtual TP - Tho├ít Hiß╗âm -10 ticks] K├¡ch hoß║ít cho SLP: Gi├í $0.0005769 chß║ím mß╗æc $0.00058 (ROI ~-3.47%). ─É├│ng vß╗ï thß║┐ MARKET. 
+
+================================================================
+TOKEN: NILUSDT | Tß╗öNG PNL: -0.6973 USDT
+================================================================
+- Fills tr├¬n Binance (12 fills):
+  * [23:08:47 20/8/2026] BUY 10002.4 @ 0.040350 (PnL: 0 USDT, Fee: 0.08071936 USDT)
+  * [23:10:54 20/8/2026] SELL 1179.1 @ 0.040290 (PnL: -0.07074600 USDT, Fee: 0.02375296 USDT)
+  * [23:10:54 20/8/2026] SELL 962.5 @ 0.040290 (PnL: -0.05775000 USDT, Fee: 0.01938956 USDT)
+  * [23:10:54 20/8/2026] SELL 330.6 @ 0.040290 (PnL: -0.01983600 USDT, Fee: 0.00665993 USDT)
+  * [23:10:54 20/8/2026] SELL 362.1 @ 0.040290 (PnL: -0.02172600 USDT, Fee: 0.00729450 USDT)
+  * [23:10:54 20/8/2026] SELL 1279.1 @ 0.040280 (PnL: -0.08953700 USDT, Fee: 0.02576107 USDT)
+  * [23:10:54 20/8/2026] SELL 130.4 @ 0.040280 (PnL: -0.00912800 USDT, Fee: 0.00262625 USDT)
+  * [23:10:54 20/8/2026] SELL 3084.6 @ 0.040280 (PnL: -0.21592200 USDT, Fee: 0.06212384 USDT)
+  * [23:10:54 20/8/2026] SELL 126.7 @ 0.040280 (PnL: -0.00886900 USDT, Fee: 0.00255173 USDT)
+  * [23:10:54 20/8/2026] SELL 1080.7 @ 0.040270 (PnL: -0.08645600 USDT, Fee: 0.02175989 USDT)
+  * [23:10:54 20/8/2026] SELL 126.8 @ 0.040270 (PnL: -0.01014400 USDT, Fee: 0.00255311 USDT)
+  * [23:10:54 20/8/2026] SELL 1339.8 @ 0.040270 (PnL: -0.10718400 USDT, Fee: 0.02697687 USDT)
+
+- Orders tr├¬n Binance (2 orders):
+  * [23:08:47 20/8/2026] ID:1431043771 Type:LIMIT Side:BUY Status:FILLED OrigQty:10002.4 ExecQty:10002.4 StopPrice:0 Price:0.040350
+  * [23:10:54 20/8/2026] ID:1431057101 Type:MARKET Side:SELL Status:FILLED OrigQty:10002.4 ExecQty:10002.4 StopPrice:0 Price:0
+
+- Logs chi tiß║┐t tß╗½ bot VPS:
+  2026-08-20 23:08:42: [PP369] [AutoTrade] NIL ΓåÆ LONG (Score: +6.3─æ) tß║íi $0.04035 
+  2026-08-20 23:08:42: [PP369] [AutoTrade] Ph├ón bß╗ò K├╜ quß╗╣ NIL: $30 (Ph├ón cß║Ñp Vß╗æn h├│a Lowcap (Rank #999) | Score: +6.3─æ) 
+  2026-08-20 23:08:42: [PP369] [AI Reviewer] ≡ƒƒí NIL (LONG) - X├íc suß║Ñt thß║»ng 48.8% < 65% (- SCORE_MID_6_TO_7 (x0.8376), - RANK_LOWCAP_OUT150 (x0.9541), - TREND_NEUTRAL (x0.9231), - RSI_NEAR (x0.94), - LS_GOLD (x0.9046), + PA_1_LEVEL (x1.0962), - OI_STABLE (x0.9514), + FUNDING_SQUEEZE (x1.0897), - BTC_ALIGNED (x0.9231), + GRID_WIDE (x1.0979)) 
+  2026-08-20 23:08:42: [PP369] [AutoTrade] Set leverage NILUSDT = 40x (Tier SL: $0.03985 (1.24%), TP 1:1: $0.04085, Dß╗¥i SL tß║íi $0.0406 | K├╜ quß╗╣: $10.09) 
+  2026-08-20 23:08:42: [PP369] [AutoTrade] Γ£ô NIL BUY 10002.4 @ $0.04035 orderId=1431043771 status=NEW 
+  2026-08-20 23:08:51: [PP369] [AutoTrade] ≡ƒÜ¿ [M15 Panic Escape] NIL (LONG): M15 b├╣ng nß╗ò Volume (2.57x TB 20 nß║┐n) k├¿m ─æ├óm l├║n s├óu >= 40% SL -> K├¡ch hoß║ít tho├ít hiß╗âm -10% SL @ $0.0403 
+  2026-08-20 23:08:52: [PP369] [AutoTrade] Γ£ô ─Éß║╖t TP NIL @ $0.040300 (─æß╗æi ß╗⌐ng SELL) orderId=1000002516540578 
+  2026-08-20 23:08:52: [PP369] [AutoTrade] Γ£ô ─Éß║╖t SL NIL @ $0.039850 (─æß╗æi ß╗⌐ng SELL) orderId=1000002516540580 
+  2026-08-20 23:08:57: [PP369] [AutoTrade] ΓÜá∩╕Å ─É├ú dß╗¥i TP NIL vß╗ü mß╗æc [Tho├ít hiß╗âm -10 ticks] @ $0.04030 (─æß╗æi ß╗⌐ng SELL) orderId=1000002516540767 
+  2026-08-21 07:49:22: [PP369] [AutoTrade] NIL ΓåÆ SHORT (Score: +1.6─æ) tß║íi $0.04318 
+  2026-08-21 07:49:22: [PP369] [AutoTrade] NIL SHORT kh├┤ng ─æß║ít Ti├¬u ch├¡ 2 (M15 biß║┐n ─æß╗Öng mß║ính) ΓÇö ─É╞░a v├áo Watchlist chß╗¥ Retest H1 
+  2026-08-21 08:00:03: [PP369] [H1Retest] === Kiß╗âm tra 9 coin trong Watchlist: [WCT(SHORT @$0.03829), ANKR(SHORT @$0.003815), ARC(LONG @$0.06855), CELO(SHORT @$0.067), BLESS(LONG @$0.00742), SUSHI(SHORT @$0.184), NEO(SHORT @$2.004), EDU(SHORT @$0.04), NIL(SHORT @$0.04318)] === 
+  2026-08-21 08:00:03: [PP369] [H1Retest] NIL SHORT nß║┐n H1 r├║t ch├ón nh╞░ng ─É├â PHß║óN ß╗¿NG Nß║óY ROI = +32.31% (>= 5.0%) sau khi chß║ím entry. Bß╗Å qua kh├┤ng ─æß║╖t limit. 
+
+================================================================
+TOKEN: LAYERUSDT | Tß╗öNG PNL: +3.6108 USDT
+================================================================
+- Fills tr├¬n Binance (13 fills):
+  * [00:01:27 21/8/2026] SELL 7587.2 @ 0.065900 (PnL: 0 USDT, Fee: 0.09999929 USDT)
+  * [00:05:47 21/8/2026] BUY 503.6 @ 0.065620 (PnL: 0.14100800 USDT, Fee: 0.01652311 USDT)
+  * [00:05:47 21/8/2026] BUY 85.6 @ 0.065620 (PnL: 0.02396800 USDT, Fee: 0.00280853 USDT)
+  * [00:05:47 21/8/2026] BUY 842.6 @ 0.065630 (PnL: 0.22750200 USDT, Fee: 0.02764991 USDT)
+  * [00:05:47 21/8/2026] BUY 1186.5 @ 0.065640 (PnL: 0.30849000 USDT, Fee: 0.03894093 USDT)
+  * [00:05:47 21/8/2026] BUY 82.4 @ 0.065650 (PnL: 0.02060000 USDT, Fee: 0.00270478 USDT)
+  * [00:05:47 21/8/2026] BUY 1092.9 @ 0.065660 (PnL: 0.26229600 USDT, Fee: 0.03587990 USDT)
+  * [01:02:36 21/8/2026] BUY 2618.6 @ 0.065200 (PnL: 1.83302000 USDT, Fee: 0.08536636 USDT)
+  * [01:02:36 21/8/2026] BUY 166.6 @ 0.065220 (PnL: 0.11328800 USDT, Fee: 0.00543282 USDT)
+  * [01:02:36 21/8/2026] BUY 166.4 @ 0.065220 (PnL: 0.11315200 USDT, Fee: 0.00542630 USDT)
+  * [01:02:36 21/8/2026] BUY 166.4 @ 0.065220 (PnL: 0.11315200 USDT, Fee: 0.00542630 USDT)
+  * [01:02:36 21/8/2026] BUY 166.5 @ 0.065220 (PnL: 0.11322000 USDT, Fee: 0.00542956 USDT)
+  * [01:02:36 21/8/2026] BUY 509.1 @ 0.065230 (PnL: 0.34109700 USDT, Fee: 0.01660429 USDT)
+
+- Orders tr├¬n Binance (3 orders):
+  * [00:01:27 21/8/2026] ID:2966744744 Type:LIMIT Side:SELL Status:FILLED OrigQty:7587.2 ExecQty:7587.2 StopPrice:0 Price:0.065900
+  * [00:05:47 21/8/2026] ID:2966750260 Type:MARKET Side:BUY Status:FILLED OrigQty:3793.6 ExecQty:3793.6 StopPrice:0 Price:0
+  * [01:02:36 21/8/2026] ID:2966779354 Type:MARKET Side:BUY Status:FILLED OrigQty:3793.6 ExecQty:3793.6 StopPrice:0 Price:0
+
+- Logs chi tiß║┐t tß╗½ bot VPS:
+  2026-08-20 23:59:51: [PP369] [AutoTrade] LAYER ΓåÆ SHORT (Score: +4.8─æ) tß║íi $0.0659 
+  2026-08-20 23:59:51: [PP369] [AutoTrade] Ph├ón bß╗ò K├╜ quß╗╣ LAYER: $30 (Ph├ón cß║Ñp Vß╗æn h├│a Lowcap (Rank #999) | Score: +4.8─æ) 
+  2026-08-20 23:59:52: [PP369] [AI Reviewer] ≡ƒƒí LAYER (SHORT) - X├íc suß║Ñt thß║»ng 63.0% < 65% (+ SCORE_WEAK_LT5 (x1.0399), - RANK_LOWCAP_OUT150 (x0.9541), + TREND_CONFLICT (x1.1338), + RSI_EXTREME (x1.2256), - PA_2_LEVELS (x0.8726), + OI_COOLING (x1.142), + BTC_COUNTER (x1.1308), - GRID_NORMAL (x0.8784)) 
+  2026-08-20 23:59:52: [PP369] [AutoTrade] Set leverage LAYERUSDT = 50x (Tier SL: $0.06656 (1.00%), TP 1:1: $0.06524, Dß╗¥i SL tß║íi $0.06557 | K├╜ quß╗╣: $10) 
+  2026-08-20 23:59:52: [PP369] [AutoTrade] Γ£ô LAYER SELL 7587.2 @ $0.0659 orderId=2966744744 status=NEW 
+  2026-08-21 00:01:29: [PP369] [AutoTrade] Γ£ô ─Éß║╖t TP LAYER @ $0.065240 (─æß╗æi ß╗⌐ng BUY) orderId=1000002516638779 
+  2026-08-21 00:01:29: [PP369] [AutoTrade] Γ£ô ─Éß║╖t SL LAYER @ $0.066560 (─æß╗æi ß╗⌐ng BUY) orderId=1000002516638791 
+  2026-08-21 00:05:46: [PP369] [AutoTrade] Trailing SL (chß║ím mß╗æc 45─æ): LAYER ─æß║ít ROI 22.00% -> Dß╗ïch SL tr├¬n s├án vß╗ü entry +5─æ ($0.06587, ROI ~2.28%) [Mß╗⌐c: +5─æ (Kh├│a l├úi)] 
+  2026-08-21 00:05:46: [PP369] [AutoTrade] ≡ƒÄ» [Partial TP 50%] LAYER: ─Éß║ít 50% TP -> Tiß║┐n h├ánh chß╗æt 50% vß╗ï thß║┐ (3793.6 LAYER) MARKET... 
+  2026-08-21 00:05:46: [PP369] [AutoTrade] ─É├ú hß╗ºy SL c┼⌐ cß╗ºa LAYER (orderId=1000002516638791) 
+  2026-08-21 00:05:47: [PP369] [AutoTrade] Γ£ô ─É├ú dß╗ïch SL mß╗¢i cho LAYER @ $0.065870 (orderId=1000002516647447) 
+
+================================================================
+TOKEN: MEUSDT | Tß╗öNG PNL: -5.3098 USDT
+================================================================
+- Fills tr├¬n Binance (6 fills):
+  * [23:45:57 20/8/2026] SELL 6024.6 @ 0.0632000 (PnL: 0 USDT, Fee: 0.07615094 USDT)
+  * [00:37:57 21/8/2026] BUY 4053.9 @ 0.0640800 (PnL: -3.56743200 USDT, Fee: 0.12988695 USDT)
+  * [00:37:57 21/8/2026] BUY 82.1 @ 0.0640800 (PnL: -0.07224800 USDT, Fee: 0.00263048 USDT)
+  * [00:37:57 21/8/2026] BUY 1078.1 @ 0.0640800 (PnL: -0.94872800 USDT, Fee: 0.03454232 USDT)
+  * [00:37:57 21/8/2026] BUY 80 @ 0.0640900 (PnL: -0.07120000 USDT, Fee: 0.00256360 USDT)
+  * [00:37:57 21/8/2026] BUY 730.5 @ 0.0640900 (PnL: -0.65014500 USDT, Fee: 0.02340887 USDT)
+
+- Orders tr├¬n Binance (2 orders):
+  * [23:45:57 20/8/2026] ID:1816374619 Type:LIMIT Side:SELL Status:FILLED OrigQty:6024.6 ExecQty:6024.6 StopPrice:0 Price:0.0632000
+  * [00:37:57 21/8/2026] ID:1816400592 Type:MARKET Side:BUY Status:FILLED OrigQty:6024.6 ExecQty:6024.6 StopPrice:0 Price:0
+
+- Logs chi tiß║┐t tß╗½ bot VPS:
+  2026-08-20 11:10:00: [PP369] [AI Reviewer] ≡ƒƒó Khuy├¬n N├èN ─Éß║╢T Lß╗åNH SFP (SHORT) - X├íc suß║Ñt thß║»ng 69.0% >= 65% & EV = +3.50% ROI ($1.05) (+ SCORE_WEAK_LT5 (x1.0399), - RANK_LOWCAP_OUT150 (x0.9541), + TREND_CONFLICT (x1.1338), + RSI_EXTREME (x1.2256), + PA_1_LEVEL (x1.0962), - OI_STABLE (x0.9514), + BTC_COUNTER (x1.1308), + GRID_WIDE (x1.0979)) 
+  2026-08-20 12:17:10: [PP369] [AI Reviewer] ≡ƒƒó Khuy├¬n N├èN ─Éß║╢T Lß╗åNH SFP (SHORT) - X├íc suß║Ñt thß║»ng 69.0% >= 65% & EV = +3.50% ROI ($1.05) (+ SCORE_WEAK_LT5 (x1.0399), - RANK_LOWCAP_OUT150 (x0.9541), + TREND_CONFLICT (x1.1338), + RSI_EXTREME (x1.2256), + PA_1_LEVEL (x1.0962), - OI_STABLE (x0.9514), + BTC_COUNTER (x1.1308), + GRID_WIDE (x1.0979)) 
+  2026-08-20 12:22:48: [PP369] [AI Reviewer] ≡ƒƒó Khuy├¬n N├èN ─Éß║╢T Lß╗åNH CRV (SHORT) - X├íc suß║Ñt thß║»ng 69.5% >= 65% & EV = +3.69% ROI ($1.11) (+ SCORE_WEAK_LT5 (x1.0399), + RANK_MIDCAP_150 (x1.1371), + TREND_CONFLICT (x1.1338), + RSI_EXTREME (x1.2256), + LS_DIVERGENCE (x1.0416), - PA_4_LEVELS (x0.9064), - OI_STABLE (x0.9514), + BTC_COUNTER (x1.1308), + GRID_WIDE (x1.0979)) 
+  2026-08-20 13:09:19: [AutoTrade] Bß╗Å qua 161 coin c├│ grid ngo├ái khoß║úng 3ΓÇô25% (theo gi├í hiß╗çn tß║íi): 4(2.7%), XRP(27.2%), ETC(45.8%), LINK(28.7%), BAT(48.3%), QTUM(41.8%), KNC(28.5%), DOT(38.1%), SOL(35.4%), AVAX(44.5%), AAVE(31.3%), FIL(44.8%), BEL(2.7%), COTI(30.2%), ALICE(2.1%), ONE(43.2%), NKN(2.6%), DGB(1.6%), ATA(1.8%), DYDX(2.7%), KLAY(2.4%), IMX(29.2%), APE(2.4%), WOO(27.3%), DAR(2.1%), OP(33.8%), STG(2.0%), SPELL(37.8%), APT(53.9%), FET(2.3%), CKB(35.1%), USDC(30.0%), AMB(2.5%), LEVER(26.7%), RDNT(2.9%), SUI(42.8%), MAV(31.2%), DODOX(1.5%), ARK(32.9%), BOND(28.1%), GAS(30.4%), SUPER(33.1%), 1000SATS(280.1%), MOVR(41.0%), JUP(1.7%), GLM(33.3%), PORTAL(2.7%), MYRO(3.0%), W(35.2%), BB(33.0%), IO(2.4%), ZK(36.1%), ZRO(33.9%), SYN(2.7%), SYS(1.7%), ALPACA(25.2%), SUN(1.8%), DOGS(83.0%), BSW(2.5%), QUICK(2.3%), NEIRO(43.6%), FIO(2.5%), GHST(1.8%), LOKA(2.6%), COS(2.5%), SANTOS(61.5%), COW(27.8%), 1000000MOG(28.9%), DRIFT(25.4%), ACT(29.0%), HIPPO(2.9%), DEGEN(2.9%), 1000WHY(197.4%), THE(47.0%), CHILLGUY(2.7%), ORCA(27.1%), MOVE(48.8%), KOMA(2.3%), VELODROME(1.6%), MOCA(39.5%), VANA(33.7%), USUAL(32.8%), DF(2.6%), GRIFFAIN(2.4%), COOKIE(26.4%), D(2.2%), AVAAI(2.1%), PIPPIN(164.7%), TST(2.0%), HEI(2.3%), GPS(2.5%), RED(27.1%), MUBARAK(1.5%), TUT(1.0%), BROCCOLI714(1.8%), BR(1.2%), PLUME(2.3%), FUN(1.7%), BABY(2.7%), SIGN(42.9%), PUNDIX(38.9%), CTK(27.8%), SXT(40.3%), ASR(34.5%), MILK(3.0%), OG(116.6%), AGT(1.9%), B(2.0%), MERL(159.6%), PORT3(2.5%), 1000000BOB(1.7%), LA(52.7%), PUMPBTC(28.8%), MYX(405.3%), DMC(2.3%), OL(1.7%), SAHARA(39.1%), TANSSI(2.4%), PUMP(0.9%), CROSS(2.8%), VELVET(0.4%), ZORA(59.5%), ESPORTS(182.5%), A2Z(2.1%), YALA(1.8%), SOMI(31.4%), BAS(1.1%), Q(1.4%), PTB(34.8%), OPEN(1.9%), AVNT(34.0%), XPIN(27.5%), UB(2.5%), TOSHI(28.3%), BARD(27.7%), TRADOOR(46.7%), FLUID(25.0%), HANA(1.5%), AKE(0.4%), LIGHT(174.1%), XAN(2.7%), TRUTH(2.3%), YB(38.5%), CLO(25.3%), RIVER(112.1%), σ╕üσ«ëΣ║║τöƒ(0.7%), BLUAI(2.3%), APR(1.6%), ON(1.1%), AT(2.0%), UAI(1.1%), STABLE(1.0%), JCT(1.6%), ALLO(1.0%), BEAT(201.6%), BOB(2.8%), RLS(2.8%), POWER(32.8%), US(1.8%), BREV(44.6%), MAGMA(1.3%)
+  2026-08-20 13:48:17: [AutoTrade] Bß╗Å qua 161 coin c├│ grid ngo├ái khoß║úng 3ΓÇô25% (theo gi├í hiß╗çn tß║íi): 4(2.7%), XRP(27.1%), ETC(45.4%), LINK(28.4%), BAT(48.1%), QTUM(41.4%), KNC(28.4%), DOT(37.9%), SOL(35.0%), AVAX(44.2%), AAVE(31.0%), FIL(44.6%), BEL(2.7%), COTI(30.3%), ALICE(2.2%), ONE(43.1%), NKN(2.6%), DGB(1.6%), ATA(1.8%), DYDX(2.7%), KLAY(2.4%), IMX(28.9%), APE(2.4%), WOO(27.1%), DAR(2.1%), OP(33.4%), STG(2.0%), SPELL(37.6%), APT(53.6%), FET(2.3%), CKB(34.8%), USDC(30.0%), AMB(2.5%), LEVER(26.7%), RDNT(2.9%), SUI(42.7%), MAV(31.0%), DODOX(1.5%), ARK(32.6%), BOND(28.1%), GAS(30.2%), SUPER(33.1%), 1000SATS(277.0%), MOVR(40.5%), JUP(1.7%), GLM(33.2%), PORTAL(2.8%), MYRO(3.0%), BOME(3.0%), W(34.9%), BB(33.6%), IO(2.4%), ZK(36.0%), ZRO(33.6%), SYN(2.7%), SYS(1.7%), ALPACA(25.2%), SUN(1.8%), DOGS(82.0%), BSW(2.5%), QUICK(2.3%), NEIRO(42.1%), FIO(2.5%), GHST(1.8%), LOKA(2.6%), COS(2.5%), SANTOS(61.2%), COW(27.6%), 1000000MOG(28.6%), DRIFT(25.3%), ACT(29.0%), HIPPO(2.9%), DEGEN(2.9%), 1000WHY(197.4%), THE(46.8%), CHILLGUY(2.7%), ORCA(26.8%), MOVE(48.9%), KOMA(2.3%), VELODROME(1.6%), MOCA(39.3%), VANA(33.6%), USUAL(32.6%), DF(2.6%), GRIFFAIN(2.4%), COOKIE(26.3%), D(2.2%), AVAAI(2.1%), PIPPIN(163.2%), TST(2.0%), HEI(2.4%), GPS(2.5%), RED(25.8%), MUBARAK(1.5%), TUT(1.0%), BROCCOLI714(1.7%), BR(1.3%), PLUME(2.4%), FUN(1.7%), BABY(2.7%), SIGN(42.8%), PUNDIX(38.7%), CTK(27.6%), SXT(39.8%), ASR(34.4%), MILK(3.0%), OG(116.2%), AGT(1.9%), B(2.0%), MERL(158.6%), PORT3(2.5%), 1000000BOB(1.7%), LA(53.1%), PUMPBTC(28.4%), MYX(403.3%), DMC(2.3%), OL(1.7%), SAHARA(38.7%), TANSSI(2.4%), PUMP(0.9%), CROSS(2.8%), VELVET(0.4%), ZORA(59.0%), ESPORTS(184.7%), A2Z(2.1%), YALA(1.8%), SOMI(31.2%), BAS(1.1%), Q(1.4%), PTB(34.7%), OPEN(1.9%), AVNT(33.5%), XPIN(27.7%), UB(2.5%), TOSHI(28.1%), BARD(27.6%), TRADOOR(46.8%), HANA(1.6%), AKE(0.4%), LIGHT(175.0%), XAN(2.7%), TRUTH(2.3%), YB(38.4%), CLO(25.5%), RIVER(111.9%), σ╕üσ«ëΣ║║τöƒ(0.7%), BLUAI(2.3%), APR(1.6%), ON(1.1%), AT(2.0%), UAI(1.1%), STABLE(1.0%), JCT(1.6%), ALLO(1.1%), BEAT(210.1%), BOB(2.8%), RLS(2.8%), POWER(32.5%), US(1.8%), BREV(44.3%), MAGMA(1.3%)
+  2026-08-20 14:14:04: [AutoTrade] Bß╗Å qua 161 coin c├│ grid ngo├ái khoß║úng 3ΓÇô25% (theo gi├í hiß╗çn tß║íi): 4(2.7%), XRP(27.0%), ETC(45.4%), LINK(28.4%), BAT(48.0%), QTUM(41.3%), KNC(28.4%), DOT(37.9%), SOL(34.9%), AVAX(44.1%), AAVE(31.1%), FIL(44.6%), BEL(2.7%), COTI(30.3%), ALICE(2.2%), ONE(43.0%), NKN(2.6%), DGB(1.6%), ATA(1.8%), DYDX(2.7%), KLAY(2.4%), IMX(29.1%), APE(2.4%), WOO(27.1%), DAR(2.1%), OP(33.4%), STG(2.0%), SPELL(37.5%), APT(53.7%), FET(2.3%), CKB(34.7%), USDC(30.0%), AMB(2.5%), LEVER(26.7%), RDNT(2.9%), SUI(42.6%), MAV(31.0%), DODOX(1.5%), ARK(32.6%), BOND(28.1%), GAS(30.2%), SUPER(33.1%), 1000SATS(276.5%), MOVR(40.6%), JUP(1.6%), GLM(33.1%), PORTAL(2.8%), MYRO(3.0%), BOME(2.9%), W(35.0%), BB(33.7%), IO(2.4%), ZK(36.0%), ZRO(33.9%), SYN(2.7%), SYS(1.7%), ALPACA(25.2%), SUN(1.8%), DOGS(81.9%), BSW(2.5%), QUICK(2.3%), NEIRO(41.9%), FIO(2.5%), GHST(1.8%), LOKA(2.6%), COS(2.5%), SANTOS(61.4%), COW(27.8%), 1000000MOG(28.5%), DRIFT(25.3%), ACT(28.9%), HIPPO(2.9%), DEGEN(2.9%), 1000WHY(197.4%), THE(46.9%), CHILLGUY(2.7%), ORCA(26.8%), MOVE(49.0%), KOMA(2.3%), VELODROME(1.6%), MOCA(39.4%), VANA(33.6%), USUAL(32.7%), DF(2.6%), GRIFFAIN(2.3%), COOKIE(26.2%), D(2.2%), AVAAI(1.9%), PIPPIN(162.9%), TST(2.0%), HEI(2.4%), GPS(2.5%), RED(25.9%), MUBARAK(1.5%), TUT(1.0%), BROCCOLI714(1.8%), BR(1.2%), PLUME(2.4%), FUN(1.7%), BABY(2.7%), SIGN(43.0%), PUNDIX(38.7%), CTK(27.7%), SXT(39.9%), ASR(34.5%), MILK(3.0%), OG(116.2%), AGT(1.9%), B(2.0%), MERL(159.2%), PORT3(2.5%), 1000000BOB(1.7%), LA(53.7%), PUMPBTC(28.4%), MYX(404.4%), DMC(2.3%), OL(1.7%), SAHARA(38.7%), TANSSI(2.4%), PUMP(0.9%), CROSS(2.8%), VELVET(0.5%), ZORA(59.0%), ESPORTS(184.5%), A2Z(2.1%), YALA(1.8%), SOMI(31.2%), BAS(1.1%), Q(1.4%), PTB(35.1%), OPEN(1.9%), AVNT(33.0%), XPIN(28.0%), UB(2.6%), TOSHI(28.1%), BARD(27.6%), TRADOOR(46.9%), HANA(1.5%), AKE(0.4%), LIGHT(176.4%), XAN(2.7%), TRUTH(2.3%), YB(38.4%), CLO(26.7%), RIVER(111.9%), σ╕üσ«ëΣ║║τöƒ(0.7%), BLUAI(2.3%), APR(1.6%), ON(1.1%), AT(2.0%), UAI(1.1%), STABLE(1.1%), JCT(1.6%), ALLO(1.0%), BEAT(223.0%), BOB(2.8%), RLS(2.8%), POWER(32.6%), US(1.8%), BREV(44.4%), MAGMA(1.3%)
+  2026-08-20 15:09:27: [PP369] [AI Reviewer] ≡ƒƒó Khuy├¬n N├èN ─Éß║╢T Lß╗åNH SPX (SHORT) - X├íc suß║Ñt thß║»ng 74.1% >= 65% & EV = +5.31% ROI ($1.59) (+ RANK_MIDCAP_150 (x1.1371), + TREND_CONFLICT (x1.1338), + RSI_EXTREME (x1.2256), + PA_3_LEVELS (x1.1877), - OI_STABLE (x0.9514), + BTC_COUNTER (x1.1308), + GRID_WIDE (x1.0979)) 
+  2026-08-20 17:21:42: [PP369] [AI Reviewer] ≡ƒƒí PENGU (SHORT) - X├íc suß║Ñt thß║»ng 54.8% < 65% (- SCORE_MID_6_TO_7 (x0.8376), + RANK_MIDCAP_150 (x1.1371), - TREND_NEUTRAL (x0.9231), - VOL_MID (x0.9676), + RSI_EXTREME (x1.2256), - PA_2_LEVELS (x0.8726), + BTC_COUNTER (x1.1308), - GRID_NORMAL (x0.8784)) 
+  2026-08-20 17:27:42: [PP369] [AI Reviewer] ≡ƒƒí MON (SHORT) - X├íc suß║Ñt thß║»ng 63.2% < 65% (+ RANK_MIDCAP_150 (x1.1371), - TREND_NEUTRAL (x0.9231), + RSI_EXTREME (x1.2256), - PA_2_LEVELS (x0.8726), - OI_STABLE (x0.9514), + BTC_COUNTER (x1.1308), + GRID_WIDE (x1.0979)) 
+  2026-08-20 17:59:07: [PP369] [AI Reviewer] ≡ƒƒí ALGO (SHORT) - X├íc suß║Ñt thß║»ng 62.1% < 65% (+ SCORE_WEAK_LT5 (x1.0399), + RANK_MIDCAP_150 (x1.1371), + TREND_CONFLICT (x1.1338), - VOL_MID (x0.9676), + RSI_EXTREME (x1.2256), - PA_2_LEVELS (x0.8726), - OI_STABLE (x0.9514), + BTC_COUNTER (x1.1308), - GRID_NORMAL (x0.8784)) 
+  2026-08-20 18:31:59: [PP369] [AI Reviewer] ≡ƒƒó Khuy├¬n N├èN ─Éß║╢T Lß╗åNH 1MBABYDOGE (SHORT) - X├íc suß║Ñt thß║»ng 70.0% >= 65% & EV = +4.25% ROI ($1.28) (+ SCORE_WEAK_LT5 (x1.0399), - RANK_LOWCAP_OUT150 (x0.9541), + TREND_CONFLICT (x1.1338), + RSI_EXTREME (x1.2256), + PA_1_LEVEL (x1.0962), - OI_STABLE (x0.9514), + BTC_COUNTER (x1.1308), + GRID_WIDE (x1.0979)) 
+  2026-08-20 18:32:42: [PP369] [AI Reviewer] ≡ƒƒó Khuy├¬n N├èN ─Éß║╢T Lß╗åNH VET (SHORT) - X├íc suß║Ñt thß║»ng 72.6% >= 65% & EV = +4.94% ROI ($1.48) (+ SCORE_WEAK_LT5 (x1.0399), + RANK_MIDCAP_150 (x1.1371), + TREND_CONFLICT (x1.1338), + RSI_EXTREME (x1.2256), + PA_1_LEVEL (x1.0962), - OI_STABLE (x0.9514), + BTC_COUNTER (x1.1308), + GRID_WIDE (x1.0979)) 
+  2026-08-20 18:39:17: [PP369] [AI Reviewer] ≡ƒƒó Khuy├¬n N├èN ─Éß║╢T Lß╗åNH SLP (SHORT) - X├íc suß║Ñt thß║»ng 70.7% >= 65% & EV = +4.46% ROI ($1.34) (+ SCORE_WEAK_LT5 (x1.0399), - RANK_LOWCAP_OUT150 (x0.9541), + TREND_CONFLICT (x1.1338), + RSI_EXTREME (x1.2256), + PA_3_LEVELS (x1.1877), - OI_STABLE (x0.9514), + BTC_COUNTER (x1.1308), + GRID_WIDE (x1.0979)) 
+  2026-08-20 18:39:41: [PP369] [AutoTrade] MEW ΓåÆ SHORT (Score: +4.199999999999999─æ) tß║íi $0.000368 
+  2026-08-20 18:39:41: [PP369] [AutoTrade] MEW SHORT kh├┤ng ─æß║ít Ti├¬u ch├¡ 2 (─Éß╗Öt biß║┐n Volume 3 nß║┐n H1 (gß║Ñp >= 2.5x)) ΓÇö ─É╞░a v├áo Watchlist chß╗¥ Retest H1 
+  2026-08-20 18:50:16: [PP369] [AI Reviewer] ≡ƒƒí MANTA (SHORT) - X├íc suß║Ñt thß║»ng 63.9% < 65% (+ SCORE_WEAK_LT5 (x1.0399), - RANK_LOWCAP_OUT150 (x0.9541), + TREND_CONFLICT (x1.1338), + RSI_EXTREME (x1.2256), - PA_2_LEVELS (x0.8726), - OI_STABLE (x0.9514), + BTC_COUNTER (x1.1308), + GRID_WIDE (x1.0979)) 
+  2026-08-20 18:53:15: [PP369] [AI Reviewer] ≡ƒƒó Khuy├¬n N├èN ─Éß║╢T Lß╗åNH SLP (SHORT) - X├íc suß║Ñt thß║»ng 70.7% >= 65% & EV = +4.46% ROI ($1.34) (+ SCORE_WEAK_LT5 (x1.0399), - RANK_LOWCAP_OUT150 (x0.9541), + TREND_CONFLICT (x1.1338), + RSI_EXTREME (x1.2256), + PA_3_LEVELS (x1.1877), - OI_STABLE (x0.9514), + BTC_COUNTER (x1.1308), + GRID_WIDE (x1.0979)) 
+  2026-08-20 19:00:04: [PP369] [H1Retest] === Kiß╗âm tra 10 coin trong Watchlist: [ALGO(SHORT @$0.0861), 1MBABYDOGE(SHORT @$0.0003617), PENGU(SHORT @$0.007151), SLP(SHORT @$0.0005761), MEW(SHORT @$0.000368), MANTA(SHORT @$0.05892), ARC(LONG @$0.06855), ORDI(SHORT @$4.456), FLOCK(SHORT @$0.0332), MASK(SHORT @$0.3857)] === 
+  2026-08-20 19:00:05: [PP369] [H1Retest] MEW SHORT nß║┐n H1 r├║t ch├ón nh╞░ng ─É├â PHß║óN ß╗¿NG Nß║óY ROI = +8.04% (>= 5.0%) sau khi chß║ím entry. Bß╗Å qua kh├┤ng ─æß║╖t limit. 
+  2026-08-20 19:51:13: [PP369] [AI Reviewer] ≡ƒƒó Khuy├¬n N├èN ─Éß║╢T Lß╗åNH ILV (SHORT) - X├íc suß║Ñt thß║»ng 70.0% >= 65% & EV = +4.09% ROI ($1.23) (+ SCORE_WEAK_LT5 (x1.0399), - RANK_LOWCAP_OUT150 (x0.9541), + TREND_CONFLICT (x1.1338), + RSI_EXTREME (x1.2256), + PA_1_LEVEL (x1.0962), - OI_STABLE (x0.9514), + BTC_COUNTER (x1.1308), + GRID_WIDE (x1.0979)) 
+  2026-08-20 20:53:56: [PP369] [AI Reviewer] ≡ƒƒí AXL (SHORT) - X├íc suß║Ñt thß║»ng 62.4% < 65% (+ SCORE_WEAK_LT5 (x1.0399), - RANK_LOWCAP_OUT150 (x0.9541), - TREND_NEUTRAL (x0.9231), + RSI_EXTREME (x1.2256), - PA_0_LEVEL (x0.958), - OI_STABLE (x0.9514), + BTC_COUNTER (x1.1308), + GRID_WIDE (x1.0979)) 
+  2026-08-20 22:04:03: [PP369] [AI Reviewer] ≡ƒƒó Khuy├¬n N├èN ─Éß║╢T Lß╗åNH STEEM (SHORT) - X├íc suß║Ñt thß║»ng 70.0% >= 65% & EV = +4.30% ROI ($1.29) (+ SCORE_WEAK_LT5 (x1.0399), - RANK_LOWCAP_OUT150 (x0.9541), + TREND_CONFLICT (x1.1338), + RSI_EXTREME (x1.2256), + PA_1_LEVEL (x1.0962), - OI_STABLE (x0.9514), + BTC_COUNTER (x1.1308), + GRID_WIDE (x1.0979)) 
+  2026-08-20 22:08:45: [PP369] [AI Reviewer] ≡ƒƒí USTC (SHORT) - X├íc suß║Ñt thß║»ng 64.4% < 65% (+ SCORE_WEAK_LT5 (x1.0399), - RANK_LOWCAP_OUT150 (x0.9541), - TREND_NEUTRAL (x0.9231), + RSI_EXTREME (x1.2256), + PA_1_LEVEL (x1.0962), - OI_STABLE (x0.9514), + BTC_COUNTER (x1.1308), + GRID_WIDE (x1.0979)) 
+  2026-08-20 22:27:03: [PP369] [AI Reviewer] ≡ƒƒó Khuy├¬n N├èN ─Éß║╢T Lß╗åNH STEEM (SHORT) - X├íc suß║Ñt thß║»ng 70.0% >= 65% & EV = +4.30% ROI ($1.29) (+ SCORE_WEAK_LT5 (x1.0399), - RANK_LOWCAP_OUT150 (x0.9541), + TREND_CONFLICT (x1.1338), + RSI_EXTREME (x1.2256), + PA_1_LEVEL (x1.0962), - OI_STABLE (x0.9514), + BTC_COUNTER (x1.1308), + GRID_WIDE (x1.0979)) 
+  2026-08-20 22:52:29: [PP369] [AI Reviewer] ≡ƒƒó Khuy├¬n N├èN ─Éß║╢T Lß╗åNH USTC (SHORT) - X├íc suß║Ñt thß║»ng 69.0% >= 65% & EV = +4.04% ROI ($1.21) (+ SCORE_WEAK_LT5 (x1.0399), - RANK_LOWCAP_OUT150 (x0.9541), + TREND_CONFLICT (x1.1338), + RSI_EXTREME (x1.2256), + PA_1_LEVEL (x1.0962), - OI_STABLE (x0.9514), + BTC_COUNTER (x1.1308), + GRID_WIDE (x1.0979)) 
+  2026-08-20 22:54:22: [PP369] [AI Reviewer] ≡ƒƒí BNB (SHORT) - X├íc suß║Ñt thß║»ng 62.7% < 65% (+ RANK_TOP10 (x1.1923), + TREND_CONFLICT (x1.1338), + RSI_EXTREME (x1.2256), - PA_2_LEVELS (x0.8726), - OI_STABLE (x0.9514), + BTC_COUNTER (x1.1308), - GRID_NORMAL (x0.8784)) 
+  2026-08-20 23:41:19: [PP369] [AI Reviewer] ≡ƒƒí BNB (SHORT) - X├íc suß║Ñt thß║»ng 63.9% < 65% (+ RANK_TOP10 (x1.1923), + TREND_CONFLICT (x1.1338), + RSI_EXTREME (x1.2256), - PA_2_LEVELS (x0.8726), - OI_STABLE (x0.9514), + BTC_COUNTER (x1.1308), - GRID_NORMAL (x0.8784)) 
+  2026-08-20 23:44:46: [PP369] [AutoTrade] ME ΓåÆ SHORT (Score: +5.3999999999999995─æ) tß║íi $0.0632 
+  2026-08-20 23:44:46: [PP369] [AutoTrade] Ph├ón bß╗ò K├╜ quß╗╣ ME: $30 (Ph├ón cß║Ñp Vß╗æn h├│a Lowcap (Rank #999) | Score: +5.4─æ) 
+  2026-08-20 23:44:46: [PP369] [AI Reviewer] ≡ƒƒí ME (SHORT) - X├íc suß║Ñt thß║»ng 59.1% < 65% (- RANK_LOWCAP_OUT150 (x0.9541), - TREND_NEUTRAL (x0.9231), + RSI_EXTREME (x1.2256), + PA_1_LEVEL (x1.0962), - OI_STABLE (x0.9514), + BTC_COUNTER (x1.1308), - GRID_NORMAL (x0.8784)) 
+  2026-08-20 23:44:47: [PP369] [AutoTrade] Set leverage MEUSDT = 38x (Tier SL: $0.06403 (1.31%), TP 1:1: $0.06237, Dß╗¥i SL tß║íi $0.06279 | K├╜ quß╗╣: $10.02) 
+  2026-08-20 23:44:47: [PP369] [AutoTrade] Γ£ô ME SELL 6024.6 @ $0.0632 orderId=1816374619 status=NEW 
+  2026-08-20 23:45:58: [PP369] [AutoTrade] Γ£ô ─Éß║╖t TP ME @ $0.0623700 (─æß╗æi ß╗⌐ng BUY) orderId=1000002516607760 
+  2026-08-20 23:45:58: [PP369] [AutoTrade] Γ£ô ─Éß║╖t SL ME @ $0.0640300 (─æß╗æi ß╗⌐ng BUY) orderId=1000002516607768 
+  2026-08-20 23:46:19: [PP369] [AI Reviewer] ≡ƒƒó Khuy├¬n N├èN ─Éß║╢T Lß╗åNH ZETA (SHORT) - X├íc suß║Ñt thß║»ng 66.2% >= 65% & EV = +3.04% ROI ($0.91) (- RANK_LOWCAP_OUT150 (x0.9541), - TREND_NEUTRAL (x0.9231), + RSI_EXTREME (x1.2256), + PA_3_LEVELS (x1.1877), - OI_STABLE (x0.9514), + BTC_COUNTER (x1.1308), + GRID_WIDE (x1.0979)) 
+  2026-08-20 23:46:35: [PP369] [AI Reviewer] ≡ƒƒó Khuy├¬n N├èN ─Éß║╢T Lß╗åNH ZETA (SHORT) - X├íc suß║Ñt thß║»ng 66.2% >= 65% & EV = +3.04% ROI ($0.91) (- RANK_LOWCAP_OUT150 (x0.9541), - TREND_NEUTRAL (x0.9231), + RSI_EXTREME (x1.2256), + PA_3_LEVELS (x1.1877), - OI_STABLE (x0.9514), + BTC_COUNTER (x1.1308), + GRID_WIDE (x1.0979)) 
+  2026-08-20 23:46:52: [PP369] [AI Reviewer] ≡ƒƒó Khuy├¬n N├èN ─Éß║╢T Lß╗åNH ZETA (SHORT) - X├íc suß║Ñt thß║»ng 66.2% >= 65% & EV = +3.04% ROI ($0.91) (- RANK_LOWCAP_OUT150 (x0.9541), - TREND_NEUTRAL (x0.9231), + RSI_EXTREME (x1.2256), + PA_3_LEVELS (x1.1877), - OI_STABLE (x0.9514), + BTC_COUNTER (x1.1308), + GRID_WIDE (x1.0979)) 
+  2026-08-20 23:47:08: [PP369] [AI Reviewer] ≡ƒƒó Khuy├¬n N├èN ─Éß║╢T Lß╗åNH ZETA (SHORT) - X├íc suß║Ñt thß║»ng 66.2% >= 65% & EV = +3.04% ROI ($0.91) (- RANK_LOWCAP_OUT150 (x0.9541), - TREND_NEUTRAL (x0.9231), + RSI_EXTREME (x1.2256), + PA_3_LEVELS (x1.1877), - OI_STABLE (x0.9514), + BTC_COUNTER (x1.1308), + GRID_WIDE (x1.0979)) 
+  2026-08-20 23:47:27: [PP369] [AI Reviewer] ≡ƒƒó Khuy├¬n N├èN ─Éß║╢T Lß╗åNH ZETA (SHORT) - X├íc suß║Ñt thß║»ng 66.2% >= 65% & EV = +3.04% ROI ($0.91) (- RANK_LOWCAP_OUT150 (x0.9541), - TREND_NEUTRAL (x0.9231), + RSI_EXTREME (x1.2256), + PA_3_LEVELS (x1.1877), - OI_STABLE (x0.9514), + BTC_COUNTER (x1.1308), + GRID_WIDE (x1.0979)) 
+  2026-08-20 23:47:44: [PP369] [AI Reviewer] ≡ƒƒó Khuy├¬n N├èN ─Éß║╢T Lß╗åNH ZETA (SHORT) - X├íc suß║Ñt thß║»ng 66.2% >= 65% & EV = +3.04% ROI ($0.91) (- RANK_LOWCAP_OUT150 (x0.9541), - TREND_NEUTRAL (x0.9231), + RSI_EXTREME (x1.2256), + PA_3_LEVELS (x1.1877), - OI_STABLE (x0.9514), + BTC_COUNTER (x1.1308), + GRID_WIDE (x1.0979)) 
+  2026-08-20 23:48:14: [PP369] [AI Reviewer] ≡ƒƒó Khuy├¬n N├èN ─Éß║╢T Lß╗åNH ZETA (SHORT) - X├íc suß║Ñt thß║»ng 66.2% >= 65% & EV = +3.04% ROI ($0.91) (- RANK_LOWCAP_OUT150 (x0.9541), - TREND_NEUTRAL (x0.9231), + RSI_EXTREME (x1.2256), + PA_3_LEVELS (x1.1877), - OI_STABLE (x0.9514), + BTC_COUNTER (x1.1308), + GRID_WIDE (x1.0979)) 
+  2026-08-20 23:48:39: [PP369] [AI Reviewer] ≡ƒƒó Khuy├¬n N├èN ─Éß║╢T Lß╗åNH IOST (SHORT) - X├íc suß║Ñt thß║»ng 68.7% >= 65% & EV = +3.96% ROI ($1.19) (+ SCORE_WEAK_LT5 (x1.0399), - RANK_LOWCAP_OUT150 (x0.9541), + TREND_CONFLICT (x1.1338), + RSI_EXTREME (x1.2256), - PA_0_LEVEL (x0.958), + BTC_COUNTER (x1.1308), + GRID_WIDE (x1.0979)) 
+  2026-08-20 23:49:34: [PP369] [AutoTrade] ≡ƒÜ¿ [M15 Panic Escape] ME (SHORT): M15 b├╣ng nß╗ò Volume (5.24x TB 20 nß║┐n) k├¿m ─æ├óm l├║n s├óu >= 40% SL -> K├¡ch hoß║ít tho├ít hiß╗âm -10% SL @ $0.063283 
+  2026-08-20 23:49:35: [PP369] [AutoTrade] ΓÜá∩╕Å ─É├ú dß╗¥i TP ME vß╗ü mß╗æc [Tho├ít hiß╗âm -10 ticks] @ $0.06328 (─æß╗æi ß╗⌐ng BUY) orderId=1000002516615367 
+  2026-08-20 23:54:22: [PP369] [AI Reviewer] ≡ƒƒí BNB (SHORT) - X├íc suß║Ñt thß║»ng 63.9% < 65% (+ RANK_TOP10 (x1.1923), + TREND_CONFLICT (x1.1338), + RSI_EXTREME (x1.2256), - PA_2_LEVELS (x0.8726), - OI_STABLE (x0.9514), + BTC_COUNTER (x1.1308), - GRID_NORMAL (x0.8784)) 
+  2026-08-20 23:55:54: [PP369] [AI Reviewer] ≡ƒƒó Khuy├¬n N├èN ─Éß║╢T Lß╗åNH ZETA (SHORT) - X├íc suß║Ñt thß║»ng 66.2% >= 65% & EV = +3.04% ROI ($0.91) (- RANK_LOWCAP_OUT150 (x0.9541), - TREND_NEUTRAL (x0.9231), + RSI_EXTREME (x1.2256), + PA_3_LEVELS (x1.1877), - OI_STABLE (x0.9514), + BTC_COUNTER (x1.1308), + GRID_WIDE (x1.0979)) 
+  2026-08-20 23:56:28: [PP369] [AI Reviewer] ≡ƒƒó Khuy├¬n N├èN ─Éß║╢T Lß╗åNH ZETA (SHORT) - X├íc suß║Ñt thß║»ng 66.2% >= 65% & EV = +3.04% ROI ($0.91) (- RANK_LOWCAP_OUT150 (x0.9541), - TREND_NEUTRAL (x0.9231), + RSI_EXTREME (x1.2256), + PA_3_LEVELS (x1.1877), - OI_STABLE (x0.9514), + BTC_COUNTER (x1.1308), + GRID_WIDE (x1.0979)) 
+  2026-08-20 23:56:46: [PP369] [AI Reviewer] ≡ƒƒó Khuy├¬n N├èN ─Éß║╢T Lß╗åNH ZETA (SHORT) - X├íc suß║Ñt thß║»ng 66.2% >= 65% & EV = +3.04% ROI ($0.91) (- RANK_LOWCAP_OUT150 (x0.9541), - TREND_NEUTRAL (x0.9231), + RSI_EXTREME (x1.2256), + PA_3_LEVELS (x1.1877), - OI_STABLE (x0.9514), + BTC_COUNTER (x1.1308), + GRID_WIDE (x1.0979)) 
+  2026-08-20 23:56:59: [PP369] [AI Reviewer] ≡ƒƒó Khuy├¬n N├èN ─Éß║╢T Lß╗åNH ZETA (SHORT) - X├íc suß║Ñt thß║»ng 66.2% >= 65% & EV = +3.04% ROI ($0.91) (- RANK_LOWCAP_OUT150 (x0.9541), - TREND_NEUTRAL (x0.9231), + RSI_EXTREME (x1.2256), + PA_3_LEVELS (x1.1877), - OI_STABLE (x0.9514), + BTC_COUNTER (x1.1308), + GRID_WIDE (x1.0979)) 
+  2026-08-20 23:57:27: [PP369] [AI Reviewer] ≡ƒƒó Khuy├¬n N├èN ─Éß║╢T Lß╗åNH ZETA (SHORT) - X├íc suß║Ñt thß║»ng 66.2% >= 65% & EV = +3.04% ROI ($0.91) (- RANK_LOWCAP_OUT150 (x0.9541), - TREND_NEUTRAL (x0.9231), + RSI_EXTREME (x1.2256), + PA_3_LEVELS (x1.1877), - OI_STABLE (x0.9514), + BTC_COUNTER (x1.1308), + GRID_WIDE (x1.0979)) 
+  2026-08-20 23:57:45: [PP369] [AI Reviewer] ≡ƒƒó Khuy├¬n N├èN ─Éß║╢T Lß╗åNH ZETA (SHORT) - X├íc suß║Ñt thß║»ng 66.2% >= 65% & EV = +3.04% ROI ($0.91) (- RANK_LOWCAP_OUT150 (x0.9541), - TREND_NEUTRAL (x0.9231), + RSI_EXTREME (x1.2256), + PA_3_LEVELS (x1.1877), - OI_STABLE (x0.9514), + BTC_COUNTER (x1.1308), + GRID_WIDE (x1.0979)) 
+  2026-08-20 23:59:06: [PP369] [AI Reviewer] ≡ƒƒó Khuy├¬n N├èN ─Éß║╢T Lß╗åNH ZETA (SHORT) - X├íc suß║Ñt thß║»ng 66.2% >= 65% & EV = +3.04% ROI ($0.91) (- RANK_LOWCAP_OUT150 (x0.9541), - TREND_NEUTRAL (x0.9231), + RSI_EXTREME (x1.2256), + PA_3_LEVELS (x1.1877), - OI_STABLE (x0.9514), + BTC_COUNTER (x1.1308), + GRID_WIDE (x1.0979)) 
+  2026-08-20 23:59:52: [PP369] [AI Reviewer] ≡ƒƒí LAYER (SHORT) - X├íc suß║Ñt thß║»ng 63.0% < 65% (+ SCORE_WEAK_LT5 (x1.0399), - RANK_LOWCAP_OUT150 (x0.9541), + TREND_CONFLICT (x1.1338), + RSI_EXTREME (x1.2256), - PA_2_LEVELS (x0.8726), + OI_COOLING (x1.142), + BTC_COUNTER (x1.1308), - GRID_NORMAL (x0.8784)) 
+  2026-08-21 06:00:49: [PP369] [AI Reviewer] ≡ƒƒí EPIC (SHORT) - X├íc suß║Ñt thß║»ng 62.2% < 65% (- RANK_LOWCAP_OUT150 (x0.9541), - TREND_EMA (x0.8654), - VOL_MID (x0.9676), + RSI_EXTREME (x1.2256), + LS_DIVERGENCE (x1.0416), - PA_2_LEVELS (x0.8726), + OI_COOLING (x1.142), + BTC_COUNTER (x1.1308), + GRID_WIDE (x1.0979)) 
+  2026-08-21 07:33:10: [PP369] [AutoTrade] METIS ΓåÆ SHORT (Score: +4.1─æ) tß║íi $2.603 
+  2026-08-21 07:33:10: [PP369] [AutoTrade] Ph├ón bß╗ò K├╜ quß╗╣ METIS: $30 (Ph├ón cß║Ñp Vß╗æn h├│a Lowcap (Rank #999) | Score: +4.1─æ) 
+  2026-08-21 07:33:11: [PP369] [AI Reviewer] ≡ƒƒí METIS (SHORT) - X├íc suß║Ñt thß║»ng 64.9% < 65% (+ SCORE_WEAK_LT5 (x1.0399), - RANK_LOWCAP_OUT150 (x0.9541), + TREND_CONFLICT (x1.1338), - RSI_NEAR (x0.94), + PA_3_LEVELS (x1.1877), - OI_STABLE (x0.9514), + BTC_COUNTER (x1.1308), + GRID_WIDE (x1.0979)) 
+  2026-08-21 07:33:11: [PP369] [AutoTrade] Set leverage METISUSDT = 33x (Tier SL: $2.642 (1.50%), TP 1:1: $2.564, Dß╗¥i SL tß║íi $2.5835 | K├╜ quß╗╣: $10.11) 
+  2026-08-21 07:33:11: [PP369] [AutoTrade] Γ£ô METIS SELL 128.17 @ $2.603 orderId=1629948542 status=NEW 
+  2026-08-21 08:18:14: [PP369] [AutoTrade] Γ£ô ─Éß║╖t TP METIS @ $2.5640 (─æß╗æi ß╗⌐ng BUY) orderId=1000002517258155 
+  2026-08-21 08:18:14: [PP369] [AutoTrade] Γ£ô ─Éß║╖t SL METIS @ $2.6420 (─æß╗æi ß╗⌐ng BUY) orderId=1000002517258174 
+  2026-08-21 08:21:38: [PP369] [AutoTrade] Trailing SL (chß║ím mß╗æc 45─æ): METIS ─æß║ít ROI 20.28% -> Dß╗ïch SL tr├¬n s├án vß╗ü entry +5─æ ($2.600, ROI ~3.8%) [Mß╗⌐c: +5─æ (Kh├│a l├úi)] 
+  2026-08-21 08:21:38: [PP369] [AutoTrade] ≡ƒÄ» [Partial TP 50%] METIS: ─Éß║ít 50% TP -> Tiß║┐n h├ánh chß╗æt 50% vß╗ï thß║┐ (64.08 METIS) MARKET... 
+  2026-08-21 08:21:38: [PP369] [AutoTrade] ─É├ú hß╗ºy SL c┼⌐ cß╗ºa METIS (orderId=1000002517258174) 
+  2026-08-21 08:21:38: [PP369] [AutoTrade] Γ£ô ─É├ú dß╗ïch SL mß╗¢i cho METIS @ $2.6000 (orderId=1000002517272884) 
+
+================================================================
+TOKEN: EIGENUSDT | Tß╗öNG PNL: -0.6815 USDT
+================================================================
+- Fills tr├¬n Binance (2 fills):
+  * [22:50:28 20/8/2026] SELL 757.2 @ 0.1945000 (PnL: 0 USDT, Fee: 0.02945508 USDT)
+  * [01:01:16 21/8/2026] BUY 757.2 @ 0.1954000 (PnL: -0.68148000 USDT, Fee: 0.07397844 USDT)
+
+- Orders tr├¬n Binance (2 orders):
+  * [22:50:28 20/8/2026] ID:5596830956 Type:LIMIT Side:SELL Status:FILLED OrigQty:757.2 ExecQty:757.2 StopPrice:0 Price:0.1945000
+  * [01:01:16 21/8/2026] ID:5597139250 Type:MARKET Side:BUY Status:FILLED OrigQty:757.2 ExecQty:757.2 StopPrice:0 Price:0
+
+- Logs chi tiß║┐t tß╗½ bot VPS:
+  2026-08-20 22:05:10: [PP369] [AutoTrade] EIGEN ΓåÆ SHORT (Score: +4.1─æ) tß║íi $0.1945 
+  2026-08-20 22:05:10: [PP369] [AutoTrade] Ph├ón bß╗ò K├╜ quß╗╣ EIGEN: $30 (Ph├ón cß║Ñp Vß╗æn h├│a Lowcap (Rank #999) | Score: +4.1─æ) 
+  2026-08-20 22:05:10: [PP369] [AI Reviewer] ≡ƒƒí EIGEN (SHORT) - X├íc suß║Ñt thß║»ng 64.9% < 65% (+ SCORE_WEAK_LT5 (x1.0399), - RANK_LOWCAP_OUT150 (x0.9541), + TREND_CONFLICT (x1.1338), - RSI_NEAR (x0.94), + PA_3_LEVELS (x1.1877), - OI_STABLE (x0.9514), + BTC_COUNTER (x1.1308), + GRID_WIDE (x1.0979)) 
+  2026-08-20 22:05:10: [PP369] [AutoTrade] Set leverage EIGENUSDT = 14x (Tier SL: $0.2011 (3.39%), TP 1:1: $0.1879, Dß╗¥i SL tß║íi $0.1912 | K├╜ quß╗╣: $10.52) 
+  2026-08-20 22:05:10: [PP369] [AutoTrade] Γ£ô EIGEN SELL 757.2 @ $0.1945 orderId=5596830956 status=NEW 
+  2026-08-20 22:50:33: [PP369] [AutoTrade] Γ£ô ─Éß║╖t TP EIGEN @ $0.1879000 (─æß╗æi ß╗⌐ng BUY) orderId=1000002516499665 
+  2026-08-20 22:50:33: [PP369] [AutoTrade] Γ£ô ─Éß║╖t SL EIGEN @ $0.2011000 (─æß╗æi ß╗⌐ng BUY) orderId=1000002516499670 
+  2026-08-21 00:30:11: [PP369] [AutoTrade] ΓÜá∩╕Å EIGEN SHORT: Nß║┐n M15 ─æ├│ng cß╗¡a tr├¬n Entry +8% SL ($0.1969 >= $0.195028) k├¿m ─æß╗ënh nß║┐n High >= Entry + 30% SL ($0.1973 >= $0.196480) -> K├¡ch hoß║ít dß╗¥i TP vß╗ü Entry h├▓a vß╗æn $0.19449999999999998 
+  2026-08-21 00:30:11: [PP369] [AutoTrade] ≡ƒÜ¿ [M15 Panic Escape] EIGEN (SHORT): M15 b├╣ng nß╗ò Volume (2.68x TB 20 nß║┐n) k├¿m ─æ├óm l├║n s├óu >= 40% SL -> K├¡ch hoß║ít tho├ít hiß╗âm -10% SL @ $0.19516 
+  2026-08-21 00:30:12: [PP369] [AutoTrade] ΓÜá∩╕Å ─É├ú dß╗¥i TP EIGEN vß╗ü mß╗æc [Tho├ít hiß╗âm -10 ticks] @ $0.19516 (─æß╗æi ß╗⌐ng BUY) orderId=1000002516686757 
+
+================================================================
+TOKEN: BNBUSDT | Tß╗öNG PNL: +2.3903 USDT
+================================================================
+- Fills tr├¬n Binance (6 fills):
+  * [23:59:37 20/8/2026] SELL 0.50 @ 654.710 (PnL: 0 USDT, Fee: 0.06547100 USDT)
+  * [01:06:24 21/8/2026] BUY 0.25 @ 651.090 (PnL: 0.90500000 USDT, Fee: 0.08138624 USDT)
+  * [01:43:25 21/8/2026] BUY 0.01 @ 648.760 (PnL: 0.05950000 USDT, Fee: 0.00324380 USDT)
+  * [01:43:25 21/8/2026] BUY 0.01 @ 648.760 (PnL: 0.05950000 USDT, Fee: 0.00324380 USDT)
+  * [01:43:25 21/8/2026] BUY 0.01 @ 648.760 (PnL: 0.05950000 USDT, Fee: 0.00324380 USDT)
+  * [01:43:25 21/8/2026] BUY 0.22 @ 648.770 (PnL: 1.30680000 USDT, Fee: 0.07136470 USDT)
+
+- Orders tr├¬n Binance (5 orders):
+  * [23:14:40 20/8/2026] ID:94423505501 Type:LIMIT Side:SELL Status:CANCELED OrigQty:0.62 ExecQty:0 StopPrice:0 Price:654.710
+  * [23:54:16 20/8/2026] ID:94425954076 Type:LIMIT Side:SELL Status:CANCELED OrigQty:0.62 ExecQty:0 StopPrice:0 Price:654.710
+  * [00:06:16 21/8/2026] ID:94426744143 Type:LIMIT Side:SELL Status:CANCELED OrigQty:0.62 ExecQty:0.50 StopPrice:0 Price:654.710
+  * [01:06:24 21/8/2026] ID:94430202016 Type:MARKET Side:BUY Status:FILLED OrigQty:0.25 ExecQty:0.25 StopPrice:0 Price:0
+  * [01:43:25 21/8/2026] ID:94431868248 Type:MARKET Side:BUY Status:FILLED OrigQty:0.25 ExecQty:0.25 StopPrice:0 Price:0
+
+- Logs chi tiß║┐t tß╗½ bot VPS:
+  2026-08-20 22:54:22: [PP369] [AutoTrade] BNB ΓåÆ SHORT (Score: +5.199999999999999─æ) tß║íi $654.71 
+  2026-08-20 22:54:22: [PP369] [AutoTrade] Ph├ón bß╗ò K├╜ quß╗╣ BNB: $50 (Ph├ón cß║Ñp Vß╗æn h├│a Top 10 (Rank #4) | Score: +5.2─æ) 
+  2026-08-20 22:54:22: [PP369] [AI Reviewer] ≡ƒƒí BNB (SHORT) - X├íc suß║Ñt thß║»ng 62.7% < 65% (+ RANK_TOP10 (x1.1923), + TREND_CONFLICT (x1.1338), + RSI_EXTREME (x1.2256), - PA_2_LEVELS (x0.8726), - OI_STABLE (x0.9514), + BTC_COUNTER (x1.1308), - GRID_NORMAL (x0.8784)) 
+  2026-08-20 22:54:22: [PP369] [AutoTrade] Set leverage BNBUSDT = 41x (Tier SL: $662.67 (1.22%), TP 1:1: $646.75, Dß╗¥i SL tß║íi $650.73 | K├╜ quß╗╣: $10.03) 
+  2026-08-20 22:54:22: [PP369] [AutoTrade] Γ£ô BNB SELL 0.62 @ $654.71 orderId=94423505501 status=NEW 
+  2026-08-20 23:14:39: [PP369] [AutoTrade] [BounceCancel] BNB SHORT: entry=$654.71, current=$650.658982 (-0.62% >= 0.61%) ΓåÆ Hß╗ºy LIMIT ngay lß║¡p tß╗⌐c 
+  2026-08-20 23:41:19: [PP369] [AutoTrade] BNB ΓåÆ SHORT (Score: +5.3999999999999995─æ) tß║íi $654.71 
+  2026-08-20 23:41:19: [PP369] [AutoTrade] Ph├ón bß╗ò K├╜ quß╗╣ BNB: $50 (Ph├ón cß║Ñp Vß╗æn h├│a Top 10 (Rank #4) | Score: +5.4─æ) 
+  2026-08-20 23:41:19: [PP369] [AI Reviewer] ≡ƒƒí BNB (SHORT) - X├íc suß║Ñt thß║»ng 63.9% < 65% (+ RANK_TOP10 (x1.1923), + TREND_CONFLICT (x1.1338), + RSI_EXTREME (x1.2256), - PA_2_LEVELS (x0.8726), - OI_STABLE (x0.9514), + BTC_COUNTER (x1.1308), - GRID_NORMAL (x0.8784)) 
+  2026-08-20 23:41:19: [PP369] [AutoTrade] Set leverage BNBUSDT = 41x (Tier SL: $662.67 (1.22%), TP 1:1: $646.75, Dß╗¥i SL tß║íi $650.73 | K├╜ quß╗╣: $10.03) 
+  2026-08-20 23:41:19: [PP369] [AutoTrade] Γ£ô BNB SELL 0.62 @ $654.71 orderId=94425954076 status=NEW 
+  2026-08-20 23:54:16: [PP369] [AutoTrade] Lß╗çnh LIMIT cß╗ºa BNB ─æ├ú chß║ím/v╞░ß╗út Entry ($654.71) qu├í 10 ph├║t kh├┤ng khß╗¢p (10.3 ph├║t) -> Tiß║┐n h├ánh hß╗ºy... 
+  2026-08-20 23:54:16: [PP369] [AutoTrade] Γ£ô ─É├ú hß╗ºy th├ánh c├┤ng lß╗çnh LIMIT treo cß╗ºa BNB 
+  2026-08-20 23:54:22: [PP369] [AI Reviewer] ≡ƒƒí BNB (SHORT) - X├íc suß║Ñt thß║»ng 63.9% < 65% (+ RANK_TOP10 (x1.1923), + TREND_CONFLICT (x1.1338), + RSI_EXTREME (x1.2256), - PA_2_LEVELS (x0.8726), - OI_STABLE (x0.9514), + BTC_COUNTER (x1.1308), - GRID_NORMAL (x0.8784)) 
+  2026-08-20 23:54:22: [PP369] [AutoTrade] Set leverage BNBUSDT = 41x (Tier SL: $662.67 (1.22%), TP 1:1: $646.75, Dß╗¥i SL tß║íi $650.73 | K├╜ quß╗╣: $10.03) 
+  2026-08-20 23:54:22: [PP369] [AutoTrade] Γ£ô BNB SELL 0.62 @ $654.71 orderId=94426744143 status=NEW 
+  2026-08-20 23:59:41: [PP369] [AutoTrade] Γ£ô ─Éß║╖t TP BNB @ $646.750 (─æß╗æi ß╗⌐ng BUY) orderId=1000002516634382 
+  2026-08-20 23:59:41: [PP369] [AutoTrade] Γ£ô ─Éß║╖t SL BNB @ $662.670 (─æß╗æi ß╗⌐ng BUY) orderId=1000002516634388 
+  2026-08-21 00:06:15: [PP369] [AutoTrade] Lß╗çnh LIMIT cß╗ºa BNB ─æ├ú chß║ím/v╞░ß╗út Entry ($654.71) qu├í 10 ph├║t kh├┤ng khß╗¢p (10.0 ph├║t) -> Tiß║┐n h├ánh hß╗ºy... 
+  2026-08-21 00:06:15: [PP369] [AutoTrade] Γ£ô ─É├ú hß╗ºy th├ánh c├┤ng lß╗çnh LIMIT treo cß╗ºa BNB 
+  2026-08-21 01:06:24: [PP369] [AutoTrade] Trailing SL (chß║ím mß╗æc 45─æ): BNB ─æß║ít ROI 23.17% -> Dß╗ïch SL tr├¬n s├án vß╗ü entry +5─æ ($654.41, ROI ~1.88%) [Mß╗⌐c: +5─æ (Kh├│a l├úi)] 
+  2026-08-21 01:06:24: [PP369] [AutoTrade] ≡ƒÄ» [Partial TP 50%] BNB: ─Éß║ít 50% TP -> Tiß║┐n h├ánh chß╗æt 50% vß╗ï thß║┐ (0.25 BNB) MARKET... 
+  2026-08-21 01:06:24: [PP369] [AutoTrade] ─É├ú hß╗ºy SL c┼⌐ cß╗ºa BNB (orderId=1000002516634388) 
+  2026-08-21 01:06:24: [PP369] [AutoTrade] Γ£ô ─É├ú dß╗ïch SL mß╗¢i cho BNB @ $654.410 (orderId=1000002516743909) 
+  2026-08-21 01:34:30: [PP369] [AutoTrade] ≡ƒÄ» Near-TP Lock (─Éß║ít >=90% TP): BNB ─æß║ít ROI 45.22% -> Dß╗ïch SL tr├¬n s├án vß╗ü mß╗æc 75% Lß╗úi Nhuß║¡n TP ($648.74, ROI ~+37.39%) 
+  2026-08-21 01:34:30: [PP369] [AutoTrade] ─É├ú hß╗ºy SL c┼⌐ cß╗ºa BNB (orderId=1000002516743909) 
+  2026-08-21 01:34:30: [PP369] [AutoTrade] Γ£ô ─É├ú dß╗ïch SL mß╗¢i cho BNB @ $648.740 (orderId=1000002516788189) 
+
+================================================================
+TOKEN: EDENUSDT | Tß╗öNG PNL: +3.4145 USDT
+================================================================
+- Fills tr├¬n Binance (19 fills):
+  * [02:24:31 21/8/2026] BUY 9326 @ 0.0536100 (PnL: 0 USDT, Fee: 0.09999337 USDT)
+  * [02:33:20 21/8/2026] SELL 513 @ 0.0539600 (PnL: 0.17955000 USDT, Fee: 0.01384074 USDT)
+  * [02:33:20 21/8/2026] SELL 185 @ 0.0539600 (PnL: 0.06475000 USDT, Fee: 0.00499130 USDT)
+  * [02:33:20 21/8/2026] SELL 95 @ 0.0539500 (PnL: 0.03230000 USDT, Fee: 0.00256262 USDT)
+  * [02:33:20 21/8/2026] SELL 95 @ 0.0539400 (PnL: 0.03135000 USDT, Fee: 0.00256215 USDT)
+  * [02:33:20 21/8/2026] SELL 95 @ 0.0539400 (PnL: 0.03135000 USDT, Fee: 0.00256215 USDT)
+  * [02:33:20 21/8/2026] SELL 2163 @ 0.0539400 (PnL: 0.71379000 USDT, Fee: 0.05833611 USDT)
+  * [02:33:20 21/8/2026] SELL 1125 @ 0.0539400 (PnL: 0.37125000 USDT, Fee: 0.03034125 USDT)
+  * [02:33:20 21/8/2026] SELL 102 @ 0.0539400 (PnL: 0.03366000 USDT, Fee: 0.00275094 USDT)
+  * [02:33:20 21/8/2026] SELL 290 @ 0.0539300 (PnL: 0.09280000 USDT, Fee: 0.00781985 USDT)
+  * [02:38:54 21/8/2026] SELL 107 @ 0.0540200 (PnL: 0.04387000 USDT, Fee: 0.00289007 USDT)
+  * [02:38:54 21/8/2026] SELL 107 @ 0.0540200 (PnL: 0.04387000 USDT, Fee: 0.00289007 USDT)
+  * [02:38:54 21/8/2026] SELL 107 @ 0.0540200 (PnL: 0.04387000 USDT, Fee: 0.00289007 USDT)
+  * [02:38:54 21/8/2026] SELL 94 @ 0.0540100 (PnL: 0.03760000 USDT, Fee: 0.00253847 USDT)
+  * [02:38:54 21/8/2026] SELL 1107 @ 0.0540100 (PnL: 0.44280000 USDT, Fee: 0.02989453 USDT)
+  * [02:38:54 21/8/2026] SELL 2169 @ 0.0540100 (PnL: 0.86760000 USDT, Fee: 0.05857384 USDT)
+  * [02:38:54 21/8/2026] SELL 102 @ 0.0540100 (PnL: 0.04080000 USDT, Fee: 0.00275451 USDT)
+  * [02:38:54 21/8/2026] SELL 401 @ 0.0540100 (PnL: 0.16040000 USDT, Fee: 0.01082900 USDT)
+  * [02:38:54 21/8/2026] SELL 469 @ 0.0540000 (PnL: 0.18291000 USDT, Fee: 0.01266300 USDT)
+
+- Orders tr├¬n Binance (4 orders):
+  * [02:14:55 21/8/2026] ID:1378379752 Type:LIMIT Side:BUY Status:CANCELED OrigQty:9326 ExecQty:0 StopPrice:0 Price:0.0536100
+  * [02:24:31 21/8/2026] ID:1378407401 Type:LIMIT Side:BUY Status:FILLED OrigQty:9326 ExecQty:9326 StopPrice:0 Price:0.0536100
+  * [02:33:20 21/8/2026] ID:1378426375 Type:MARKET Side:SELL Status:FILLED OrigQty:4663 ExecQty:4663 StopPrice:0 Price:0
+  * [02:38:54 21/8/2026] ID:1378436436 Type:MARKET Side:SELL Status:FILLED OrigQty:4663 ExecQty:4663 StopPrice:0 Price:0
+
+- Logs chi tiß║┐t tß╗½ bot VPS:
+  2026-08-20 13:56:27: [PP369] [AutoTrade] EDEN ΓåÆ LONG (Score: +3.4000000000000004─æ) tß║íi $0.05361 
+  2026-08-20 13:56:27: [PP369] [AutoTrade] Ph├ón bß╗ò K├╜ quß╗╣ EDEN: $30 (Ph├ón cß║Ñp Vß╗æn h├│a Lowcap (Rank #999) | Score: +3.4─æ) 
+  2026-08-20 13:56:27: [PP369] [AutoTrade] ΓÅ¡∩╕Å EDEN (LONG) Score = 3.4000000000000004─æ < 4─æ ΓÇö Bß╗Å qua kh├┤ng ─æß║╖t lß╗çnh. 
+  2026-08-20 13:56:48: [PP369] [AutoTrade] ΓÅ¡∩╕Å EDEN (LONG) Score = 3.4000000000000004─æ < 4─æ ΓÇö Bß╗Å qua kh├┤ng ─æß║╖t lß╗çnh. 
+  2026-08-20 13:57:00: [PP369] [AutoTrade] ΓÅ¡∩╕Å EDEN (LONG) Score = 3.4000000000000004─æ < 4─æ ΓÇö Bß╗Å qua kh├┤ng ─æß║╖t lß╗çnh. 
+  2026-08-20 23:52:35: [PP369] [AutoTrade] EDEN ΓåÆ SHORT (Score: +1.9000000000000001─æ) tß║íi $0.05647 
+  2026-08-20 23:52:35: [PP369] [AutoTrade] Ph├ón bß╗ò K├╜ quß╗╣ EDEN: $30 (Ph├ón cß║Ñp Vß╗æn h├│a Lowcap (Rank #999) | Score: +1.9─æ) 
+  2026-08-20 23:52:35: [PP369] [AutoTrade] EDEN SHORT: Tß╗½ khi chß║ím mß╗æc Long ($0.05361), nß║┐n M1 ─æ├ú x├ít mß╗æc entry SHORT ($0.056430) rß╗ôi nß║úy xuß╗æng ─æ├íy $0.055870 (-0.99% >= 0.71% Khung/5) ΓÇö Hß╗ªY LIMIT stale. 
+  2026-08-21 02:07:25: [PP369] [AutoTrade] EDEN ΓåÆ LONG (Score: +4.4─æ) tß║íi $0.05361 
+  2026-08-21 02:07:25: [PP369] [AutoTrade] Ph├ón bß╗ò K├╜ quß╗╣ EDEN: $30 (Ph├ón cß║Ñp Vß╗æn h├│a Lowcap (Rank #999) | Score: +4.4─æ) 
+  2026-08-21 02:07:25: [PP369] [AI Reviewer] ≡ƒƒí EDEN (LONG) - X├íc suß║Ñt thß║»ng 51.6% < 65% (+ SCORE_WEAK_LT5 (x1.0399), - RANK_LOWCAP_OUT150 (x0.9541), - TREND_NEUTRAL (x0.9231), - VOL_MID (x0.9676), - RSI_NEUTRAL (x0.9462), - PA_0_LEVEL (x0.958), - OI_STABLE (x0.9514), + FUNDING_SQUEEZE (x1.0897), - BTC_ALIGNED (x0.9231), + GRID_WIDE (x1.0979)) 
+  2026-08-21 02:07:26: [PP369] [AutoTrade] Set leverage EDENUSDT = 20x (Tier SL: $0.05307 (1.00%), TP 1:1: $0.05415, Dß╗¥i SL tß║íi $0.05388 | K├╜ quß╗╣: $25) 
+  2026-08-21 02:07:26: [PP369] [AutoTrade] Γ£ô EDEN BUY 9326 @ $0.05361 orderId=1378379752 status=NEW 
+  2026-08-21 02:14:54: [PP369] [AutoTrade] [BounceCancel] EDEN LONG: entry=$0.05361, current=$0.054020 (+0.76% >= 0.75%) ΓåÆ Hß╗ºy LIMIT ngay lß║¡p tß╗⌐c 
+  2026-08-21 02:21:17: [PP369] [AI Reviewer] ≡ƒƒí EDEN (LONG) - X├íc suß║Ñt thß║»ng 51.6% < 65% (+ SCORE_WEAK_LT5 (x1.0399), - RANK_LOWCAP_OUT150 (x0.9541), - TREND_NEUTRAL (x0.9231), - VOL_MID (x0.9676), - RSI_NEUTRAL (x0.9462), - PA_0_LEVEL (x0.958), - OI_STABLE (x0.9514), + FUNDING_SQUEEZE (x1.0897), - BTC_ALIGNED (x0.9231), + GRID_WIDE (x1.0979)) 
+  2026-08-21 02:21:17: [PP369] [AutoTrade] Set leverage EDENUSDT = 20x (Tier SL: $0.05307 (1.00%), TP 1:1: $0.05415, Dß╗¥i SL tß║íi $0.05388 | K├╜ quß╗╣: $25) 
+  2026-08-21 02:21:17: [PP369] [AutoTrade] Γ£ô EDEN BUY 9326 @ $0.05361 orderId=1378407401 status=NEW 
+  2026-08-21 02:24:32: [PP369] [AutoTrade] Γ£ô ─Éß║╖t TP EDEN @ $0.0541500 (─æß╗æi ß╗⌐ng SELL) orderId=1000002516851116 
+  2026-08-21 02:24:32: [PP369] [AutoTrade] Γ£ô ─Éß║╖t SL EDEN @ $0.0530700 (─æß╗æi ß╗⌐ng SELL) orderId=1000002516851117 
+  2026-08-21 02:33:19: [PP369] [AutoTrade] Trailing SL (chß║ím mß╗æc 45─æ): EDEN ─æß║ít ROI 12.47% -> Dß╗ïch SL tr├¬n s├án vß╗ü entry +5─æ ($0.05364, ROI ~1.12%) [Mß╗⌐c: +5─æ (Kh├│a l├úi)] 
+  2026-08-21 02:33:19: [PP369] [AutoTrade] ≡ƒÄ» [Partial TP 50%] EDEN: ─Éß║ít 50% TP -> Tiß║┐n h├ánh chß╗æt 50% vß╗ï thß║┐ (4663 EDEN) MARKET... 
+  2026-08-21 02:33:20: [PP369] [AutoTrade] ─É├ú hß╗ºy SL c┼⌐ cß╗ºa EDEN (orderId=1000002516851117) 
+  2026-08-21 02:33:20: [PP369] [AutoTrade] Γ£ô ─É├ú dß╗ïch SL mß╗¢i cho EDEN @ $0.0536400 (orderId=1000002516860433) 
+  2026-08-21 02:38:02: [PP369] [AutoTrade] ≡ƒÄ» Near-TP Lock (─Éß║ít >=90% TP): EDEN ─æß║ít ROI 19.40% -> Dß╗ïch SL tr├¬n s├án vß╗ü mß╗æc 75% Lß╗úi Nhuß║¡n TP ($0.05402, ROI ~+15.11%) 
+  2026-08-21 02:38:02: [PP369] [AutoTrade] ─É├ú hß╗ºy SL c┼⌐ cß╗ºa EDEN (orderId=1000002516860433) 
+  2026-08-21 02:38:02: [PP369] [AutoTrade] Γ£ô ─É├ú dß╗ïch SL mß╗¢i cho EDEN @ $0.0540200 (orderId=1000002516865625) 
+
+================================================================
+TOKEN: AKTUSDT | Tß╗öNG PNL: -0.5997 USDT
+================================================================
+- Fills tr├¬n Binance (8 fills):
+  * [04:25:04 21/8/2026] SELL 861.7 @ 0.5300000 (PnL: 0 USDT, Fee: 0.09134020 USDT)
+  * [04:36:25 21/8/2026] BUY 18.8 @ 0.5306000 (PnL: -0.01128000 USDT, Fee: 0.00498764 USDT)
+  * [04:36:25 21/8/2026] BUY 139.7 @ 0.5306000 (PnL: -0.08381999 USDT, Fee: 0.03706240 USDT)
+  * [04:36:25 21/8/2026] BUY 275 @ 0.5306000 (PnL: -0.16500000 USDT, Fee: 0.07295749 USDT)
+  * [04:36:25 21/8/2026] BUY 151.8 @ 0.5307000 (PnL: -0.10626000 USDT, Fee: 0.04028012 USDT)
+  * [04:36:25 21/8/2026] BUY 144.7 @ 0.5308000 (PnL: -0.11576000 USDT, Fee: 0.03840338 USDT)
+  * [04:36:25 21/8/2026] BUY 9.7 @ 0.5308000 (PnL: -0.00775999 USDT, Fee: 0.00257437 USDT)
+  * [04:36:25 21/8/2026] BUY 122 @ 0.5309000 (PnL: -0.10980000 USDT, Fee: 0.03238490 USDT)
+
+- Orders tr├¬n Binance (2 orders):
+  * [04:25:04 21/8/2026] ID:847567596 Type:LIMIT Side:SELL Status:FILLED OrigQty:861.7 ExecQty:861.7 StopPrice:0 Price:0.5300000
+  * [04:36:25 21/8/2026] ID:847592134 Type:MARKET Side:BUY Status:FILLED OrigQty:861.7 ExecQty:861.7 StopPrice:0 Price:0
+
+- Logs chi tiß║┐t tß╗½ bot VPS:
+  2026-08-21 04:14:15: [PP369] [AutoTrade] AKT ΓåÆ SHORT (Score: +4.1─æ) tß║íi $0.53 
+  2026-08-21 04:14:15: [PP369] [AutoTrade] Ph├ón bß╗ò K├╜ quß╗╣ AKT: $30 (Ph├ón cß║Ñp Vß╗æn h├│a Lowcap (Rank #999) | Score: +4.1─æ) 
+  2026-08-21 04:14:15: [PP369] [AI Reviewer] ≡ƒƒí AKT (SHORT) - X├íc suß║Ñt thß║»ng 57.6% < 65% (+ SCORE_WEAK_LT5 (x1.0399), - RANK_LOWCAP_OUT150 (x0.9541), + TREND_CONFLICT (x1.1338), - RSI_NEAR (x0.94), - PA_2_LEVELS (x0.8726), - OI_STABLE (x0.9514), + BTC_COUNTER (x1.1308), + GRID_WIDE (x1.0979)) 
+  2026-08-21 04:14:15: [PP369] [AutoTrade] Set leverage AKTUSDT = 45x (Tier SL: $0.5358 (1.09%), TP 1:1: $0.5242, Dß╗¥i SL tß║íi $0.5271 | K├╜ quß╗╣: $10.15) 
+  2026-08-21 04:14:15: [PP369] [AutoTrade] Γ£ô AKT SELL 861.7 @ $0.53 orderId=847567596 status=NEW 
+  2026-08-21 04:25:09: [PP369] [AutoTrade] Γ£ô ─Éß║╖t TP AKT @ $0.5242000 (─æß╗æi ß╗⌐ng BUY) orderId=1000002516976891 
+  2026-08-21 04:25:09: [PP369] [AutoTrade] Γ£ô ─Éß║╖t SL AKT @ $0.5358000 (─æß╗æi ß╗⌐ng BUY) orderId=1000002516976893 
+  2026-08-21 04:33:33: [PP369] [AutoTrade] ≡ƒÜ¿ [M15 Panic Escape] AKT (SHORT): M15 b├╣ng nß╗ò Volume (2.67x TB 20 nß║┐n) k├¿m ─æ├óm l├║n s├óu >= 40% SL -> K├¡ch hoß║ít tho├ít hiß╗âm -10% SL @ $0.53058 
+  2026-08-21 04:33:34: [PP369] [AutoTrade] ΓÜá∩╕Å ─É├ú dß╗¥i TP AKT vß╗ü mß╗æc [Tho├ít hiß╗âm -10 ticks] @ $0.53058 (─æß╗æi ß╗⌐ng BUY) orderId=1000002516984064 
+
+================================================================
+TOKEN: ZEREBROUSDT | Tß╗öNG PNL: -5.0058 USDT
+================================================================
+- Fills tr├¬n Binance (12 fills):
+  * [05:41:41 21/8/2026] BUY 11784 @ 0.0424300 (PnL: 0 USDT, Fee: 0.09999902 USDT)
+  * [05:52:04 21/8/2026] SELL 222 @ 0.0420840 (PnL: -0.07681200 USDT, Fee: 0.00467132 USDT)
+  * [05:52:04 21/8/2026] SELL 190 @ 0.0420810 (PnL: -0.06631000 USDT, Fee: 0.00399769 USDT)
+  * [05:52:04 21/8/2026] SELL 611 @ 0.0420610 (PnL: -0.22545900 USDT, Fee: 0.01284963 USDT)
+  * [05:52:04 21/8/2026] SELL 1599 @ 0.0420250 (PnL: -0.64759500 USDT, Fee: 0.03359898 USDT)
+  * [05:52:04 21/8/2026] SELL 1599 @ 0.0420250 (PnL: -0.64759500 USDT, Fee: 0.03359898 USDT)
+  * [05:52:04 21/8/2026] SELL 1828 @ 0.0420250 (PnL: -0.74034000 USDT, Fee: 0.03841085 USDT)
+  * [05:52:04 21/8/2026] SELL 1153 @ 0.0419850 (PnL: -0.51308500 USDT, Fee: 0.02420435 USDT)
+  * [05:52:04 21/8/2026] SELL 394 @ 0.0419760 (PnL: -0.17887600 USDT, Fee: 0.00826927 USDT)
+  * [05:52:04 21/8/2026] SELL 1599 @ 0.0419740 (PnL: -0.72914400 USDT, Fee: 0.03355821 USDT)
+  * [05:52:04 21/8/2026] SELL 1828 @ 0.0419740 (PnL: -0.83356800 USDT, Fee: 0.03836423 USDT)
+  * [05:52:04 21/8/2026] SELL 761 @ 0.0419740 (PnL: -0.34701600 USDT, Fee: 0.01597110 USDT)
+
+- Orders tr├¬n Binance (3 orders):
+  * [05:41:20 21/8/2026] ID:3090069897 Type:LIMIT Side:BUY Status:CANCELED OrigQty:11784 ExecQty:0 StopPrice:0 Price:0.0424300
+  * [05:41:41 21/8/2026] ID:3090089758 Type:LIMIT Side:BUY Status:FILLED OrigQty:11784 ExecQty:11784 StopPrice:0 Price:0.0424300
+  * [05:52:04 21/8/2026] ID:3090097481 Type:MARKET Side:SELL Status:FILLED OrigQty:11784 ExecQty:11784 StopPrice:0 Price:0
+
+- Logs chi tiß║┐t tß╗½ bot VPS:
+  2026-08-21 00:47:01: [PP369] [AutoTrade] ZEREBRO ΓåÆ LONG (Score: +3.6─æ) tß║íi $0.04243 
+  2026-08-21 00:47:01: [PP369] [AutoTrade] Ph├ón bß╗ò K├╜ quß╗╣ ZEREBRO: $30 (Ph├ón cß║Ñp Vß╗æn h├│a Lowcap (Rank #999) | Score: +3.6─æ) 
+  2026-08-21 00:47:01: [PP369] [AutoTrade] ΓÅ¡∩╕Å ZEREBRO (LONG) Score = 3.6─æ < 4─æ ΓÇö Bß╗Å qua kh├┤ng ─æß║╖t lß╗çnh. 
+  2026-08-21 00:47:21: [PP369] [AutoTrade] ΓÅ¡∩╕Å ZEREBRO (LONG) Score = 3.6─æ < 4─æ ΓÇö Bß╗Å qua kh├┤ng ─æß║╖t lß╗çnh. 
+  2026-08-21 00:48:46: [PP369] [AutoTrade] ΓÅ¡∩╕Å ZEREBRO (LONG) Score = 3.6─æ < 4─æ ΓÇö Bß╗Å qua kh├┤ng ─æß║╖t lß╗çnh. 
+  2026-08-21 01:02:35: [PP369] [AutoTrade] ZEREBRO ΓåÆ LONG (Score: +3.8─æ) tß║íi $0.04243 
+  2026-08-21 01:02:35: [PP369] [AutoTrade] Ph├ón bß╗ò K├╜ quß╗╣ ZEREBRO: $30 (Ph├ón cß║Ñp Vß╗æn h├│a Lowcap (Rank #999) | Score: +3.8─æ) 
+  2026-08-21 01:02:35: [PP369] [AutoTrade] ΓÅ¡∩╕Å ZEREBRO (LONG) Score = 3.8─æ < 4─æ ΓÇö Bß╗Å qua kh├┤ng ─æß║╖t lß╗çnh. 
+  2026-08-21 01:31:35: [PP369] [AutoTrade] ZEREBRO ΓåÆ LONG (Score: +3.8─æ) tß║íi $0.04243 
+  2026-08-21 01:31:35: [PP369] [AutoTrade] Ph├ón bß╗ò K├╜ quß╗╣ ZEREBRO: $30 (Ph├ón cß║Ñp Vß╗æn h├│a Lowcap (Rank #999) | Score: +3.8─æ) 
+  2026-08-21 01:31:35: [PP369] [AutoTrade] ΓÅ¡∩╕Å ZEREBRO (LONG) Score = 3.8─æ < 4─æ ΓÇö Bß╗Å qua kh├┤ng ─æß║╖t lß╗çnh. 
+  2026-08-21 05:28:08: [PP369] [AutoTrade] ZEREBRO ΓåÆ LONG (Score: +5.6─æ) tß║íi $0.04243 
+  2026-08-21 05:28:08: [PP369] [AutoTrade] Ph├ón bß╗ò K├╜ quß╗╣ ZEREBRO: $30 (Ph├ón cß║Ñp Vß╗æn h├│a Lowcap (Rank #999) | Score: +5.6─æ) 
+  2026-08-21 05:28:08: [PP369] [AI Reviewer] ≡ƒƒí ZEREBRO (LONG) - X├íc suß║Ñt thß║»ng 47.3% < 65% (- RANK_LOWCAP_OUT150 (x0.9541), - TREND_PERFECT (x0.8733), - RSI_NEUTRAL (x0.9462), - PA_0_LEVEL (x0.958), - OI_STABLE (x0.9514), - BTC_ALIGNED (x0.9231), + GRID_WIDE (x1.0979)) 
+  2026-08-21 05:28:08: [PP369] [AutoTrade] Set leverage ZEREBROUSDT = 10x (Tier SL: $0.04201 (1.00%), TP 1:1: $0.04285, Dß╗¥i SL tß║íi $0.04264 | K├╜ quß╗╣: $50) 
+  2026-08-21 05:28:08: [PP369] [AutoTrade] Γ£ô ZEREBRO BUY 11784 @ $0.04243 orderId=3090069897 status=NEW 
+  2026-08-21 05:41:19: [PP369] [AutoTrade] Lß╗çnh LIMIT cß╗ºa ZEREBRO ─æ├ú chß║ím/v╞░ß╗út Entry ($0.04243) qu├í 10 ph├║t kh├┤ng khß╗¢p (10.3 ph├║t) -> Tiß║┐n h├ánh hß╗ºy... 
+  2026-08-21 05:41:19: [PP369] [AutoTrade] Γ£ô ─É├ú hß╗ºy th├ánh c├┤ng lß╗çnh LIMIT treo cß╗ºa ZEREBRO 
+  2026-08-21 05:41:25: [PP369] [AI Reviewer] ≡ƒƒí ZEREBRO (LONG) - X├íc suß║Ñt thß║»ng 47.3% < 65% (- RANK_LOWCAP_OUT150 (x0.9541), - TREND_PERFECT (x0.8733), - RSI_NEUTRAL (x0.9462), - PA_0_LEVEL (x0.958), - OI_STABLE (x0.9514), - BTC_ALIGNED (x0.9231), + GRID_WIDE (x1.0979)) 
+  2026-08-21 05:41:25: [PP369] [AutoTrade] Set leverage ZEREBROUSDT = 10x (Tier SL: $0.04201 (1.00%), TP 1:1: $0.04285, Dß╗¥i SL tß║íi $0.04264 | K├╜ quß╗╣: $50) 
+  2026-08-21 05:41:25: [PP369] [AutoTrade] Γ£ô ZEREBRO BUY 11784 @ $0.04243 orderId=3090089758 status=NEW 
+  2026-08-21 05:41:41: [PP369] [AutoTrade] Γ£ô ─Éß║╖t TP ZEREBRO @ $0.0428500 (─æß╗æi ß╗⌐ng SELL) orderId=1000002517047166 
+  2026-08-21 05:41:41: [PP369] [AutoTrade] Γ£ô ─Éß║╖t SL ZEREBRO @ $0.0420100 (─æß╗æi ß╗⌐ng SELL) orderId=1000002517047167 
+
+================================================================
+TOKEN: METISUSDT | Tß╗öNG PNL: +1.0416 USDT
+================================================================
+- Fills tr├¬n Binance (14 fills):
+  * [08:18:12 21/8/2026] SELL 128.17 @ 2.6030 (PnL: 0 USDT, Fee: 0.06672530 USDT)
+  * [08:21:38 21/8/2026] BUY 29.59 @ 2.5880 (PnL: 0.44385000 USDT, Fee: 0.03828945 USDT)
+  * [08:21:38 21/8/2026] BUY 10 @ 2.5880 (PnL: 0.15000000 USDT, Fee: 0.01294000 USDT)
+  * [08:21:38 21/8/2026] BUY 2 @ 2.5880 (PnL: 0.03000000 USDT, Fee: 0.00258800 USDT)
+  * [08:21:38 21/8/2026] BUY 8.65 @ 2.5880 (PnL: 0.12975000 USDT, Fee: 0.01119310 USDT)
+  * [08:21:38 21/8/2026] BUY 13.84 @ 2.5890 (PnL: 0.19376000 USDT, Fee: 0.01791587 USDT)
+  * [08:30:03 21/8/2026] BUY 1.99 @ 2.6010 (PnL: 0.00398000 USDT, Fee: 0.00258799 USDT)
+  * [08:30:03 21/8/2026] BUY 1.95 @ 2.6010 (PnL: 0.00390000 USDT, Fee: 0.00253597 USDT)
+  * [08:30:03 21/8/2026] BUY 1.95 @ 2.6010 (PnL: 0.00390000 USDT, Fee: 0.00253597 USDT)
+  * [08:30:03 21/8/2026] BUY 24.24 @ 2.6010 (PnL: 0.04848000 USDT, Fee: 0.03152412 USDT)
+  * [08:30:03 21/8/2026] BUY 1.97 @ 2.6020 (PnL: 0.00197000 USDT, Fee: 0.00256297 USDT)
+  * [08:30:03 21/8/2026] BUY 1.99 @ 2.6020 (PnL: 0.00199000 USDT, Fee: 0.00258899 USDT)
+  * [08:30:03 21/8/2026] BUY 10.13 @ 2.6020 (PnL: 0.01013000 USDT, Fee: 0.01317913 USDT)
+  * [08:30:03 21/8/2026] BUY 19.87 @ 2.6020 (PnL: 0.01987000 USDT, Fee: 0.02585087 USDT)
+
+- Orders tr├¬n Binance (3 orders):
+  * [08:18:12 21/8/2026] ID:1629948542 Type:LIMIT Side:SELL Status:FILLED OrigQty:128.17 ExecQty:128.17 StopPrice:0 Price:2.6030
+  * [08:21:38 21/8/2026] ID:1629967616 Type:MARKET Side:BUY Status:FILLED OrigQty:64.08 ExecQty:64.08 StopPrice:0 Price:0
+  * [08:30:03 21/8/2026] ID:1629971974 Type:MARKET Side:BUY Status:FILLED OrigQty:64.09 ExecQty:64.09 StopPrice:0 Price:0
+
+- Logs chi tiß║┐t tß╗½ bot VPS:
+  2026-08-21 07:33:10: [PP369] [AutoTrade] METIS ΓåÆ SHORT (Score: +4.1─æ) tß║íi $2.603 
+  2026-08-21 07:33:10: [PP369] [AutoTrade] Ph├ón bß╗ò K├╜ quß╗╣ METIS: $30 (Ph├ón cß║Ñp Vß╗æn h├│a Lowcap (Rank #999) | Score: +4.1─æ) 
+  2026-08-21 07:33:11: [PP369] [AI Reviewer] ≡ƒƒí METIS (SHORT) - X├íc suß║Ñt thß║»ng 64.9% < 65% (+ SCORE_WEAK_LT5 (x1.0399), - RANK_LOWCAP_OUT150 (x0.9541), + TREND_CONFLICT (x1.1338), - RSI_NEAR (x0.94), + PA_3_LEVELS (x1.1877), - OI_STABLE (x0.9514), + BTC_COUNTER (x1.1308), + GRID_WIDE (x1.0979)) 
+  2026-08-21 07:33:11: [PP369] [AutoTrade] Set leverage METISUSDT = 33x (Tier SL: $2.642 (1.50%), TP 1:1: $2.564, Dß╗¥i SL tß║íi $2.5835 | K├╜ quß╗╣: $10.11) 
+  2026-08-21 07:33:11: [PP369] [AutoTrade] Γ£ô METIS SELL 128.17 @ $2.603 orderId=1629948542 status=NEW 
+  2026-08-21 08:18:14: [PP369] [AutoTrade] Γ£ô ─Éß║╖t TP METIS @ $2.5640 (─æß╗æi ß╗⌐ng BUY) orderId=1000002517258155 
+  2026-08-21 08:18:14: [PP369] [AutoTrade] Γ£ô ─Éß║╖t SL METIS @ $2.6420 (─æß╗æi ß╗⌐ng BUY) orderId=1000002517258174 
+  2026-08-21 08:21:38: [PP369] [AutoTrade] Trailing SL (chß║ím mß╗æc 45─æ): METIS ─æß║ít ROI 20.28% -> Dß╗ïch SL tr├¬n s├án vß╗ü entry +5─æ ($2.600, ROI ~3.8%) [Mß╗⌐c: +5─æ (Kh├│a l├úi)] 
+  2026-08-21 08:21:38: [PP369] [AutoTrade] ≡ƒÄ» [Partial TP 50%] METIS: ─Éß║ít 50% TP -> Tiß║┐n h├ánh chß╗æt 50% vß╗ï thß║┐ (64.08 METIS) MARKET... 
+  2026-08-21 08:21:38: [PP369] [AutoTrade] ─É├ú hß╗ºy SL c┼⌐ cß╗ºa METIS (orderId=1000002517258174) 
+  2026-08-21 08:21:38: [PP369] [AutoTrade] Γ£ô ─É├ú dß╗ïch SL mß╗¢i cho METIS @ $2.6000 (orderId=1000002517272884) 

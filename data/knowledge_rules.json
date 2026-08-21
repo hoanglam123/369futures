@@ -9,10 +9,10 @@
     "ls_flow:LS_GOLD": 1.2,
     "volatility:VOL_ULTRA": 1.15,
     "ls_flow:LS_DIVERGENCE": 0.8,
-    "volume:VOL_SURGE": 1.12,
+    "funding:FUNDING_SQUEEZE": 1.12,
     "price_action:PA_3_LEVELS": 1.08,
-    "funding:FUNDING_SQUEEZE": 1.12
+    "volume:VOL_SURGE": 1.12
   },
-  "rules_count": 169,
-  "extracted_at": "2026-08-06 10:10:19"
+  "rules_count": 12,
+  "extracted_at": "2026-08-21 11:27:20"
 }
