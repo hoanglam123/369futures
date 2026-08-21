@@ -53,12 +53,20 @@ function format369Alert(signals) {
   const lines = [];
 
   for (const sig of signals) {
-    const emoji = sig.signal === 'LONG' ? '🟢' : '🔴';
-    const scoreStr = (sig.score !== undefined && sig.score !== null) ? ` ${sig.score}đ` : '';
+    const sym = sig.symbol || sig.sym;
+    const signal = sig.signal;
+    const emoji = signal === 'LONG' ? '🟢' : '🔴';
+    const scoreVal = typeof sig.score === 'number' ? sig.score.toFixed(1) : (sig.score ? parseFloat(sig.score).toFixed(1) : '0.0');
 
-    lines.push(`${emoji} <b>${sig.symbol}</b> → <b>${sig.signal}${scoreStr}</b>`);
+    let aiEval = sig.aiEval;
+    if (!aiEval) {
+      try {
+        const { evaluateSignalWithAI } = require('./aiReviewer');
+        aiEval = evaluateSignalWithAI(sig);
+      } catch (_) {}
+    }
 
-    let sigLeverage = sig.leverage;
+    let sigLeverage = sig.leverage || sig.effectiveLeverage;
     if (sigLeverage == null && sig.step && sig.targetLevel) {
       const gridStepPct = (sig.step / sig.targetLevel) * 100;
       const calculatedLeverage = Math.floor(39 / gridStepPct);
@@ -71,31 +79,58 @@ function format369Alert(signals) {
         if (fs.existsSync(filePath)) {
           const raw = JSON.parse(fs.readFileSync(filePath, 'utf8'));
           const leverageInfo = raw.leverageInfo || {};
-          maxAllowed = leverageInfo[sig.symbol] ?? envLeverage;
+          maxAllowed = leverageInfo[sym] ?? envLeverage;
         } else {
           maxAllowed = envLeverage;
         }
       } catch (_) {}
       sigLeverage = Math.max(1, Math.min(calculatedLeverage, maxAllowed));
     }
-    const leverageStr = sigLeverage != null ? ` - ${sigLeverage}x` : '';
-    lines.push(`  Entry:   <code>${fmt369Price(sig.targetLevel)}</code>${leverageStr}`);
 
-    const step = sig.step || 0;
-    const pairLow = sig.debugInfo?.pairLow ?? Math.min(sig.targetLevel, sig.condLevel) ?? sig.nearestBelow;
-    const pairHigh = sig.debugInfo?.pairHigh ?? Math.max(sig.targetLevel, sig.condLevel) ?? sig.nearestAbove;
-    const stopLoss = sig.signal === 'LONG' ? (pairLow - step) : (pairHigh + step);
-    // lines.push(`  SL: <code>${fmt369Price(stopLoss)}</code>`); // Đã ẩn theo yêu cầu
-    
-    lines.push('  -----------------------------------------');
+    const marginVal = sig.margin || sig.actualTradeMargin;
+    const marginStr = marginVal ? ` | Ký quỹ: <b>$${marginVal}</b>` : '';
+    const leverageStr = sigLeverage != null ? ` | Đòn bẩy: <b>${sigLeverage}x</b>` : '';
 
-    if (sig.scoreReasons && sig.scoreReasons.length) {
-      sig.scoreReasons.forEach(reason => {
-        const formatted = formatReasonTelegram(reason);
-        if (formatted) lines.push(formatted);
-      });
+    if (aiEval) {
+      const aiBadge = aiEval.isApproved ? '🟢 <b>NÊN VÀO LỆNH</b>' : '🟡 <b>CÂN NHẮC</b>';
+      const winProbStr = `${aiEval.winProbability.toFixed(1)}%`;
+      const evSign = aiEval.expectedValueRoi >= 0 ? '+' : '';
+      const evStr = `${evSign}${aiEval.expectedValueRoi.toFixed(2)}% ROI`;
+
+      lines.push(`🤖 <b>[AI Khuyến Nghị] #${sym} (${signal})</b>`);
+      lines.push(`• <b>Entry:</b> <code>$${fmt369Price(sig.targetLevel)}</code> (${sigLeverage != null ? `${sigLeverage}x` : ''}${marginVal ? ` | Ký quỹ: $${marginVal}` : ''})`);
+      lines.push(`• <b>AI Đánh giá:</b> ${aiBadge} (WinRate: <b>${winProbStr}</b> | EV: <b>${evStr}</b>)`);
+
+      const slPrice = sig.tierSlPrice || sig.tierSetup?.slPrice;
+      const tpPrice = sig.tierTpPrice || sig.tierSetup?.tpPrice;
+      if (slPrice && tpPrice) {
+        lines.push(`• <b>Mục tiêu:</b> SL: <code>$${fmt369Price(slPrice)}</code> | TP 1.5R: <code>$${fmt369Price(tpPrice)}</code>`);
+      }
+
+      lines.push(`• <b>Score kỹ thuật:</b> +${scoreVal}đ`);
+
+      if (aiEval.keyFactors && aiEval.keyFactors.length > 0) {
+        lines.push('• <b>Yếu tố AI then chốt:</b>');
+        aiEval.keyFactors.slice(0, 4).forEach(factor => {
+          lines.push(`  <i>${escapeHTML(factor)}</i>`);
+        });
+      } else if (sig.scoreReasons && sig.scoreReasons.length) {
+        lines.push('• <b>Yếu tố nổi bật:</b>');
+        sig.scoreReasons.slice(0, 3).forEach(reason => {
+          const formatted = formatReasonTelegram(reason);
+          if (formatted) lines.push(formatted);
+        });
+      }
     } else {
-      lines.push('   <i>Không có chi tiết lý do.</i>');
+      lines.push(`${emoji} <b>${sym}</b> → <b>${signal} (+${scoreVal}đ)</b>`);
+      lines.push(`  Entry: <code>${fmt369Price(sig.targetLevel)}</code>${leverageStr}${marginStr}`);
+      lines.push('  -----------------------------------------');
+      if (sig.scoreReasons && sig.scoreReasons.length) {
+        sig.scoreReasons.slice(0, 4).forEach(reason => {
+          const formatted = formatReasonTelegram(reason);
+          if (formatted) lines.push(formatted);
+        });
+      }
     }
 
     lines.push('');

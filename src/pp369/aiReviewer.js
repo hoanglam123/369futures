@@ -276,6 +276,7 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
     expectedValueUsd: parseFloat(evUsd.toFixed(2)),
     isApproved,
     reason: reasonText,
+    keyFactors,
   };
 }
 

@@ -776,6 +776,7 @@ async function startAutoTrade(coins) {
               : (isM15Volatile ? 'M15 biến động mạnh' : 'Biến động H1/M15 không đạt'));
           log.system(`[AutoTrade] ${sym} ${sig.signal} không đạt Tiêu chí 2 (${failReason}) — Đưa vào Watchlist chờ Retest H1`);
         }
+        const rank = getMarketCapRank ? getMarketCapRank(sym) : 999;
         lowScoreWatchlist[sym] = {
           symbol: sym,
           signal: sig.signal,
@@ -786,6 +787,7 @@ async function startAutoTrade(coins) {
           otherScore: scoreRes?.otherScore || 0,
           step: sig.step || getStep(markPrice),
           gridWidthPct: parseFloat(sig.gridWidthPct) || 3.5,
+          marketCapRank: rank,
           timestamp: Date.now()
         };
         if (_shouldLogSignal(sym, sig.signal, sig.targetLevel, 'rec_no_volatility')) {
@@ -1186,6 +1188,11 @@ async function startAutoTrade(coins) {
 
         _markFired(sig);
         activeSymbols.add(sym); // 🛡️ BẢO VỆ LOCAL RAM: Khóa symbol ngay khi đặt lệnh thành công, không phụ thuộc REST sync 418
+        sig.aiEval = aiEval;
+        sig.leverage = effectiveLeverage;
+        sig.margin = actualTradeMargin;
+        sig.tierSlPrice = tierSetup.slPrice;
+        sig.tierTpPrice = tierSetup.tpPrice;
         notifySignals([sig]).catch(() => { });
         logSignal369(sig);
 
@@ -1705,6 +1712,7 @@ async function checkH1RetestSignals(client, activeSymbols, leverageInfo = {}) {
       }
 
       // ── AI Reviewer Machine Learning Offline (Retest H1) ──
+      const rank = watchData.marketCapRank || (getMarketCapRank ? getMarketCapRank(sym) : 999);
       const sigForAI = {
         symbol: sym,
         signal: signal,
@@ -1825,7 +1833,7 @@ async function checkH1RetestSignals(client, activeSymbols, leverageInfo = {}) {
           `🎯 <b>[AutoTrade] Lệnh LIMIT Retest H1</b>\n` +
           `• Coin: <b>${sym}USDT (${signal})</b>\n` +
           `• Giá Entry: <b>$${targetLevel}</b>\n` +
-          `• Đòn bẩy: <b>${effectiveLeverageRetest}x</b> (Ký quỹ: $${tradeAmount})\n` +
+          `• Đòn bẩy: <b>${effectiveLeverageRetest}x</b> (Ký quỹ: $${actualTradeMarginRetest})\n` +
           `• Score gốc: <b>${watchData.score}đ</b>\n` +
           `• Lý do: Nến H1 đóng rút chân chuẩn tại Entry, chưa nảy đủ 5% ROI (Max ROI: +${maxFavorableRoi.toFixed(2)}%)`
         );
@@ -2426,6 +2434,7 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
             log.system(`[AutoTrade] Trailing SL (chạm mốc ${ticksLabel}đ): ${sym} đạt ROI ${roi.toFixed(2)}% -> Dịch SL trên sàn về entry +5đ ($${targetSlStr}, ROI ~${currentSlPct}%) [Mức: ${levelLabel}]`);
 
             // ── PARTIAL TP 50% (Chốt 50% khối lượng khi đạt 45 ticks và dời SL về BE) ──
+            let partialTpExecutedQty = 0;
             if (meta && !meta.hasPartialTp50 && absAmt > 0) {
               try {
                 const halfQty = calcHalfQuantity(sym, absAmt);
@@ -2433,15 +2442,8 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
                   log.system(`[AutoTrade] 🎯 [Partial TP 50%] ${sym}: Đạt mốc ${ticksLabel}đ -> Tiến hành chốt 50% vị thế (${halfQty} ${sym}) MARKET...`);
                   await client.placeMarket(sym, oppositeSide, halfQty);
                   meta.hasPartialTp50 = true;
+                  partialTpExecutedQty = halfQty;
                   saveActiveTradesMetadata();
-
-                  sendTelegram(
-                    `🎯 <b>[AutoTrade] Chốt Lời 50% Vị Thế (Partial TP)</b>\n` +
-                    `• Coin: <b>#${sym} (${isLong ? 'LONG' : 'SHORT'})</b>\n` +
-                    `• Đã chốt: <b>${halfQty} ${sym}</b> (50% khối lượng)\n` +
-                    `• ROI lúc chốt: <b>+${roi.toFixed(2)}%</b>\n` +
-                    `• 50% khối lượng còn lại tiếp tục gồng về TP 1.5R với SL hòa vốn!`
-                  ).catch(() => { });
                 }
               } catch (partialErr) {
                 log.warn(`[AutoTrade] Lỗi chốt Partial TP 50% cho ${sym}: ${partialErr.message}`);
@@ -2474,15 +2476,26 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
               const stopPriceStr = newSl.stopPrice || newSl.triggerPrice || roundedTargetSl;
               log.system(`[AutoTrade] ✓ Đã dịch SL mới cho ${sym} @ $${stopPriceStr} (orderId=${orderIdStr})`);
 
-              // Gửi Telegram thông báo dời SL
+              // Gửi duy nhất 1 thông báo Telegram (Gộp Chốt Lời 50% & Dời SL Hòa Vốn)
               const ticksLabel = (trailMultiplier * 100).toFixed(0);
-              sendTelegram(
-                `🛡️ <b>[AutoTrade] Khóa Lãi Hòa Vốn (+${ticksLabel} ticks)</b>\n` +
-                `• Coin: <b>${sym} (${isLong ? 'LONG' : 'SHORT'})</b>\n` +
-                `• ROI hiện tại: <b>+${roi.toFixed(2)}%</b>\n` +
-                `• Đã dời SL trên sàn về: <b>$${targetSlStr}</b> (+5 ticks khóa lãi)\n` +
-                `• 50% vị thế còn lại tiếp tục gồng về TP 1.5R!`
-              ).catch(() => { });
+              if (partialTpExecutedQty > 0) {
+                sendTelegram(
+                  `🎯 <b>[AutoTrade] Chốt Lời 50% & Khóa Lãi (+${ticksLabel} ticks)</b>\n` +
+                  `• Coin: <b>#${sym} (${isLong ? 'LONG' : 'SHORT'})</b>\n` +
+                  `• Đã chốt: <b>${partialTpExecutedQty} ${sym}</b> (50% khối lượng)\n` +
+                  `• ROI lúc chốt: <b>+${roi.toFixed(2)}%</b>\n` +
+                  `• Đã dời SL trên sàn về: <b>$${targetSlStr}</b> (+5 ticks khóa lãi)\n` +
+                  `• 50% khối lượng còn lại tiếp tục gồng về TP 1.5R!`
+                ).catch(() => { });
+              } else {
+                sendTelegram(
+                  `🛡️ <b>[AutoTrade] Khóa Lãi Hòa Vốn (+${ticksLabel} ticks)</b>\n` +
+                  `• Coin: <b>#${sym} (${isLong ? 'LONG' : 'SHORT'})</b>\n` +
+                  `• ROI hiện tại: <b>+${roi.toFixed(2)}%</b>\n` +
+                  `• Đã dời SL trên sàn về: <b>$${targetSlStr}</b> (+5 ticks khóa lãi)\n` +
+                  `• Tiếp tục gồng về TP 1.5R!`
+                ).catch(() => { });
+              }
             } catch (e) {
               const errStr = _binanceErr(e);
               if (errStr.includes('-4509')) {
