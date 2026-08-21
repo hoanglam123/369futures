@@ -67,7 +67,7 @@ function startAutoRetrainTimer() {
 loadAIModel();
 startAutoRetrainTimer();
 
-function extractSignalFeatures(reasons, score, rank, gridWidthPct) {
+function extractSignalFeatures(reasons, score, rank, gridWidthPct, rawMarketData = null, signal = 'LONG', entryPrice = null) {
   const reasonsStr = Array.isArray(reasons) ? reasons.join(' ') : String(reasons || '');
   const features = {};
 
@@ -138,6 +138,45 @@ function extractSignalFeatures(reasons, score, rank, gridWidthPct) {
   else if (gw >= 2.5) features['grid_width'] = 'GRID_NORMAL';
   else features['grid_width'] = 'GRID_NARROW';
 
+  // ── [MỚI] 13. Candlestick Geometry AI (Đo hình thái nến M15/H1 thực tế) ──
+  if (rawMarketData?.lastM15) {
+    const { open, high, low, close } = rawMarketData.lastM15;
+    const totalRange = Math.max(1e-9, high - low);
+    const body = Math.abs(close - open);
+    const upperWick = high - Math.max(open, close);
+    const lowerWick = Math.min(open, close) - low;
+    const isLong = signal === 'LONG' || signal === 'BUY';
+
+    if (isLong) {
+      if (lowerWick / totalRange >= 0.40) {
+        features['candle_shape'] = 'CANDLE_PINBAR_HAMMER';
+      } else if (close < open && (body / totalRange >= 0.70) && (entryPrice ? close <= entryPrice : true)) {
+        features['candle_shape'] = 'CANDLE_MARUBOZU_DUMP';
+      } else {
+        features['candle_shape'] = 'CANDLE_NORMAL';
+      }
+    } else {
+      if (upperWick / totalRange >= 0.40) {
+        features['candle_shape'] = 'CANDLE_PINBAR_SHOOTING';
+      } else if (close > open && (body / totalRange >= 0.70) && (entryPrice ? close >= entryPrice : true)) {
+        features['candle_shape'] = 'CANDLE_MARUBOZU_PUMP';
+      } else {
+        features['candle_shape'] = 'CANDLE_NORMAL';
+      }
+    }
+  }
+
+  // ── [MỚI] 14. Touch Count / Level Freshness ──
+  if (typeof rawMarketData?.touchCount === 'number') {
+    if (rawMarketData.touchCount <= 1) {
+      features['level_freshness'] = 'FRESH_LEVEL_TOUCH1';
+    } else if (rawMarketData.touchCount === 2) {
+      features['level_freshness'] = 'RETEST_LEVEL_TOUCH2';
+    } else {
+      features['level_freshness'] = 'EXHAUSTED_LEVEL_TOUCH3';
+    }
+  }
+
   return features;
 }
 
@@ -145,37 +184,55 @@ function extractSignalFeatures(reasons, score, rank, gridWidthPct) {
  * Evaluates signal context before placing order
  *
  * @param {object} sig - Signal object from core.js
+ * @param {object} [rawMarketData=null] - Optional raw market metrics (candle geometry, touch count)
  * @returns {object} { winProbability: number, isApproved: boolean, reason: string }
  */
-function evaluateSignalWithAI(sig) {
+function evaluateSignalWithAI(sig, rawMarketData = null) {
   if (!_modelConfig) loadAIModel();
 
-  const defaultThreshold = 65.0;
+  const defaultThreshold = 58.0;
   const threshold = _modelConfig?.thresholdApprovalPct || defaultThreshold;
-  const priorWin = _modelConfig?.priorWinProb || 0.645;
+  const priorWin = _modelConfig?.priorWinProb || 0.565;
   const weights = _modelConfig?.featureWeights || {};
+
+  // Custom weights for raw market features
+  const dynamicModifiers = {
+    'candle_shape:CANDLE_PINBAR_HAMMER': 1.25,
+    'candle_shape:CANDLE_PINBAR_SHOOTING': 1.25,
+    'candle_shape:CANDLE_MARUBOZU_DUMP': 0.45,  // Phạt nặng nến đâm cản -> Tự động Veto
+    'candle_shape:CANDLE_MARUBOZU_PUMP': 0.45,  // Phạt nặng nến đâm cản -> Tự động Veto
+    'candle_shape:CANDLE_NORMAL': 1.00,
+    'level_freshness:FRESH_LEVEL_TOUCH1': 1.12,
+    'level_freshness:RETEST_LEVEL_TOUCH2': 0.95,
+    'level_freshness:EXHAUSTED_LEVEL_TOUCH3': 0.70
+  };
 
   const score = parseFloat(sig.score) || 0;
   const rank = parseInt(sig.marketCapRank) || 999;
   const gridWidthPct = parseFloat(sig.gridWidthPct) || 3.5;
   const reasons = sig.scoreReasons || [];
+  const entryPrice = sig.targetLevel || sig.price || null;
 
-  const features = extractSignalFeatures(reasons, score, rank, gridWidthPct);
+  const features = extractSignalFeatures(reasons, score, rank, gridWidthPct, rawMarketData, sig.signal, entryPrice);
 
   let combinedMultiplier = 1.0;
   const keyFactors = [];
 
   for (const [cat, val] of Object.entries(features)) {
     const key = `${cat}:${val}`;
-    if (weights[key]) {
-      const mult = weights[key].multiplier;
-      combinedMultiplier *= mult;
+    let mult = 1.0;
+    if (dynamicModifiers[key]) {
+      mult = dynamicModifiers[key];
+    } else if (weights[key]) {
+      mult = weights[key].multiplier;
+    }
 
-      if (mult >= 1.03) {
-        keyFactors.push(`+ ${val} (x${mult})`);
-      } else if (mult <= 0.97) {
-        keyFactors.push(`- ${val} (x${mult})`);
-      }
+    combinedMultiplier *= mult;
+
+    if (mult >= 1.03) {
+      keyFactors.push(`+ ${val} (x${mult.toFixed(2)})`);
+    } else if (mult <= 0.97) {
+      keyFactors.push(`- ${val} (x${mult.toFixed(2)})`);
     }
   }
 

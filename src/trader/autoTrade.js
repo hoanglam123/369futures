@@ -987,6 +987,7 @@ async function startAutoTrade(coins) {
       sig.gridWidthPct = gridStepPct;
 
       // ── Tiêu chí 2: Bộ Lọc Confluence Score tối thiểu (Mặc định >= 4.5đ) ──
+
       if ((sig.score || 0) < MIN_CONFLUENCE_SCORE) {
         log.system(`[AutoTrade] ⏭️ ${sym} (${sig.signal}) Score = ${sig.score}đ < ${MIN_CONFLUENCE_SCORE}đ — Bỏ qua không đặt lệnh.`);
         if (_shouldLogSignal(sym, sig.signal, sig.targetLevel, 'low_score_skipped')) {
@@ -1004,7 +1005,21 @@ async function startAutoTrade(coins) {
         return;
       }
 
-      const aiEval = evaluateSignalWithAI(sig);
+      // ── Thu thập dữ liệu nến M15 thô để nạp vào AI Reviewer v2.0 ──
+      let rawMarketData = null;
+      let klinesM15 = null;
+      try {
+        klinesM15 = await fetchBinanceKlines(sym, '15m', null, 21);
+        const currM15 = klinesM15 && klinesM15.length > 0 ? klinesM15[klinesM15.length - 1] : null;
+        rawMarketData = {
+          lastM15: currM15,
+          touchCount: 1
+        };
+      } catch (err) {
+        // fallback
+      }
+
+      const aiEval = evaluateSignalWithAI(sig, rawMarketData);
       recordAIEvaluation(sig, aiEval);
 
       // ── Tiêu chí 3: Bộ Lọc Phủ Quyết AI Veto Filter (Chỉ đánh khi WinProb >= 58%) ──
@@ -1023,7 +1038,9 @@ async function startAutoTrade(coins) {
 
       // ── BỘ LỌC M15 SPIKE GUARD (Chặn đặt Limit khi M15 bùng nổ Vol >= 2.5x & Biên độ > 1.4%) ──
       try {
-        const klinesM15 = await fetchBinanceKlines(sym, '15m', null, 21);
+        if (!klinesM15) {
+          klinesM15 = await fetchBinanceKlines(sym, '15m', null, 21);
+        }
         if (klinesM15 && klinesM15.length >= 20) {
           const past20 = klinesM15.slice(0, klinesM15.length - 1);
           const currM15 = klinesM15[klinesM15.length - 1];
@@ -1697,7 +1714,21 @@ async function checkH1RetestSignals(client, activeSymbols, leverageInfo = {}) {
         marketCapRank: rank,
         gridWidthPct: gridStepPct,
       };
-      const aiEval = evaluateSignalWithAI(sigForAI);
+
+      let rawMarketDataRetest = null;
+      let klinesM15Retest = null;
+      try {
+        klinesM15Retest = await fetchBinanceKlines(sym, '15m', null, 21);
+        const currM15 = klinesM15Retest && klinesM15Retest.length > 0 ? klinesM15Retest[klinesM15Retest.length - 1] : null;
+        rawMarketDataRetest = {
+          lastM15: currM15,
+          touchCount: 2
+        };
+      } catch (err) {
+        // fallback
+      }
+
+      const aiEval = evaluateSignalWithAI(sigForAI, rawMarketDataRetest);
       recordAIEvaluation(sigForAI, aiEval);
 
       // Tiêu chí 3: AI Veto Filter cho Retest H1 (Chỉ đánh khi WinProb >= 58%)
@@ -1716,7 +1747,9 @@ async function checkH1RetestSignals(client, activeSymbols, leverageInfo = {}) {
 
       // ── BỘ LỌC M15 SPIKE GUARD CHO RETEST H1 ──
       try {
-        const klinesM15Retest = await fetchBinanceKlines(sym, '15m', null, 21);
+        if (!klinesM15Retest) {
+          klinesM15Retest = await fetchBinanceKlines(sym, '15m', null, 21);
+        }
         if (klinesM15Retest && klinesM15Retest.length >= 20) {
           const past20 = klinesM15Retest.slice(0, klinesM15Retest.length - 1);
           const currM15 = klinesM15Retest[klinesM15Retest.length - 1];

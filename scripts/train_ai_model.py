@@ -268,15 +268,35 @@ def train_and_export_model():
             "multiplier": round(weight_mult, 4)
         }
 
-    # Import & nạp quy tắc bóc tách từ tài liệu kiến thức cục bộ (Bypassed for instant execution)
-    rule_mods = {}
+    # Import & nạp quy tắc bóc tách từ tài liệu kiến thức cục bộ
+    KNOWLEDGE_RULES_PATH = os.path.join(BASE_DIR, "data", "knowledge_rules.json")
+    if os.path.exists(KNOWLEDGE_RULES_PATH):
+        try:
+            with open(KNOWLEDGE_RULES_PATH, 'r', encoding='utf-8') as f:
+                k_data = json.load(f)
+                rule_mods = k_data.get("rule_modifiers", {})
+                for k_key, k_mult in rule_mods.items():
+                    if k_key in feature_weights:
+                        feature_weights[k_key]["multiplier"] = round(feature_weights[k_key]["multiplier"] * k_mult, 4)
+                        feature_weights[k_key]["knowledgeBoost"] = k_mult
+                    else:
+                        feature_weights[k_key] = {
+                            "winCount": 0,
+                            "lossCount": 0,
+                            "winProb": round(prior_win * k_mult, 4),
+                            "multiplier": round(k_mult, 4),
+                            "knowledgeBoost": k_mult
+                        }
+                print(f"📖 Đã tích hợp thành công {len(rule_mods)} quy tắc kiến thức sách PDF vào mô hình!")
+        except Exception as e:
+            print(f"⚠️ Lỗi nạp knowledge_rules.json: {e}")
 
     model_output = {
-        "version": "1.1.0",
+        "version": "1.2.0",
         "trainedAt": time.strftime("%Y-%m-%d %H:%M:%S"),
         "totalSamples": total_samples,
         "priorWinProb": round(prior_win, 4),
-        "thresholdApprovalPct": 65.0,
+        "thresholdApprovalPct": 58.0,
         "minExpectedEvRoi": 0.5,
         "featureWeights": feature_weights
     }
