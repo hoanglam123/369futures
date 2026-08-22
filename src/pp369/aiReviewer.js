@@ -76,7 +76,8 @@ function extractSignalFeatures(reasons, score, rank, gridWidthPct, rawMarketData
   if (score >= 7.0) features['score_group'] = 'SCORE_HIGH_GE7';
   else if (score >= 6.0) features['score_group'] = 'SCORE_MID_6_TO_7';
   else if (score >= 5.0) features['score_group'] = 'SCORE_LOW_5_TO_6';
-  else features['score_group'] = 'SCORE_WEAK_LT5';
+  else if (score >= 4.0) features['score_group'] = 'SCORE_WEAK_4_TO_5';
+  else features['score_group'] = 'SCORE_DANGER_LT4';
 
   // 2. MarketCap Rank
   if (rank <= 10) features['rank_group'] = 'RANK_TOP10';
@@ -210,13 +211,15 @@ function extractSignalFeatures(reasons, score, rank, gridWidthPct, rawMarketData
 function evaluateSignalWithAI(sig, rawMarketData = null) {
   if (!_modelConfig) loadAIModel();
 
-  const defaultThreshold = 58.0;
+  const defaultThreshold = 69.0;
   const threshold = _modelConfig?.thresholdApprovalPct || defaultThreshold;
   const priorWin = _modelConfig?.priorWinProb || 0.565;
   const weights = _modelConfig?.featureWeights || {};
 
   // Custom weights for raw market features
   const dynamicModifiers = {
+    'score_group:SCORE_DANGER_LT4': 0.50,         // Phạt trừ 50% WinProb cho Score < 4đ -> Veto ngay
+    'score_group:SCORE_WEAK_4_TO_5': 0.85,
     'candle_shape:CANDLE_PINBAR_HAMMER': 1.25,
     'candle_shape:CANDLE_PINBAR_SHOOTING': 1.25,
     'candle_shape:CANDLE_MARUBOZU_DUMP': 0.45,  // Phạt nặng nến đâm cản -> Tự động Veto

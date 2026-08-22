@@ -52,7 +52,7 @@ const MONITOR_LIMIT_INTERVAL_MS = 3_000; // Luồng 3: monitor lệnh LIMIT đan
 const DEBOUNCE_MS = 5 * 60_000; // 5 phút / tín hiệu
 const COIN_REFRESH_INTERVAL_MS = 4 * 60 * 60_000; // Tái kiểm tra danh sách coin mỗi 4 giờ
 const LEVERAGE_REFRESH_INTERVAL_MS = 6 * 60 * 60_000; // Tự động cập nhật trần đòn bẩy mỗi 6 giờ
-const MIN_CONFLUENCE_SCORE = parseFloat(process.env.MIN_CONFLUENCE_SCORE || '4.0'); // Ngưỡng Confluence Score tối thiểu (mặc định 4.0đ)
+const MIN_CONFLUENCE_SCORE = parseFloat(process.env.MIN_CONFLUENCE_SCORE || '4.5'); // Ngưỡng Confluence Score tối thiểu (mặc định 4.5đ)
 
 // Debounce map: key → timestamp lần đặt lệnh gần nhất
 const _fired = new Map();
