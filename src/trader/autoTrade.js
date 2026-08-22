@@ -194,11 +194,12 @@ async function updateBtcFlashGuard(client) {
         log.system(`[AutoTrade] 🔄 [BTC Guard] BTC xoay chiều từ Dump sang Pump -> Tự động GIẢI PHÓNG lệnh LONG!`);
       }
 
-      if (!btcFlashState.isShortLocked || (newLockUntil > btcFlashState.lockedUntil)) {
-        btcFlashState.isShortLocked = true;
-        btcFlashState.lockedUntil = newLockUntil;
-        btcFlashState.lockReason = `BTC Flash Pump (Vol ${activeRes.volRatio.toFixed(1)}x MA20 [${activeRes.vol.toFixed(0)} BTC] | Rướn +${activeRes.pushHighPct.toFixed(2)}%)`;
+      const isNewLock = !btcFlashState.isShortLocked;
+      btcFlashState.isShortLocked = true;
+      btcFlashState.lockedUntil = Math.max(btcFlashState.lockedUntil, newLockUntil);
+      btcFlashState.lockReason = `BTC Flash Pump (Vol ${activeRes.volRatio.toFixed(1)}x MA20 [${activeRes.vol.toFixed(0)} BTC] | Rướn +${activeRes.pushHighPct.toFixed(2)}%)`;
 
+      if (isNewLock) {
         log.system(`[AutoTrade] 🚨 [BTC Flash Pump Guard] Kích hoạt khóa SHORT Altcoin trong 45 phút (${btcFlashState.lockReason})`);
 
         // Hủy tất cả các lệnh Limit SHORT đang treo & Kích hoạt Thoát Hiểm cho Vị Thế SHORT đang mở
@@ -246,11 +247,12 @@ async function updateBtcFlashGuard(client) {
         log.system(`[AutoTrade] 🔄 [BTC Guard] BTC xoay chiều từ Pump sang Dump -> Tự động GIẢI PHÓNG lệnh SHORT!`);
       }
 
-      if (!btcFlashState.isLongLocked || (newLockUntil > btcFlashState.lockedUntil)) {
-        btcFlashState.isLongLocked = true;
-        btcFlashState.lockedUntil = newLockUntil;
-        btcFlashState.lockReason = `BTC Flash Dump (Vol ${activeRes.volRatio.toFixed(1)}x MA20 [${activeRes.vol.toFixed(0)} BTC] | Xả -${activeRes.plungeLowPct.toFixed(2)}%)`;
+      const isNewLock = !btcFlashState.isLongLocked;
+      btcFlashState.isLongLocked = true;
+      btcFlashState.lockedUntil = Math.max(btcFlashState.lockedUntil, newLockUntil);
+      btcFlashState.lockReason = `BTC Flash Dump (Vol ${activeRes.volRatio.toFixed(1)}x MA20 [${activeRes.vol.toFixed(0)} BTC] | Xả -${activeRes.plungeLowPct.toFixed(2)}%)`;
 
+      if (isNewLock) {
         log.system(`[AutoTrade] 🚨 [BTC Flash Dump Guard] Kích hoạt khóa LONG Altcoin trong 45 phút (${btcFlashState.lockReason})`);
 
         // Hủy tất cả các lệnh Limit LONG đang treo & Kích hoạt Thoát Hiểm cho Vị Thế LONG đang mở
@@ -352,9 +354,9 @@ function calcHalfQuantity(sym, totalQty) {
  * @param {object} h4Ref - { upperPrice, lowerPrice, step, decimals }
  * @param {number} tickSize
  * @param {number} maxExchangeLeverage
- * @param {number} [targetLossUSD=5.0]
+ * @param {number} [targetLossUSD=3.0]
  */
-function calculateTierSLTP(symbol, side, entryPrice, h4Ref, tickSize, maxExchangeLeverage, targetLossUSD = 5.0) {
+function calculateTierSLTP(symbol, side, entryPrice, h4Ref, tickSize, maxExchangeLeverage, targetLossUSD = 3.0) {
   const step = h4Ref?.step || getStep(entryPrice);
   const decimals = h4Ref?.decimals || getDecimals(entryPrice);
   const upperPrice = h4Ref?.upperPrice || entryPrice;
@@ -1324,7 +1326,7 @@ async function startAutoTrade(coins) {
       // ── LOGIC MỚI: TÍNH TOÁN STOPLOSS THEO TIER, TP 1:1.5, VÀ ĐÒN BẨY / MARGIN ĐỘNG ──
       const h4Ref = await fetchH4Reference(sym);
       const tickSize = getTickSizeCached(sym) || (getDecimals(sig.targetLevel) === 5 ? 0.00001 : (getDecimals(sig.targetLevel) === 4 ? 0.0001 : 0.000001));
-      const targetLossUSD = parseFloat(process.env.MAX_LOSS_PER_TRADE_USD || '5.0');
+      const targetLossUSD = parseFloat(process.env.MAX_LOSS_PER_TRADE_USD || '3.0');
       const maxAllowed = leverageInfo[sym] ?? leverage;
 
       const tierSetup = calculateTierSLTP(sym, sig.signal, sig.targetLevel, h4Ref, tickSize, maxAllowed, targetLossUSD);
@@ -1926,7 +1928,7 @@ async function checkH1RetestSignals(client, activeSymbols, leverageInfo = {}) {
       // ── LOGIC MỚI: TÍNH TOÁN STOPLOSS THEO TIER, TP 1:1, VÀ ĐÒN BẨY / MARGIN ĐỘNG CHO RETEST H1 ──
       const h4RefRetest = await fetchH4Reference(sym);
       const tickSizeRetest = getTickSizeCached(sym) || (getDecimals(targetLevel) === 5 ? 0.00001 : (getDecimals(targetLevel) === 4 ? 0.0001 : 0.000001));
-      const targetLossUSDRetest = parseFloat(process.env.MAX_LOSS_PER_TRADE_USD || '5.0');
+      const targetLossUSDRetest = parseFloat(process.env.MAX_LOSS_PER_TRADE_USD || '3.0');
       const maxAllowedRetest = (leverageInfo && leverageInfo[sym]) ?? getLeverageCached(sym) ?? 20;
 
       const tierSetupRetest = calculateTierSLTP(sym, signal, targetLevel, h4RefRetest, tickSizeRetest, maxAllowedRetest, targetLossUSDRetest);
@@ -2497,7 +2499,7 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
       // ----------------------------------------------------
       // 0. HARD MAX LOSS GUARD (Khống chế trần lỗ tối đa)
       // ----------------------------------------------------
-      const hardLossCapUSD = (meta?.targetLossUSD ? meta.targetLossUSD : 5.0) * 1.10; // Đệm 10% trượt giá
+      const hardLossCapUSD = (meta?.targetLossUSD ? meta.targetLossUSD : 3.0) * 1.10; // Đệm 10% trượt giá
       if (unrealizedPnlUsd <= -hardLossCapUSD) {
         log.system(`[AutoTrade] 🚨 [Hard Max Loss Guard] Kích hoạt cho ${sym}: Lỗ thả nổi $${unrealizedPnlUsd.toFixed(2)} (${roi.toFixed(2)}%) chạm ngưỡng trần -$${hardLossCapUSD.toFixed(2)} USDT. Cắt lỗ MARKET ngay lập tức!`);
         try {
