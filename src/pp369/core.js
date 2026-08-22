@@ -1487,28 +1487,42 @@ async function checkAndUpdateMarketCapCache() {
   }
 
   const now = Date.now();
-  const ONE_DAY_MS = 24 * 60 * 60 * 1000;
+  const SIX_HOURS_MS = 6 * 60 * 60 * 1000;
 
-  // Nếu cache còn hạn trong 24h và có dữ liệu, dùng luôn
-  if (cacheData && cacheData.updatedAt && (now - cacheData.updatedAt < ONE_DAY_MS) && cacheData.symbols && cacheData.symbols.length > 0) {
+  // Nếu cache còn hạn trong 6h và có dữ liệu, dùng luôn
+  if (cacheData && cacheData.updatedAt && (now - cacheData.updatedAt < SIX_HOURS_MS) && cacheData.symbols && cacheData.symbols.length > 0) {
     return cacheData.symbols;
   }
 
-  // Cần cập nhật cache từ Coingecko
+  // Cần cập nhật cache từ Binance / CoinMarketCap (1000 coins)
   try {
-    const url = 'https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=150&page=1';
-    const res = await axios.get(url, { timeout: 10000 });
-    if (res.data && Array.isArray(res.data) && res.data.length > 0) {
-      const symbols = res.data.map(c => c.symbol.toUpperCase());
+    const url = 'https://www.binance.com/bapi/composite/v1/public/promo/cmc/cryptocurrency/listings/latest?limit=1000';
+    const res = await axios.get(url, { headers: { 'User-Agent': 'Mozilla/5.0' }, timeout: 10000 });
+    const list = res.data?.data?.body?.data;
+    if (Array.isArray(list) && list.length > 0) {
+      const symbols = [];
+      const marketCapMap = {};
+      const rankMap = {};
+
+      for (const c of list) {
+        if (!c.symbol) continue;
+        const sym = c.symbol.toUpperCase();
+        symbols.push(sym);
+        marketCapMap[sym] = c.quote?.USD?.market_cap || 0;
+        rankMap[sym] = c.cmc_rank || symbols.length;
+      }
+
       const newCache = {
         updatedAt: now,
-        symbols: symbols
+        symbols,
+        marketCapMap,
+        rankMap
       };
       fs.writeFileSync(filePath, JSON.stringify(newCache, null, 2), 'utf8');
       return symbols;
     }
   } catch (err) {
-    log.warn(`[MarketCap Cache] Không thể tải danh sách từ CoinGecko (${err.message}). Sử dụng cache cũ hoặc fallback.`);
+    log.warn(`[MarketCap Cache] Không thể tải danh sách từ Binance CMC (${err.message}). Sử dụng cache cũ hoặc fallback.`);
   }
 
   // Nếu có cache cũ dù hết hạn thì vẫn dùng tạm
