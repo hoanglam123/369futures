@@ -25,8 +25,16 @@ const telegram       = require('./telegram');
 const datasetCollector = require('./datasetCollector');
 const signalTracker   = require('./signalTracker');
 const aiReviewer      = require('./aiReviewer');
+const turnoverGuard   = require('./turnoverGuard');
 
 module.exports = {
+  // ── Turnover Guard ───────────────────────────────────────────────────────
+  updateVolume24hCache: turnoverGuard.updateVolume24hCache,
+  getVolume24hUSD:      turnoverGuard.getVolume24hUSD,
+  getMarketCapUSD:      turnoverGuard.getMarketCapUSD,
+  checkTurnoverGuard:   turnoverGuard.checkTurnoverGuard,
+  isTurnoverBlocked:    turnoverGuard.isTurnoverBlocked,
+
   // ── AI Reviewer & Inference Engine ──────────────────────────────────────
   evaluateSignalWithAI: aiReviewer.evaluateSignalWithAI,
   recordAIEvaluation:   aiReviewer.recordAIEvaluation,

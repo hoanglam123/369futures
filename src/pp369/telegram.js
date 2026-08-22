@@ -6,12 +6,25 @@
  */
 
 const axios = require('axios');
+const https = require('https');
 const { log } = require('./_logger');
 
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || '8974388983:AAGTEgJNmAegGPmWUgvd3Lpvtbefv-yn6pg';
 const CHAT_ID = process.env.TELEGRAM_CHAT_ID || '1663202780';
 
 const API_URL = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`;
+
+// Tái sử dụng kết nối HTTPS Keep-Alive tới Telegram API để giảm thiểu độ trễ và tránh handshake lại
+const httpsAgent = new https.Agent({
+  keepAlive: true,
+  keepAliveMsecs: 30_000,
+  maxSockets: 10,
+});
+
+const axiosTelegram = axios.create({
+  httpsAgent,
+  timeout: 20_000, // Tăng timeout lên 20s phòng ngừa nghẽn mạng quốc tế
+});
 
 /**
  * Gửi một tin nhắn Telegram (HTML parse mode).
@@ -22,23 +35,23 @@ async function sendTelegram(text) {
   const maxAttempts = 3;
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
-      await axios.post(API_URL, {
+      await axiosTelegram.post(API_URL, {
         chat_id: CHAT_ID,
         text,
         parse_mode: 'HTML',
         disable_web_page_preview: true,
-      }, { timeout: 10_000 });
+      });
       return; // Gửi thành công -> thoát
     } catch (err) {
       if (err.response?.status === 400) {
         // Fallback khẩn cấp nếu dính lỗi HTML parse entity: Gửi dạng Plain Text loại bỏ thẻ HTML
         try {
           const plainText = (text || '').replace(/<[^>]*>/g, '');
-          await axios.post(API_URL, {
+          await axiosTelegram.post(API_URL, {
             chat_id: CHAT_ID,
             text: plainText,
             disable_web_page_preview: true,
-          }, { timeout: 10_000 });
+          });
           return;
         } catch (_) {}
       }

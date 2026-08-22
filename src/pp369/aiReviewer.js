@@ -3,6 +3,7 @@
 const fs = require('fs');
 const path = require('path');
 const { log } = require('./_logger');
+const { isTurnoverBlocked } = require('./turnoverGuard');
 
 const { exec } = require('child_process');
 
@@ -188,6 +189,14 @@ function extractSignalFeatures(reasons, score, rank, gridWidthPct, rawMarketData
     features['btc_flash'] = 'BTC_FLASH_NORMAL';
   }
 
+  // ── [MỚI] 16. Abnormal Turnover Guard (MarketCap < 100M & Vol 24H / MC > 8%) ──
+  const sym = rawMarketData?.symbol || '';
+  if (rawMarketData?.isTurnoverBlocked || (sym && isTurnoverBlocked(sym))) {
+    features['turnover_guard'] = 'TURNOVER_RISK_BLOCKED';
+  } else {
+    features['turnover_guard'] = 'TURNOVER_NORMAL';
+  }
+
   return features;
 }
 
@@ -218,7 +227,9 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
     'level_freshness:EXHAUSTED_LEVEL_TOUCH3': 0.70,
     'btc_flash:BTC_FLASH_PUMP_ACTIVE': 0.35,     // Phạt nặng bão BTC Flash Pump khi đánh SHORT -> Veto ngay
     'btc_flash:BTC_FLASH_DUMP_ACTIVE': 0.35,     // Phạt nặng bão BTC Flash Dump khi đánh LONG -> Veto ngay
-    'btc_flash:BTC_FLASH_NORMAL': 1.00
+    'btc_flash:BTC_FLASH_NORMAL': 1.00,
+    'turnover_guard:TURNOVER_RISK_BLOCKED': 0.30, // Phạt nặng coin Low-Cap bị bơm xả Turnover > 8% -> AI Veto ngay
+    'turnover_guard:TURNOVER_NORMAL': 1.00
   };
 
   const score = parseFloat(sig.score) || 0;
@@ -226,8 +237,10 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
   const gridWidthPct = parseFloat(sig.gridWidthPct) || 3.5;
   const reasons = sig.scoreReasons || [];
   const entryPrice = sig.targetLevel || sig.price || null;
+  const sym = sig.symbol || sig.sym || '';
 
-  const features = extractSignalFeatures(reasons, score, rank, gridWidthPct, rawMarketData, sig.signal, entryPrice);
+  const mergedMarketData = { ...(rawMarketData || {}), symbol: sym };
+  const features = extractSignalFeatures(reasons, score, rank, gridWidthPct, mergedMarketData, sig.signal, entryPrice);
 
   let combinedMultiplier = 1.0;
   const keyFactors = [];

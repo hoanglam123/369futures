@@ -41,6 +41,8 @@ const {
   evaluateSignalWithAI,
   recordAIEvaluation,
   recordSkippedSignal,
+  checkTurnoverGuard,
+  updateVolume24hCache,
 } = require('../pp369');
 const { log } = require('../pp369/_logger');
 
@@ -596,8 +598,9 @@ async function startAutoTrade(coins) {
   async function scan() {
     if (isIpBanned()) return;
     try {
-      // 0. Cập nhật và kiểm tra lưới bảo vệ BTC Flash Pump / Dump Guard
+      // 0. Cập nhật và kiểm tra lưới bảo vệ BTC Flash Pump / Dump Guard & Cache Volume 24H
       await updateBtcFlashGuard(client);
+      await updateVolume24hCache();
 
       // 1. Cập nhật lại giá REST của toàn bộ coin để kiểm tra xem có coin nào mới đi vào mốc gần phản ứng không
       await updatePricesRest();
@@ -1082,6 +1085,27 @@ async function startAutoTrade(coins) {
             score: sig.score ?? 0,
             scoreReasons: sig.scoreReasons || [],
             skipReason: sig.signal === 'SHORT' ? 'BTC_FLASH_PUMP_LOCKED' : 'BTC_FLASH_DUMP_LOCKED',
+            markPrice: markPrice,
+            marketCapRank: rank,
+          });
+        }
+        return;
+      }
+
+      // ── BỘ LỌC TURNOVER GUARD: Chặn coin Low-Cap (<100M) có Volume 24H > 8% MC ──
+      const turnoverCheck = checkTurnoverGuard(sym);
+      if (turnoverCheck.isBlocked) {
+        if (isNewSignalLog) {
+          log.system(`[AutoTrade] 🛑 ${sym} ${sig.signal} @ $${sig.targetLevel} bị chặn bởi Turnover Guard (${turnoverCheck.reason}) — DỪNG GIAO DỊCH`);
+        }
+        if (_shouldLogSignal(sym, sig.signal, sig.targetLevel, 'turnover_guard_blocked')) {
+          recordSkippedSignal({
+            symbol: sym,
+            signal: sig.signal,
+            signalPrice: sig.targetLevel,
+            score: sig.score ?? 0,
+            scoreReasons: sig.scoreReasons || [],
+            skipReason: 'ABNORMAL_TURNOVER_RISK',
             markPrice: markPrice,
             marketCapRank: rank,
           });
@@ -1921,6 +1945,14 @@ async function checkH1RetestSignals(client, activeSymbols, leverageInfo = {}) {
 
       if (maxFavorableRoi >= 5.0) {
         log.system(`[H1Retest] ${sym} ${signal} nến H1 rút chân nhưng ĐÃ PHẢN ỨNG NẢY ROI = +${maxFavorableRoi.toFixed(2)}% (>= 5.0%) sau khi chạm entry. Bỏ qua không đặt limit.`);
+        delete lowScoreWatchlist[sym];
+        continue;
+      }
+
+      // ── BỘ LỌC TURNOVER GUARD CHO H1 RETEST ──
+      const turnoverCheckRetest = checkTurnoverGuard(sym);
+      if (turnoverCheckRetest.isBlocked) {
+        log.system(`[H1Retest] 🛑 ${sym} (${signal}) bị chặn bởi Turnover Guard (${turnoverCheckRetest.reason}) — BỎ QUA RETEST`);
         delete lowScoreWatchlist[sym];
         continue;
       }
