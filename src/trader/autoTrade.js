@@ -353,23 +353,39 @@ function calcHalfQuantity(sym, totalQty) {
  * @param {string} symbol
  * @param {'LONG'|'SHORT'} side
 /**
- * Tính toán Target Loss linh hoạt theo chất lượng tín hiệu (Smart Sizing)
- * - Mức cơ sở (Base Level 1): $5.0 USD (từ env MAX_LOSS_PER_TRADE_USD)
- * - Top 10 hoặc Kèo Siêu Đẹp (WinProb >= 75% | Score >= 7.0 & Rank <= 50): Scale up lên 1.5x (~$7.5 USD)
- * - Top 50 & WinProb >= 70%: Scale up lên 1.3x (~$6.5 USD)
- * - WinProb >= 68%: Scale up lên 1.15x (~$5.75 USD)
- * - Kèo Tiêu Chuẩn / Lowcap: Giữ mức cơ sở $5.0 USD
+ * Tính toán Target Loss & Tỷ lệ R:R Take Profit linh hoạt theo chất lượng tín hiệu (Smart Sizing & Asymmetric R:R)
+ * - Mức cơ sở (Base Level 1): $5.0 USD (từ env MAX_LOSS_PER_TRADE_USD), TP 1:1.5
+ * - Top 10 hoặc Kèo Siêu Đẹp (WinProb >= 75% | Score >= 7.0 & Rank <= 50): Scale up lên 1.5x (~$7.5 USD), TP 1:2.0 (Ăn đậm)
+ * - Top 50 & WinProb >= 70%: Scale up lên 1.3x (~$6.5 USD), TP 1:1.75
+ * - WinProb >= 68%: Scale up lên 1.15x (~$5.75 USD), TP 1:1.5
+ * - Kèo Tiêu Chuẩn / Lowcap: Giữ mức cơ sở $5.0 USD, TP 1:1.5
  */
-function getDynamicTargetLossUSD(rank, winProb, score, baseLossUSD = 5.0) {
+function getDynamicRiskProfile(rank, winProb, score, baseLossUSD = 5.0) {
   let multiplier = 1.0;
+  let tpRatio = 1.5;
+
   if (rank <= 10 || (score >= 7.0 && winProb >= 75.0 && rank <= 50)) {
     multiplier = 1.5; // ~$7.5 USD
+    tpRatio = 2.0;    // Tỷ lệ R:R 1:2.0
   } else if (rank <= 50 && winProb >= 70.0) {
     multiplier = 1.3; // ~$6.5 USD
+    tpRatio = 1.75;   // Tỷ lệ R:R 1:1.75
   } else if (winProb >= 68.0 && rank <= 150) {
     multiplier = 1.15; // ~$5.75 USD
+    tpRatio = 1.5;     // Tỷ lệ R:R 1:1.5
   }
-  return Number((baseLossUSD * multiplier).toFixed(2));
+
+  return {
+    targetLossUSD: Number((baseLossUSD * multiplier).toFixed(2)),
+    tpRatio: tpRatio
+  };
+}
+
+/**
+ * Backward compatibility alias
+ */
+function getDynamicTargetLossUSD(rank, winProb, score, baseLossUSD = 5.0) {
+  return getDynamicRiskProfile(rank, winProb, score, baseLossUSD).targetLossUSD;
 }
 
 /**
@@ -381,8 +397,9 @@ function getDynamicTargetLossUSD(rank, winProb, score, baseLossUSD = 5.0) {
  * @param {number} tickSize
  * @param {number} maxExchangeLeverage
  * @param {number} [targetLossUSD=5.0]
+ * @param {number} [tpRatio=1.5]
  */
-function calculateTierSLTP(symbol, side, entryPrice, h4Ref, tickSize, maxExchangeLeverage, targetLossUSD = 5.0) {
+function calculateTierSLTP(symbol, side, entryPrice, h4Ref, tickSize, maxExchangeLeverage, targetLossUSD = 5.0, tpRatio = 1.5) {
   const step = h4Ref?.step || getStep(entryPrice);
   const decimals = h4Ref?.decimals || getDecimals(entryPrice);
   const upperPrice = h4Ref?.upperPrice || entryPrice;
@@ -426,7 +443,8 @@ function calculateTierSLTP(symbol, side, entryPrice, h4Ref, tickSize, maxExchang
   // Margin cần nạp để nếu dính SL thì lỗ đúng targetLossUSD
   const actualMargin = targetLossUSD / (leverage * (slPct / 100));
 
-  const tpPrice = (side === 'LONG' || side === 'BUY') ? (entryPrice + slDist * 1.5) : (entryPrice - slDist * 1.5);
+  const actualTpRatio = tpRatio || 1.5;
+  const tpPrice = (side === 'LONG' || side === 'BUY') ? (entryPrice + slDist * actualTpRatio) : (entryPrice - slDist * actualTpRatio);
   const beTriggerPrice = (side === 'LONG' || side === 'BUY') ? (entryPrice + slDist * 0.50) : (entryPrice - slDist * 0.50);
 
   return {
@@ -438,7 +456,8 @@ function calculateTierSLTP(symbol, side, entryPrice, h4Ref, tickSize, maxExchang
     slPct: slPct,
     leverage: leverage,
     margin: actualMargin,
-    targetLossUSD: targetLossUSD
+    targetLossUSD: targetLossUSD,
+    tpRatio: actualTpRatio
   };
 }
 
@@ -1383,14 +1402,16 @@ async function startAutoTrade(coins) {
         log.warn(`[AutoTrade] Không thể kiểm tra nến M15 Spike Guard cho ${sym}: ${errM15.message}`);
       }
 
-      // ── LOGIC MỚI: TÍNH TOÁN STOPLOSS THEO TIER, TP 1:1.5, VÀ ĐÒN BẨY / MARGIN ĐỘNG ──
+      // ── LOGIC MỚI: TÍNH TOÁN STOPLOSS THEO TIER, TP ĐỘNG (1:1.5 -> 1:2.0), VÀ ĐÒN BẨY / MARGIN ĐỘNG ──
       const h4Ref = await fetchH4Reference(sym);
       const tickSize = getTickSizeCached(sym) || (getDecimals(sig.targetLevel) === 5 ? 0.00001 : (getDecimals(sig.targetLevel) === 4 ? 0.0001 : 0.000001));
       const baseTargetLossUSD = parseFloat(process.env.MAX_LOSS_PER_TRADE_USD || '5.0');
-      const targetLossUSD = getDynamicTargetLossUSD(rank, aiEval.winProbability, sig.score ?? 0, baseTargetLossUSD);
+      const riskProfile = getDynamicRiskProfile(rank, aiEval.winProbability, sig.score ?? 0, baseTargetLossUSD);
+      const targetLossUSD = riskProfile.targetLossUSD;
+      const tpRatio = riskProfile.tpRatio;
       const maxAllowed = leverageInfo[sym] ?? leverage;
 
-      const tierSetup = calculateTierSLTP(sym, sig.signal, sig.targetLevel, h4Ref, tickSize, maxAllowed, targetLossUSD);
+      const tierSetup = calculateTierSLTP(sym, sig.signal, sig.targetLevel, h4Ref, tickSize, maxAllowed, targetLossUSD, tpRatio);
       if (!tierSetup.valid) {
         log.system(`[AutoTrade] ⏭️ ${sym} (${sig.signal}) bỏ qua: ${tierSetup.reason}`);
         return;
@@ -2073,14 +2094,16 @@ async function checkH1RetestSignals(client, activeSymbols, leverageInfo = {}) {
         log.warn(`[H1Retest] Không thể kiểm tra nến M15 Spike Guard cho ${sym}: ${errM15.message}`);
       }
 
-      // ── TÍNH TOÁN STOPLOSS THEO TIER, TP 1:1.5, VÀ ĐÒN BẨY / MARGIN ĐỘNG CHO RETEST H1 ──
+      // ── TÍNH TOÁN STOPLOSS THEO TIER, TP ĐỘNG (1:1.5 -> 1:2.0), VÀ ĐÒN BẨY / MARGIN ĐỘNG CHO RETEST H1 ──
       const h4RefRetest = await fetchH4Reference(sym);
       const tickSizeRetest = getTickSizeCached(sym) || (getDecimals(targetLevel) === 5 ? 0.00001 : (getDecimals(targetLevel) === 4 ? 0.0001 : 0.000001));
       const baseLossRetest = parseFloat(process.env.MAX_LOSS_PER_TRADE_USD || '5.0');
-      const targetLossUSDRetest = getDynamicTargetLossUSD(rank, aiEval.winProbability, watchData.score ?? 0, baseLossRetest);
+      const riskProfileRetest = getDynamicRiskProfile(rank, aiEval.winProbability, watchData.score ?? 0, baseLossRetest);
+      const targetLossUSDRetest = riskProfileRetest.targetLossUSD;
+      const tpRatioRetest = riskProfileRetest.tpRatio;
       const maxAllowedRetest = (leverageInfo && leverageInfo[sym]) ?? getLeverageCached(sym) ?? 20;
 
-      const tierSetupRetest = calculateTierSLTP(sym, signal, targetLevel, h4RefRetest, tickSizeRetest, maxAllowedRetest, targetLossUSDRetest);
+      const tierSetupRetest = calculateTierSLTP(sym, signal, targetLevel, h4RefRetest, tickSizeRetest, maxAllowedRetest, targetLossUSDRetest, tpRatioRetest);
       if (!tierSetupRetest.valid) {
         log.system(`[H1Retest] ⏭️ ${sym} (${signal}) bỏ qua: ${tierSetupRetest.reason}`);
         delete lowScoreWatchlist[sym];
@@ -2570,7 +2593,8 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
       // ----------------------------------------------------
       // 0. HARD MAX LOSS GUARD (Khống chế trần lỗ tối đa)
       // ----------------------------------------------------
-      const hardLossCapUSD = (meta?.targetLossUSD ? meta.targetLossUSD : 3.0) * 1.10; // Đệm 10% trượt giá
+      const baseLossEnv = parseFloat(process.env.MAX_LOSS_PER_TRADE_USD || '5.0');
+      const hardLossCapUSD = (meta?.targetLossUSD ? meta.targetLossUSD : baseLossEnv) * 1.10; // Đệm 10% trượt giá
       if (unrealizedPnlUsd <= -hardLossCapUSD) {
         log.system(`[AutoTrade] 🚨 [Hard Max Loss Guard] Kích hoạt cho ${sym}: Lỗ thả nổi $${unrealizedPnlUsd.toFixed(2)} (${roi.toFixed(2)}%) chạm ngưỡng trần -$${hardLossCapUSD.toFixed(2)} USDT. Cắt lỗ MARKET ngay lập tức!`);
         try {
@@ -2900,12 +2924,20 @@ async function notifyRealClose(client, sym, prevPos, meta) {
         const closeTrades = trades.filter(t => t.side === oppositeSide);
         if (closeTrades.length > 0) {
           closeTrades.sort((a, b) => b.time - a.time);
-          const lastTrade = closeTrades[0];
+          const recentCloseTime = closeTrades[0].time;
+          // Gom tất cả các lượt fill đóng vị thế trong vòng 5 giây
+          const exitFills = closeTrades.filter(t => Math.abs(t.time - recentCloseTime) <= 5000);
 
-          closePrice = parseFloat(lastTrade.price);
-          realizedProfit = parseFloat(lastTrade.realizedPnl || lastTrade.realizedProfit || '0');
-          const priceDiff = prevPos.isLong ? (closePrice - prevPos.entryPrice) : (prevPos.entryPrice - closePrice);
-          roi = (priceDiff / prevPos.entryPrice) * prevPos.leverage * 100;
+          closePrice = parseFloat(closeTrades[0].price);
+          realizedProfit = exitFills.reduce((sum, t) => sum + parseFloat(t.realizedPnl || t.realizedProfit || '0'), 0);
+
+          const marginUsed = meta?.margin || (Math.abs(prevPos.amt || 1) * prevPos.entryPrice / (prevPos.leverage || 1));
+          if (marginUsed > 0) {
+            roi = (realizedProfit / marginUsed) * 100;
+          } else {
+            const priceDiff = prevPos.isLong ? (closePrice - prevPos.entryPrice) : (prevPos.entryPrice - closePrice);
+            roi = (priceDiff / (prevPos.entryPrice || 1)) * (prevPos.leverage || 1) * 100;
+          }
           hasTradeData = true;
         }
       }
@@ -2917,13 +2949,13 @@ async function notifyRealClose(client, sym, prevPos, meta) {
     let label = '🛡️ Đóng vị thế (Sàn khớp)';
     let exitType = 'SL';
     if (hasTradeData) {
-      if (realizedProfit < 0) {
+      if (realizedProfit <= -0.5) {
         label = '🛡️ Stop Loss';
         exitType = 'SL';
-      } else if (roi >= 15) {
+      } else if (realizedProfit > 0.5 && roi >= 15) {
         label = '🎯 Take Profit';
         exitType = 'TP';
-      } else if (roi >= 4) {
+      } else if (realizedProfit > 0.2) {
         label = '🛡️ Trailing SL (Khóa lãi)';
         exitType = 'TRAILING_SL';
       } else {
@@ -2950,12 +2982,19 @@ async function notifyRealClose(client, sym, prevPos, meta) {
       });
     }
 
-    const roiStr = hasTradeData ? `\n• ROI đạt: <b>${roi.toFixed(2)}%</b>` : '';
+    const pnlSign = realizedProfit >= 0 ? '+' : '';
+    const roiSign = roi >= 0 ? '+' : '';
+    const sideStr = prevPos.isLong ? 'LONG' : 'SHORT';
+    const detailStr = hasTradeData
+      ? `\n• Hướng: <b>${sideStr}</b>` +
+        `\n• PnL Thực Nhận: <b>${pnlSign}${realizedProfit.toFixed(2)} USDT</b> (ROI: <b>${roiSign}${roi.toFixed(2)}%</b>)` +
+        (closePrice && prevPos.entryPrice ? `\n• Giá: <b>$${prevPos.entryPrice}</b> ➔ <b>$${closePrice}</b>` : '')
+      : '';
 
     await sendTelegram(
       `<b>${label}</b>\n` +
-      `• Coin: <b>${sym}</b>` +
-      roiStr
+      `• Coin: <b>#${sym}</b>` +
+      detailStr
     );
   } catch (e) {
     log.warn(`[AutoTrade] Lỗi gửi thông báo đóng vị thế ${sym}: ${e.message}`);

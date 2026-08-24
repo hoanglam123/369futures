@@ -88,7 +88,7 @@ def simulate_skipped_signal(rec):
                 return "SL"
     return "TIMEOUT"
 
-def extract_features(reasons, score, rank, grid_width_pct):
+def extract_features(reasons, score, rank, grid_width_pct, timestamp_ms=None):
     reasons_str = " ".join(reasons)
     features = {}
 
@@ -159,6 +159,30 @@ def extract_features(reasons, score, rank, grid_width_pct):
     elif gw >= 2.5: features["grid_width"] = "GRID_NORMAL"
     else: features["grid_width"] = "GRID_NARROW"
 
+    # 13. Trading Session & Time-of-Day
+    if timestamp_ms:
+        try:
+            # Chuyển đổi timestamp sang giờ VN (UTC+7)
+            t_sec = int(timestamp_ms) / 1000.0
+            import datetime
+            dt = datetime.datetime.fromtimestamp(t_sec, tz=datetime.timezone(datetime.timedelta(hours=7)))
+            vn_hour = dt.hour + dt.minute / 60.0
+            vn_day = dt.weekday() # 5: T7, 6: CN
+            if vn_day >= 5:
+                features["trading_session"] = "SESSION_WEEKEND"
+            elif 7.0 <= vn_hour < 14.0:
+                features["trading_session"] = "SESSION_ASIA"
+            elif 14.0 <= vn_hour < 19.5:
+                features["trading_session"] = "SESSION_EUROPE"
+            elif 19.5 <= vn_hour < 23.5:
+                features["trading_session"] = "SESSION_US_OPEN"
+            else:
+                features["trading_session"] = "SESSION_US_LATE"
+        except Exception:
+            features["trading_session"] = "SESSION_ASIA"
+    else:
+        features["trading_session"] = "SESSION_ASIA"
+
     return features
 
 def train_and_export_model():
@@ -192,7 +216,8 @@ def train_and_export_model():
                                 entry.get("scoreReasons", []),
                                 entry.get("score", 0),
                                 entry.get("marketCapRank", 999),
-                                entry.get("gridWidthPct", 3.5)
+                                entry.get("gridWidthPct", 3.5),
+                                entry.get("timestamp")
                             )
                         })
 
@@ -226,7 +251,8 @@ def train_and_export_model():
                         rec.get("scoreReasons", []),
                         rec.get("score", 0),
                         rec.get("marketCapRank", 999),
-                        rec.get("gridWidthPct", 3.5)
+                        rec.get("gridWidthPct", 3.5),
+                        rec.get("signalTimestamp")
                     )
                 })
 

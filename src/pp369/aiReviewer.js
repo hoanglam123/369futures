@@ -198,6 +198,23 @@ function extractSignalFeatures(reasons, score, rank, gridWidthPct, rawMarketData
     features['turnover_guard'] = 'TURNOVER_NORMAL';
   }
 
+  // ── [MỚI] 17. Trading Session & Time-of-Day ──
+  const now = new Date();
+  const vnHour = (now.getUTCHours() + 7) % 24;
+  const vnDay = now.getUTCDay(); // 0: CN, 6: T7
+
+  if (vnDay === 0 || vnDay === 6) {
+    features['trading_session'] = 'SESSION_WEEKEND';
+  } else if (vnHour >= 7 && vnHour < 14) {
+    features['trading_session'] = 'SESSION_ASIA'; // 07h - 14h VN: Nén đẹp, sóng êm
+  } else if (vnHour >= 14 && vnHour < 19.5) {
+    features['trading_session'] = 'SESSION_EUROPE'; // 14h - 19h30 VN: Âu vào lệnh
+  } else if (vnHour >= 19.5 && vnHour < 23.5) {
+    features['trading_session'] = 'SESSION_US_OPEN'; // 19h30 - 23h30 VN: Biến động giật mạnh nhất ngày
+  } else {
+    features['trading_session'] = 'SESSION_US_LATE'; // Đêm/Rạng sáng VN
+  }
+
   return features;
 }
 
@@ -232,7 +249,12 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
     'btc_flash:BTC_FLASH_DUMP_ACTIVE': 0.35,     // Phạt nặng bão BTC Flash Dump khi đánh LONG -> Veto ngay
     'btc_flash:BTC_FLASH_NORMAL': 1.00,
     'turnover_guard:TURNOVER_RISK_BLOCKED': 0.30, // Phạt nặng coin Low-Cap bị bơm xả Turnover > 8% -> AI Veto ngay
-    'turnover_guard:TURNOVER_NORMAL': 1.00
+    'turnover_guard:TURNOVER_NORMAL': 1.00,
+    'trading_session:SESSION_ASIA': 1.02,        // Phiên Á nén chuẩn, sóng êm -> Thưởng nhẹ +2%
+    'trading_session:SESSION_EUROPE': 1.01,      // Phiên Âu sóng đều -> Thưởng nhẹ +1%
+    'trading_session:SESSION_US_OPEN': 0.98,     // Phiên Mỹ mở cửa -> Thận trọng nhẹ -2%
+    'trading_session:SESSION_US_LATE': 1.00,     // Bình thường
+    'trading_session:SESSION_WEEKEND': 0.98      // Cuối tuần vol mỏng -> Thận trọng nhẹ -2%
   };
 
   const score = parseFloat(sig.score) || 0;
