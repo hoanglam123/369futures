@@ -1286,11 +1286,23 @@ async function startAutoTrade(coins) {
       const aiEval = evaluateSignalWithAI(sig, rawMarketData);
       recordAIEvaluation(sig, aiEval);
 
-      // ── Tiêu chí 3: Bộ Lọc Phủ Quyết AI Veto Filter (Chỉ đánh khi WinProb >= 58%) ──
-      // Chặn các tín hiệu có WinProb < 58.0% hoặc đồng thời cạn thanh khoản (VOL_DRY) & OI tháo chạy (OI_COOLING)
-      const isAiVeto = (aiEval.winProbability < 58.0) || (aiEval.reason.includes('VOL_DRY') && aiEval.reason.includes('OI_COOLING'));
+      // ── Tiêu chí 3: Bộ Lọc Phủ Quyết AI Veto Filter Phân Cấp (Top 150: >= 63%, Ngoài Top 150: >= 68%) ──
+      const minWinProbThreshold = (rank <= 150) ? 63.0 : 68.0;
+      const isAiVeto = (aiEval.winProbability < minWinProbThreshold) || (aiEval.reason.includes('VOL_DRY') && aiEval.reason.includes('OI_COOLING'));
       if (isAiVeto) {
-        log.system(`[AutoTrade] 🛑 [AI Veto] ${sym} (${sig.signal}) bị phủ quyết (WinProb ${aiEval.winProbability.toFixed(1)}% < 58%): ${aiEval.reason} — Bỏ qua không đặt lệnh.`);
+        log.system(`[AutoTrade] 🛑 [AI Veto] ${sym} (${sig.signal}) bị phủ quyết (WinProb ${aiEval.winProbability.toFixed(1)}% < ${minWinProbThreshold}% [Rank #${rank}]): ${aiEval.reason} — Bỏ qua không đặt lệnh.`);
+        if (_shouldLogSignal(sym, sig.signal, sig.targetLevel, 'ai_veto_skipped')) {
+          recordSkippedSignal({
+            symbol: sym,
+            signal: sig.signal,
+            signalPrice: sig.targetLevel,
+            score: sig.score ?? 0,
+            scoreReasons: sig.scoreReasons || [],
+            skipReason: `AI_VETO_WINPROB_LT_${minWinProbThreshold}`,
+            markPrice: markPrice,
+            marketCapRank: rank,
+          });
+        }
         return;
       }
 
@@ -2011,10 +2023,11 @@ async function checkH1RetestSignals(client, activeSymbols, leverageInfo = {}) {
       const aiEval = evaluateSignalWithAI(sigForAI, rawMarketDataRetest);
       recordAIEvaluation(sigForAI, aiEval);
 
-      // Tiêu chí 3: AI Veto Filter cho Retest H1 (Chỉ đánh khi WinProb >= 58%)
-      const isAiVeto = (aiEval.winProbability < 58.0) || (aiEval.reason.includes('VOL_DRY') && aiEval.reason.includes('OI_COOLING'));
+      // Tiêu chí 3: AI Veto Filter Phân Cấp cho Retest H1 (Top 150: >= 63%, Ngoài Top 150: >= 68%)
+      const minWinProbThreshold = (rank <= 150) ? 63.0 : 68.0;
+      const isAiVeto = (aiEval.winProbability < minWinProbThreshold) || (aiEval.reason.includes('VOL_DRY') && aiEval.reason.includes('OI_COOLING'));
       if (isAiVeto) {
-        log.system(`[AutoTrade (Retest H1)] 🛑 [AI Veto] ${sym} (${signal}) bị phủ quyết (WinProb ${aiEval.winProbability.toFixed(1)}% < 58%): ${aiEval.reason} — Hủy đặt lệnh Retest.`);
+        log.system(`[AutoTrade (Retest H1)] 🛑 [AI Veto] ${sym} (${signal}) bị phủ quyết (WinProb ${aiEval.winProbability.toFixed(1)}% < ${minWinProbThreshold}% [Rank #${rank}]): ${aiEval.reason} — Hủy đặt lệnh Retest.`);
         delete lowScoreWatchlist[sym];
         continue;
       }
