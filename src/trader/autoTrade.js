@@ -352,13 +352,37 @@ function calcHalfQuantity(sym, totalQty) {
  *
  * @param {string} symbol
  * @param {'LONG'|'SHORT'} side
+/**
+ * Tính toán Target Loss linh hoạt theo chất lượng tín hiệu (Smart Sizing)
+ * - Mức cơ sở (Base Level 1): $5.0 USD (từ env MAX_LOSS_PER_TRADE_USD)
+ * - Top 10 hoặc Kèo Siêu Đẹp (WinProb >= 75% | Score >= 7.0 & Rank <= 50): Scale up lên 1.5x (~$7.5 USD)
+ * - Top 50 & WinProb >= 70%: Scale up lên 1.3x (~$6.5 USD)
+ * - WinProb >= 68%: Scale up lên 1.15x (~$5.75 USD)
+ * - Kèo Tiêu Chuẩn / Lowcap: Giữ mức cơ sở $5.0 USD
+ */
+function getDynamicTargetLossUSD(rank, winProb, score, baseLossUSD = 5.0) {
+  let multiplier = 1.0;
+  if (rank <= 10 || (score >= 7.0 && winProb >= 75.0 && rank <= 50)) {
+    multiplier = 1.5; // ~$7.5 USD
+  } else if (rank <= 50 && winProb >= 70.0) {
+    multiplier = 1.3; // ~$6.5 USD
+  } else if (winProb >= 68.0 && rank <= 150) {
+    multiplier = 1.15; // ~$5.75 USD
+  }
+  return Number((baseLossUSD * multiplier).toFixed(2));
+}
+
+/**
+ * Tính toán Stoploss theo Tier (Khung Lưới Fibonacci/Step H4)
+ * @param {string} symbol
+ * @param {string} side - 'LONG' | 'SHORT'
  * @param {number} entryPrice
  * @param {object} h4Ref - { upperPrice, lowerPrice, step, decimals }
  * @param {number} tickSize
  * @param {number} maxExchangeLeverage
- * @param {number} [targetLossUSD=3.0]
+ * @param {number} [targetLossUSD=5.0]
  */
-function calculateTierSLTP(symbol, side, entryPrice, h4Ref, tickSize, maxExchangeLeverage, targetLossUSD = 3.0) {
+function calculateTierSLTP(symbol, side, entryPrice, h4Ref, tickSize, maxExchangeLeverage, targetLossUSD = 5.0) {
   const step = h4Ref?.step || getStep(entryPrice);
   const decimals = h4Ref?.decimals || getDecimals(entryPrice);
   const upperPrice = h4Ref?.upperPrice || entryPrice;
@@ -1362,7 +1386,8 @@ async function startAutoTrade(coins) {
       // ── LOGIC MỚI: TÍNH TOÁN STOPLOSS THEO TIER, TP 1:1.5, VÀ ĐÒN BẨY / MARGIN ĐỘNG ──
       const h4Ref = await fetchH4Reference(sym);
       const tickSize = getTickSizeCached(sym) || (getDecimals(sig.targetLevel) === 5 ? 0.00001 : (getDecimals(sig.targetLevel) === 4 ? 0.0001 : 0.000001));
-      const targetLossUSD = parseFloat(process.env.MAX_LOSS_PER_TRADE_USD || '3.0');
+      const baseTargetLossUSD = parseFloat(process.env.MAX_LOSS_PER_TRADE_USD || '5.0');
+      const targetLossUSD = getDynamicTargetLossUSD(rank, aiEval.winProbability, sig.score ?? 0, baseTargetLossUSD);
       const maxAllowed = leverageInfo[sym] ?? leverage;
 
       const tierSetup = calculateTierSLTP(sym, sig.signal, sig.targetLevel, h4Ref, tickSize, maxAllowed, targetLossUSD);
@@ -1969,32 +1994,6 @@ async function checkH1RetestSignals(client, activeSymbols, leverageInfo = {}) {
         continue;
       }
 
-      // ── LOGIC MỚI: TÍNH TOÁN STOPLOSS THEO TIER, TP 1:1, VÀ ĐÒN BẨY / MARGIN ĐỘNG CHO RETEST H1 ──
-      const h4RefRetest = await fetchH4Reference(sym);
-      const tickSizeRetest = getTickSizeCached(sym) || (getDecimals(targetLevel) === 5 ? 0.00001 : (getDecimals(targetLevel) === 4 ? 0.0001 : 0.000001));
-      const targetLossUSDRetest = parseFloat(process.env.MAX_LOSS_PER_TRADE_USD || '3.0');
-      const maxAllowedRetest = (leverageInfo && leverageInfo[sym]) ?? getLeverageCached(sym) ?? 20;
-
-      const tierSetupRetest = calculateTierSLTP(sym, signal, targetLevel, h4RefRetest, tickSizeRetest, maxAllowedRetest, targetLossUSDRetest);
-      if (!tierSetupRetest.valid) {
-        log.system(`[H1Retest] ⏭️ ${sym} (${signal}) bỏ qua: ${tierSetupRetest.reason}`);
-        delete lowScoreWatchlist[sym];
-        continue;
-      }
-
-      const effectiveLeverageRetest = tierSetupRetest.leverage;
-      const actualTradeMarginRetest = Number(tierSetupRetest.margin.toFixed(2));
-      const notional = actualTradeMarginRetest * effectiveLeverageRetest;
-
-      const { qty } = calcQuantity(sym, notional, targetLevel);
-      const dec = getDecimals(targetLevel);
-
-      if (qty <= 0) {
-        log.warn(`[H1Retest] ${sym}: quantity calculation <= 0 — bỏ qua không đặt limit`);
-        delete lowScoreWatchlist[sym];
-        continue;
-      }
-
       // ── AI Reviewer Machine Learning Offline (Retest H1) ──
       const rank = watchData.marketCapRank || (getMarketCapRank ? getMarketCapRank(sym) : 999);
       const sigForAI = {
@@ -2072,6 +2071,33 @@ async function checkH1RetestSignals(client, activeSymbols, leverageInfo = {}) {
         }
       } catch (errM15) {
         log.warn(`[H1Retest] Không thể kiểm tra nến M15 Spike Guard cho ${sym}: ${errM15.message}`);
+      }
+
+      // ── TÍNH TOÁN STOPLOSS THEO TIER, TP 1:1.5, VÀ ĐÒN BẨY / MARGIN ĐỘNG CHO RETEST H1 ──
+      const h4RefRetest = await fetchH4Reference(sym);
+      const tickSizeRetest = getTickSizeCached(sym) || (getDecimals(targetLevel) === 5 ? 0.00001 : (getDecimals(targetLevel) === 4 ? 0.0001 : 0.000001));
+      const baseLossRetest = parseFloat(process.env.MAX_LOSS_PER_TRADE_USD || '5.0');
+      const targetLossUSDRetest = getDynamicTargetLossUSD(rank, aiEval.winProbability, watchData.score ?? 0, baseLossRetest);
+      const maxAllowedRetest = (leverageInfo && leverageInfo[sym]) ?? getLeverageCached(sym) ?? 20;
+
+      const tierSetupRetest = calculateTierSLTP(sym, signal, targetLevel, h4RefRetest, tickSizeRetest, maxAllowedRetest, targetLossUSDRetest);
+      if (!tierSetupRetest.valid) {
+        log.system(`[H1Retest] ⏭️ ${sym} (${signal}) bỏ qua: ${tierSetupRetest.reason}`);
+        delete lowScoreWatchlist[sym];
+        continue;
+      }
+
+      const effectiveLeverageRetest = tierSetupRetest.leverage;
+      const actualTradeMarginRetest = Number(tierSetupRetest.margin.toFixed(2));
+      const notional = actualTradeMarginRetest * effectiveLeverageRetest;
+
+      const { qty } = calcQuantity(sym, notional, targetLevel);
+      const dec = getDecimals(targetLevel);
+
+      if (qty <= 0) {
+        log.warn(`[H1Retest] ${sym}: quantity calculation <= 0 — bỏ qua không đặt limit`);
+        delete lowScoreWatchlist[sym];
+        continue;
       }
 
       try {
