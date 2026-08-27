@@ -353,31 +353,36 @@ function calcHalfQuantity(sym, totalQty) {
  * @param {string} symbol
  * @param {'LONG'|'SHORT'} side
 /**
- * Tính toán Target Loss & Tỷ lệ R:R Take Profit linh hoạt theo chất lượng tín hiệu (Smart Sizing & Asymmetric R:R)
- * - Mức cơ sở (Base Level 1): $5.0 USD (từ env MAX_LOSS_PER_TRADE_USD), TP 1:1.5
- * - Top 10 hoặc Kèo Siêu Đẹp (WinProb >= 75% | Score >= 7.0 & Rank <= 50): Scale up lên 1.5x (~$7.5 USD), TP 1:2.0 (Ăn đậm)
- * - Top 50 & WinProb >= 70%: Scale up lên 1.3x (~$6.5 USD), TP 1:1.75
- * - WinProb >= 68%: Scale up lên 1.15x (~$5.75 USD), TP 1:1.5
- * - Kèo Tiêu Chuẩn / Lowcap: Giữ mức cơ sở $5.0 USD, TP 1:1.5
+ * Tính toán Target Loss & Tỷ lệ R:R Take Profit linh hoạt theo chất lượng tín hiệu (Smart Dynamic Risk Sizing & Asymmetric R:R)
+ * - Hạng S (Super Sniper): Top 10 hoặc (Top 50 + Score >= 6.5 & WinProb >= 72%): Scale up 2.0x, TP 1:2.0
+ * - Hạng A (High Quality): Top 50 + WinProb >= 68% hoặc (Top 150 + Score >= 6.2 & WinProb >= 70%): Scale up 1.6x, TP 1:1.75
+ * - Hạng B (Solid Midcap): Top 150 + WinProb >= 65%: Scale up 1.3x, TP 1:1.5
+ * - Hạng C (Standard / Lowcap): Giữ mức cơ sở 1.0x, TP 1:1.5
  */
-function getDynamicRiskProfile(rank, winProb, score, baseLossUSD = 5.0) {
+function getDynamicRiskProfile(rank, winProb, score, baseLossUSD = 7.5) {
   let multiplier = 1.0;
   let tpRatio = 1.5;
+  let grade = 'C (Standard)';
 
-  if (rank <= 10 || (score >= 7.0 && winProb >= 75.0 && rank <= 50)) {
-    multiplier = 1.5; // ~$7.5 USD
-    tpRatio = 2.0;    // Tỷ lệ R:R 1:2.0
-  } else if (rank <= 50 && winProb >= 70.0) {
-    multiplier = 1.3; // ~$6.5 USD
+  if (rank <= 10 || (rank <= 50 && score >= 6.5 && winProb >= 72.0)) {
+    multiplier = 2.0; // x2.0 quy mô vốn (~$15.0 USD)
+    tpRatio = 2.0;    // Tỷ lệ R:R 1:2.0 (Ăn đậm)
+    grade = 'S (Super Sniper)';
+  } else if ((rank <= 50 && winProb >= 68.0) || (rank <= 150 && score >= 6.2 && winProb >= 70.0)) {
+    multiplier = 1.6; // x1.6 quy mô vốn (~$12.0 USD)
     tpRatio = 1.75;   // Tỷ lệ R:R 1:1.75
-  } else if (winProb >= 68.0 && rank <= 150) {
-    multiplier = 1.15; // ~$5.75 USD
+    grade = 'A (High Quality)';
+  } else if (rank <= 150 && winProb >= 65.0) {
+    multiplier = 1.3; // x1.3 quy mô vốn (~$9.75 USD)
     tpRatio = 1.5;     // Tỷ lệ R:R 1:1.5
+    grade = 'B (Solid Midcap)';
   }
 
   return {
     targetLossUSD: Number((baseLossUSD * multiplier).toFixed(2)),
-    tpRatio: tpRatio
+    tpRatio: tpRatio,
+    multiplier: multiplier,
+    grade: grade
   };
 }
 
@@ -1435,7 +1440,7 @@ async function startAutoTrade(coins) {
       try {
         try {
           await client.setLeverage(sym, effectiveLeverage);
-          log.system(`[AutoTrade] Set leverage ${sym}USDT = ${effectiveLeverage}x (Tier SL: $${tierSetup.slPrice} (${tierSetup.slPct.toFixed(2)}%), TP 1:1.5: $${tierSetup.tpPrice}, Dời SL tại $${tierSetup.beTriggerPrice} | Ký quỹ: $${actualTradeMargin})`);
+          log.system(`[AutoTrade] Set leverage ${sym}USDT = ${effectiveLeverage}x (Tier SL: $${tierSetup.slPrice} (${tierSetup.slPct.toFixed(2)}%), TP 1:${tierSetup.tpRatio}: $${tierSetup.tpPrice}, Dời SL tại $${tierSetup.beTriggerPrice} | Ký quỹ: $${actualTradeMargin} [${riskProfile.grade}])`);
         } catch (e) {
           const binErr = e.response?.data;
           const errStr = _binanceErr(e);
