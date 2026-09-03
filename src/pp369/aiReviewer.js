@@ -250,6 +250,8 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
     'btc_flash:BTC_FLASH_NORMAL': 1.00,
     'turnover_guard:TURNOVER_RISK_BLOCKED': 0.30, // Phạt nặng coin Low-Cap bị bơm xả Turnover > 8% -> AI Veto ngay
     'turnover_guard:TURNOVER_NORMAL': 1.00,
+    'price_action:PA_0_LEVEL': 0.95,              // [CÂN BẰNG] Sửa từ trọng số cũ 1.038 (thưởng vô lý) thành 0.95 (trừ nhẹ 5% vì không có cản S/R)
+    'ls_flow:LS_DIVERGENCE': 0.80,                // [CÂN BẰNG] Phạt vừa phải 20% khi dòng tiền Cá voi và Retail phân kỳ ngược nhau
     'trading_session:SESSION_ASIA': 1.02,        // Phiên Á nén chuẩn, sóng êm -> Thưởng nhẹ +2%
     'trading_session:SESSION_EUROPE': 1.01,      // Phiên Âu sóng đều -> Thưởng nhẹ +1%
     'trading_session:SESSION_US_OPEN': 0.98,     // Phiên Mỹ mở cửa -> Thận trọng nhẹ -2%

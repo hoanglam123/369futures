@@ -1317,11 +1317,30 @@ async function startAutoTrade(coins) {
       const aiEval = evaluateSignalWithAI(sig, rawMarketData);
       recordAIEvaluation(sig, aiEval);
 
-      // ── Tiêu chí 3: Bộ Lọc Phủ Quyết AI Veto Filter Phân Cấp (Top 150: >= 63%, Ngoài Top 150: >= 68%) ──
-      const minWinProbThreshold = (rank <= 150) ? 63.0 : 68.0;
-      const isAiVeto = (aiEval.winProbability < minWinProbThreshold) || (aiEval.reason.includes('VOL_DRY') && aiEval.reason.includes('OI_COOLING'));
+      // ── Tiêu chí 3: Bộ Lọc Phủ Quyết AI Veto Filter Cân Bằng (Top 150: >= 60%, Ngoài Top 150: >= 68% + Chặn Combo Độc Hại) ──
+      const minWinProbThreshold = (rank <= 150) ? 60.0 : 68.0;
+
+      const reasonsText = (sig.scoreReasons || []).join(' ');
+      const isTrendConflict = reasonsText.includes('Ngược/Mâu thuẫn');
+      const isLsDiv = reasonsText.includes('Không đồng thuận') || reasonsText.includes('phân kỳ');
+      const isNoSRLevel = !reasonsText.includes('cản cũ');
+      const isLowScore = (sig.score ?? 0) < 5.0;
+
+      let toxicComboReason = '';
+      if (isTrendConflict && isLsDiv) {
+        toxicComboReason = 'Combo Ngược Trend Dow H1 + Phân kỳ dòng tiền L/S';
+      } else if (isNoSRLevel && isLowScore) {
+        toxicComboReason = 'Combo Score yếu (<5.0đ) + Không có cản S/R quá khứ';
+      } else if (aiEval.reason.includes('VOL_DRY') && aiEval.reason.includes('OI_COOLING')) {
+        toxicComboReason = 'Combo Volume cạn kiệt + OI hạ nhiệt';
+      }
+
+      const isAiVeto = (aiEval.winProbability < minWinProbThreshold) || Boolean(toxicComboReason);
       if (isAiVeto) {
-        log.system(`[AutoTrade] 🛑 [AI Veto] ${sym} (${sig.signal}) bị phủ quyết (WinProb ${aiEval.winProbability.toFixed(1)}% < ${minWinProbThreshold}% [Rank #${rank}]): ${aiEval.reason} — Bỏ qua không đặt lệnh.`);
+        const vetoCause = toxicComboReason
+          ? `[ĐỘC HẠI: ${toxicComboReason}]`
+          : `WinProb ${aiEval.winProbability.toFixed(1)}% < ${minWinProbThreshold}% [Rank #${rank}]`;
+        log.system(`[AutoTrade] 🛑 [AI Veto] ${sym} (${sig.signal}) bị phủ quyết (${vetoCause}): ${aiEval.reason} — Bỏ qua không đặt lệnh.`);
         if (_shouldLogSignal(sym, sig.signal, sig.targetLevel, 'ai_veto_skipped')) {
           recordSkippedSignal({
             symbol: sym,
@@ -1329,7 +1348,7 @@ async function startAutoTrade(coins) {
             signalPrice: sig.targetLevel,
             score: sig.score ?? 0,
             scoreReasons: sig.scoreReasons || [],
-            skipReason: `AI_VETO_WINPROB_LT_${minWinProbThreshold}`,
+            skipReason: toxicComboReason ? `AI_VETO_${toxicComboReason.replace(/\s+/g, '_')}` : `AI_VETO_WINPROB_LT_${minWinProbThreshold}`,
             markPrice: markPrice,
             marketCapRank: rank,
           });
@@ -2031,11 +2050,30 @@ async function checkH1RetestSignals(client, activeSymbols, leverageInfo = {}) {
       const aiEval = evaluateSignalWithAI(sigForAI, rawMarketDataRetest);
       recordAIEvaluation(sigForAI, aiEval);
 
-      // Tiêu chí 3: AI Veto Filter Phân Cấp cho Retest H1 (Top 150: >= 63%, Ngoài Top 150: >= 68%)
-      const minWinProbThreshold = (rank <= 150) ? 63.0 : 68.0;
-      const isAiVeto = (aiEval.winProbability < minWinProbThreshold) || (aiEval.reason.includes('VOL_DRY') && aiEval.reason.includes('OI_COOLING'));
+      // Tiêu chí 3: AI Veto Filter Cân Bằng cho Retest H1 (Top 150: >= 60%, Ngoài Top 150: >= 68% + Chặn Combo Độc Hại)
+      const minWinProbThreshold = (rank <= 150) ? 60.0 : 68.0;
+
+      const reasonsTextRetest = (sigForAI.scoreReasons || []).join(' ');
+      const isTrendConflictRetest = reasonsTextRetest.includes('Ngược/Mâu thuẫn');
+      const isLsDivRetest = reasonsTextRetest.includes('Không đồng thuận') || reasonsTextRetest.includes('phân kỳ');
+      const isNoSRLevelRetest = !reasonsTextRetest.includes('cản cũ');
+      const isLowScoreRetest = (sigForAI.score ?? 0) < 5.0;
+
+      let toxicComboReasonRetest = '';
+      if (isTrendConflictRetest && isLsDivRetest) {
+        toxicComboReasonRetest = 'Combo Ngược Trend Dow H1 + Phân kỳ dòng tiền L/S';
+      } else if (isNoSRLevelRetest && isLowScoreRetest) {
+        toxicComboReasonRetest = 'Combo Score yếu (<5.0đ) + Không có cản S/R quá khứ';
+      } else if (aiEval.reason.includes('VOL_DRY') && aiEval.reason.includes('OI_COOLING')) {
+        toxicComboReasonRetest = 'Combo Volume cạn kiệt + OI hạ nhiệt';
+      }
+
+      const isAiVeto = (aiEval.winProbability < minWinProbThreshold) || Boolean(toxicComboReasonRetest);
       if (isAiVeto) {
-        log.system(`[AutoTrade (Retest H1)] 🛑 [AI Veto] ${sym} (${signal}) bị phủ quyết (WinProb ${aiEval.winProbability.toFixed(1)}% < ${minWinProbThreshold}% [Rank #${rank}]): ${aiEval.reason} — Hủy đặt lệnh Retest.`);
+        const vetoCause = toxicComboReasonRetest
+          ? `[ĐỘC HẠI: ${toxicComboReasonRetest}]`
+          : `WinProb ${aiEval.winProbability.toFixed(1)}% < ${minWinProbThreshold}% [Rank #${rank}]`;
+        log.system(`[AutoTrade (Retest H1)] 🛑 [AI Veto] ${sym} (${signal}) bị phủ quyết (${vetoCause}): ${aiEval.reason} — Hủy đặt lệnh Retest.`);
         delete lowScoreWatchlist[sym];
         continue;
       }
