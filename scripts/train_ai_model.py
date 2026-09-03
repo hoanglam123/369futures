@@ -11,6 +11,7 @@ if sys.platform == 'win32':
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATASET_PATH = os.path.join(BASE_DIR, "data", "ai_trade_dataset.jsonl")
 SKIPPED_PATH = os.path.join(BASE_DIR, "data", "skipped_signals.jsonl")
+MINED_PATH = os.path.join(BASE_DIR, "data", "ai_mined_dataset.jsonl")
 STEP_SIZES_PATH = os.path.join(BASE_DIR, "data", "step_sizes.json")
 OUTPUT_MODEL_PATH = os.path.join(BASE_DIR, "data", "ai_rule_config.json")
 
@@ -221,40 +222,37 @@ def train_and_export_model():
                             )
                         })
 
-    # 2. Load & simulate skipped signals (fast mode)
-    if os.path.exists(SKIPPED_PATH):
-        with open(SKIPPED_PATH, 'r', encoding='utf-8') as f:
-            lines = f.readlines()
-        
-        seen = set()
-        unique_skipped = []
-        for l in reversed(lines):
-            if not l.strip(): continue
-            try:
-                rec = json.loads(l)
-                key = f"{rec.get('symbol')}_{rec.get('signal')}_{rec.get('signalTimestamp', 0) // 300000}"
-                if key not in seen:
-                    seen.add(key)
-                    unique_skipped.append(rec)
-            except Exception:
-                pass
-
-        # Fast simulation or local tracked resolution
-        for rec in unique_skipped[:30]:
-            outcome = rec.get("hypotheticalOutcome") or ( "TP" if rec.get("hypotheticalTP") else ("SL" if rec.get("hypotheticalSL") else None) )
-            if not outcome and os.environ.get("FETCH_REMOTE") == "1":
-                outcome = simulate_skipped_signal(rec)
-            if outcome in ["TP", "SL"]:
-                dataset.append({
-                    "is_win": (outcome == "TP"),
-                    "features": extract_features(
-                        rec.get("scoreReasons", []),
-                        rec.get("score", 0),
-                        rec.get("marketCapRank", 999),
-                        rec.get("gridWidthPct", 3.5),
-                        rec.get("signalTimestamp")
-                    )
-                })
+    # 2. Load mined dataset from ai_mined_dataset.jsonl
+    if os.path.exists(MINED_PATH):
+        mined_count = 0
+        mined_wins = 0
+        mined_losses = 0
+        with open(MINED_PATH, 'r', encoding='utf-8') as f:
+            for l in f:
+                l_str = l.strip()
+                if not l_str: continue
+                try:
+                    rec = json.loads(l_str)
+                    outcome = rec.get("outcome")
+                    # Huấn luyện trên các mẫu có kết quả ngã ngũ: TP (Thắng) hoặc SL (Thua)
+                    if outcome in ["TP", "SL"]:
+                        is_win = (outcome == "TP")
+                        dataset.append({
+                            "is_win": is_win,
+                            "features": extract_features(
+                                rec.get("scoreReasons", []),
+                                rec.get("score", 0),
+                                rec.get("marketCapRank", 999),
+                                rec.get("gridWidthPct", 3.5),
+                                rec.get("timestamp")
+                            )
+                        })
+                        mined_count += 1
+                        if is_win: mined_wins += 1
+                        else: mined_losses += 1
+                except Exception:
+                    continue
+        print(f"⛏️  Đã nạp {mined_count} mẫu từ tệp khai phá (ai_mined_dataset.jsonl): {mined_wins} Thắng, {mined_losses} Thua")
 
     total_samples = len(dataset)
     win_samples = sum(1 for d in dataset if d["is_win"])
@@ -275,8 +273,8 @@ def train_and_export_model():
             else:
                 feature_counts[key]["loss"] += 1
 
-    # Apply m-estimate smoothing (m = 12.0, p = prior_win) to prevent overfitting on small sample sizes
-    M_SMOOTHING = 12.0
+    # Apply m-estimate smoothing (m = 15.0, p = prior_win) to prevent overfitting
+    M_SMOOTHING = 15.0
     feature_weights = {}
 
     for key, counts in feature_counts.items():

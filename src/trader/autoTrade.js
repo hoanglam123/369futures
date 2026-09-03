@@ -1293,24 +1293,7 @@ async function startAutoTrade(coins) {
       sig.marketCapRank = rank;
       sig.gridWidthPct = gridStepPct;
 
-      // ── Tiêu chí 2: Bộ Lọc Confluence Score tối thiểu (Mặc định >= 4.5đ) ──
-
-      if ((sig.score || 0) < MIN_CONFLUENCE_SCORE) {
-        log.system(`[AutoTrade] ⏭️ ${sym} (${sig.signal}) Score = ${sig.score}đ < ${MIN_CONFLUENCE_SCORE}đ — Bỏ qua không đặt lệnh.`);
-        if (_shouldLogSignal(sym, sig.signal, sig.targetLevel, 'low_score_skipped')) {
-          recordSkippedSignal({
-            symbol: sym,
-            signal: sig.signal,
-            signalPrice: sig.targetLevel,
-            score: sig.score ?? 0,
-            scoreReasons: sig.scoreReasons || [],
-            skipReason: `SCORE_LOW_LT_${MIN_CONFLUENCE_SCORE}`,
-            markPrice: markPrice,
-            marketCapRank: rank,
-          });
-        }
-        return;
-      }
+      // ── Tiêu chí 2: Đã gỡ bỏ bộ lọc chặn cứng MIN_CONFLUENCE_SCORE — Toàn quyền thẩm định trao cho AI Reviewer ──
 
       // ── Thu thập dữ liệu nến M15 thô để nạp vào AI Reviewer v2.0 ──
       let rawMarketData = null;

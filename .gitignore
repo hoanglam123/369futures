@@ -12,3 +12,4 @@ data/knowledge/*.jpg
 data/knowledge/*.jpeg
 data/knowledge/*.png
 data/data/*
+data/kline_cache/
