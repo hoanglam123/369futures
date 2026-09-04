@@ -597,14 +597,14 @@ async function startAutoTrade(coins) {
           }
         }
       } else if (meta.orderId) {
-        // Lệnh LIMIT ĐANG CHỜ KHỚP: theo dõi độ nảy để Bounce Cancel
+        // Lệnh LIMIT ĐANG CHỜ KHỚP: theo dõi độ nảy để Bounce Cancel (DÙNG BIẾN RIÊNG pendingBouncePeakPrice)
         if (isLong) {
-          if (meta.maxFavorablePrice == null || price > meta.maxFavorablePrice) {
-            meta.maxFavorablePrice = price;
+          if (meta.pendingBouncePeakPrice == null || price > meta.pendingBouncePeakPrice) {
+            meta.pendingBouncePeakPrice = price;
           }
         } else {
-          if (meta.maxFavorablePrice == null || price < meta.maxFavorablePrice) {
-            meta.maxFavorablePrice = price;
+          if (meta.pendingBouncePeakPrice == null || price < meta.pendingBouncePeakPrice) {
+            meta.pendingBouncePeakPrice = price;
           }
         }
       }
@@ -1479,7 +1479,10 @@ async function startAutoTrade(coins) {
           gridStepPct: posGridPct,
           step: sig.step || getStep(sig.targetLevel), // [BUG-4 FIX] Lưu step để checkTrailingSL tính unit chính xác
           orderId: order.orderId ?? null,
+          isFilled: false,
+          hasNotifiedFill: false,
           maxFavorablePrice: null,
+          pendingBouncePeakPrice: null,
           time: Date.now(),
           markPrice: markPrice,
           scoreReasons: sig.scoreReasons,
@@ -1692,11 +1695,11 @@ async function checkPendingLimits(client, activeSymbols) {
           }
         }
 
-        if (meta.maxFavorablePrice === null || markPrice > meta.maxFavorablePrice) {
-          meta.maxFavorablePrice = markPrice;
+        if (meta.pendingBouncePeakPrice === null || markPrice > meta.pendingBouncePeakPrice) {
+          meta.pendingBouncePeakPrice = markPrice;
         }
 
-        const maxFav = meta.maxFavorablePrice;
+        const maxFav = meta.pendingBouncePeakPrice;
         const maxBouncedPct = ((maxFav - entry) / entry) * 100;
         const currentBouncedPct = ((markPrice - entry) / entry) * 100;
         const maxBouncedRoi = maxBouncedPct * (meta.leverage || 1);
@@ -1767,11 +1770,11 @@ async function checkPendingLimits(client, activeSymbols) {
           }
         }
 
-        if (meta.maxFavorablePrice === null || markPrice < meta.maxFavorablePrice) {
-          meta.maxFavorablePrice = markPrice;
+        if (meta.pendingBouncePeakPrice === null || markPrice < meta.pendingBouncePeakPrice) {
+          meta.pendingBouncePeakPrice = markPrice;
         }
 
-        const minFav = meta.maxFavorablePrice;
+        const minFav = meta.pendingBouncePeakPrice;
         const maxBouncedPct = ((entry - minFav) / entry) * 100;
         const currentBouncedPct = ((entry - markPrice) / entry) * 100;
         const maxBouncedRoi = maxBouncedPct * (meta.leverage || 1);
@@ -2173,7 +2176,10 @@ async function checkH1RetestSignals(client, activeSymbols, leverageInfo = {}) {
           gridWidthPct: watchData.gridWidthPct || gridStepPct,
           gridStepPct: gridStepPct,
           margin: actualTradeMarginRetest,
+          isFilled: false,
+          hasNotifiedFill: false,
           maxFavorablePrice: null,
+          pendingBouncePeakPrice: null,
           isH1Retest: true,
           // ── THÔNG SỐ TIER SL / TP MỚI ──
           tierSlPrice: tierSetupRetest.slPrice,
@@ -2323,12 +2329,13 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
       }
 
       // Thông báo Telegram khi lệnh LIMIT khớp mở vị thế
-      if (metaForPeak && !metaForPeak.hasNotifiedFill) {
+      if (metaForPeak && (!metaForPeak.hasNotifiedFill || !metaForPeak.isFilled)) {
         metaForPeak.hasNotifiedFill = true;
         metaForPeak.isFilled = true;
         // 🛡️ RESET maxFavorablePrice về đúng giá Entry ngay khi khớp lệnh,
-        // triệt tiêu giá đỉnh cũ lúc đang chờ lệnh LIMIT để tránh bị kích hoạt dời SL ảo đóng lệnh sớm!
+        // triệt tiêu mọi giá đỉnh cũ lúc đang chờ lệnh LIMIT để tránh bị kích hoạt dời SL ảo đóng lệnh sớm!
         metaForPeak.maxFavorablePrice = entryPrice;
+        metaForPeak.pendingBouncePeakPrice = null;
         saveActiveTradesMetadata();
         const fillSide = isLong ? 'LONG' : 'SHORT';
         sendTelegram(
@@ -2341,9 +2348,9 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
         ).catch(() => { });
       }
       if (isLong) {
-        metaForPeak.maxFavorablePrice = Math.max(metaForPeak.maxFavorablePrice || markPrice, markPrice);
+        metaForPeak.maxFavorablePrice = Math.max(metaForPeak.maxFavorablePrice ?? markPrice, markPrice);
       } else {
-        metaForPeak.maxFavorablePrice = Math.min(metaForPeak.maxFavorablePrice || markPrice, markPrice);
+        metaForPeak.maxFavorablePrice = Math.min(metaForPeak.maxFavorablePrice ?? markPrice, markPrice);
       }
 
       // ROI % = % thay đổi giá * leverage
@@ -2743,10 +2750,20 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
         ? (peakPrice >= trailTriggerPriceExact - triggerBuffer)
         : (peakPrice <= trailTriggerPriceExact + triggerBuffer);
 
+      // 🛡️ SANITY GUARD: Chỉ dời SL lên mốc hòa vốn/khóa lãi nếu mốc dời hợp lệ so với giá thị trường hiện tại
+      // - LONG: Giá hiện tại (markPrice) phải CAO HƠN mốc dời (trailedSlPriceExact).
+      //   Nếu markPrice <= trailedSlPriceExact, đặt Stop Sell sẽ bị Binance từ chối (-2021) và kích hoạt Virtual SL oan!
+      // - SHORT: Giá hiện tại (markPrice) phải THẤP HƠN mốc dời (trailedSlPriceExact).
+      const isTrailedSlValid = isLong
+        ? (markPrice > trailedSlPriceExact)
+        : (markPrice < trailedSlPriceExact);
+
+      const canApplyTrailingSl = isTrailTriggerReached && isTrailedSlValid;
+
       let targetSlPrice = targetSlPriceExact;
       let currentSlPct = slPct;
 
-      if (isTrailTriggerReached) {
+      if (canApplyTrailingSl) {
         currentSlPct = trailSlRoi; // Dời SL về entry + 5đ (+5 ticks)
         targetSlPrice = trailedSlPriceExact;
       }
@@ -2766,8 +2783,8 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
       const targetSlStr = roundedTargetSl.toFixed(dec);
 
       if (realSlOrders.length > 0) {
-        // Có lệnh SL trên sàn -> Thực hiện dịch chuyển Trailing SL khi giá đã từng chạm mốc 45 ticks (isTrailTriggerReached)
-        if (isTrailTriggerReached) {
+        // Có lệnh SL trên sàn -> Thực hiện dịch chuyển Trailing SL khi giá đã từng chạm mốc (canApplyTrailingSl)
+        if (canApplyTrailingSl) {
           let alreadyMoved = false;
           let betterOrEqualExists = false;
 
@@ -2875,7 +2892,7 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
           : (markPrice >= roundedTargetSl);
 
         if (slTriggered) {
-          const typeLabel = (isTrailTriggerReached || roi >= trailTrigger) ? 'Trailing SL' : 'Stop Loss';
+          const typeLabel = (canApplyTrailingSl || roi >= trailTrigger) ? 'Trailing SL' : 'Stop Loss';
           log.system(`[AutoTrade] [Virtual ${typeLabel}] Kích hoạt cho ${sym}: Giá ${markPrice} chạm/vượt mốc $${targetSlStr}. Đóng vị thế bằng lệnh MARKET.`);
           try {
             justClosedByBot.add(sym);
