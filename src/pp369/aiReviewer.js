@@ -215,6 +215,24 @@ function extractSignalFeatures(reasons, score, rank, gridWidthPct, rawMarketData
     features['trading_session'] = 'SESSION_US_LATE'; // Đêm/Rạng sáng VN
   }
 
+  // ── [MỚI] 18. Multi-Factor Risk Interactions (Tương tác rủi ro tử thần tích hợp thẳng vào AI) ──
+  const isTrendConflict = features['trend'] === 'TREND_CONFLICT';
+  const isLsDiv = features['ls_flow'] === 'LS_DIVERGENCE';
+  const isNoSR = features['price_action'] === 'PA_0_LEVEL';
+  const isLowScore = score < 5.0 || features['score_group'] === 'SCORE_WEAK_4_TO_5' || features['score_group'] === 'SCORE_DANGER_LT4';
+  const isDryVol = features['volume'] === 'VOL_DRY';
+  const isCoolingOi = features['oi_change'] === 'OI_COOLING';
+
+  if (isTrendConflict && isLsDiv) {
+    features['risk_interaction'] = 'FATAL_TREND_AND_FLOW_DIVERGENCE';
+  } else if (isNoSR && isLowScore) {
+    features['risk_interaction'] = 'FATAL_NO_SR_AND_WEAK_SETUP';
+  } else if (isDryVol && isCoolingOi) {
+    features['risk_interaction'] = 'RISK_DRY_VOL_AND_COOLING_OI';
+  } else {
+    features['risk_interaction'] = 'RISK_NONE';
+  }
+
   return features;
 }
 
@@ -228,12 +246,10 @@ function extractSignalFeatures(reasons, score, rank, gridWidthPct, rawMarketData
 function evaluateSignalWithAI(sig, rawMarketData = null) {
   if (!_modelConfig) loadAIModel();
 
-  const defaultThreshold = 69.0;
-  const threshold = _modelConfig?.thresholdApprovalPct || defaultThreshold;
   const priorWin = _modelConfig?.priorWinProb || 0.565;
   const weights = _modelConfig?.featureWeights || {};
 
-  // Custom weights for raw market features
+  // Custom weights for raw market features and risk interactions
   const dynamicModifiers = {
     'score_group:SCORE_DANGER_LT4': 0.50,         // Phạt trừ 50% WinProb cho Score < 4đ -> Veto ngay
     'score_group:SCORE_WEAK_4_TO_5': 0.85,
@@ -250,8 +266,12 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
     'btc_flash:BTC_FLASH_NORMAL': 1.00,
     'turnover_guard:TURNOVER_RISK_BLOCKED': 0.30, // Phạt nặng coin Low-Cap bị bơm xả Turnover > 8% -> AI Veto ngay
     'turnover_guard:TURNOVER_NORMAL': 1.00,
-    'price_action:PA_0_LEVEL': 0.95,              // [CÂN BẰNG] Sửa từ trọng số cũ 1.038 (thưởng vô lý) thành 0.95 (trừ nhẹ 5% vì không có cản S/R)
+    'price_action:PA_0_LEVEL': 0.85,              // [LÕI AI] Rỗng cản S/R là rủi ro rất cao, phạt 15% (x0.85) thay vì chỉ trừ 5%
     'ls_flow:LS_DIVERGENCE': 0.80,                // [CÂN BẰNG] Phạt vừa phải 20% khi dòng tiền Cá voi và Retail phân kỳ ngược nhau
+    'risk_interaction:FATAL_TREND_AND_FLOW_DIVERGENCE': 0.40, // [LÕI AI] Phạt nặng 60% khi ngược Dow H1 kết hợp phân kỳ L/S
+    'risk_interaction:FATAL_NO_SR_AND_WEAK_SETUP': 0.45,      // [LÕI AI] Phạt nặng 55% khi không có cản S/R kết hợp kỹ thuật yếu (< 5.0đ)
+    'risk_interaction:RISK_DRY_VOL_AND_COOLING_OI': 0.60,     // [LÕI AI] Phạt 40% khi volume cạn kiệt và OI hạ nhiệt
+    'risk_interaction:RISK_NONE': 1.00,
     'trading_session:SESSION_ASIA': 1.02,        // Phiên Á nén chuẩn, sóng êm -> Thưởng nhẹ +2%
     'trading_session:SESSION_EUROPE': 1.01,      // Phiên Âu sóng đều -> Thưởng nhẹ +1%
     'trading_session:SESSION_US_OPEN': 0.98,     // Phiên Mỹ mở cửa -> Thận trọng nhẹ -2%
@@ -298,6 +318,11 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
   // Bound winProbability strictly between 5% and 95%
   winProb = Math.max(5.0, Math.min(95.0, winProb));
 
+  // Phân cấp ngưỡng phê duyệt WinProbability tích hợp theo Vốn hóa (Rank-based Threshold)
+  // - Top 150: Ngưỡng >= 60.0%
+  // - Lowcap (ngoài Top 150): Ngưỡng >= 68.0%
+  const threshold = (rank <= 150) ? 60.0 : 68.0;
+
   // EV (Expected Value) Calculation
   const minEvRoiThreshold = _modelConfig?.minExpectedEvRoi ?? 0.5;
 
@@ -314,21 +339,35 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
 
   const isApproved = winProb >= threshold && evRoi >= minEvRoiThreshold;
   const factorSummary = keyFactors.length > 0 ? keyFactors.join(', ') : 'Điều kiện trung tính';
-  
+
+  let vetoCategory = null;
   let reasonText = '';
-  if (winProb < threshold) {
-    reasonText = `Xác suất thắng ${winProb.toFixed(1)}% < ${threshold}% (${factorSummary})`;
-  } else if (evRoi < minEvRoiThreshold) {
-    reasonText = `Xác suất thắng ${winProb.toFixed(1)}% >= ${threshold}%, nhưng Lợi Nhuận Kỳ Vọng (EV) chưa đạt (${evRoi.toFixed(2)}% ROI, $${evUsd.toFixed(2)}) (${factorSummary})`;
+
+  if (!isApproved) {
+    if (features['risk_interaction'] && features['risk_interaction'].startsWith('FATAL_')) {
+      vetoCategory = features['risk_interaction'];
+      reasonText = `[RỦI RO TỬ THẦN: ${features['risk_interaction']}] Xác suất thắng ${winProb.toFixed(1)}% < ${threshold}% [Rank #${rank}] (${factorSummary})`;
+    } else if (winProb < threshold) {
+      vetoCategory = `WINPROB_LT_${threshold}`;
+      reasonText = `Xác suất thắng ${winProb.toFixed(1)}% < ${threshold}% [Rank #${rank}] (${factorSummary})`;
+    } else if (evRoi < minEvRoiThreshold) {
+      vetoCategory = 'EV_BELOW_THRESHOLD';
+      reasonText = `Xác suất thắng ${winProb.toFixed(1)}% >= ${threshold}%, nhưng Lợi Nhuận Kỳ Vọng (EV) chưa đạt (${evRoi.toFixed(2)}% ROI, $${evUsd.toFixed(2)}) (${factorSummary})`;
+    } else {
+      vetoCategory = 'AI_VETO';
+      reasonText = `Phủ quyết bởi AI [Rank #${rank}] (${factorSummary})`;
+    }
   } else {
-    reasonText = `Xác suất thắng ${winProb.toFixed(1)}% >= ${threshold}% & EV = +${evRoi.toFixed(2)}% ROI ($${evUsd.toFixed(2)}) (${factorSummary})`;
+    reasonText = `Xác suất thắng ${winProb.toFixed(1)}% >= ${threshold}% [Rank #${rank}] & EV = +${evRoi.toFixed(2)}% ROI ($${evUsd.toFixed(2)}) (${factorSummary})`;
   }
 
   return {
     winProbability: parseFloat(winProb.toFixed(1)),
+    threshold: parseFloat(threshold.toFixed(1)),
     expectedValueRoi: parseFloat(evRoi.toFixed(2)),
     expectedValueUsd: parseFloat(evUsd.toFixed(2)),
     isApproved,
+    vetoCategory,
     reason: reasonText,
     keyFactors,
   };
