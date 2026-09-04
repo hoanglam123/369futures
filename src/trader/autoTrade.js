@@ -394,17 +394,32 @@ function getDynamicTargetLossUSD(rank, winProb, score, baseLossUSD = 5.0) {
 }
 
 /**
- * Tính toán Stoploss theo Tier (Khung Lưới Fibonacci/Step H4)
+ * Tính toán StopLoss và TakeProfit theo Hệ thống Tier động:
+ * - Phân tầng khoảng cách SL theo vốn hóa (MarketCap Rank):
+ *   + Top 150: Min SL = 1.00%
+ *   + Lowcap (ngoài Top 150): Min SL = 1.80% (tránh bị quét râu nến noise M15/H1)
+ * - Neo SL theo mốc Grid PP369 phía sau Entry (tierShort cho LONG, tierLong cho SHORT)
+ * - Buffer an toàn: max(33 ticks, 10% step, 0.3% price)
+ * - Max SL = 3.5%
+ * - Tự động tính đòn bẩy tối ưu theo tỷ lệ SL sao cho dính SL = ~50% ROI
+ * - Tự động tính Margin nạp vào sao cho nếu dính SL chỉ lỗ đúng targetLossUSD (mặc định 5 USD)
+ * - TP động theo tỷ lệ R:R (mặc định 1:1.5, setup A/B lên đến 1:2.0)
+ *
  * @param {string} symbol
- * @param {string} side - 'LONG' | 'SHORT'
+ * @param {'LONG'|'SHORT'|'BUY'|'SELL'} side
  * @param {number} entryPrice
- * @param {object} h4Ref - { upperPrice, lowerPrice, step, decimals }
+ * @param {object} h4Ref
  * @param {number} tickSize
  * @param {number} maxExchangeLeverage
  * @param {number} [targetLossUSD=5.0]
  * @param {number} [tpRatio=1.5]
+ * @param {number} [rank=null]
  */
-function calculateTierSLTP(symbol, side, entryPrice, h4Ref, tickSize, maxExchangeLeverage, targetLossUSD = 5.0, tpRatio = 1.5) {
+function calculateTierSLTP(symbol, side, entryPrice, h4Ref, tickSize, maxExchangeLeverage, targetLossUSD = 5.0, tpRatio = 1.5, rank = null) {
+  const coinRank = (typeof rank === 'number' && !isNaN(rank)) ? rank : (getMarketCapRank ? getMarketCapRank(symbol) : 999);
+  const isLowcap = coinRank > 150;
+  const minSlPct = isLowcap ? 1.8 : 1.0;
+
   const step = h4Ref?.step || getStep(entryPrice);
   const decimals = h4Ref?.decimals || getDecimals(entryPrice);
   const upperPrice = h4Ref?.upperPrice || entryPrice;
@@ -433,10 +448,10 @@ function calculateTierSLTP(symbol, side, entryPrice, h4Ref, tickSize, maxExchang
   let slDist = Math.abs(entryPrice - rawSL);
   let slPct = (slDist / entryPrice) * 100;
 
-  // Min SL = 1.0%, Max SL = 3.5%
-  if (slPct < 1.0) {
-    slPct = 1.0;
-    slDist = entryPrice * 0.01;
+  // Phân tầng Min SL: Top 150 = 1.0%, Lowcap = 1.8% | Max SL = 3.5%
+  if (slPct < minSlPct) {
+    slPct = minSlPct;
+    slDist = entryPrice * (minSlPct / 100.0);
     rawSL = (side === 'LONG' || side === 'BUY') ? (entryPrice - slDist) : (entryPrice + slDist);
   } else if (slPct > 3.5) {
     return { valid: false, reason: `SL theo Tier quá rộng (${slPct.toFixed(2)}% > 3.5%)` };
@@ -459,6 +474,8 @@ function calculateTierSLTP(symbol, side, entryPrice, h4Ref, tickSize, maxExchang
     beTriggerPrice: parseFloat(beTriggerPrice.toFixed(decimals)),
     slDistance: slDist,
     slPct: slPct,
+    minSlPct: minSlPct,
+    isLowcap: isLowcap,
     leverage: leverage,
     margin: actualMargin,
     targetLossUSD: targetLossUSD,
@@ -1393,7 +1410,7 @@ async function startAutoTrade(coins) {
       const tpRatio = riskProfile.tpRatio;
       const maxAllowed = leverageInfo[sym] ?? leverage;
 
-      const tierSetup = calculateTierSLTP(sym, sig.signal, sig.targetLevel, h4Ref, tickSize, maxAllowed, targetLossUSD, tpRatio);
+      const tierSetup = calculateTierSLTP(sym, sig.signal, sig.targetLevel, h4Ref, tickSize, maxAllowed, targetLossUSD, tpRatio, rank);
       if (!tierSetup.valid) {
         log.system(`[AutoTrade] ⏭️ ${sym} (${sig.signal}) bỏ qua: ${tierSetup.reason}`);
         return;
@@ -1417,7 +1434,7 @@ async function startAutoTrade(coins) {
       try {
         try {
           await client.setLeverage(sym, effectiveLeverage);
-          log.system(`[AutoTrade] Set leverage ${sym}USDT = ${effectiveLeverage}x (Tier SL: $${tierSetup.slPrice} (${tierSetup.slPct.toFixed(2)}%), TP 1:${tierSetup.tpRatio}: $${tierSetup.tpPrice}, Dời SL tại $${tierSetup.beTriggerPrice} | Ký quỹ: $${actualTradeMargin} [${riskProfile.grade}])`);
+          log.system(`[AutoTrade] Set leverage ${sym}USDT = ${effectiveLeverage}x (Tier SL: $${tierSetup.slPrice} (${tierSetup.slPct.toFixed(2)}%${tierSetup.isLowcap ? ' [Lowcap]' : ''}), TP 1:${tierSetup.tpRatio}: $${tierSetup.tpPrice}, Dời SL tại $${tierSetup.beTriggerPrice} | Ký quỹ: $${actualTradeMargin} [${riskProfile.grade}])`);
         } catch (e) {
           const binErr = e.response?.data;
           const errStr = _binanceErr(e);
@@ -2082,7 +2099,7 @@ async function checkH1RetestSignals(client, activeSymbols, leverageInfo = {}) {
       const tpRatioRetest = riskProfileRetest.tpRatio;
       const maxAllowedRetest = (leverageInfo && leverageInfo[sym]) ?? getLeverageCached(sym) ?? 20;
 
-      const tierSetupRetest = calculateTierSLTP(sym, signal, targetLevel, h4RefRetest, tickSizeRetest, maxAllowedRetest, targetLossUSDRetest, tpRatioRetest);
+      const tierSetupRetest = calculateTierSLTP(sym, signal, targetLevel, h4RefRetest, tickSizeRetest, maxAllowedRetest, targetLossUSDRetest, tpRatioRetest, rank);
       if (!tierSetupRetest.valid) {
         log.system(`[H1Retest] ⏭️ ${sym} (${signal}) bỏ qua: ${tierSetupRetest.reason}`);
         delete lowScoreWatchlist[sym];
