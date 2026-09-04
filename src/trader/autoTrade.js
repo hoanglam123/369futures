@@ -53,6 +53,8 @@ const DEBOUNCE_MS = 5 * 60_000; // 5 phút / tín hiệu
 const COIN_REFRESH_INTERVAL_MS = 4 * 60 * 60_000; // Tái kiểm tra danh sách coin mỗi 4 giờ
 const LEVERAGE_REFRESH_INTERVAL_MS = 6 * 60 * 60_000; // Tự động cập nhật trần đòn bẩy mỗi 6 giờ
 const MIN_CONFLUENCE_SCORE = parseFloat(process.env.MIN_CONFLUENCE_SCORE || '5.0'); // Ngưỡng Confluence Score tối thiểu (mặc định 5.0đ)
+// Cấu hình Dời SL về Breakeven (Mặc định: false - Không dời BE để chống rũ non, vị thế chạy thuần túy đến TP/SL)
+const ENABLE_TRAILING_BE = process.env.ENABLE_TRAILING_BE === 'true';
 
 // Debounce map: key → timestamp lần đặt lệnh gần nhất
 const _fired = new Map();
@@ -1434,7 +1436,7 @@ async function startAutoTrade(coins) {
       try {
         try {
           await client.setLeverage(sym, effectiveLeverage);
-          log.system(`[AutoTrade] Set leverage ${sym}USDT = ${effectiveLeverage}x (Tier SL: $${tierSetup.slPrice} (${tierSetup.slPct.toFixed(2)}%${tierSetup.isLowcap ? ' [Lowcap]' : ''}), TP 1:${tierSetup.tpRatio}: $${tierSetup.tpPrice}, Dời SL tại $${tierSetup.beTriggerPrice} | Ký quỹ: $${actualTradeMargin} [${riskProfile.grade}])`);
+          log.system(`[AutoTrade] Set leverage ${sym}USDT = ${effectiveLeverage}x (Tier SL: $${tierSetup.slPrice} (${tierSetup.slPct.toFixed(2)}%${tierSetup.isLowcap ? ' [Lowcap]' : ''}), TP 1:${tierSetup.tpRatio}: $${tierSetup.tpPrice}${ENABLE_TRAILING_BE ? `, Dời SL tại $${tierSetup.beTriggerPrice}` : ' [Không dời BE]'} | Ký quỹ: $${actualTradeMargin} [${riskProfile.grade}])`);
         } catch (e) {
           const binErr = e.response?.data;
           const errStr = _binanceErr(e);
@@ -2742,7 +2744,8 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
         ? (markPrice > trailedSlPriceExact)
         : (markPrice < trailedSlPriceExact);
 
-      const canApplyTrailingSl = isTrailTriggerReached && isTrailedSlValid;
+      // CẬP NHẬT: Không dời BE nếu tắt ENABLE_TRAILING_BE (cho phép vị thế chạy thuần túy đến TP/SL)
+      const canApplyTrailingSl = ENABLE_TRAILING_BE && isTrailTriggerReached && isTrailedSlValid;
 
       let targetSlPrice = targetSlPriceExact;
       let currentSlPct = slPct;
@@ -2876,7 +2879,7 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
           : (markPrice >= roundedTargetSl);
 
         if (slTriggered) {
-          const typeLabel = (canApplyTrailingSl || roi >= trailTrigger) ? 'Trailing SL' : 'Stop Loss';
+          const typeLabel = (canApplyTrailingSl || (ENABLE_TRAILING_BE && roi >= trailTrigger)) ? 'Trailing SL' : 'Stop Loss';
           log.system(`[AutoTrade] [Virtual ${typeLabel}] Kích hoạt cho ${sym}: Giá ${markPrice} chạm/vượt mốc $${targetSlStr}. Đóng vị thế bằng lệnh MARKET.`);
           try {
             justClosedByBot.add(sym);
