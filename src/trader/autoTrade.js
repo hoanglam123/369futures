@@ -2477,49 +2477,66 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
       }
 
       // 2.6 Kiểm tra M15 Bùng Nổ Volume / Đâm Sâu (Panic Escape -> Dời TP về Entry hòa vốn)
-      //     - Khi M15 (đang chạy hoặc vừa đóng) có Volume dự phóng >= 2.5x TB 20 nến M15
-      //     - VÀ Giá bị đâm lún sâu >= 40% slDistance qua Entry
+      //     - Chỉ kiểm tra khi nến M15 ĐÃ ĐÓNG CỬA (tránh nhiễu giật râu giữa nến)
+      //     - Điều kiện 1: Volume nến M15 vừa đóng >= 2.5x TB 20 nến trước
+      //     - Điều kiện 2: Giá trong nến từng bị lún sâu >= 40% slDistance qua Entry
+      //     - Điều kiện 3: Phe đối lập thực sự áp đảo khi ĐÓNG NẾN (LONG: nến ĐỎ đóng dưới Entry | SHORT: nến XANH đóng trên Entry)
       //     - LONG & SHORT: Dời TP về Entry hòa vốn để thoát hàng khi có nhịp giật râu hồi
-      if (meta && !meta.isPanicEscape) {
+      if (meta && !meta.isH1Failed && !meta.isPanicEscape) {
         const nowMs = Date.now();
-        if (!meta._lastM15VolCheck || (nowMs - meta._lastM15VolCheck >= 20000)) {
+        if (!meta._lastM15VolCheck || (nowMs - meta._lastM15VolCheck >= 15000)) {
           meta._lastM15VolCheck = nowMs;
           try {
             const m15s = await fetchBinanceKlines(sym, '15m', null, 25);
             if (m15s && m15s.length >= 22) {
-              const currentM15 = m15s[m15s.length - 1];
               const lastClosedM15 = m15s[m15s.length - 2];
-              const base20 = m15s.slice(-22, -2);
-              const avgBaseVolM15 = base20.reduce((s, c) => s + c.volume, 0) / 20;
+              const m15CloseTime = lastClosedM15 ? (lastClosedM15.openTime + 15 * 60_000) : 0;
+              const entryTime = meta.time || (nowMs - 15 * 60_000);
 
-              const elapsedMin = Math.max(1, Math.min(15, (nowMs - currentM15.openTime) / 60000));
-              const projectedCurrentVol = (currentM15.volume / elapsedMin) * 15;
-              const currentRatio = avgBaseVolM15 > 0 ? (projectedCurrentVol / avgBaseVolM15) : 0;
-              const closedRatio = avgBaseVolM15 > 0 ? (lastClosedM15.volume / avgBaseVolM15) : 0;
-              const maxM15Ratio = Math.max(currentRatio, closedRatio);
+              // Cây nến M15 vừa đóng phải kết thúc sau thời điểm vào lệnh
+              if (lastClosedM15 && m15CloseTime > entryTime && meta._lastCheckedM15VolCloseTime !== m15CloseTime) {
+                meta._lastCheckedM15VolCloseTime = m15CloseTime;
 
-              if (avgBaseVolM15 > 0 && maxM15Ratio >= 2.5) {
-                // Kiểm tra xem giá có bị đâm lún sâu >= 40% slDistance
+                const base20 = m15s.slice(-22, -2);
+                const avgBaseVolM15 = base20.reduce((s, c) => s + c.volume, 0) / 20;
+                const closedRatio = avgBaseVolM15 > 0 ? (lastClosedM15.volume / avgBaseVolM15) : 0;
+
+                // Điều kiện 1: Volume bùng nổ >= 2.5x
+                const hasVolSurge = avgBaseVolM15 > 0 && closedRatio >= 2.5;
+
+                // Điều kiện 2: Giá từng bị đâm lún sâu >= 40% slDistance qua Entry
                 const deepPlungeDistance = meta?.slDistance ? (meta.slDistance * 0.40) : (unit * 0.40);
                 const isDeepPlunge = isLong
-                  ? (Math.min(currentM15.low, lastClosedM15.low) <= entryPrice - deepPlungeDistance)
-                  : (Math.max(currentM15.high, lastClosedM15.high) >= entryPrice + deepPlungeDistance);
+                  ? (lastClosedM15.low <= entryPrice - deepPlungeDistance)
+                  : (lastClosedM15.high >= entryPrice + deepPlungeDistance);
 
-                if (isDeepPlunge) {
+                // Điều kiện 3: Phe đối lập thực sự áp đảo khi đóng nến (LONG: nến Đỏ & đóng dưới Entry | SHORT: nến Xanh & đóng trên Entry)
+                const isOpposingPressure = isLong
+                  ? (lastClosedM15.close < lastClosedM15.open && lastClosedM15.close < entryPrice)
+                  : (lastClosedM15.close > lastClosedM15.open && lastClosedM15.close > entryPrice);
+
+                if (hasVolSurge && isDeepPlunge && isOpposingPressure) {
                   meta.isPanicEscape = true;
                   const escapePrice = Number(entryPrice.toFixed(8));
 
                   log.system(
                     `[AutoTrade] 🚨 [M15 Panic Escape] ${sym} (${isLong ? 'LONG' : 'SHORT'}): ` +
-                    `M15 bùng nổ Volume (${maxM15Ratio.toFixed(2)}x TB 20 nến) kèm đâm lún sâu >= 40% SL ` +
+                    `M15 đóng nến bùng nổ Volume (${closedRatio.toFixed(2)}x TB 20 nến) kèm nến ${isLong ? 'ĐỎ' : 'XANH'} đâm lún sâu >= 40% SL ` +
                     `-> Kích hoạt dời TP về Entry hòa vốn @ $${escapePrice}`
                   );
                   await sendTelegram(
                     `🚨 <b>M15 Bùng Nổ Volume - Kích Hoạt Thoát Hiểm (Hòa Vốn Entry)</b>\n` +
                     `• Coin: <b>${sym}</b> (${isLong ? 'LONG' : 'SHORT'})\n` +
                     `• Entry: <b>$${entryPrice}</b>\n` +
-                    `• Volume M15: <b>${maxM15Ratio.toFixed(1)}x TB 20 nến</b>\n` +
+                    `• Nến M15 vừa đóng: <b>${isLong ? 'Nến ĐỎ giảm' : 'Nến XANH tăng'} (${closedRatio.toFixed(1)}x TB 20 nến)</b>\n` +
+                    `• Giá đóng cửa: <b>$${lastClosedM15.close}</b> (ngược chiều Entry)\n` +
                     `• Đã dời TP thoát hiểm về Entry: <b>$${escapePrice}</b> để đón nhịp giật râu thoát hàng!`
+                  );
+                } else if (hasVolSurge && isDeepPlunge && !isOpposingPressure) {
+                  log.system(
+                    `[AutoTrade] ℹ️ [M15 Vol Surge Absorption] ${sym} (${isLong ? 'LONG' : 'SHORT'}): ` +
+                    `M15 bùng nổ Volume (${closedRatio.toFixed(2)}x TB) nhưng đóng nến ${isLong ? 'XANH/rút chân' : 'ĐỎ/đè râu'} thuận chiều ` +
+                    `-> Xác nhận lực cầu/cung đỡ giá tốt, giữ nguyên TP mục tiêu!`
                   );
                 }
               }
