@@ -184,6 +184,46 @@ def extract_features(reasons, score, rank, grid_width_pct, timestamp_ms=None):
     else:
         features["trading_session"] = "SESSION_ASIA"
 
+    # 14. Lowcap Specific Quality Interactions (AI học chuyên sâu các tiêu chí cho Lowcap Rank > 150)
+    is_lowcap = rank > 150
+    if is_lowcap:
+        # a. Lowcap Trend Risk
+        if features["trend"] == "TREND_CONFLICT":
+            features["lowcap_trend"] = "LOWCAP_RISK_COUNTER_TREND"
+        elif features["trend"] == "TREND_PERFECT":
+            features["lowcap_trend"] = "LOWCAP_STRONG_TREND"
+        else:
+            features["lowcap_trend"] = "LOWCAP_NEUTRAL_TREND"
+
+        # b. Lowcap S/R Support
+        if features["price_action"] == "PA_0_LEVEL":
+            features["lowcap_sr"] = "LOWCAP_RISK_ZERO_SR"
+        elif features["price_action"] in ["PA_3_LEVELS", "PA_4_LEVELS"]:
+            features["lowcap_sr"] = "LOWCAP_STRONG_SR"
+        else:
+            features["lowcap_sr"] = "LOWCAP_MODERATE_SR"
+
+        # c. Lowcap Whale Orderflow
+        if features["ls_flow"] == "LS_DIVERGENCE":
+            features["lowcap_flow"] = "LOWCAP_RISK_WHALE_DIV"
+        elif features["ls_flow"] == "LS_GOLD":
+            features["lowcap_flow"] = "LOWCAP_GOLD_FLOW"
+        else:
+            features["lowcap_flow"] = "LOWCAP_NEUTRAL_FLOW"
+
+        # d. Lowcap Volume & Liquidity
+        if features["volume"] == "VOL_DRY":
+            features["lowcap_vol"] = "LOWCAP_RISK_DRY_VOL"
+        elif features["volume"] == "VOL_SURGE":
+            features["lowcap_vol"] = "LOWCAP_SURGE_VOL"
+        else:
+            features["lowcap_vol"] = "LOWCAP_NORMAL_VOL"
+    else:
+        features["lowcap_trend"] = "MAJORS_TREND"
+        features["lowcap_sr"] = "MAJORS_SR"
+        features["lowcap_flow"] = "MAJORS_FLOW"
+        features["lowcap_vol"] = "MAJORS_VOL"
+
     return features
 
 def train_and_export_model():

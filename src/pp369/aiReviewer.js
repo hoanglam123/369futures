@@ -225,12 +225,57 @@ function extractSignalFeatures(reasons, score, rank, gridWidthPct, rawMarketData
 
   if (isTrendConflict && isLsDiv) {
     features['risk_interaction'] = 'FATAL_TREND_AND_FLOW_DIVERGENCE';
-  } else if (isNoSR && isLowScore) {
+  } else if (isNoSR && (isTrendConflict || isLsDiv || features['trend'] === 'TREND_NEUTRAL')) {
     features['risk_interaction'] = 'FATAL_NO_SR_AND_WEAK_SETUP';
   } else if (isDryVol && isCoolingOi) {
     features['risk_interaction'] = 'RISK_DRY_VOL_AND_COOLING_OI';
   } else {
     features['risk_interaction'] = 'RISK_NONE';
+  }
+
+  // ── 19. Lowcap Specific Quality Interactions (AI học chuyên sâu các tiêu chí cho Lowcap Rank > 150) ──
+  const isLowcap = rank > 150;
+  if (isLowcap) {
+    // a. Lowcap Trend Risk
+    if (features['trend'] === 'TREND_CONFLICT') {
+      features['lowcap_trend'] = 'LOWCAP_RISK_COUNTER_TREND';
+    } else if (features['trend'] === 'TREND_PERFECT') {
+      features['lowcap_trend'] = 'LOWCAP_STRONG_TREND';
+    } else {
+      features['lowcap_trend'] = 'LOWCAP_NEUTRAL_TREND';
+    }
+
+    // b. Lowcap S/R Support
+    if (features['price_action'] === 'PA_0_LEVEL') {
+      features['lowcap_sr'] = 'LOWCAP_RISK_ZERO_SR';
+    } else if (features['price_action'] === 'PA_3_LEVELS' || features['price_action'] === 'PA_4_LEVELS') {
+      features['lowcap_sr'] = 'LOWCAP_STRONG_SR';
+    } else {
+      features['lowcap_sr'] = 'LOWCAP_MODERATE_SR';
+    }
+
+    // c. Lowcap Whale Orderflow
+    if (features['ls_flow'] === 'LS_DIVERGENCE') {
+      features['lowcap_flow'] = 'LOWCAP_RISK_WHALE_DIV';
+    } else if (features['ls_flow'] === 'LS_GOLD') {
+      features['lowcap_flow'] = 'LOWCAP_GOLD_FLOW';
+    } else {
+      features['lowcap_flow'] = 'LOWCAP_NEUTRAL_FLOW';
+    }
+
+    // d. Lowcap Volume & Liquidity
+    if (features['volume'] === 'VOL_DRY') {
+      features['lowcap_vol'] = 'LOWCAP_RISK_DRY_VOL';
+    } else if (features['volume'] === 'VOL_SURGE') {
+      features['lowcap_vol'] = 'LOWCAP_SURGE_VOL';
+    } else {
+      features['lowcap_vol'] = 'LOWCAP_NORMAL_VOL';
+    }
+  } else {
+    features['lowcap_trend'] = 'MAJORS_TREND';
+    features['lowcap_sr'] = 'MAJORS_SR';
+    features['lowcap_flow'] = 'MAJORS_FLOW';
+    features['lowcap_vol'] = 'MAJORS_VOL';
   }
 
   return features;
@@ -272,6 +317,10 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
     'risk_interaction:FATAL_NO_SR_AND_WEAK_SETUP': 0.45,      // [LÕI AI] Phạt nặng 55% khi không có cản S/R kết hợp kỹ thuật yếu (< 5.0đ)
     'risk_interaction:RISK_DRY_VOL_AND_COOLING_OI': 0.60,     // [LÕI AI] Phạt 40% khi volume cạn kiệt và OI hạ nhiệt
     'risk_interaction:RISK_NONE': 1.00,
+    'lowcap_trend:LOWCAP_RISK_COUNTER_TREND': 0.70, // Lowcap ngược trend H1 bị phạt thêm 30%
+    'lowcap_sr:LOWCAP_RISK_ZERO_SR': 0.70,          // Lowcap không cản S/R bị phạt thêm 30%
+    'lowcap_flow:LOWCAP_RISK_WHALE_DIV': 0.65,      // Lowcap cá voi phân kỳ bị phạt thêm 35%
+    'lowcap_vol:LOWCAP_RISK_DRY_VOL': 0.75,         // Lowcap volume cạn kiệt bị phạt thêm 25%
     'trading_session:SESSION_ASIA': 1.02,        // Phiên Á nén chuẩn, sóng êm -> Thưởng nhẹ +2%
     'trading_session:SESSION_EUROPE': 1.01,      // Phiên Âu sóng đều -> Thưởng nhẹ +1%
     'trading_session:SESSION_US_OPEN': 0.98,     // Phiên Mỹ mở cửa -> Thận trọng nhẹ -2%
@@ -342,9 +391,10 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
   const tradeMargin = parseFloat(sig.margin) || 30;
   const evUsd = (evRoi / 100.0) * tradeMargin;
 
-  // Lowcap (Rank > 150) cần tối thiểu điểm kỹ thuật score >= 5.0đ để lọc bỏ rác biến động
-  const isLowcapScoreValid = (rank <= 150) || (score >= 5.0);
-  const isApproved = winProb >= threshold && evRoi >= minEvRoiThreshold && isLowcapScoreValid;
+  // ── AI LÀ NGƯỜI RA QUYẾT ĐỊNH 100% ──
+  // Quyết định duyệt hay phủ quyết hoàn toàn dựa trên Xác suất thắng dự đoán (WinProbability >= threshold)
+  // và Lợi Nhuận Kỳ Vọng (EV >= minEvRoiThreshold), được AI tổng hợp từ toàn bộ các tiêu chí thị trường.
+  const isApproved = winProb >= threshold && evRoi >= minEvRoiThreshold;
   const factorSummary = keyFactors.length > 0 ? keyFactors.join(', ') : 'Điều kiện trung tính';
 
   let vetoCategory = null;
@@ -354,9 +404,6 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
     if (features['risk_interaction'] && features['risk_interaction'].startsWith('FATAL_')) {
       vetoCategory = features['risk_interaction'];
       reasonText = `[RỦI RO TỬ THẦN: ${features['risk_interaction']}] Xác suất thắng ${winProb.toFixed(1)}% < ${threshold}% [Rank #${rank}] (${factorSummary})`;
-    } else if (!isLowcapScoreValid) {
-      vetoCategory = 'LOWCAP_SCORE_BELOW_5';
-      reasonText = `Coin Lowcap [Rank #${rank}] cần điểm kỹ thuật >= 5.0đ (Hiện tại: ${score.toFixed(1)}đ) (${factorSummary})`;
     } else if (winProb < threshold) {
       vetoCategory = `WINPROB_LT_${threshold}`;
       reasonText = `Xác suất thắng ${winProb.toFixed(1)}% < ${threshold}% [Rank #${rank}] (${factorSummary})`;

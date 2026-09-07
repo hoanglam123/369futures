@@ -8,11 +8,18 @@
     "price_action:PA_4_LEVELS": 1.1,
     "ls_flow:LS_GOLD": 1.2,
     "volatility:VOL_ULTRA": 1.15,
-    "ls_flow:LS_DIVERGENCE": 0.8,
     "funding:FUNDING_SQUEEZE": 1.12,
     "price_action:PA_3_LEVELS": 1.08,
-    "volume:VOL_SURGE": 1.12
+    "volume:VOL_SURGE": 1.12,
+    "lowcap_trend:LOWCAP_RISK_COUNTER_TREND": 0.75,
+    "lowcap_sr:LOWCAP_RISK_ZERO_SR": 0.75,
+    "lowcap_flow:LOWCAP_RISK_WHALE_DIV": 0.70,
+    "lowcap_vol:LOWCAP_RISK_DRY_VOL": 0.80,
+    "lowcap_trend:LOWCAP_STRONG_TREND": 1.15,
+    "lowcap_sr:LOWCAP_STRONG_SR": 1.12,
+    "lowcap_flow:LOWCAP_GOLD_FLOW": 1.18,
+    "lowcap_vol:LOWCAP_SURGE_VOL": 1.12
   },
-  "rules_count": 12,
+  "rules_count": 20,
   "extracted_at": "2026-08-21 11:27:20"
 }
