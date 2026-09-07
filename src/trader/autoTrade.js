@@ -367,16 +367,16 @@ function getDynamicRiskProfile(rank, winProb, score, baseLossUSD = 7.5) {
   let grade = 'C (Standard)';
 
   if (rank <= 10 || (rank <= 50 && score >= 6.5 && winProb >= 72.0)) {
-    multiplier = 2.0; // x2.0 quy mô vốn (~$15.0 USD)
-    tpRatio = 2.0;    // Tỷ lệ R:R 1:2.0 (Ăn đậm)
+    multiplier = 1.0; // Cố định rủi ro 1.0x (~$7.5 USD), không phóng đại loss
+    tpRatio = 2.0;    // Tỷ lệ R:R 1:2.0 (Ăn đậm 2.0R = ~$15.0 USD)
     grade = 'S (Super Sniper)';
   } else if ((rank <= 50 && winProb >= 68.0) || (rank <= 150 && score >= 6.2 && winProb >= 70.0)) {
-    multiplier = 1.6; // x1.6 quy mô vốn (~$12.0 USD)
-    tpRatio = 1.75;   // Tỷ lệ R:R 1:1.75
+    multiplier = 1.0; // Cố định rủi ro 1.0x (~$7.5 USD)
+    tpRatio = 1.75;   // Tỷ lệ R:R 1:1.75 (Ăn 1.75R = ~$13.1 USD)
     grade = 'A (High Quality)';
   } else if (rank <= 150 && winProb >= 65.0) {
-    multiplier = 1.3; // x1.3 quy mô vốn (~$9.75 USD)
-    tpRatio = 1.5;     // Tỷ lệ R:R 1:1.5
+    multiplier = 1.0; // Cố định rủi ro 1.0x (~$7.5 USD)
+    tpRatio = 1.5;     // Tỷ lệ R:R 1:1.5 (Ăn 1.5R = ~$11.25 USD)
     grade = 'B (Solid Midcap)';
   }
 
@@ -2746,24 +2746,7 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
           if (!alreadyMoved && !betterOrEqualExists) {
             const levelLabel = currentSlPct === trailSlRoi ? '+5đ (Khóa lãi)' : 'Khóa lãi';
             const ticksLabel = (trailMultiplier * 100).toFixed(0);
-            log.system(`[AutoTrade] Trailing SL (chạm mốc ${ticksLabel}đ): ${sym} đạt ROI ${roi.toFixed(2)}% -> Dịch SL trên sàn về entry +5đ ($${targetSlStr}, ROI ~${currentSlPct}%) [Mức: ${levelLabel}]`);
-
-            // ── PARTIAL TP 50% (Chốt 50% khối lượng khi đạt 45 ticks và dời SL về BE) ──
-            let partialTpExecutedQty = 0;
-            if (meta && !meta.hasPartialTp50 && absAmt > 0) {
-              try {
-                const halfQty = calcHalfQuantity(sym, absAmt);
-                if (halfQty > 0) {
-                  log.system(`[AutoTrade] 🎯 [Partial TP 50%] ${sym}: Đạt mốc ${ticksLabel}đ -> Tiến hành chốt 50% vị thế (${halfQty} ${sym}) MARKET...`);
-                  await client.placeMarket(sym, oppositeSide, halfQty);
-                  meta.hasPartialTp50 = true;
-                  partialTpExecutedQty = halfQty;
-                  saveActiveTradesMetadata();
-                }
-              } catch (partialErr) {
-                log.warn(`[AutoTrade] Lỗi chốt Partial TP 50% cho ${sym}: ${partialErr.message}`);
-              }
-            }
+            log.system(`[AutoTrade] Trailing SL (chạm mốc ${ticksLabel}đ): ${sym} đạt ROI ${roi.toFixed(2)}% -> Dịch SL trên sàn về entry + buffer ($${targetSlStr}, ROI ~${currentSlPct}%) [Mức: ${levelLabel}]`);
 
             // 🧹 Hủy sạch các lệnh LIMIT Entry còn treo dư (chống khớp lại phần dư khi giá hồi về Entry)
             const remainingEntryLimits = openOrders.filter(o => o.type === 'LIMIT' || o.orderType === 'LIMIT');
@@ -2784,33 +2767,22 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
                 log.warn(`[AutoTrade] Hủy SL cũ ${sym} thất bại: ${e.message}`);
               }
             }
-            // Đặt SL mới
+            // Đặt SL mới (Hòa vốn + đệm phí bảo toàn vốn)
             try {
               const newSl = await client.placeStopOrder(sym, oppositeSide, 'STOP_MARKET', roundedTargetSl);
               const orderIdStr = newSl.orderId || newSl.algoId || 'unknown';
               const stopPriceStr = newSl.stopPrice || newSl.triggerPrice || roundedTargetSl;
               log.system(`[AutoTrade] ✓ Đã dịch SL mới cho ${sym} @ $${stopPriceStr} (orderId=${orderIdStr})`);
 
-              // Gửi duy nhất 1 thông báo Telegram (Gộp Chốt Lời 50% & Dời SL Hòa Vốn)
+              // Gửi thông báo Telegram (Dời SL Hòa Vốn bảo toàn 100% vị thế)
               const ticksLabel = (trailMultiplier * 100).toFixed(0);
-              if (partialTpExecutedQty > 0) {
-                sendTelegram(
-                  `🎯 <b>[AutoTrade] Chốt Lời 50% & Khóa Lãi (+${ticksLabel} ticks)</b>\n` +
-                  `• Coin: <b>#${sym} (${isLong ? 'LONG' : 'SHORT'})</b>\n` +
-                  `• Đã chốt: <b>${partialTpExecutedQty} ${sym}</b> (50% khối lượng)\n` +
-                  `• ROI lúc chốt: <b>+${roi.toFixed(2)}%</b>\n` +
-                  `• Đã dời SL trên sàn về: <b>$${targetSlStr}</b> (+5 ticks khóa lãi)\n` +
-                  `• 50% khối lượng còn lại tiếp tục gồng về TP 1.5R!`
-                ).catch(() => { });
-              } else {
-                sendTelegram(
-                  `🛡️ <b>[AutoTrade] Khóa Lãi Hòa Vốn (+${ticksLabel} ticks)</b>\n` +
-                  `• Coin: <b>#${sym} (${isLong ? 'LONG' : 'SHORT'})</b>\n` +
-                  `• ROI hiện tại: <b>+${roi.toFixed(2)}%</b>\n` +
-                  `• Đã dời SL trên sàn về: <b>$${targetSlStr}</b> (+5 ticks khóa lãi)\n` +
-                  `• Tiếp tục gồng về TP 1.5R!`
-                ).catch(() => { });
-              }
+              sendTelegram(
+                `🛡️ <b>[AutoTrade] Khóa Lãi Hòa Vốn (+${ticksLabel} ticks)</b>\n` +
+                `• Coin: <b>#${sym} (${isLong ? 'LONG' : 'SHORT'})</b>\n` +
+                `• ROI hiện tại: <b>+${roi.toFixed(2)}%</b>\n` +
+                `• Đã dời SL trên sàn về: <b>$${targetSlStr}</b> (Hòa vốn + đệm phí)\n` +
+                `• Giữ nguyên 100% vị thế tiếp tục gồng về Full TP!`
+              ).catch(() => { });
             } catch (e) {
               const errStr = _binanceErr(e);
               if (errStr.includes('-4509')) {

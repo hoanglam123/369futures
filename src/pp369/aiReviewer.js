@@ -342,7 +342,9 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
   const tradeMargin = parseFloat(sig.margin) || 30;
   const evUsd = (evRoi / 100.0) * tradeMargin;
 
-  const isApproved = winProb >= threshold && evRoi >= minEvRoiThreshold;
+  // Lowcap (Rank > 150) cần tối thiểu điểm kỹ thuật score >= 5.0đ để lọc bỏ rác biến động
+  const isLowcapScoreValid = (rank <= 150) || (score >= 5.0);
+  const isApproved = winProb >= threshold && evRoi >= minEvRoiThreshold && isLowcapScoreValid;
   const factorSummary = keyFactors.length > 0 ? keyFactors.join(', ') : 'Điều kiện trung tính';
 
   let vetoCategory = null;
@@ -352,6 +354,9 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
     if (features['risk_interaction'] && features['risk_interaction'].startsWith('FATAL_')) {
       vetoCategory = features['risk_interaction'];
       reasonText = `[RỦI RO TỬ THẦN: ${features['risk_interaction']}] Xác suất thắng ${winProb.toFixed(1)}% < ${threshold}% [Rank #${rank}] (${factorSummary})`;
+    } else if (!isLowcapScoreValid) {
+      vetoCategory = 'LOWCAP_SCORE_BELOW_5';
+      reasonText = `Coin Lowcap [Rank #${rank}] cần điểm kỹ thuật >= 5.0đ (Hiện tại: ${score.toFixed(1)}đ) (${factorSummary})`;
     } else if (winProb < threshold) {
       vetoCategory = `WINPROB_LT_${threshold}`;
       reasonText = `Xác suất thắng ${winProb.toFixed(1)}% < ${threshold}% [Rank #${rank}] (${factorSummary})`;
