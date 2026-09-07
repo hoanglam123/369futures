@@ -308,14 +308,17 @@ function buildLevelGrid(upperPrice, lowerPrice, step, decimals, levelsRange = LE
 }
 
 const _klinesCache = new Map();
-const KLINES_CACHE_TTL_MS = 15 * 1000; // 15 giây cache cho nến ngắn hạn
+const KLINES_CACHE_TTL_MS = 30 * 1000; // 30 giây cache cho nến ngắn hạn
+const MAX_KLINES_CACHE_SIZE = 500;      // Giới hạn số lượng entries chống rò rỉ RAM
 
 async function fetchBinanceKlines(symbol, interval, startTimeMs, limit = 1500) {
   if (isIpBanned()) {
     return [];
   }
 
-  const cacheKey = `${symbol}_${interval}_${startTimeMs}_${limit}`;
+  // Chuẩn hóa startTimeMs xuống block 1 phút để tái sử dụng cache hiệu quả
+  const normStartTime = startTimeMs != null ? Math.floor(startTimeMs / 60000) * 60000 : 'null';
+  const cacheKey = `${symbol}_${interval}_${normStartTime}_${limit}`;
   const cached = _klinesCache.get(cacheKey);
   if (cached && (Date.now() - cached.timestamp < KLINES_CACHE_TTL_MS)) {
     return cached.data;
@@ -340,6 +343,12 @@ async function fetchBinanceKlines(symbol, interval, startTimeMs, limit = 1500) {
         close: parseFloat(c[4]),
         volume: parseFloat(c[5]),
       }));
+
+      // Cơ chế LRU Eviction: Giải phóng keys cũ nhất khi bộ nhớ vượt ngưỡng
+      if (_klinesCache.size >= MAX_KLINES_CACHE_SIZE) {
+        const firstKey = _klinesCache.keys().next().value;
+        if (firstKey) _klinesCache.delete(firstKey);
+      }
       _klinesCache.set(cacheKey, { data, timestamp: Date.now() });
       return data;
     } catch (err) {
@@ -585,10 +594,10 @@ function loadH1HistDiskCache() {
     if (fs.existsSync(HIST_CACHE_FILE)) {
       const data = JSON.parse(fs.readFileSync(HIST_CACHE_FILE, 'utf8'));
       if (data && data.yearStart === YEAR_START_MS && data.items) {
-        // Cắt tỉa ngay dữ liệu nến H1 đã load từ đĩa về tối đa 300 nến gần nhất (~12.5 ngày) để giải phóng RAM & đĩa
+        // Cắt tỉa ngay dữ liệu nến H1 đã load từ đĩa về tối đa 100 nến gần nhất (~4 ngày) để giải phóng RAM & đĩa
         for (const [sym, item] of Object.entries(data.items)) {
-          if (item && Array.isArray(item.candles) && item.candles.length > 300) {
-            item.candles = item.candles.slice(-300);
+          if (item && Array.isArray(item.candles) && item.candles.length > 100) {
+            item.candles = item.candles.slice(-100);
           }
         }
         Object.assign(_h1HistCache, data.items);
@@ -603,13 +612,13 @@ function saveH1HistDiskCache() {
   try {
     const dir = path.dirname(HIST_CACHE_FILE);
     if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-    // Tự động cắt tỉa toàn bộ items về tối đa 300 nến trước khi ghi ra đĩa JSON
+    // Tự động cắt tỉa toàn bộ items về tối đa 100 nến trước khi ghi ra đĩa JSON
     const prunedItems = {};
     for (const [sym, item] of Object.entries(_h1HistCache)) {
       if (item) {
         prunedItems[sym] = {
           ...item,
-          candles: Array.isArray(item.candles) ? item.candles.slice(-300) : []
+          candles: Array.isArray(item.candles) ? item.candles.slice(-100) : []
         };
       }
     }
@@ -663,10 +672,10 @@ async function fetchH1Historical(symbol) {
     cache.cursor = cache.candles[cache.candles.length - 1].openTime + H1_MS;
   }
 
-  // Tối ưu RAM (Sliding Window): Chỉ giữ tối đa 300 nến H1 gần nhất (~12.5 ngày).
-  // Đủ 100% cho cấu trúc Dow H1 3 ngày + EMA200 + ADX, giải phóng 90% bộ nhớ.
-  if (cache.candles.length > 300) {
-    cache.candles = cache.candles.slice(-300);
+  // Tối ưu RAM (Sliding Window): Chỉ giữ tối đa 100 nến H1 gần nhất (~4 ngày).
+  // Đủ 100% cho cấu trúc Dow H1 3 ngày + EMA50 + ADX, giải phóng 90% bộ nhớ.
+  if (cache.candles.length > 100) {
+    cache.candles = cache.candles.slice(-100);
   }
 
   if (fetchedNew) {
@@ -722,9 +731,9 @@ async function fetchH4Historical(symbol) {
     cache.cursor = cache.candles[cache.candles.length - 1].openTime + H4_MS;
   }
 
-  // Tối ưu RAM (Sliding Window): Chỉ giữ tối đa 300 nến H4 gần nhất (~50 ngày) cho cản Swing.
-  if (cache.candles.length > 300) {
-    cache.candles = cache.candles.slice(-300);
+  // Tối ưu RAM (Sliding Window): Chỉ giữ tối đa 75 nến H4 gần nhất (~12.5 ngày) cho cản Swing.
+  if (cache.candles.length > 75) {
+    cache.candles = cache.candles.slice(-75);
   }
 
   return cache.candles;
@@ -764,6 +773,11 @@ async function fetchD1Historical(symbol) {
 
   if (cache.candles.length > 0) {
     cache.cursor = cache.candles[cache.candles.length - 1].openTime + D1_MS;
+  }
+
+  // Tối ưu RAM (Sliding Window): Chỉ giữ tối đa 45 nến D1 gần nhất (~1.5 tháng).
+  if (cache.candles.length > 45) {
+    cache.candles = cache.candles.slice(-45);
   }
 
   return cache.candles;
@@ -1584,6 +1598,116 @@ function findSwingPoints(candles, leftStrength = 4, rightStrength = 4) {
   return { highs, lows };
 }
 
+// ─── Bộ nhớ đệm phân tích sóng & trend BTC (chia sẻ cho toàn bộ coin trong chu kỳ quét) ─────
+let _btcAnalysisCache = null;
+let _btcAnalysisTime = 0;
+const BTC_ANALYSIS_CACHE_TTL_MS = 45 * 1000; // 45 giây cache
+
+async function getCachedBtcState() {
+  const now = Date.now();
+  if (_btcAnalysisCache && (now - _btcAnalysisTime < BTC_ANALYSIS_CACHE_TTL_MS)) {
+    return _btcAnalysisCache;
+  }
+
+  try {
+    let btcM1Recent = await fetchBinanceKlines('BTC', '1m', now - 16 * 60_000, 16);
+    let btcM15Pct = 0;
+    let btcPrice = 0;
+    if (btcM1Recent && btcM1Recent.length >= 15) {
+      const btcM15Candles = btcM1Recent.slice(-15);
+      const btcM15High = Math.max(...btcM15Candles.map(c => c.high));
+      const btcM15Low = Math.min(...btcM15Candles.map(c => c.low));
+      btcPrice = btcM15Candles[btcM15Candles.length - 1].close;
+      btcM15Pct = ((btcM15High - btcM15Low) / btcPrice) * 100;
+    }
+
+    if (btcM15Pct > 1.0) {
+      _btcAnalysisCache = { isStorm: true, btcM15Pct, btcPrice };
+      _btcAnalysisTime = now;
+      return _btcAnalysisCache;
+    }
+
+    const btcH1Candles = await fetchH1Historical('BTC');
+    if (!btcH1Candles || btcH1Candles.length < 20) {
+      _btcAnalysisCache = { isStorm: false, hasData: false };
+      _btcAnalysisTime = now;
+      return _btcAnalysisCache;
+    }
+
+    const btcEma20 = calculateEMA(btcH1Candles, 20);
+    const btcEma50 = calculateEMA(btcH1Candles, 50);
+    const btcEma200 = calculateEMA(btcH1Candles, 200);
+    const btcAdx14 = calculateADX(btcH1Candles, 14);
+    const isBtcStrong = btcAdx14 !== null && btcAdx14 >= 25;
+    const btcAdxText = btcAdx14 !== null ? `ADX=${btcAdx14.toFixed(1)}` : 'No ADX';
+
+    const btcSample = btcH1Candles.slice(-360);
+    const btcPivotLows = [];
+    const btcPivotHighs = [];
+    const btcLeft = 4;
+    const btcRight = 4;
+
+    for (let i = btcLeft; i < btcSample.length - btcRight; i++) {
+      const cH = btcSample[i].high;
+      const cL = btcSample[i].low;
+      let isH = true, isL = true;
+      for (let j = i - btcLeft; j <= i + btcRight; j++) {
+        if (j === i) continue;
+        if (btcSample[j].high >= cH) isH = false;
+        if (btcSample[j].low <= cL) isL = false;
+      }
+      if (isH) btcPivotHighs.push(cH);
+      if (isL) btcPivotLows.push(cL);
+    }
+
+    let bLow1, bLow2, bHigh1, bHigh2;
+    if (btcPivotLows.length >= 2) {
+      bLow1 = btcPivotLows[btcPivotLows.length - 2];
+      bLow2 = btcPivotLows[btcPivotLows.length - 1];
+    } else {
+      const mid = Math.floor(btcSample.length / 2);
+      bLow1 = Math.min(...btcSample.slice(0, mid).map(c => c.low));
+      bLow2 = Math.min(...btcSample.slice(mid).map(c => c.low));
+    }
+
+    if (btcPivotHighs.length >= 2) {
+      bHigh1 = btcPivotHighs[btcPivotHighs.length - 2];
+      bHigh2 = btcPivotHighs[btcPivotHighs.length - 1];
+    } else {
+      const mid = Math.floor(btcSample.length / 2);
+      bHigh1 = Math.max(...btcSample.slice(0, mid).map(c => c.high));
+      bHigh2 = Math.max(...btcSample.slice(mid).map(c => c.high));
+    }
+
+    const isBtcHigherLow = bLow2 > bLow1;
+    const isBtcLowerHigh = bHigh2 < bHigh1;
+    const isBtcEmaBull = (btcEma20 && btcEma50 && btcEma20 > btcEma50) || (btcEma200 && btcPrice > btcEma200);
+    const isBtcEmaBear = (btcEma20 && btcEma50 && btcEma20 < btcEma50) || (btcEma200 && btcPrice < btcEma200);
+
+    _btcAnalysisCache = {
+      isStorm: false,
+      hasData: true,
+      btcM15Pct,
+      btcPrice,
+      isBtcStrong,
+      btcAdxText,
+      bLow1,
+      bLow2,
+      bHigh1,
+      bHigh2,
+      isBtcHigherLow,
+      isBtcLowerHigh,
+      isBtcEmaBull,
+      isBtcEmaBear
+    };
+    _btcAnalysisTime = now;
+    return _btcAnalysisCache;
+  } catch (err) {
+    log.warn(`[Core] Lỗi phân tích sóng BTC: ${err.message}`);
+    return null;
+  }
+}
+
 /**
  * @param {object} sig369   - Kết quả từ get369Signal
  * @param {string} direction - 'LONG' | 'SHORT'
@@ -2014,44 +2138,48 @@ async function score369Method(sig369, direction) {
       const maxDev = 0.15 * step;
       const isLong = direction === 'LONG';
 
-      // 6.1 Kiểm tra cản H4 (0.4đ)
+      // 6.1 & 6.2 Kiểm tra cản H4 (0.4đ) & D1 (0.6đ) song song để tối ưu tốc độ
+      let h4Candles = [];
+      let d1Candles = [];
       try {
-        const h4Candles = await fetchH4Historical(sig369.symbol);
-        if (h4Candles && h4Candles.length > 0) {
-          const { highs: h4Highs, lows: h4Lows } = findSwingPoints(h4Candles, 4, 4);
-          const searchListH4 = isLong ? h4Lows : h4Highs;
-          const matchesH4 = searchListH4.filter(price => Math.abs(price - targetLevel) <= maxDev);
-          if (matchesH4.length >= 2) {
-            paScore += 0.4;
-            paReasons.push(`H4: ${matchesH4.length} cản cũ (+0.4đ)`);
-          } else {
-            paReasons.push(`H4: chỉ có ${matchesH4.length} cản cũ (+0đ)`);
-          }
-        } else {
-          paReasons.push(`H4: thiếu nến (+0đ)`);
-        }
-      } catch (e) {
-        paReasons.push(`H4: lỗi check (+0đ)`);
+        const [resH4, resD1] = await Promise.all([
+          fetchH4Historical(sig369.symbol).catch(() => []),
+          fetchD1Historical(sig369.symbol).catch(() => [])
+        ]);
+        h4Candles = resH4 || [];
+        d1Candles = resD1 || [];
+      } catch (err) {
+        log.warn(`[Confluence Scorer] Lỗi fetch song song H4/D1 cho ${sig369.symbol}: ${err.message}`);
       }
 
-      // 6.2 Kiểm tra cản D1 (0.6đ)
-      try {
-        const d1Candles = await fetchD1Historical(sig369.symbol);
-        if (d1Candles && d1Candles.length > 0) {
-          const { highs: d1Highs, lows: d1Lows } = findSwingPoints(d1Candles, 3, 3);
-          const searchListD1 = isLong ? d1Lows : d1Highs;
-          const matchesD1 = searchListD1.filter(price => Math.abs(price - targetLevel) <= maxDev);
-          if (matchesD1.length >= 1) {
-            paScore += 0.6;
-            paReasons.push(`D1: ${matchesD1.length} cản cũ (+0.6đ)`);
-          } else {
-            paReasons.push(`D1: không cản (+0đ)`);
-          }
+      // 6.1 Phân tích cản H4
+      if (h4Candles.length > 0) {
+        const { highs: h4Highs, lows: h4Lows } = findSwingPoints(h4Candles, 4, 4);
+        const searchListH4 = isLong ? h4Lows : h4Highs;
+        const matchesH4 = searchListH4.filter(price => Math.abs(price - targetLevel) <= maxDev);
+        if (matchesH4.length >= 2) {
+          paScore += 0.4;
+          paReasons.push(`H4: ${matchesH4.length} cản cũ (+0.4đ)`);
         } else {
-          paReasons.push(`D1: thiếu nến (+0đ)`);
+          paReasons.push(`H4: chỉ có ${matchesH4.length} cản cũ (+0đ)`);
         }
-      } catch (e) {
-        paReasons.push(`D1: lỗi check (+0đ)`);
+      } else {
+        paReasons.push(`H4: thiếu nến (+0đ)`);
+      }
+
+      // 6.2 Phân tích cản D1
+      if (d1Candles.length > 0) {
+        const { highs: d1Highs, lows: d1Lows } = findSwingPoints(d1Candles, 3, 3);
+        const searchListD1 = isLong ? d1Lows : d1Highs;
+        const matchesD1 = searchListD1.filter(price => Math.abs(price - targetLevel) <= maxDev);
+        if (matchesD1.length >= 1) {
+          paScore += 0.6;
+          paReasons.push(`D1: ${matchesD1.length} cản cũ (+0.6đ)`);
+        } else {
+          paReasons.push(`D1: không cản (+0đ)`);
+        }
+      } else {
+        paReasons.push(`D1: thiếu nến (+0đ)`);
       }
     } else {
       paReasons.push(`Thiếu dữ liệu Step hoặc TargetLevel (+0đ)`);
@@ -2183,114 +2311,40 @@ async function score369Method(sig369, direction) {
       btcReasons.push(`Chính là BTC (+1.0đ)`);
     } else {
       try {
-        // 11.1 Check biến động nến M15 của BTC (Có 30s RAM cache)
-        let btcM1Recent;
-        const nowBtc = Date.now();
-        if (_btcM1Cache && (nowBtc - _btcM1CacheTime < 30000)) {
-          btcM1Recent = _btcM1Cache;
+        const btcState = await getCachedBtcState();
+        if (!btcState) {
+          btcReasons.push(`BTC: lỗi check (+0đ)`);
+        } else if (btcState.isStorm) {
+          btcReasons.push(`BTC bão giá: M15 biến động ${btcState.btcM15Pct.toFixed(2)}% > 1.0% (+0đ)`);
+        } else if (!btcState.hasData) {
+          btcReasons.push(`BTC: thiếu dữ liệu nến (+0đ)`);
         } else {
-          btcM1Recent = await fetchBinanceKlines('BTC', '1m', nowBtc - 16 * 60_000, 16);
-          if (btcM1Recent && btcM1Recent.length) {
-            _btcM1Cache = btcM1Recent;
-            _btcM1CacheTime = nowBtc;
-          }
-        }
-        let btcM15Pct = 0;
-        let btcPrice = price; // Fallback
-        if (btcM1Recent && btcM1Recent.length >= 15) {
-          const btcM15Candles = btcM1Recent.slice(-15);
-          const btcM15High = Math.max(...btcM15Candles.map(c => c.high));
-          const btcM15Low = Math.min(...btcM15Candles.map(c => c.low));
-          btcPrice = btcM15Candles[btcM15Candles.length - 1].close;
-          btcM15Pct = ((btcM15High - btcM15Low) / btcPrice) * 100;
-        }
+          const { isBtcStrong, btcAdxText, bLow1, bLow2, bHigh1, bHigh2, isBtcHigherLow, isBtcLowerHigh, isBtcEmaBull, isBtcEmaBear } = btcState;
 
-        if (btcM15Pct > 1.0) {
-          btcReasons.push(`BTC bão giá: M15 biến động ${btcM15Pct.toFixed(2)}% > 1.0% (+0đ)`);
-        } else {
-          // BTC an toàn, check trend theo Cấu trúc Dow (15 ngày = 360 nến H1) + EMA20/50 + ADX14
-          const btcH1Candles = await fetchH1Historical('BTC');
-          if (btcH1Candles && btcH1Candles.length >= 20) {
-            const btcEma20 = calculateEMA(btcH1Candles, 20);
-            const btcEma50 = calculateEMA(btcH1Candles, 50);
-            const btcEma200 = calculateEMA(btcH1Candles, 200);
-            const btcAdx14 = calculateADX(btcH1Candles, 14);
-
-            const isBtcStrong = btcAdx14 !== null && btcAdx14 >= 25;
-            const btcAdxText = btcAdx14 !== null ? `ADX=${btcAdx14.toFixed(1)}` : 'No ADX';
-
-            // Quét 360 nến H1 gần nhất (15 ngày) của BTC
-            const btcSample = btcH1Candles.slice(-360);
-            const btcPivotLows = [];
-            const btcPivotHighs = [];
-            const btcLeft = 4;
-            const btcRight = 4;
-
-            for (let i = btcLeft; i < btcSample.length - btcRight; i++) {
-              const cH = btcSample[i].high;
-              const cL = btcSample[i].low;
-              let isH = true;
-              let isL = true;
-              for (let j = i - btcLeft; j <= i + btcRight; j++) {
-                if (j === i) continue;
-                if (btcSample[j].high >= cH) isH = false;
-                if (btcSample[j].low <= cL) isL = false;
-              }
-              if (isH) btcPivotHighs.push(cH);
-              if (isL) btcPivotLows.push(cL);
-            }
-
-            let bLow1, bLow2, bHigh1, bHigh2;
-            if (btcPivotLows.length >= 2) {
-              bLow1 = btcPivotLows[btcPivotLows.length - 2];
-              bLow2 = btcPivotLows[btcPivotLows.length - 1];
+          if (isLong) {
+            if ((isBtcHigherLow || isBtcEmaBull) && !isBtcEmaBear) {
+              btcScore = isBtcStrong ? 1.0 : 0.5;
+              btcReasons.push(
+                `BTC thuận Dow/EMA LONG (${btcAdxText}): HL ($${bLow2.toFixed(1)} > $${bLow1.toFixed(1)}) (+${btcScore.toFixed(1)}đ)`
+              );
+            } else if (!isBtcStrong) {
+              btcScore = 0.5;
+              btcReasons.push(`BTC đi ngang/trung tính (${btcAdxText}): Giao dịch tự do (+0.5đ)`);
             } else {
-              const mid = Math.floor(btcSample.length / 2);
-              bLow1 = Math.min(...btcSample.slice(0, mid).map(c => c.low));
-              bLow2 = Math.min(...btcSample.slice(mid).map(c => c.low));
+              btcReasons.push(`BTC ngược xu hướng Dow/EMA (${btcAdxText}) (+0đ)`);
             }
-
-            if (btcPivotHighs.length >= 2) {
-              bHigh1 = btcPivotHighs[btcPivotHighs.length - 2];
-              bHigh2 = btcPivotHighs[btcPivotHighs.length - 1];
+          } else { // SHORT
+            if ((isBtcLowerHigh || isBtcEmaBear) && !isBtcEmaBull) {
+              btcScore = isBtcStrong ? 1.0 : 0.5;
+              btcReasons.push(
+                `BTC thuận Dow/EMA SHORT (${btcAdxText}): LH ($${bHigh2.toFixed(1)} < $${bHigh1.toFixed(1)}) (+${btcScore.toFixed(1)}đ)`
+              );
+            } else if (!isBtcStrong) {
+              btcScore = 0.5;
+              btcReasons.push(`BTC đi ngang/trung tính (${btcAdxText}): Giao dịch tự do (+0.5đ)`);
             } else {
-              const mid = Math.floor(btcSample.length / 2);
-              bHigh1 = Math.max(...btcSample.slice(0, mid).map(c => c.high));
-              bHigh2 = Math.max(...btcSample.slice(mid).map(c => c.high));
+              btcReasons.push(`BTC ngược xu hướng Dow/EMA (${btcAdxText}) (+0đ)`);
             }
-
-            const isBtcHigherLow = bLow2 > bLow1;
-            const isBtcLowerHigh = bHigh2 < bHigh1;
-            const isBtcEmaBull = (btcEma20 && btcEma50 && btcEma20 > btcEma50) || (btcEma200 && btcPrice > btcEma200);
-            const isBtcEmaBear = (btcEma20 && btcEma50 && btcEma20 < btcEma50) || (btcEma200 && btcPrice < btcEma200);
-
-            if (isLong) {
-              if ((isBtcHigherLow || isBtcEmaBull) && !isBtcEmaBear) {
-                btcScore = isBtcStrong ? 1.0 : 0.5;
-                btcReasons.push(
-                  `BTC thuận Dow/EMA LONG (${btcAdxText}): HL ($${bLow2.toFixed(1)} > $${bLow1.toFixed(1)}) (+${btcScore.toFixed(1)}đ)`
-                );
-              } else if (!isBtcStrong) {
-                btcScore = 0.5;
-                btcReasons.push(`BTC đi ngang/trung tính (${btcAdxText}): Giao dịch tự do (+0.5đ)`);
-              } else {
-                btcReasons.push(`BTC ngược xu hướng Dow/EMA (${btcAdxText}) (+0đ)`);
-              }
-            } else { // SHORT
-              if ((isBtcLowerHigh || isBtcEmaBear) && !isBtcEmaBull) {
-                btcScore = isBtcStrong ? 1.0 : 0.5;
-                btcReasons.push(
-                  `BTC thuận Dow/EMA SHORT (${btcAdxText}): LH ($${bHigh2.toFixed(1)} < $${bHigh1.toFixed(1)}) (+${btcScore.toFixed(1)}đ)`
-                );
-              } else if (!isBtcStrong) {
-                btcScore = 0.5;
-                btcReasons.push(`BTC đi ngang/trung tính (${btcAdxText}): Giao dịch tự do (+0.5đ)`);
-              } else {
-                btcReasons.push(`BTC ngược xu hướng Dow/EMA (${btcAdxText}) (+0đ)`);
-              }
-            }
-          } else {
-            btcReasons.push(`BTC: thiếu dữ liệu nến (+0đ)`);
           }
         }
       } catch (err) {

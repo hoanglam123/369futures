@@ -43,6 +43,11 @@ const {
   recordSkippedSignal,
   checkTurnoverGuard,
   updateVolume24hCache,
+  registerShadowTrade,
+  updateShadowPrices,
+  getShadowStats,
+  startPeriodicRetrain,
+  getRetrainStatus,
 } = require('../pp369');
 const { log } = require('../pp369/_logger');
 
@@ -83,8 +88,41 @@ function _shouldLogSignal(sym, sigType, level, statusKey, cooldownMs = 15 * 60 *
   return false;
 }
 
-// Watchlist cho các mã Score < 5.5đ để chờ check Retest nến H1
-const lowScoreWatchlist = {}; // sym -> { symbol, signal, targetLevel, score, step, isCounterTrend, timestamp }
+// Hàm dọn dẹp các Map bộ nhớ đệm chạy 24/7 để triệt tiêu rò rỉ bộ nhớ (Memory Leak Prevention)
+let _lastGcTime = 0;
+function pruneMemoryCaches() {
+  const now = Date.now();
+  // 1. Dọn dẹp _signalLogCooldown
+  if (_signalLogCooldown.size > 200) {
+    for (const [k, ts] of _signalLogCooldown.entries()) {
+      if (now - ts > 30 * 60 * 1000) {
+        _signalLogCooldown.delete(k);
+      }
+    }
+  }
+  // 2. Dọn dẹp bounceCancelledLevels (xóa các key đã quá hạn cooldown)
+  for (const [k, exp] of bounceCancelledLevels.entries()) {
+    if (now >= exp) {
+      bounceCancelledLevels.delete(k);
+    }
+  }
+  // 3. Dọn dẹp _fired debounce map (xóa các key cũ hơn 10 phút)
+  for (const [k, ts] of _fired.entries()) {
+    if (now - ts > 10 * 60 * 1000) {
+      _fired.delete(k);
+    }
+  }
+  // 4. Kích hoạt dọn rác V8 chủ động mỗi 5 phút (nếu có cờ --expose-gc) để duy trì RAM ~100MB
+  if (typeof global.gc === 'function' && (now - _lastGcTime > 5 * 60 * 1000)) {
+    _lastGcTime = now;
+    try {
+      global.gc();
+    } catch (_) {}
+  }
+}
+
+// Watchlist cho các mã chờ check Retest nến H1
+const lowScoreWatchlist = {}; // sym -> { symbol, signal, targetLevel, score, step, timestamp }
 let lastCheckedH1Time = 0;
 
 // Cache lưu metadata của vị thế đang chạy
@@ -357,24 +395,25 @@ function calcHalfQuantity(sym, totalQty) {
 /**
  * Tính toán Target Loss & Tỷ lệ R:R Take Profit linh hoạt theo chất lượng tín hiệu (Smart Dynamic Risk Sizing & Asymmetric R:R)
  * - Hạng S (Super Sniper): Top 10 hoặc (Top 50 + Score >= 6.5 & WinProb >= 72%): Scale up 2.0x, TP 1:2.0
- * - Hạng A (High Quality): Top 50 + WinProb >= 68% hoặc (Top 150 + Score >= 6.2 & WinProb >= 70%): Scale up 1.6x, TP 1:1.75
- * - Hạng B (Solid Midcap): Top 150 + WinProb >= 65%: Scale up 1.3x, TP 1:1.5
- * - Hạng C (Standard / Lowcap): Giữ mức cơ sở 1.0x, TP 1:1.5
+ * - Hạng S (Super Sniper): Top 10 hoặc (Top 50 + Score >= 6.5 & WinProb >= 55%): TP 1:2.0
+ * - Hạng A (High Quality): Top 50 + WinProb >= 53% hoặc (Top 150 + Score >= 6.2 & WinProb >= 54%): TP 1:1.75
+ * - Hạng B (Solid Midcap): Top 150 + WinProb >= 51%: TP 1:1.5
+ * - Hạng C (Standard / Lowcap): Giữ mức cơ sở, TP 1:1.5
  */
 function getDynamicRiskProfile(rank, winProb, score, baseLossUSD = 7.5) {
   let multiplier = 1.0;
   let tpRatio = 1.5;
   let grade = 'C (Standard)';
 
-  if (rank <= 10 || (rank <= 50 && score >= 6.5 && winProb >= 72.0)) {
+  if (rank <= 10 || (rank <= 50 && score >= 6.5 && winProb >= 55.0)) {
     multiplier = 1.0; // Cố định rủi ro 1.0x (~$7.5 USD), không phóng đại loss
     tpRatio = 2.0;    // Tỷ lệ R:R 1:2.0 (Ăn đậm 2.0R = ~$15.0 USD)
     grade = 'S (Super Sniper)';
-  } else if ((rank <= 50 && winProb >= 68.0) || (rank <= 150 && score >= 6.2 && winProb >= 70.0)) {
+  } else if ((rank <= 50 && winProb >= 53.0) || (rank <= 150 && score >= 6.2 && winProb >= 54.0)) {
     multiplier = 1.0; // Cố định rủi ro 1.0x (~$7.5 USD)
     tpRatio = 1.75;   // Tỷ lệ R:R 1:1.75 (Ăn 1.75R = ~$13.1 USD)
     grade = 'A (High Quality)';
-  } else if (rank <= 150 && winProb >= 65.0) {
+  } else if (rank <= 150 && winProb >= 51.0) {
     multiplier = 1.0; // Cố định rủi ro 1.0x (~$7.5 USD)
     tpRatio = 1.5;     // Tỷ lệ R:R 1:1.5 (Ăn 1.5R = ~$11.25 USD)
     grade = 'B (Solid Midcap)';
@@ -597,10 +636,17 @@ async function startAutoTrade(coins) {
   // Khởi động WebSocket stream và đăng ký (subscribe) chỉ các mã đang gần mốc
   start369Stream(initialNearby);
 
+  // ── Khởi động vòng lặp Tự học Tự động (Autonomous Retraining Loop) ──
+  startPeriodicRetrain({ checkIntervalMs: 60 * 60 * 1000, minNewSamples: 20 });
+
   // ── Đăng ký Real-time WebSocket Price listener để cập nhật maxFavorablePrice tức thì (0ms) ──
-  // Đảm bảo mọi quét râu (wick spike) ngắn dưới 1s đều được ghi nhận ngay lập tức cho Trailing SL
+  // Đảm bảo mọi quét râu (wick spike) ngắn dưới 1s đều được ghi nhận ngay lập tức cho Trailing SL và Shadow PnL
   onPriceUpdate((sym, price) => {
     if (!price || price <= 0) return;
+
+    // Cập nhật giá thời gian thực cho hệ thống Shadow PnL Tracker
+    updateShadowPrices({ [sym]: price });
+
     const meta = activeTradesMetadata[sym];
     if (meta) {
       const isLong = meta.side === 'BUY' || meta.isLong === true;
@@ -658,6 +704,32 @@ async function startAutoTrade(coins) {
 
   const client = createClient(apiKey, secret);
 
+  // ── Đồng bộ hóa trạng thái vị thế/lệnh chờ với sàn khi bot khởi động lại (Startup Reconciliation) ──
+  try {
+    const [openPos, openOrders] = await Promise.all([
+      client.getOpenPositions(),
+      client.getOpenOrders()
+    ]);
+    const activeExchangeSymbols = new Set([
+      ...openPos.filter(p => parseFloat(p.positionAmt) !== 0).map(p => p.symbol.replace('USDT', '')),
+      ...openOrders.map(o => o.symbol.replace('USDT', ''))
+    ]);
+
+    let cleanedCount = 0;
+    for (const sym of Object.keys(activeTradesMetadata)) {
+      if (!activeExchangeSymbols.has(sym)) {
+        delete activeTradesMetadata[sym];
+        cleanedCount++;
+      }
+    }
+    if (cleanedCount > 0) {
+      saveActiveTradesMetadata();
+      log.system(`[AutoTrade] [StartupReconciliation] Đã dọn dẹp ${cleanedCount} vị thế rác cũ trong metadata không còn tồn tại trên sàn.`);
+    }
+  } catch (err) {
+    log.warn(`[AutoTrade] [StartupReconciliation] Lỗi kiểm tra chéo vị thế khi khởi động: ${err.message}`);
+  }
+
   log.system('[AutoTrade] Bắt đầu scan...');
 
   let lastHeartbeatTime = Date.now();
@@ -665,7 +737,10 @@ async function startAutoTrade(coins) {
   async function scan() {
     if (isIpBanned()) return;
     try {
-      // 0. Cập nhật và kiểm tra lưới bảo vệ BTC Flash Pump / Dump Guard & Cache Volume 24H
+      // 0. Dọn dẹp cache RAM định kỳ (tránh rò rỉ bộ nhớ khi chạy 24/7)
+      pruneMemoryCaches();
+
+      // Cập nhật và kiểm tra lưới bảo vệ BTC Flash Pump / Dump Guard & Cache Volume 24H
       await updateBtcFlashGuard(client);
       await updateVolume24hCache();
 
@@ -941,6 +1016,14 @@ async function startAutoTrade(coins) {
       if (nowTime - lastHeartbeatTime >= 15 * 60 * 1000) {
         lastHeartbeatTime = nowTime;
         log.system(`[AutoTrade] 🟢 Hệ thống hoạt động bình thường | Theo dõi: ${activeCoinList.length} coin | Tiệm cận sát mốc (<=0.5%): ${scanNearby.length} coin`);
+
+        // Báo cáo Shadow PnL định kỳ
+        try {
+          const shadowStats = getShadowStats();
+          if (shadowStats.totalResolved > 0 || shadowStats.activePositionsCount > 0) {
+            log.system(`[Shadow PnL] 📊 Thống kê AI Veto: Đang theo dõi: ${shadowStats.activePositionsCount} lệnh | Đã cứu SL: ${shadowStats.totalSavedSL} lệnh (+$${shadowStats.totalSavedUSD}) | Bỏ lỡ TP: ${shadowStats.totalMissedTP} lệnh (-$${shadowStats.totalMissedUSD}) | Giá trị AI ròng: +$${shadowStats.netValueUSD} USD (Độ chính xác Veto: ${shadowStats.aiVetoAccuracyPct}%)`);
+          }
+        } catch (_) {}
       }
 
       if (!scanNearby.length) return;
@@ -1236,6 +1319,7 @@ async function startAutoTrade(coins) {
       const gridStepPct = (sig.step / sig.targetLevel) * 100;
       sig.marketCapRank = rank;
       sig.gridWidthPct = gridStepPct;
+      sig.margin = tradeAmount;
 
       // ── Tiêu chí 2: Đã gỡ bỏ bộ lọc chặn cứng MIN_CONFLUENCE_SCORE — Toàn quyền thẩm định trao cho AI Reviewer ──
 
@@ -1279,6 +1363,14 @@ async function startAutoTrade(coins) {
       // Toàn bộ các tiêu chí (Trend, S/R, Flow, Volume, BTC Flash, Turnover, M15 Spike) được AI tự học và ra quyết định
       if (!aiEval.isApproved) {
         log.system(`[AutoTrade] 🛑 [AI Veto] ${sym} (${sig.signal}) bị phủ quyết: ${aiEval.reason} — Bỏ qua không đặt lệnh.`);
+
+        // Đăng ký vị thế Shadow PnL để theo dõi kết quả thực tế trên thị trường
+        registerShadowTrade(sig, aiEval, {
+          markPrice,
+          marketCapRank: rank,
+          gridWidthPct: sig.gridWidthPct || gridStepPct
+        });
+
         if (_shouldLogSignal(sym, sig.signal, sig.targetLevel, 'ai_veto_skipped')) {
           recordSkippedSignal({
             symbol: sym,
@@ -1291,6 +1383,25 @@ async function startAutoTrade(coins) {
             marketCapRank: rank,
           });
         }
+
+        // ── Thêm vào lowScoreWatchlist để chờ nến H1 Retest xác nhận rút râu/rút chân ──
+        if (!lowScoreWatchlist[sym] || lowScoreWatchlist[sym].targetLevel !== sig.targetLevel) {
+          lowScoreWatchlist[sym] = {
+            symbol: sym,
+            signal: sig.signal,
+            targetLevel: sig.targetLevel,
+            score: sig.score ?? 0,
+            scoreReasons: sig.scoreReasons || [],
+            volScore: scoreRes?.volScore || 0,
+            otherScore: scoreRes?.otherScore || 0,
+            step: sig.step || getStep(markPrice),
+            gridWidthPct: sig.gridWidthPct || gridStepPct,
+            marketCapRank: rank,
+            timestamp: Date.now()
+          };
+          log.system(`[AutoTrade] 📋 Đưa ${sym} (${sig.signal} @ $${sig.targetLevel}) vào Watchlist chờ xác nhận Retest nến H1.`);
+        }
+
         return;
       }
 
@@ -1904,13 +2015,11 @@ async function checkH1RetestSignals(client, activeSymbols, leverageInfo = {}) {
         continue;
       }
 
-      // ── BỘ LỌC TURNOVER GUARD CHO H1 RETEST ──
+      // ── BTC FLASH & TURNOVER GUARD CHO H1 RETEST: Chuyển giao toàn quyền cho AI Reviewer ──
       const turnoverCheckRetest = checkTurnoverGuard(sym);
-      if (turnoverCheckRetest.isBlocked) {
-        log.system(`[H1Retest] 🛑 ${sym} (${signal}) bị chặn bởi Turnover Guard (${turnoverCheckRetest.reason}) — BỎ QUA RETEST`);
-        delete lowScoreWatchlist[sym];
-        continue;
-      }
+      const nowTimeRetest = Date.now();
+      const btcFlashPumpRetest = btcFlashState.isShortLocked && nowTimeRetest < btcFlashState.lockedUntil;
+      const btcFlashDumpRetest = btcFlashState.isLongLocked && nowTimeRetest < btcFlashState.lockedUntil;
 
       // ── AI Reviewer Machine Learning Offline (Retest H1) ──
       const rank = watchData.marketCapRank || (getMarketCapRank ? getMarketCapRank(sym) : 999);
@@ -1922,19 +2031,40 @@ async function checkH1RetestSignals(client, activeSymbols, leverageInfo = {}) {
         scoreReasons: watchData.scoreReasons || [],
         marketCapRank: rank,
         gridWidthPct: gridStepPct,
+        margin: watchData.margin || tradeAmount || 30,
       };
 
       let rawMarketDataRetest = null;
       let klinesM15Retest = null;
+      let m15VolRatioRetest = 1.0;
+      let m15RangePctRetest = 0.0;
       try {
         klinesM15Retest = await fetchBinanceKlines(sym, '15m', null, 21);
         const currM15 = klinesM15Retest && klinesM15Retest.length > 0 ? klinesM15Retest[klinesM15Retest.length - 1] : null;
+        if (klinesM15Retest && klinesM15Retest.length >= 20 && currM15) {
+          const past20 = klinesM15Retest.slice(0, klinesM15Retest.length - 1);
+          const avgVol20 = past20.reduce((sum, c) => sum + c.volume, 0) / past20.length;
+          m15VolRatioRetest = avgVol20 > 0 ? (currM15.volume / avgVol20) : 1.0;
+          m15RangePctRetest = ((currM15.high - currM15.low) / (currM15.low || 1)) * 100;
+        }
         rawMarketDataRetest = {
           lastM15: currM15,
-          touchCount: 2
+          m15VolRatio: m15VolRatioRetest,
+          m15RangePct: m15RangePctRetest,
+          touchCount: 2,
+          btcFlashPump: btcFlashPumpRetest,
+          btcFlashDump: btcFlashDumpRetest,
+          turnoverBlocked: turnoverCheckRetest.isBlocked,
+          symbol: sym
         };
       } catch (err) {
-        // fallback
+        rawMarketDataRetest = {
+          touchCount: 2,
+          btcFlashPump: btcFlashPumpRetest,
+          btcFlashDump: btcFlashDumpRetest,
+          turnoverBlocked: turnoverCheckRetest.isBlocked,
+          symbol: sym
+        };
       }
 
       const aiEval = evaluateSignalWithAI(sigForAI, rawMarketDataRetest);
@@ -1943,47 +2073,20 @@ async function checkH1RetestSignals(client, activeSymbols, leverageInfo = {}) {
       // Tiêu chí 3: Đánh giá Rủi ro Toàn diện từ Lõi AI cho Retest H1 (AI Reviewer Core)
       if (!aiEval.isApproved) {
         log.system(`[AutoTrade (Retest H1)] 🛑 [AI Veto] ${sym} (${signal}) bị phủ quyết: ${aiEval.reason} — Hủy đặt lệnh Retest.`);
+
+        // Đăng ký vị thế Shadow PnL để theo dõi kết quả thực tế trên thị trường
+        const currentPriceRetest = (typeof getMarkPrice === 'function' ? getMarkPrice(sym) : null) || h1Close || targetLevel;
+        registerShadowTrade(sigForAI, aiEval, {
+          markPrice: currentPriceRetest,
+          marketCapRank: rank,
+          gridWidthPct: gridStepPct
+        });
+
         delete lowScoreWatchlist[sym];
         continue;
       }
 
       log.system(`[AI Reviewer (Retest H1)] 🟢 Khuyên NÊN ĐẶT LỆNH ${sym} (${signal}) - ${aiEval.reason}`);
-
-      // ── BỘ LỌC M15 SPIKE GUARD CHO RETEST H1 ──
-      try {
-        if (!klinesM15Retest) {
-          klinesM15Retest = await fetchBinanceKlines(sym, '15m', null, 21);
-        }
-        if (klinesM15Retest && klinesM15Retest.length >= 20) {
-          const past20 = klinesM15Retest.slice(0, klinesM15Retest.length - 1);
-          const currM15 = klinesM15Retest[klinesM15Retest.length - 1];
-          const avgVol20 = past20.reduce((sum, c) => sum + c.volume, 0) / past20.length;
-          const m15VolRatio = avgVol20 > 0 ? (currM15.volume / avgVol20) : 1;
-          const m15RangePct = ((currM15.high - currM15.low) / (currM15.low || 1)) * 100;
-
-          if (m15RangePct > 1.4 && m15VolRatio >= 2.5) {
-            const alertMsg = `🛑 <b>[M15 Spike Guard - RETEST H1 BỎ QUA LIMIT]</b>\n` +
-              `• <b>Coin:</b> #${sym} (${signal})\n` +
-              `• <b>Mốc Entry:</b> $${targetLevel}\n` +
-              `• <b>Biên độ M15:</b> ${m15RangePct.toFixed(2)}% (Ngưỡng > 1.4%)\n` +
-              `• <b>Volume M15:</b> ${m15VolRatio.toFixed(2)}x MA20 (Ngưỡng >= 2.5x)\n` +
-              `• <b>Lý do:</b> Nến M15 đang bão giá giật mạnh đâm cản. Tự động bỏ qua đặt Limit Retest.`;
-
-            log.system(`[H1Retest] 🛑 [M15 Spike Guard] ${sym} (${signal}): Nến M15 bão giá (Biên độ ${m15RangePct.toFixed(2)}% > 1.4% & Vol ${m15VolRatio.toFixed(2)}x >= 2.5x) — BỎ QUA ĐẶT LIMIT RETEST`);
-
-            try {
-              await sendTelegram(alertMsg);
-            } catch (teleErr) {
-              log.warn(`[H1Retest] Lỗi gửi telegram M15 Spike Guard cho ${sym}: ${teleErr.message}`);
-            }
-
-            delete lowScoreWatchlist[sym];
-            continue;
-          }
-        }
-      } catch (errM15) {
-        log.warn(`[H1Retest] Không thể kiểm tra nến M15 Spike Guard cho ${sym}: ${errM15.message}`);
-      }
 
       // ── TÍNH TOÁN STOPLOSS THEO TIER, TP ĐỘNG (1:1.5 -> 1:2.0), VÀ ĐÒN BẨY / MARGIN ĐỘNG CHO RETEST H1 ──
       const h4RefRetest = await fetchH4Reference(sym);

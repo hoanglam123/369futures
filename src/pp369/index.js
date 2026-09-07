@@ -26,8 +26,24 @@ const datasetCollector = require('./datasetCollector');
 const signalTracker   = require('./signalTracker');
 const aiReviewer      = require('./aiReviewer');
 const turnoverGuard   = require('./turnoverGuard');
+const shadowTracker   = require('./shadowTracker');
+const autoRetrainer   = require('./autoRetrainer');
 
 module.exports = {
+  // ── Shadow PnL Tracker ───────────────────────────────────────────────────
+  registerShadowTrade:     shadowTracker.registerShadowTrade,
+  updateShadowPrices:      shadowTracker.updateShadowPrices,
+  getShadowStats:          shadowTracker.getShadowStats,
+  getActiveShadowPositions: shadowTracker.getActiveShadowPositions,
+  setShadowTrackerLogger:  shadowTracker.setLogger,
+
+  // ── Autonomous Retraining Loop ───────────────────────────────────────────
+  runRetrainCycle:       autoRetrainer.runRetrainCycle,
+  startPeriodicRetrain:  autoRetrainer.startPeriodicRetrain,
+  stopPeriodicRetrain:   autoRetrainer.stopPeriodicRetrain,
+  getRetrainStatus:      autoRetrainer.getRetrainStatus,
+  setAutoRetrainerLogger: autoRetrainer.setLogger,
+
   // ── Turnover Guard ───────────────────────────────────────────────────────
   updateVolume24hCache: turnoverGuard.updateVolume24hCache,
   getVolume24hUSD:      turnoverGuard.getVolume24hUSD,
@@ -39,6 +55,7 @@ module.exports = {
   evaluateSignalWithAI: aiReviewer.evaluateSignalWithAI,
   recordAIEvaluation:   aiReviewer.recordAIEvaluation,
   loadAIModel:          aiReviewer.loadAIModel,
+  checkModelHotReload:  aiReviewer.checkModelHotReload,
   // ── Cấu hình (optional) ──────────────────────────────────────────────────
   setLogger,                             // override logger (mặc định: console)
   setDataDir: signalLog.setDataDir,      // override thư mục lưu signal log

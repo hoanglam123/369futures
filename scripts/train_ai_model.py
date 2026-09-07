@@ -185,45 +185,10 @@ def extract_features(reasons, score, rank, grid_width_pct, timestamp_ms=None):
     else:
         features["trading_session"] = "SESSION_ASIA"
 
-    # 14. Lowcap Specific Quality Interactions (AI học chuyên sâu các tiêu chí cho Lowcap Rank > 150)
-    is_lowcap = rank > 150
-    if is_lowcap:
-        # a. Lowcap Trend Risk
-        if features["trend"] == "TREND_CONFLICT":
-            features["lowcap_trend"] = "LOWCAP_RISK_COUNTER_TREND"
-        elif features["trend"] == "TREND_PERFECT":
-            features["lowcap_trend"] = "LOWCAP_STRONG_TREND"
-        else:
-            features["lowcap_trend"] = "LOWCAP_NEUTRAL_TREND"
-
-        # b. Lowcap S/R Support
-        if features["price_action"] == "PA_0_LEVEL":
-            features["lowcap_sr"] = "LOWCAP_RISK_ZERO_SR"
-        elif features["price_action"] in ["PA_3_LEVELS", "PA_4_LEVELS"]:
-            features["lowcap_sr"] = "LOWCAP_STRONG_SR"
-        else:
-            features["lowcap_sr"] = "LOWCAP_MODERATE_SR"
-
-        # c. Lowcap Whale Orderflow
-        if features["ls_flow"] == "LS_DIVERGENCE":
-            features["lowcap_flow"] = "LOWCAP_RISK_WHALE_DIV"
-        elif features["ls_flow"] == "LS_GOLD":
-            features["lowcap_flow"] = "LOWCAP_GOLD_FLOW"
-        else:
-            features["lowcap_flow"] = "LOWCAP_NEUTRAL_FLOW"
-
-        # d. Lowcap Volume & Liquidity
-        if features["volume"] == "VOL_DRY":
-            features["lowcap_vol"] = "LOWCAP_RISK_DRY_VOL"
-        elif features["volume"] == "VOL_SURGE":
-            features["lowcap_vol"] = "LOWCAP_SURGE_VOL"
-        else:
-            features["lowcap_vol"] = "LOWCAP_NORMAL_VOL"
-    else:
-        features["lowcap_trend"] = "MAJORS_TREND"
-        features["lowcap_sr"] = "MAJORS_SR"
-        features["lowcap_flow"] = "MAJORS_FLOW"
-        features["lowcap_vol"] = "MAJORS_VOL"
+    # 14. Phân loại vốn hóa Lowcap vs Majors đã được đảm nhiệm toàn diện bởi:
+    # - Đặc trưng rank_group (RANK_LOWCAP_OUT150 vs RANK_TOP10/30/MIDCAP)
+    # - Ngưỡng phê duyệt WinProbability (68% cho Lowcap vs 60% cho Majors)
+    # Không tạo thêm các feature lowcap_* nhân bản trùng lặp để tuân thủ nguyên lý Naive Bayes.
 
     # 15. Multi-Factor Risk Interactions (AI tự học tương tác rủi ro)
     is_trend_conflict = features.get("trend") == "TREND_CONFLICT"
@@ -258,12 +223,12 @@ def extract_features(reasons, score, rank, grid_width_pct, timestamp_ms=None):
 
 def train_and_export_model():
     print("=" * 80)
-    print("🤖 HỌC VÀ TẠO MÔ HÌNH DỰ ĐOÁN XÁC SUẤT AI (TRAIN AI REVIEWER MODEL)")
+    print("🤖 HỌC VÀ TẠO MÔ HÌNH DỰ ĐOÁN XÁC SUẤT AI (TRAIN AI REVIEWER MODEL - BAYES ODDS RATIO)")
     print("=" * 80)
 
     dataset = []
 
-    # 1. Load real trades
+    # 1. Load real trades từ ai_trade_dataset.jsonl
     if os.path.exists(DATASET_PATH):
         entries = {}
         with open(DATASET_PATH, 'r', encoding='utf-8') as f:
@@ -279,10 +244,20 @@ def train_and_export_model():
                     entries[rec.get("tradeId")] = rec
                 elif rec.get("type") == "EXIT":
                     tid = rec.get("tradeId")
-                    if rec.get("exitType") in ["TP", "SL", "TRAILING_SL", "HARD_MAX_LOSS", "BE_EXIT"] and tid in entries:
+                    exit_type = rec.get("exitType")
+                    if exit_type in ["TP", "SL", "TRAILING_SL", "HARD_MAX_LOSS", "BE_EXIT"] and tid in entries:
                         entry = entries[tid]
+                        is_win = rec.get("isWin", False)
+                        # Gán trọng số Win credit: Thắng = 1.0, Hòa vốn = 0.50 (Push - không thắng không thua), Thua = 0.0
+                        if is_win:
+                            win_credit = 1.0
+                        elif exit_type == "BE_EXIT":
+                            win_credit = 0.50
+                        else:
+                            win_credit = 0.0
+
                         dataset.append({
-                            "is_win": rec.get("isWin", False),
+                            "win_credit": win_credit,
                             "features": extract_features(
                                 entry.get("scoreReasons", []),
                                 entry.get("score", 0),
@@ -292,11 +267,12 @@ def train_and_export_model():
                             )
                         })
 
-    # 2. Load mined dataset from ai_mined_dataset.jsonl
+    # 2. Load mined dataset từ ai_mined_dataset.jsonl (Bao gồm cả 1,418 lệnh BREAKEVEN)
     if os.path.exists(MINED_PATH):
         mined_count = 0
-        mined_wins = 0
-        mined_losses = 0
+        mined_tp = 0
+        mined_be = 0
+        mined_sl = 0
         with open(MINED_PATH, 'r', encoding='utf-8') as f:
             for l in f:
                 l_str = l.strip()
@@ -304,11 +280,20 @@ def train_and_export_model():
                 try:
                     rec = json.loads(l_str)
                     outcome = rec.get("outcome")
-                    # Huấn luyện trên các mẫu có kết quả ngã ngũ: TP (Thắng) hoặc SL (Thua)
-                    if outcome in ["TP", "SL"]:
-                        is_win = (outcome == "TP")
+                    # Huấn luyện trên toàn bộ các mẫu có kết quả: TP (Thắng), BREAKEVEN (Hòa vốn), SL (Thua)
+                    if outcome in ["TP", "BREAKEVEN", "SL"]:
+                        if outcome == "TP":
+                            win_credit = 1.0
+                            mined_tp += 1
+                        elif outcome == "BREAKEVEN":
+                            win_credit = 0.50  # Lệnh chạm trailing BE (+0.5R rồi hòa vốn) là kết quả Hòa (Push)
+                            mined_be += 1
+                        else:
+                            win_credit = 0.0
+                            mined_sl += 1
+
                         dataset.append({
-                            "is_win": is_win,
+                            "win_credit": win_credit,
                             "features": extract_features(
                                 rec.get("scoreReasons", []),
                                 rec.get("score", 0),
@@ -318,32 +303,31 @@ def train_and_export_model():
                             )
                         })
                         mined_count += 1
-                        if is_win: mined_wins += 1
-                        else: mined_losses += 1
                 except Exception:
                     continue
-        print(f"⛏️  Đã nạp {mined_count} mẫu từ tệp khai phá (ai_mined_dataset.jsonl): {mined_wins} Thắng, {mined_losses} Thua")
+        print(f"⛏️  Đã nạp {mined_count} mẫu từ tệp khai phá (ai_mined_dataset.jsonl): {mined_tp} TP, {mined_be} BE (Hòa vốn), {mined_sl} SL")
 
     total_samples = len(dataset)
-    win_samples = sum(1 for d in dataset if d["is_win"])
-    loss_samples = total_samples - win_samples
-    prior_win = win_samples / total_samples if total_samples > 0 else 0.645
+    total_win_credit = sum(d["win_credit"] for d in dataset)
+    total_loss_credit = sum((1.0 - d["win_credit"]) for d in dataset)
+    prior_win = total_win_credit / total_samples if total_samples > 0 else 0.525
+    prior_odds = prior_win / (1.0 - prior_win)
 
-    print(f"\n📊 Dữ liệu huấn luyện: {total_samples} mẫu ({win_samples} Thắng, {loss_samples} Thua)")
-    print(f"   • Tỷ lệ thắng cơ sở (Prior Win Probability): {prior_win * 100:.1f}%\n")
+    print(f"\n📊 Dữ liệu huấn luyện toàn diện: {total_samples} mẫu (Tổng điểm Win: {total_win_credit:.1f}, Loss: {total_loss_credit:.1f})")
+    print(f"   • Tỷ lệ thắng cơ sở thực tế (Prior Win Probability): {prior_win * 100:.2f}%")
+    print(f"   • Tỷ lệ cược cơ sở (Prior Odds): {prior_odds:.4f}\n")
 
-    # Count feature occurrences
-    feature_counts = defaultdict(lambda: {"win": 0, "loss": 0})
+    # Count feature occurrences with weighted win/loss credits
+    feature_counts = defaultdict(lambda: {"win": 0.0, "loss": 0.0})
     for d in dataset:
-        is_win = d["is_win"]
+        w_cred = d["win_credit"]
+        l_cred = 1.0 - w_cred
         for feat_category, feat_val in d["features"].items():
             key = f"{feat_category}:{feat_val}"
-            if is_win:
-                feature_counts[key]["win"] += 1
-            else:
-                feature_counts[key]["loss"] += 1
+            feature_counts[key]["win"] += w_cred
+            feature_counts[key]["loss"] += l_cred
 
-    # Apply m-estimate smoothing (m = 15.0, p = prior_win) to prevent overfitting
+    # Apply m-estimate smoothing (m = 15.0, p = prior_win) và tính Bayesian Odds Ratio
     M_SMOOTHING = 15.0
     feature_weights = {}
 
@@ -353,17 +337,24 @@ def train_and_export_model():
         n_feat = w_win + w_loss
 
         smoothed_win_prob = (w_win + M_SMOOTHING * prior_win) / (n_feat + M_SMOOTHING)
-        weight_mult = smoothed_win_prob / prior_win
+        smoothed_win_prob = max(0.01, min(0.99, smoothed_win_prob))
+        feat_odds = smoothed_win_prob / (1.0 - smoothed_win_prob)
+        weight_mult = feat_odds / prior_odds
+
+        # Giới hạn an toàn (cap) từ 0.20 đến 3.0 để tránh phân kỳ cực đoan
+        weight_mult = max(0.20, min(3.0, weight_mult))
 
         feature_weights[key] = {
-            "winCount": w_win,
-            "lossCount": w_loss,
+            "winCount": round(w_win, 1),
+            "lossCount": round(w_loss, 1),
             "winProb": round(smoothed_win_prob, 4),
             "multiplier": round(weight_mult, 4)
         }
 
-    # Import & nạp quy tắc bóc tách từ tài liệu kiến thức cục bộ
+    # Import & nạp quy tắc tiên nghiệm từ knowledge_rules.json với Bayesian Blend (N_PRIOR_WEIGHT = 50.0)
+    N_PRIOR_WEIGHT = 50.0  # Trọng số tương đương 50 mẫu kinh nghiệm chuyên gia
     KNOWLEDGE_RULES_PATH = os.path.join(BASE_DIR, "data", "knowledge_rules.json")
+    applied_count = 0
     if os.path.exists(KNOWLEDGE_RULES_PATH):
         try:
             with open(KNOWLEDGE_RULES_PATH, 'r', encoding='utf-8') as f:
@@ -371,25 +362,65 @@ def train_and_export_model():
                 rule_mods = k_data.get("rule_modifiers", {})
                 for k_key, k_mult in rule_mods.items():
                     if k_key in feature_weights:
-                        feature_weights[k_key]["multiplier"] = round(feature_weights[k_key]["multiplier"] * k_mult, 4)
+                        n = feature_weights[k_key]["winCount"] + feature_weights[k_key]["lossCount"]
+                        emp_mult = feature_weights[k_key]["multiplier"]
+                        # Bayesian Smooth Blending: (N * empirical + N_0 * knowledge) / (N + N_0)
+                        blended = round((n * emp_mult + N_PRIOR_WEIGHT * k_mult) / (n + N_PRIOR_WEIGHT), 4)
+                        feature_weights[k_key]["multiplier"] = blended
                         feature_weights[k_key]["knowledgeBoost"] = k_mult
+                        feature_weights[k_key]["blendRatio"] = round(n / (n + N_PRIOR_WEIGHT), 2)
+                        applied_count += 1
                     else:
                         feature_weights[k_key] = {
                             "winCount": 0,
                             "lossCount": 0,
-                            "winProb": round(prior_win * k_mult, 4),
+                            "winProb": round(prior_win, 4),
                             "multiplier": round(k_mult, 4),
-                            "knowledgeBoost": k_mult
+                            "knowledgeBoost": k_mult,
+                            "blendRatio": 0.0
                         }
-                print(f"📖 Đã tích hợp thành công {len(rule_mods)} quy tắc kiến thức sách PDF vào mô hình!")
+                        applied_count += 1
+                print(f"📖 Đã tích hợp {applied_count}/{len(rule_mods)} quy tắc tiên nghiệm (Bayesian Soft Blend N_0=50)")
         except Exception as e:
             print(f"⚠️ Lỗi nạp knowledge_rules.json: {e}")
 
+    # 🛡️ MONOTONICITY SANITY BOUNDS (Ràng buộc Logic Thị trường Cốt lõi)
+    # Ngăn chặn việc dữ liệu lịch sử bị nhiễu làm AI học ngược quy luật sống còn
+    SANITY_BOUNDS = {
+        "score_group:SCORE_DANGER_LT4": 0.55,                      # Điểm < 4.0đ là nguy hiểm chết người -> Không được > 0.55
+        "score_group:SCORE_WEAK_4_TO_5": 0.85,                     # Điểm 4-5đ là setup yếu -> Không được > 0.85
+        "price_action:PA_0_LEVEL": 0.85,                           # Rỗng cản S/R không bao giờ được > 0.85
+        "trend:TREND_CONFLICT": 0.80,                               # Ngược trend Dow H1 không bao giờ được > 0.80
+        "ls_flow:LS_DIVERGENCE": 0.80,                             # Cá voi xả/phân kỳ không bao giờ được > 0.80
+        "funding:FUNDING_DANGER": 0.85,                            # Funding nóng đu bám không bao giờ được > 0.85
+        "risk_interaction:INTERACTION_TREND_FLOW_CONFLICT": 0.60,   # Ngược trend + Cá voi xả không bao giờ được > 0.60
+        "risk_interaction:INTERACTION_NO_SR_WEAK_SETUP": 0.70,      # Rỗng cản + Setup yếu không bao giờ được > 0.70
+        "risk_interaction:INTERACTION_DRY_VOL_COOLING_OI": 0.80,    # Volume cạn + OI hạ nhiệt không bao giờ được > 0.80
+        "btc_flash:BTC_FLASH_PUMP_ACTIVE": 0.40,                    # Bão BTC Flash Pump không bao giờ được > 0.40
+        "btc_flash:BTC_FLASH_DUMP_ACTIVE": 0.40,                    # Bão BTC Flash Dump không bao giờ được > 0.40
+        "turnover_guard:TURNOVER_RISK_BLOCKED": 0.35,               # Turnover bơm xả không bao giờ được > 0.35
+        "candle_shape:CANDLE_MARUBOZU_DUMP": 0.50,                  # Marubozu đâm cản không bao giờ được > 0.50
+        "candle_shape:CANDLE_MARUBOZU_PUMP": 0.50,                  # Marubozu đâm cản không bao giờ được > 0.50
+    }
+
+    guard_count = 0
+    for feat_k, max_m in SANITY_BOUNDS.items():
+        if feat_k in feature_weights:
+            curr_m = feature_weights[feat_k]["multiplier"]
+            if curr_m > max_m:
+                print(f"🛡️ Sanity Guard: {feat_k} multiplier={curr_m} -> Capped tại {max_m}")
+                feature_weights[feat_k]["multiplier"] = max_m
+                feature_weights[feat_k]["sanityCapped"] = True
+                guard_count += 1
+    if guard_count > 0:
+        print(f"🛡️ Đã áp dụng Sanity Bounds bảo vệ trên {guard_count} đặc trưng rủi ro cao.")
+
     model_output = {
-        "version": "1.2.0",
+        "version": "1.3.0",
         "trainedAt": time.strftime("%Y-%m-%d %H:%M:%S"),
         "totalSamples": total_samples,
         "priorWinProb": round(prior_win, 4),
+        "priorOdds": round(prior_odds, 4),
         "thresholdApprovalPct": 58.0,
         "minExpectedEvRoi": 0.5,
         "featureWeights": feature_weights
@@ -398,7 +429,7 @@ def train_and_export_model():
     with open(OUTPUT_MODEL_PATH, 'w', encoding='utf-8') as f:
         json.dump(model_output, f, indent=2, ensure_ascii=False)
 
-    print(f"\n✅ Đã xuất mô hình AI Reviewer Offline thành công tại: {OUTPUT_MODEL_PATH}")
+    print(f"\n✅ Đã xuất mô hình AI Reviewer Offline v1.3.0 thành công tại: {OUTPUT_MODEL_PATH}")
 
 if __name__ == "__main__":
     train_and_export_model()

@@ -2,6 +2,7 @@
   "rule_modifiers": {
     "trend:TREND_PERFECT": 1.15,
     "trend:TREND_EMA": 1.08,
+    "trend:TREND_CONFLICT": 0.75,
     "btc_wave:BTC_ALIGNED": 1.15,
     "score_group:SCORE_HIGH_GE7": 1.12,
     "score_group:SCORE_DANGER_LT4": 0.60,
@@ -10,17 +11,12 @@
     "funding:FUNDING_SQUEEZE": 1.12,
     "price_action:PA_4_LEVELS": 1.10,
     "price_action:PA_3_LEVELS": 1.08,
+    "price_action:PA_0_LEVEL": 0.75,
     "ls_flow:LS_GOLD": 1.20,
+    "ls_flow:LS_DIVERGENCE": 0.80,
     "volatility:VOL_ULTRA": 1.15,
     "volume:VOL_SURGE": 1.12,
-    "lowcap_trend:LOWCAP_RISK_COUNTER_TREND": 0.75,
-    "lowcap_sr:LOWCAP_RISK_ZERO_SR": 0.75,
-    "lowcap_flow:LOWCAP_RISK_WHALE_DIV": 0.70,
-    "lowcap_vol:LOWCAP_RISK_DRY_VOL": 0.80,
-    "lowcap_trend:LOWCAP_STRONG_TREND": 1.15,
-    "lowcap_sr:LOWCAP_STRONG_SR": 1.12,
-    "lowcap_flow:LOWCAP_GOLD_FLOW": 1.18,
-    "lowcap_vol:LOWCAP_SURGE_VOL": 1.12,
+    "volume:VOL_DRY": 0.85,
     "risk_interaction:INTERACTION_TREND_FLOW_CONFLICT": 0.55,
     "risk_interaction:INTERACTION_NO_SR_WEAK_SETUP": 0.65,
     "risk_interaction:INTERACTION_DRY_VOL_COOLING_OI": 0.75,
@@ -44,6 +40,6 @@
     "trading_session:SESSION_US_LATE": 1.00,
     "trading_session:SESSION_WEEKEND": 0.98
   },
-  "rules_count": 42,
-  "extracted_at": "2026-09-07 11:00:00"
+  "rules_count": 37,
+  "extracted_at": "2026-09-07 11:30:00"
 }

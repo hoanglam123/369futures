@@ -12,12 +12,16 @@ const AI_EVALUATIONS_FILE = path.join(process.cwd(), 'data', 'ai_evaluations.jso
 const RETRAIN_INTERVAL_MS = 3 * 24 * 60 * 60 * 1000; // Tự động re-train mỗi 3 ngày
 
 let _modelConfig = null;
+let _lastModelMtimeMs = 0;
+let _lastMtimeCheckMs = 0;
 
 function loadAIModel() {
   try {
     if (fs.existsSync(MODEL_PATH)) {
+      const stats = fs.statSync(MODEL_PATH);
       const raw = fs.readFileSync(MODEL_PATH, 'utf8');
       _modelConfig = JSON.parse(raw);
+      _lastModelMtimeMs = stats.mtimeMs;
       log.system(`[AI Reviewer] ✓ Đã nạp thành công mô hình AI (v${_modelConfig.version || '1.0'}, mẫu N=${_modelConfig.totalSamples})`);
     } else {
       log.warn(`[AI Reviewer] Chưa tìm thấy file mô hình tại ${MODEL_PATH}. Sử dụng bộ lọc mặc định.`);
@@ -25,6 +29,25 @@ function loadAIModel() {
   } catch (err) {
     log.error(`[AI Reviewer] Lỗi nạp mô hình AI: ${err.message}`);
   }
+}
+
+function checkModelHotReload(force = false) {
+  const now = Date.now();
+  if (!force && (now - _lastMtimeCheckMs < 15000)) return { reloaded: false }; // Throttle 15 giây
+  _lastMtimeCheckMs = now;
+  try {
+    if (fs.existsSync(MODEL_PATH)) {
+      const stats = fs.statSync(MODEL_PATH);
+      if (force || stats.mtimeMs > _lastModelMtimeMs) {
+        log.system('[AI Reviewer] ⚡ Phát hiện file mô hình AI mới trên đĩa! Đang tự động nạp lại (Hot-Reload)...');
+        loadAIModel();
+        return { reloaded: true, version: _modelConfig ? _modelConfig.version : null };
+      }
+    }
+  } catch (e) {
+    // bỏ qua lỗi kiểm tra mtime
+  }
+  return { reloaded: false };
 }
 
 function runAutoRetrain() {
@@ -68,7 +91,7 @@ function startAutoRetrainTimer() {
 loadAIModel();
 startAutoRetrainTimer();
 
-function extractSignalFeatures(reasons, score, rank, gridWidthPct, rawMarketData = null, signal = 'LONG', entryPrice = null) {
+function extractSignalFeatures(reasons, score, rank, gridWidthPct, rawMarketData = null, signal = 'LONG', entryPrice = null, timestamp = null) {
   const reasonsStr = Array.isArray(reasons) ? reasons.join(' ') : String(reasons || '');
   const features = {};
 
@@ -202,7 +225,7 @@ function extractSignalFeatures(reasons, score, rank, gridWidthPct, rawMarketData
   }
 
   // ── [MỚI] 17. Trading Session & Time-of-Day ──
-  const now = new Date();
+  const now = new Date(timestamp || Date.now());
   const vnHour = (now.getUTCHours() + 7) % 24;
   const vnDay = now.getUTCDay(); // 0: CN, 6: T7
 
@@ -235,50 +258,10 @@ function extractSignalFeatures(reasons, score, rank, gridWidthPct, rawMarketData
     features['risk_interaction'] = 'INTERACTION_BALANCED';
   }
 
-  // ── 19. Lowcap Specific Quality Interactions (AI học chuyên sâu các tiêu chí cho Lowcap Rank > 150) ──
-  const isLowcap = rank > 150;
-  if (isLowcap) {
-    // a. Lowcap Trend Risk
-    if (features['trend'] === 'TREND_CONFLICT') {
-      features['lowcap_trend'] = 'LOWCAP_RISK_COUNTER_TREND';
-    } else if (features['trend'] === 'TREND_PERFECT') {
-      features['lowcap_trend'] = 'LOWCAP_STRONG_TREND';
-    } else {
-      features['lowcap_trend'] = 'LOWCAP_NEUTRAL_TREND';
-    }
-
-    // b. Lowcap S/R Support
-    if (features['price_action'] === 'PA_0_LEVEL') {
-      features['lowcap_sr'] = 'LOWCAP_RISK_ZERO_SR';
-    } else if (features['price_action'] === 'PA_3_LEVELS' || features['price_action'] === 'PA_4_LEVELS') {
-      features['lowcap_sr'] = 'LOWCAP_STRONG_SR';
-    } else {
-      features['lowcap_sr'] = 'LOWCAP_MODERATE_SR';
-    }
-
-    // c. Lowcap Whale Orderflow
-    if (features['ls_flow'] === 'LS_DIVERGENCE') {
-      features['lowcap_flow'] = 'LOWCAP_RISK_WHALE_DIV';
-    } else if (features['ls_flow'] === 'LS_GOLD') {
-      features['lowcap_flow'] = 'LOWCAP_GOLD_FLOW';
-    } else {
-      features['lowcap_flow'] = 'LOWCAP_NEUTRAL_FLOW';
-    }
-
-    // d. Lowcap Volume & Liquidity
-    if (features['volume'] === 'VOL_DRY') {
-      features['lowcap_vol'] = 'LOWCAP_RISK_DRY_VOL';
-    } else if (features['volume'] === 'VOL_SURGE') {
-      features['lowcap_vol'] = 'LOWCAP_SURGE_VOL';
-    } else {
-      features['lowcap_vol'] = 'LOWCAP_NORMAL_VOL';
-    }
-  } else {
-    features['lowcap_trend'] = 'MAJORS_TREND';
-    features['lowcap_sr'] = 'MAJORS_SR';
-    features['lowcap_flow'] = 'MAJORS_FLOW';
-    features['lowcap_vol'] = 'MAJORS_VOL';
-  }
+  // ── 19. Phân loại vốn hóa Lowcap vs Majors được đảm nhiệm qua:
+  // - Đặc trưng rank_group (RANK_LOWCAP_OUT150 vs RANK_TOP10/30/MIDCAP)
+  // - Ngưỡng phê duyệt WinProbability (68% cho Lowcap vs 60% cho Majors)
+  // Không tạo thêm các feature lowcap_* trùng lặp để tuân thủ Naive Bayes.
 
   return features;
 }
@@ -291,7 +274,11 @@ function extractSignalFeatures(reasons, score, rank, gridWidthPct, rawMarketData
  * @returns {object} { winProbability: number, isApproved: boolean, reason: string }
  */
 function evaluateSignalWithAI(sig, rawMarketData = null) {
-  if (!_modelConfig) loadAIModel();
+  if (!_modelConfig) {
+    loadAIModel();
+  } else {
+    checkModelHotReload();
+  }
 
   const priorWin = _modelConfig?.priorWinProb || 0.565;
   const weights = _modelConfig?.featureWeights || {};
@@ -319,10 +306,6 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
     'risk_interaction:INTERACTION_NO_SR_WEAK_SETUP': 0.65,      // Fallback nếu chưa có trong weights
     'risk_interaction:INTERACTION_DRY_VOL_COOLING_OI': 0.80,     // Fallback nếu chưa có trong weights
     'risk_interaction:INTERACTION_BALANCED': 1.00,
-    'lowcap_trend:LOWCAP_RISK_COUNTER_TREND': 0.70, // Lowcap ngược trend H1 bị phạt thêm 30%
-    'lowcap_sr:LOWCAP_RISK_ZERO_SR': 0.70,          // Lowcap không cản S/R bị phạt thêm 30%
-    'lowcap_flow:LOWCAP_RISK_WHALE_DIV': 0.65,      // Lowcap cá voi phân kỳ bị phạt thêm 35%
-    'lowcap_vol:LOWCAP_RISK_DRY_VOL': 0.75,         // Lowcap volume cạn kiệt bị phạt thêm 25%
     'trading_session:SESSION_ASIA': 1.02,        // Phiên Á nén chuẩn, sóng êm -> Thưởng nhẹ +2%
     'trading_session:SESSION_EUROPE': 1.01,      // Phiên Âu sóng đều -> Thưởng nhẹ +1%
     'trading_session:SESSION_US_OPEN': 0.98,     // Phiên Mỹ mở cửa -> Thận trọng nhẹ -2%
@@ -338,14 +321,40 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
   const sym = sig.symbol || sig.sym || '';
 
   const mergedMarketData = { ...(rawMarketData || {}), symbol: sym };
-  const features = extractSignalFeatures(reasons, score, rank, gridWidthPct, mergedMarketData, sig.signal, entryPrice);
+  const features = extractSignalFeatures(reasons, score, rank, gridWidthPct, mergedMarketData, sig.signal, entryPrice, sig.timestamp);
 
   let combinedMultiplier = 1.0;
   const keyFactors = [];
 
+  // 🛡️ DOUBLE-COUNTING PREVENTION:
+  // risk_interaction là feature tổng hợp của (trend + ls_flow + price_action + volume + oi).
+  // Khi một conflict tương tác đã được capture bởi INTERACTION_*, bỏ qua
+  // feature thành phần tương ứng để tránh âm 2 lần vào cùng một riủi ro.
+  const riskInteraction = features['risk_interaction'];
+  const skipForInteraction = new Set();
+  if (riskInteraction === 'INTERACTION_TREND_FLOW_CONFLICT') {
+    // Trend conflict + LS_DIVERGENCE đã capture bởi interaction → bỏ qua riêng lẽ
+    skipForInteraction.add('trend');
+    skipForInteraction.add('ls_flow');
+  } else if (riskInteraction === 'INTERACTION_NO_SR_WEAK_SETUP') {
+    // PA_0_LEVEL đã capture bời interaction → bỏ qua riêng lẽ
+    skipForInteraction.add('price_action');
+  } else if (riskInteraction === 'INTERACTION_DRY_VOL_COOLING_OI') {
+    // VOL_DRY + OI_COOLING đã capture bởi interaction → bỏ qua riêng lẽ
+    skipForInteraction.add('volume');
+    skipForInteraction.add('oi_change');
+  }
+
   for (const [cat, val] of Object.entries(features)) {
     const key = `${cat}:${val}`;
     let mult = 1.0;
+
+    // 🚫 Bỏ qua feature đã được capture bởi risk_interaction (tránh double-counting)
+    if (skipForInteraction.has(cat)) {
+      keyFactors.push(`∅ ${val} (skip: included in ${riskInteraction})`);
+      continue;
+    }
+
     // 🧠 Ưu tiên số 1: Trọng số do AI tự học từ dữ liệu thực tế (weights[key])
     if (weights[key]) {
       mult = weights[key].multiplier;
@@ -376,9 +385,9 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
   winProb = Math.max(5.0, Math.min(95.0, winProb));
 
   // Phân cấp ngưỡng phê duyệt WinProbability tích hợp theo Vốn hóa (Rank-based Threshold)
-  // - Top 150: Ngưỡng >= 60.0%
-  // - Lowcap (ngoài Top 150): Ngưỡng >= 68.0%
-  const threshold = (rank <= 150) ? 60.0 : 68.0;
+  // - Top 150: Ngưỡng >= 50.0% (Với prior cơ sở = 57.2%, lệnh có EV dương và WinProb >= 50% là đủ chuẩn)
+  // - Lowcap (ngoài Top 150): Ngưỡng >= 55.0%
+  const threshold = (rank <= 150) ? 50.0 : 55.0;
 
   // EV (Expected Value) Calculation
   const minEvRoiThreshold = _modelConfig?.minExpectedEvRoi ?? 0.5;
@@ -466,4 +475,5 @@ module.exports = {
   evaluateSignalWithAI,
   recordAIEvaluation,
   loadAIModel,
+  checkModelHotReload,
 };
