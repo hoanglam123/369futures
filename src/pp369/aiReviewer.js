@@ -103,8 +103,8 @@ function extractSignalFeatures(reasons, score, rank, gridWidthPct, rawMarketData
 
   // 6. Whales vs Retail Flow
   if (reasonsStr.includes('Gold Setup') || reasonsStr.includes('Đồng thuận tuyệt đối')) features['ls_flow'] = 'LS_GOLD';
+  else if (reasonsStr.includes('Không đồng thuận') || reasonsStr.includes('phân kỳ') || reasonsStr.includes('Cá voi không đạt')) features['ls_flow'] = 'LS_DIVERGENCE';
   else if (reasonsStr.includes('Đồng thuận một phần')) features['ls_flow'] = 'LS_PARTIAL';
-  else if (reasonsStr.includes('Không đồng thuận') || reasonsStr.includes('phân kỳ')) features['ls_flow'] = 'LS_DIVERGENCE';
   else features['ls_flow'] = 'LS_NEUTRAL';
 
   // 7. Price Action S/R Levels
@@ -253,8 +253,8 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
   const dynamicModifiers = {
     'score_group:SCORE_DANGER_LT4': 0.50,         // Phạt trừ 50% WinProb cho Score < 4đ -> Veto ngay
     'score_group:SCORE_WEAK_4_TO_5': 0.85,
-    'candle_shape:CANDLE_PINBAR_HAMMER': 1.25,
-    'candle_shape:CANDLE_PINBAR_SHOOTING': 1.25,
+    'candle_shape:CANDLE_PINBAR_HAMMER': 1.08,    // [HẠ NHIỆT] Giảm từ 1.25 (+25%) xuống 1.08 (+8%) để tránh râu nến M15 thổi phồng WinProb
+    'candle_shape:CANDLE_PINBAR_SHOOTING': 1.08,  // [HẠ NHIỆT] Giảm từ 1.25 (+25%) xuống 1.08 (+8%) để tránh râu nến M15 thổi phồng WinProb
     'candle_shape:CANDLE_MARUBOZU_DUMP': 0.45,  // Phạt nặng nến đâm cản -> Tự động Veto
     'candle_shape:CANDLE_MARUBOZU_PUMP': 0.45,  // Phạt nặng nến đâm cản -> Tự động Veto
     'candle_shape:CANDLE_NORMAL': 1.00,
@@ -299,6 +299,11 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
       mult = dynamicModifiers[key];
     } else if (weights[key]) {
       mult = weights[key].multiplier;
+    }
+
+    // 🛡️ SANITY GUARD: Không thưởng Pinbar M15 nếu đang ngược Trend Dow H1 & EMA
+    if (features['trend'] === 'TREND_CONFLICT' && (val === 'CANDLE_PINBAR_HAMMER' || val === 'CANDLE_PINBAR_SHOOTING')) {
+      mult = 1.00;
     }
 
     combinedMultiplier *= mult;
