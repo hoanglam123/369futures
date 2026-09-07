@@ -1039,48 +1039,8 @@ async function startAutoTrade(coins) {
         log.system(`[AutoTrade] ${sym} → ${sig.signal} (Score: +${sig.score}đ) tại $${sig.targetLevel}`);
       }
 
-      const volScore = scoreRes?.volScore || 0;
-      const isM15Volatile = scoreRes?.isM15Volatile === true;
-      const isStagnant = scoreRes?.isStagnant === true;
-      const isH1VolSurge = scoreRes?.isH1VolSurge === true;
-      const hasCriterion2 = (volScore >= 0.3 && !isM15Volatile && !isStagnant && !isH1VolSurge);
-      if (!hasCriterion2) {
-        if (isNewSignalLog) {
-          const failReason = isH1VolSurge
-            ? 'Đột biến Volume 3 nến H1 (gấp >= 2.5x)'
-            : (isStagnant
-              ? 'Nén bế tắc H1 (24-48 nến Range <= 1.5%)'
-              : (isM15Volatile ? 'M15 biến động mạnh' : 'Biến động H1/M15 không đạt'));
-          log.system(`[AutoTrade] ${sym} ${sig.signal} không đạt Tiêu chí 2 (${failReason}) — Đưa vào Watchlist chờ Retest H1`);
-        }
-        const rank = getMarketCapRank ? getMarketCapRank(sym) : 999;
-        lowScoreWatchlist[sym] = {
-          symbol: sym,
-          signal: sig.signal,
-          targetLevel: sig.targetLevel,
-          score: sig.score,
-          scoreReasons: sig.scoreReasons || [],
-          volScore: scoreRes?.volScore || 0,
-          otherScore: scoreRes?.otherScore || 0,
-          step: sig.step || getStep(markPrice),
-          gridWidthPct: parseFloat(sig.gridWidthPct) || 3.5,
-          marketCapRank: rank,
-          timestamp: Date.now()
-        };
-        if (_shouldLogSignal(sym, sig.signal, sig.targetLevel, 'rec_no_volatility')) {
-          recordSkippedSignal({
-            symbol: sym,
-            signal: sig.signal,
-            signalPrice: sig.targetLevel,
-            score: sig.score ?? 0,
-            scoreReasons: sig.scoreReasons || [],
-            skipReason: isH1VolSurge ? 'H1_VOLUME_SURGE' : (isStagnant ? 'STAGNANT_COMPRESSION' : 'NO_VOLATILITY_FILTER'),
-            markPrice: markPrice,
-            marketCapRank: getMarketCapRank ? getMarketCapRank(sym) : 999,
-          });
-        }
-        return;
-      }
+      // ── Tiêu chí 2 (Biến động & Nén ATR H1/M15): Chuyển giao toàn quyền thẩm định cho Lõi AI Reviewer ──
+      // (Đã gỡ bỏ khối chặn cứng hasCriterion2 cũ để AI tự đánh giá tỷ lệ thắng qua Bayesian Odds)
 
       // Phân bổ ký quỹ (Margin) theo Xếp Hạng Vốn Hóa (MarketCap Rank):
       // - Top 10 (BTC, ETH, SOL...): $50 USDT
