@@ -87,7 +87,7 @@ function registerShadowTrade(sig, evalResult, options = {}) {
   const sym = String(sig.symbol).replace(/USDT$/i, '').toUpperCase();
   const side = sig.signal.toUpperCase(); // 'LONG' | 'SHORT'
   const isLong = side === 'LONG';
-  const entryPrice = parseFloat(sig.price || sig.markPrice || sig.entryPrice || 0);
+  const entryPrice = parseFloat(sig.targetLevel || sig.price || sig.entryPrice || sig.markPrice || options.markPrice || options.entryPrice || 0);
 
   if (!entryPrice || entryPrice <= 0) {
     _logger.warn(`registerShadowTrade: ${sym} không có entryPrice hợp lệ (${entryPrice})`);
