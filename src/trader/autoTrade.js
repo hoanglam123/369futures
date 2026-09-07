@@ -1100,45 +1100,10 @@ async function startAutoTrade(coins) {
         return;
       }
 
-      if (isBtcFlashLocked(sig.signal)) {
-        if (isNewSignalLog) {
-          log.system(`[AutoTrade] 🛑 ${sym} ${sig.signal} @ $${sig.targetLevel} bị chặn bởi BTC Flash Guard (${btcFlashState.lockReason}) — bỏ qua khuyến nghị`);
-        }
-        if (_shouldLogSignal(sym, sig.signal, sig.targetLevel, 'btc_flash_locked')) {
-          recordSkippedSignal({
-            symbol: sym,
-            signal: sig.signal,
-            signalPrice: sig.targetLevel,
-            score: sig.score ?? 0,
-            scoreReasons: sig.scoreReasons || [],
-            skipReason: sig.signal === 'SHORT' ? 'BTC_FLASH_PUMP_LOCKED' : 'BTC_FLASH_DUMP_LOCKED',
-            markPrice: markPrice,
-            marketCapRank: rank,
-          });
-        }
-        return;
-      }
-
-      // ── BỘ LỌC TURNOVER GUARD: Chặn coin Low-Cap (<100M) có Volume 24H > 8% MC ──
+      // ── BTC FLASH & TURNOVER GUARD: Chuyển giao toàn quyền thẩm định cho Lõi AI Reviewer ──
+      // (Không return chặn cứng, mà lưu trạng thái để nạp vào rawMarketData cho AI Reviewer tự tính xác suất)
+      const btcFlashLocked = isBtcFlashLocked(sig.signal);
       const turnoverCheck = checkTurnoverGuard(sym);
-      if (turnoverCheck.isBlocked) {
-        if (isNewSignalLog) {
-          log.system(`[AutoTrade] 🛑 ${sym} ${sig.signal} @ $${sig.targetLevel} bị chặn bởi Turnover Guard (${turnoverCheck.reason}) — DỪNG GIAO DỊCH`);
-        }
-        if (_shouldLogSignal(sym, sig.signal, sig.targetLevel, 'turnover_guard_blocked')) {
-          recordSkippedSignal({
-            symbol: sym,
-            signal: sig.signal,
-            signalPrice: sig.targetLevel,
-            score: sig.score ?? 0,
-            scoreReasons: sig.scoreReasons || [],
-            skipReason: 'ABNORMAL_TURNOVER_RISK',
-            markPrice: markPrice,
-            marketCapRank: rank,
-          });
-        }
-        return;
-      }
 
       try {
         const hasPos = await client.hasOpenPosition(sym);
@@ -1274,29 +1239,44 @@ async function startAutoTrade(coins) {
 
       // ── Tiêu chí 2: Đã gỡ bỏ bộ lọc chặn cứng MIN_CONFLUENCE_SCORE — Toàn quyền thẩm định trao cho AI Reviewer ──
 
-      // ── Thu thập dữ liệu nến M15 thô để nạp vào AI Reviewer v2.0 ──
+      // ── Thu thập toàn bộ dữ liệu thị trường nạp vào Lõi AI Reviewer ──
       let rawMarketData = null;
       let klinesM15 = null;
+      let m15VolRatio = 1.0;
+      let m15RangePct = 0.0;
       try {
         klinesM15 = await fetchBinanceKlines(sym, '15m', null, 21);
         const currM15 = klinesM15 && klinesM15.length > 0 ? klinesM15[klinesM15.length - 1] : null;
+        if (klinesM15 && klinesM15.length >= 20 && currM15) {
+          const past20 = klinesM15.slice(0, klinesM15.length - 1);
+          const avgVol20 = past20.reduce((sum, c) => sum + c.volume, 0) / past20.length;
+          m15VolRatio = avgVol20 > 0 ? (currM15.volume / avgVol20) : 1.0;
+          m15RangePct = ((currM15.high - currM15.low) / (currM15.low || 1)) * 100;
+        }
         rawMarketData = {
           lastM15: currM15,
+          m15VolRatio,
+          m15RangePct,
           touchCount: 1,
           btcFlashPump: btcFlashState.isShortLocked,
-          btcFlashDump: btcFlashState.isLongLocked
+          btcFlashDump: btcFlashState.isLongLocked,
+          turnoverBlocked: turnoverCheck.isBlocked,
+          symbol: sym
         };
       } catch (err) {
         rawMarketData = {
           btcFlashPump: btcFlashState.isShortLocked,
-          btcFlashDump: btcFlashState.isLongLocked
+          btcFlashDump: btcFlashState.isLongLocked,
+          turnoverBlocked: turnoverCheck.isBlocked,
+          symbol: sym
         };
       }
 
       const aiEval = evaluateSignalWithAI(sig, rawMarketData);
       recordAIEvaluation(sig, aiEval);
 
-      // ── Tiêu chí 3: Đánh giá Rủi ro Toàn diện từ Lõi AI (AI Reviewer Core) ──
+      // ── TIÊU CHÍ DUY NHẤT: Đánh giá Rủi ro Toàn diện từ Lõi AI (AI Reviewer Core) ──
+      // Toàn bộ các tiêu chí (Trend, S/R, Flow, Volume, BTC Flash, Turnover, M15 Spike) được AI tự học và ra quyết định
       if (!aiEval.isApproved) {
         log.system(`[AutoTrade] 🛑 [AI Veto] ${sym} (${sig.signal}) bị phủ quyết: ${aiEval.reason} — Bỏ qua không đặt lệnh.`);
         if (_shouldLogSignal(sym, sig.signal, sig.targetLevel, 'ai_veto_skipped')) {
@@ -1315,53 +1295,6 @@ async function startAutoTrade(coins) {
       }
 
       log.system(`[AI Reviewer] 🟢 Khuyên NÊN ĐẶT LỆNH ${sym} (${sig.signal}) - ${aiEval.reason}`);
-
-      // ── BỘ LỌC M15 SPIKE GUARD (Chặn đặt Limit khi M15 bùng nổ Vol >= 2.5x & Biên độ > 1.4%) ──
-      try {
-        if (!klinesM15) {
-          klinesM15 = await fetchBinanceKlines(sym, '15m', null, 21);
-        }
-        if (klinesM15 && klinesM15.length >= 20) {
-          const past20 = klinesM15.slice(0, klinesM15.length - 1);
-          const currM15 = klinesM15[klinesM15.length - 1];
-          const avgVol20 = past20.reduce((sum, c) => sum + c.volume, 0) / past20.length;
-          const m15VolRatio = avgVol20 > 0 ? (currM15.volume / avgVol20) : 1;
-          const m15RangePct = ((currM15.high - currM15.low) / (currM15.low || 1)) * 100;
-
-          if (m15RangePct > 1.4 && m15VolRatio >= 2.5) {
-            const alertMsg = `🛑 <b>[M15 Spike Guard - BỎ QUA LIMIT]</b>\n` +
-              `• <b>Coin:</b> #${sym} (${sig.signal})\n` +
-              `• <b>Mốc Entry:</b> $${sig.targetLevel}\n` +
-              `• <b>Biên độ M15:</b> ${m15RangePct.toFixed(2)}% (Ngưỡng > 1.4%)\n` +
-              `• <b>Volume M15:</b> ${m15VolRatio.toFixed(2)}x MA20 (Ngưỡng >= 2.5x)\n` +
-              `• <b>Lý do:</b> Nến M15 đang bão giá giật mạnh đâm cản. Tự động bỏ qua đặt Limit để tránh dính SL.`;
-
-            log.system(`[AutoTrade] 🛑 [M15 Spike Guard] ${sym} (${sig.signal}): Nến M15 bão giá (Biên độ ${m15RangePct.toFixed(2)}% > 1.4% & Vol ${m15VolRatio.toFixed(2)}x >= 2.5x) — BỎ QUA ĐẶT LIMIT`);
-
-            try {
-              await sendTelegram(alertMsg);
-            } catch (teleErr) {
-              log.warn(`[AutoTrade] Lỗi gửi telegram M15 Spike Guard cho ${sym}: ${teleErr.message}`);
-            }
-
-            if (_shouldLogSignal(sym, sig.signal, sig.targetLevel, 'm15_spike_skipped')) {
-              recordSkippedSignal({
-                symbol: sym,
-                signal: sig.signal,
-                signalPrice: sig.targetLevel,
-                score: sig.score ?? 0,
-                scoreReasons: sig.scoreReasons || [],
-                skipReason: 'M15_VOLATILITY_VOLUME_SPIKE',
-                markPrice: markPrice,
-                marketCapRank: rank,
-              });
-            }
-            return;
-          }
-        }
-      } catch (errM15) {
-        log.warn(`[AutoTrade] Không thể kiểm tra nến M15 Spike Guard cho ${sym}: ${errM15.message}`);
-      }
 
       // ── LOGIC MỚI: TÍNH TOÁN STOPLOSS THEO TIER, TP ĐỘNG (1:1.5 -> 1:2.0), VÀ ĐÒN BẨY / MARGIN ĐỘNG ──
       const h4Ref = await fetchH4Reference(sym);

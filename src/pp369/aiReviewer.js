@@ -148,19 +148,22 @@ function extractSignalFeatures(reasons, score, rank, gridWidthPct, rawMarketData
     const upperWick = high - Math.max(open, close);
     const lowerWick = Math.min(open, close) - low;
     const isLong = signal === 'LONG' || signal === 'BUY';
+    const m15VolRatio = parseFloat(rawMarketData?.m15VolRatio) || 1.0;
+    const m15RangePct = parseFloat(rawMarketData?.m15RangePct) || 0.0;
+    const isSpike = m15RangePct > 1.4 && m15VolRatio >= 2.5;
 
     if (isLong) {
-      if (lowerWick / totalRange >= 0.40) {
+      if (lowerWick / totalRange >= 0.40 && !isSpike) {
         features['candle_shape'] = 'CANDLE_PINBAR_HAMMER';
-      } else if (close < open && (body / totalRange >= 0.70) && (entryPrice ? close <= entryPrice : true)) {
+      } else if (isSpike || (close < open && (body / totalRange >= 0.70) && (entryPrice ? close <= entryPrice : true))) {
         features['candle_shape'] = 'CANDLE_MARUBOZU_DUMP';
       } else {
         features['candle_shape'] = 'CANDLE_NORMAL';
       }
     } else {
-      if (upperWick / totalRange >= 0.40) {
+      if (upperWick / totalRange >= 0.40 && !isSpike) {
         features['candle_shape'] = 'CANDLE_PINBAR_SHOOTING';
-      } else if (close > open && (body / totalRange >= 0.70) && (entryPrice ? close >= entryPrice : true)) {
+      } else if (isSpike || (close > open && (body / totalRange >= 0.70) && (entryPrice ? close >= entryPrice : true))) {
         features['candle_shape'] = 'CANDLE_MARUBOZU_PUMP';
       } else {
         features['candle_shape'] = 'CANDLE_NORMAL';
@@ -215,22 +218,21 @@ function extractSignalFeatures(reasons, score, rank, gridWidthPct, rawMarketData
     features['trading_session'] = 'SESSION_US_LATE'; // Đêm/Rạng sáng VN
   }
 
-  // ── [MỚI] 18. Multi-Factor Risk Interactions (Tương tác rủi ro tử thần tích hợp thẳng vào AI) ──
+  // ── [MỚI] 18. Multi-Factor Risk Interactions (Tương tác rủi ro do AI tự lượng hóa) ──
   const isTrendConflict = features['trend'] === 'TREND_CONFLICT';
   const isLsDiv = features['ls_flow'] === 'LS_DIVERGENCE';
   const isNoSR = features['price_action'] === 'PA_0_LEVEL';
-  const isLowScore = score < 5.0 || features['score_group'] === 'SCORE_WEAK_4_TO_5' || features['score_group'] === 'SCORE_DANGER_LT4';
   const isDryVol = features['volume'] === 'VOL_DRY';
   const isCoolingOi = features['oi_change'] === 'OI_COOLING';
 
   if (isTrendConflict && isLsDiv) {
-    features['risk_interaction'] = 'FATAL_TREND_AND_FLOW_DIVERGENCE';
+    features['risk_interaction'] = 'INTERACTION_TREND_FLOW_CONFLICT';
   } else if (isNoSR && (isTrendConflict || isLsDiv || features['trend'] === 'TREND_NEUTRAL')) {
-    features['risk_interaction'] = 'FATAL_NO_SR_AND_WEAK_SETUP';
+    features['risk_interaction'] = 'INTERACTION_NO_SR_WEAK_SETUP';
   } else if (isDryVol && isCoolingOi) {
-    features['risk_interaction'] = 'RISK_DRY_VOL_AND_COOLING_OI';
+    features['risk_interaction'] = 'INTERACTION_DRY_VOL_COOLING_OI';
   } else {
-    features['risk_interaction'] = 'RISK_NONE';
+    features['risk_interaction'] = 'INTERACTION_BALANCED';
   }
 
   // ── 19. Lowcap Specific Quality Interactions (AI học chuyên sâu các tiêu chí cho Lowcap Rank > 150) ──
@@ -313,10 +315,10 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
     'turnover_guard:TURNOVER_NORMAL': 1.00,
     'price_action:PA_0_LEVEL': 0.85,              // [LÕI AI] Rỗng cản S/R là rủi ro rất cao, phạt 15% (x0.85) thay vì chỉ trừ 5%
     'ls_flow:LS_DIVERGENCE': 0.80,                // [CÂN BẰNG] Phạt vừa phải 20% khi dòng tiền Cá voi và Retail phân kỳ ngược nhau
-    'risk_interaction:FATAL_TREND_AND_FLOW_DIVERGENCE': 0.40, // [LÕI AI] Phạt nặng 60% khi ngược Dow H1 kết hợp phân kỳ L/S
-    'risk_interaction:FATAL_NO_SR_AND_WEAK_SETUP': 0.45,      // [LÕI AI] Phạt nặng 55% khi không có cản S/R kết hợp kỹ thuật yếu (< 5.0đ)
-    'risk_interaction:RISK_DRY_VOL_AND_COOLING_OI': 0.60,     // [LÕI AI] Phạt 40% khi volume cạn kiệt và OI hạ nhiệt
-    'risk_interaction:RISK_NONE': 1.00,
+    'risk_interaction:INTERACTION_TREND_FLOW_CONFLICT': 0.60, // Fallback nếu chưa có trong weights
+    'risk_interaction:INTERACTION_NO_SR_WEAK_SETUP': 0.65,      // Fallback nếu chưa có trong weights
+    'risk_interaction:INTERACTION_DRY_VOL_COOLING_OI': 0.80,     // Fallback nếu chưa có trong weights
+    'risk_interaction:INTERACTION_BALANCED': 1.00,
     'lowcap_trend:LOWCAP_RISK_COUNTER_TREND': 0.70, // Lowcap ngược trend H1 bị phạt thêm 30%
     'lowcap_sr:LOWCAP_RISK_ZERO_SR': 0.70,          // Lowcap không cản S/R bị phạt thêm 30%
     'lowcap_flow:LOWCAP_RISK_WHALE_DIV': 0.65,      // Lowcap cá voi phân kỳ bị phạt thêm 35%
@@ -344,10 +346,11 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
   for (const [cat, val] of Object.entries(features)) {
     const key = `${cat}:${val}`;
     let mult = 1.0;
-    if (dynamicModifiers[key]) {
-      mult = dynamicModifiers[key];
-    } else if (weights[key]) {
+    // 🧠 Ưu tiên số 1: Trọng số do AI tự học từ dữ liệu thực tế (weights[key])
+    if (weights[key]) {
       mult = weights[key].multiplier;
+    } else if (dynamicModifiers[key]) {
+      mult = dynamicModifiers[key];
     }
 
     // 🛡️ SANITY GUARD: Không thưởng Pinbar M15 nếu đang ngược Trend Dow H1 & EMA
@@ -401,9 +404,9 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
   let reasonText = '';
 
   if (!isApproved) {
-    if (features['risk_interaction'] && features['risk_interaction'].startsWith('FATAL_')) {
+    if (features['risk_interaction'] && features['risk_interaction'].startsWith('INTERACTION_') && features['risk_interaction'] !== 'INTERACTION_BALANCED') {
       vetoCategory = features['risk_interaction'];
-      reasonText = `[RỦI RO TỬ THẦN: ${features['risk_interaction']}] Xác suất thắng ${winProb.toFixed(1)}% < ${threshold}% [Rank #${rank}] (${factorSummary})`;
+      reasonText = `[ĐÁNH GIÁ RỦI RO AI: ${features['risk_interaction']}] Xác suất thắng ${winProb.toFixed(1)}% < ${threshold}% [Rank #${rank}] (${factorSummary})`;
     } else if (winProb < threshold) {
       vetoCategory = `WINPROB_LT_${threshold}`;
       reasonText = `Xác suất thắng ${winProb.toFixed(1)}% < ${threshold}% [Rank #${rank}] (${factorSummary})`;

@@ -97,7 +97,8 @@ def extract_features(reasons, score, rank, grid_width_pct, timestamp_ms=None):
     if score >= 7.0: features["score_group"] = "SCORE_HIGH_GE7"
     elif score >= 6.0: features["score_group"] = "SCORE_MID_6_TO_7"
     elif score >= 5.0: features["score_group"] = "SCORE_LOW_5_TO_6"
-    else: features["score_group"] = "SCORE_WEAK_LT5"
+    elif score >= 4.0: features["score_group"] = "SCORE_WEAK_4_TO_5"
+    else: features["score_group"] = "SCORE_DANGER_LT4"
 
     # 2. MarketCap Rank
     if rank <= 10: features["rank_group"] = "RANK_TOP10"
@@ -223,6 +224,35 @@ def extract_features(reasons, score, rank, grid_width_pct, timestamp_ms=None):
         features["lowcap_sr"] = "MAJORS_SR"
         features["lowcap_flow"] = "MAJORS_FLOW"
         features["lowcap_vol"] = "MAJORS_VOL"
+
+    # 15. Multi-Factor Risk Interactions (AI tự học tương tác rủi ro)
+    is_trend_conflict = features.get("trend") == "TREND_CONFLICT"
+    is_ls_div = features.get("ls_flow") == "LS_DIVERGENCE"
+    is_no_sr = features.get("price_action") == "PA_0_LEVEL"
+    is_dry_vol = features.get("volume") == "VOL_DRY"
+    is_cooling_oi = features.get("oi_change") == "OI_COOLING"
+
+    if is_trend_conflict and is_ls_div:
+        features["risk_interaction"] = "INTERACTION_TREND_FLOW_CONFLICT"
+    elif is_no_sr and (is_trend_conflict or is_ls_div or features.get("trend") == "TREND_NEUTRAL"):
+        features["risk_interaction"] = "INTERACTION_NO_SR_WEAK_SETUP"
+    elif is_dry_vol and is_cooling_oi:
+        features["risk_interaction"] = "INTERACTION_DRY_VOL_COOLING_OI"
+    else:
+        features["risk_interaction"] = "INTERACTION_BALANCED"
+
+    # 16. BTC Flash & Turnover Guard (chuyển giao cho AI học)
+    if "Turnover" in reasons_str or "ABNORMAL_TURNOVER" in reasons_str:
+        features["turnover_guard"] = "TURNOVER_RISK_BLOCKED"
+    else:
+        features["turnover_guard"] = "TURNOVER_NORMAL"
+
+    if "BTC_FLASH_PUMP" in reasons_str:
+        features["btc_flash"] = "BTC_FLASH_PUMP_ACTIVE"
+    elif "BTC_FLASH_DUMP" in reasons_str:
+        features["btc_flash"] = "BTC_FLASH_DUMP_ACTIVE"
+    else:
+        features["btc_flash"] = "BTC_FLASH_NORMAL"
 
     return features
 
