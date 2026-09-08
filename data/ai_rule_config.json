@@ -1,78 +1,78 @@
 {
   "version": "1.3.0",
-  "trainedAt": "2026-09-07 13:11:45",
-  "totalSamples": 3442,
-  "priorWinProb": 0.5723,
-  "priorOdds": 1.3383,
+  "trainedAt": "2026-09-08 08:06:17",
+  "totalSamples": 3466,
+  "priorWinProb": 0.5707,
+  "priorOdds": 1.3293,
   "thresholdApprovalPct": 58.0,
   "minExpectedEvRoi": 0.5,
   "featureWeights": {
     "score_group:SCORE_HIGH_GE7": {
       "winCount": 7.0,
       "lossCount": 3.0,
-      "winProb": 0.6234,
-      "multiplier": 1.1395,
+      "winProb": 0.6224,
+      "multiplier": 1.14,
       "knowledgeBoost": 1.12,
       "blendRatio": 0.17
     },
     "rank_group:RANK_TOP10": {
       "winCount": 22.5,
       "lossCount": 20.5,
-      "winProb": 0.536,
-      "multiplier": 0.863
+      "winProb": 0.5355,
+      "multiplier": 0.8673
     },
     "trend:TREND_NEUTRAL": {
-      "winCount": 392.0,
-      "lossCount": 292.0,
-      "winProb": 0.5731,
-      "multiplier": 1.003
+      "winCount": 395.0,
+      "lossCount": 296.0,
+      "winProb": 0.5716,
+      "multiplier": 1.0038
     },
     "volatility:VOL_WEAK": {
-      "winCount": 424.5,
-      "lossCount": 220.5,
-      "winProb": 0.6562,
-      "multiplier": 1.4261
+      "winCount": 428.5,
+      "lossCount": 226.5,
+      "winProb": 0.6523,
+      "multiplier": 1.4115
     },
     "rsi:RSI_NEUTRAL": {
-      "winCount": 1164.0,
-      "lossCount": 830.0,
-      "winProb": 0.5837,
-      "multiplier": 1.0475
+      "winCount": 1171.0,
+      "lossCount": 840.0,
+      "winProb": 0.5822,
+      "multiplier": 1.0483
     },
     "ls_flow:LS_NEUTRAL": {
       "winCount": 3.0,
       "lossCount": 4.0,
-      "winProb": 0.5266,
-      "multiplier": 0.8312
+      "winProb": 0.5255,
+      "multiplier": 0.833
     },
     "price_action:PA_0_LEVEL": {
-      "winCount": 930.0,
-      "lossCount": 637.0,
-      "winProb": 0.5933,
+      "winCount": 937.0,
+      "lossCount": 652.0,
+      "winProb": 0.5895,
       "multiplier": 0.85,
       "knowledgeBoost": 0.75,
       "blendRatio": 0.97,
       "sanityCapped": true
     },
     "oi_change:OI_STABLE": {
-      "winCount": 1148.5,
-      "lossCount": 886.5,
-      "winProb": 0.5644,
-      "multiplier": 0.9683
+      "winCount": 1152.5,
+      "lossCount": 891.5,
+      "winProb": 0.5639,
+      "multiplier": 0.9727
     },
     "volume:VOL_DRY": {
-      "winCount": 936.5,
-      "lossCount": 702.5,
-      "winProb": 0.5714,
-      "multiplier": 0.9918,
+      "winCount": 940.5,
+      "lossCount": 708.5,
+      "winProb": 0.5703,
+      "multiplier": 0.9942,
       "knowledgeBoost": 0.85,
       "blendRatio": 0.97
     },
     "funding:FUNDING_NORMAL": {
-      "winCount": 1482.0,
-      "lossCount": 1169.0,
-      "winProb": 0.5591,
-      "multiplier": 0.9495,
+      "winCount": 1488.0,
+      "lossCount": 1177.0,
+      "winProb": 0.5584,
+      "multiplier": 0.9531,
       "knowledgeBoost": 1.05,
       "blendRatio": 0.98
     },
@@ -80,210 +80,210 @@
       "winCount": 646.5,
       "lossCount": 515.5,
       "winProb": 0.5566,
-      "multiplier": 0.9379
+      "multiplier": 0.9441
     },
     "grid_width:GRID_NORMAL": {
-      "winCount": 1894.0,
-      "lossCount": 1400.0,
-      "winProb": 0.575,
-      "multiplier": 1.0108
+      "winCount": 1899.0,
+      "lossCount": 1408.0,
+      "winProb": 0.5742,
+      "multiplier": 1.0145
     },
     "trading_session:SESSION_ASIA": {
       "winCount": 346.0,
-      "lossCount": 267.0,
-      "winProb": 0.5646,
-      "multiplier": 0.9728,
+      "lossCount": 269.0,
+      "winProb": 0.5628,
+      "multiplier": 0.9723,
       "knowledgeBoost": 1.02,
       "blendRatio": 0.92
     },
     "risk_interaction:INTERACTION_NO_SR_WEAK_SETUP": {
-      "winCount": 594.0,
-      "lossCount": 416.0,
-      "winProb": 0.5879,
+      "winCount": 600.0,
+      "lossCount": 424.0,
+      "winProb": 0.5857,
       "multiplier": 0.7,
       "knowledgeBoost": 0.65,
       "blendRatio": 0.95,
       "sanityCapped": true
     },
     "turnover_guard:TURNOVER_NORMAL": {
-      "winCount": 1970.0,
-      "lossCount": 1472.0,
-      "winProb": 0.5723,
+      "winCount": 1978.0,
+      "lossCount": 1488.0,
+      "winProb": 0.5707,
       "multiplier": 1.0,
       "knowledgeBoost": 1.0,
       "blendRatio": 0.99
     },
     "btc_flash:BTC_FLASH_NORMAL": {
-      "winCount": 1970.0,
-      "lossCount": 1472.0,
-      "winProb": 0.5723,
+      "winCount": 1978.0,
+      "lossCount": 1488.0,
+      "winProb": 0.5707,
       "multiplier": 1.0,
       "knowledgeBoost": 1.0,
       "blendRatio": 0.99
     },
     "score_group:SCORE_LOW_5_TO_6": {
-      "winCount": 287.5,
-      "lossCount": 237.5,
-      "winProb": 0.5483,
-      "multiplier": 0.907
+      "winCount": 288.5,
+      "lossCount": 241.5,
+      "winProb": 0.5451,
+      "multiplier": 0.9013
     },
     "rank_group:RANK_LOWCAP_OUT150": {
-      "winCount": 1629.5,
-      "lossCount": 1174.5,
-      "winProb": 0.5811,
-      "multiplier": 1.0365
+      "winCount": 1636.5,
+      "lossCount": 1186.5,
+      "winProb": 0.5797,
+      "multiplier": 1.0374
     },
     "trend:TREND_CONFLICT": {
-      "winCount": 1112.5,
-      "lossCount": 846.5,
-      "winProb": 0.5679,
+      "winCount": 1116.5,
+      "lossCount": 852.5,
+      "winProb": 0.5671,
       "multiplier": 0.8,
       "knowledgeBoost": 0.75,
       "blendRatio": 0.98,
       "sanityCapped": true
     },
     "volatility:VOL_ULTRA": {
-      "winCount": 1075.0,
-      "lossCount": 940.0,
-      "winProb": 0.5338,
-      "multiplier": 0.8626,
+      "winCount": 1076.0,
+      "lossCount": 945.0,
+      "winProb": 0.5327,
+      "multiplier": 0.8646,
       "knowledgeBoost": 1.15,
       "blendRatio": 0.98
     },
     "rsi:RSI_EXTREME": {
-      "winCount": 385.0,
-      "lossCount": 304.0,
-      "winProb": 0.5591,
-      "multiplier": 0.9474
+      "winCount": 386.0,
+      "lossCount": 306.0,
+      "winProb": 0.5581,
+      "multiplier": 0.95
     },
     "ls_flow:LS_GOLD": {
       "winCount": 113.0,
       "lossCount": 86.0,
-      "winProb": 0.5682,
-      "multiplier": 1.0267,
+      "winProb": 0.568,
+      "multiplier": 1.0316,
       "knowledgeBoost": 1.2,
       "blendRatio": 0.8
     },
     "price_action:PA_4_LEVELS": {
       "winCount": 88.5,
       "lossCount": 69.5,
-      "winProb": 0.5612,
-      "multiplier": 0.9903,
+      "winProb": 0.561,
+      "multiplier": 0.9948,
       "knowledgeBoost": 1.1,
       "blendRatio": 0.76
     },
     "btc_wave:BTC_NEUTRAL": {
-      "winCount": 648.0,
-      "lossCount": 430.0,
-      "winProb": 0.6007,
-      "multiplier": 1.1242
+      "winCount": 650.0,
+      "lossCount": 435.0,
+      "winProb": 0.5987,
+      "multiplier": 1.1223
     },
     "trading_session:SESSION_EUROPE": {
-      "winCount": 349.0,
-      "lossCount": 287.0,
-      "winProb": 0.5493,
-      "multiplier": 0.9178,
+      "winCount": 351.0,
+      "lossCount": 291.0,
+      "winProb": 0.5473,
+      "multiplier": 0.9167,
       "knowledgeBoost": 1.01,
       "blendRatio": 0.93
     },
     "risk_interaction:INTERACTION_BALANCED": {
       "winCount": 1058.5,
-      "lossCount": 867.5,
-      "winProb": 0.5498,
-      "multiplier": 0.9159,
+      "lossCount": 872.5,
+      "winProb": 0.5483,
+      "multiplier": 0.9168,
       "knowledgeBoost": 1.05,
       "blendRatio": 0.97
     },
     "trend:TREND_PERFECT": {
-      "winCount": 300.0,
-      "lossCount": 205.0,
-      "winProb": 0.5934,
-      "multiplier": 1.096,
+      "winCount": 301.0,
+      "lossCount": 210.0,
+      "winProb": 0.5885,
+      "multiplier": 1.0825,
       "knowledgeBoost": 1.15,
       "blendRatio": 0.91
     },
     "rsi:RSI_NEAR": {
       "winCount": 421.0,
-      "lossCount": 338.0,
-      "winProb": 0.555,
-      "multiplier": 0.932
+      "lossCount": 342.0,
+      "winProb": 0.5521,
+      "multiplier": 0.9274
     },
     "ls_flow:LS_PARTIAL": {
-      "winCount": 1436.5,
-      "lossCount": 1113.5,
-      "winProb": 0.5634,
-      "multiplier": 0.9642
+      "winCount": 1440.5,
+      "lossCount": 1124.5,
+      "winProb": 0.5617,
+      "multiplier": 0.9639
     },
     "oi_change:OI_SURGE": {
-      "winCount": 562.5,
-      "lossCount": 420.5,
-      "winProb": 0.5722,
-      "multiplier": 0.9995
+      "winCount": 565.5,
+      "lossCount": 425.5,
+      "winProb": 0.5706,
+      "multiplier": 0.9998
     },
     "volume:VOL_SURGE": {
-      "winCount": 631.5,
-      "lossCount": 465.5,
-      "winProb": 0.5756,
-      "multiplier": 1.0181,
+      "winCount": 634.5,
+      "lossCount": 475.5,
+      "winProb": 0.5716,
+      "multiplier": 1.0088,
       "knowledgeBoost": 1.12,
       "blendRatio": 0.96
     },
     "grid_width:GRID_WIDE": {
-      "winCount": 76.0,
-      "lossCount": 72.0,
-      "winProb": 0.5189,
-      "multiplier": 0.806
+      "winCount": 79.0,
+      "lossCount": 80.0,
+      "winProb": 0.5032,
+      "multiplier": 0.762
     },
     "trading_session:SESSION_US_LATE": {
-      "winCount": 367.5,
-      "lossCount": 281.5,
-      "winProb": 0.5664,
-      "multiplier": 0.9777,
+      "winCount": 369.5,
+      "lossCount": 284.5,
+      "winProb": 0.5651,
+      "multiplier": 0.9791,
       "knowledgeBoost": 1.0,
       "blendRatio": 0.93
     },
     "volatility:VOL_MID": {
-      "winCount": 470.5,
-      "lossCount": 311.5,
-      "winProb": 0.6011,
-      "multiplier": 1.126
+      "winCount": 473.5,
+      "lossCount": 316.5,
+      "winProb": 0.5988,
+      "multiplier": 1.1229
     },
     "btc_wave:BTC_ALIGNED": {
-      "winCount": 675.5,
-      "lossCount": 526.5,
-      "winProb": 0.5621,
-      "multiplier": 0.9668,
+      "winCount": 681.5,
+      "lossCount": 537.5,
+      "winProb": 0.5592,
+      "multiplier": 0.9621,
       "knowledgeBoost": 1.15,
       "blendRatio": 0.96
     },
     "price_action:PA_2_LEVELS": {
-      "winCount": 256.0,
+      "winCount": 257.0,
       "lossCount": 236.0,
-      "winProb": 0.5219,
-      "multiplier": 0.8155
+      "winProb": 0.5228,
+      "multiplier": 0.824
     },
     "volume:VOL_STABLE": {
-      "winCount": 402.0,
+      "winCount": 403.0,
       "lossCount": 304.0,
-      "winProb": 0.5695,
-      "multiplier": 0.9883
+      "winProb": 0.57,
+      "multiplier": 0.9973
     },
     "rank_group:RANK_MIDCAP_150": {
-      "winCount": 272.0,
-      "lossCount": 240.0,
-      "winProb": 0.5324,
-      "multiplier": 0.8508
+      "winCount": 273.0,
+      "lossCount": 244.0,
+      "winProb": 0.5292,
+      "multiplier": 0.8458
     },
     "score_group:SCORE_MID_6_TO_7": {
       "winCount": 69.5,
       "lossCount": 52.5,
-      "winProb": 0.57,
-      "multiplier": 0.9903
+      "winProb": 0.5698,
+      "multiplier": 0.9963
     },
     "ls_flow:LS_DIVERGENCE": {
-      "winCount": 417.5,
-      "lossCount": 268.5,
-      "winProb": 0.6078,
+      "winCount": 421.5,
+      "lossCount": 273.5,
+      "winProb": 0.6057,
       "multiplier": 0.8,
       "knowledgeBoost": 0.8,
       "blendRatio": 0.93,
@@ -292,21 +292,21 @@
     "price_action:PA_3_LEVELS": {
       "winCount": 116.5,
       "lossCount": 96.5,
-      "winProb": 0.5486,
-      "multiplier": 0.9409,
+      "winProb": 0.5485,
+      "multiplier": 0.9455,
       "knowledgeBoost": 1.08,
       "blendRatio": 0.81
     },
     "oi_change:OI_COOLING": {
-      "winCount": 259.0,
-      "lossCount": 165.0,
-      "winProb": 0.6095,
-      "multiplier": 1.1664
+      "winCount": 260.0,
+      "lossCount": 171.0,
+      "winProb": 0.6022,
+      "multiplier": 1.1386
     },
     "funding:FUNDING_DANGER": {
-      "winCount": 347.5,
-      "lossCount": 213.5,
-      "winProb": 0.6182,
+      "winCount": 349.5,
+      "lossCount": 221.5,
+      "winProb": 0.611,
       "multiplier": 0.85,
       "sanityCapped": true
     },
@@ -314,51 +314,51 @@
       "winCount": 616.5,
       "lossCount": 428.5,
       "winProb": 0.5897,
-      "multiplier": 1.0696,
+      "multiplier": 1.0765,
       "knowledgeBoost": 0.98,
       "blendRatio": 0.95
     },
     "rank_group:RANK_TOP30": {
       "winCount": 46.0,
       "lossCount": 37.0,
-      "winProb": 0.557,
-      "multiplier": 0.9395
+      "winProb": 0.5567,
+      "multiplier": 0.9449
     },
     "price_action:PA_1_LEVEL": {
       "winCount": 579.0,
-      "lossCount": 433.0,
-      "winProb": 0.5721,
-      "multiplier": 0.9992
+      "lossCount": 434.0,
+      "winProb": 0.5716,
+      "multiplier": 1.0036
     },
     "risk_interaction:INTERACTION_TREND_FLOW_CONFLICT": {
-      "winCount": 241.0,
-      "lossCount": 143.0,
-      "winProb": 0.6255,
+      "winCount": 243.0,
+      "lossCount": 146.0,
+      "winProb": 0.6227,
       "multiplier": 0.6,
       "knowledgeBoost": 0.55,
-      "blendRatio": 0.88,
+      "blendRatio": 0.89,
       "sanityCapped": true
     },
     "trading_session:SESSION_US_OPEN": {
-      "winCount": 291.0,
-      "lossCount": 208.0,
-      "winProb": 0.5829,
-      "multiplier": 1.0382,
+      "winCount": 295.0,
+      "lossCount": 215.0,
+      "winProb": 0.5782,
+      "multiplier": 1.0267,
       "knowledgeBoost": 0.98,
       "blendRatio": 0.91
     },
     "funding:FUNDING_SQUEEZE": {
       "winCount": 140.5,
       "lossCount": 89.5,
-      "winProb": 0.6085,
-      "multiplier": 1.154,
+      "winProb": 0.6084,
+      "multiplier": 1.1601,
       "knowledgeBoost": 1.12,
       "blendRatio": 0.82
     },
     "score_group:SCORE_WEAK_4_TO_5": {
-      "winCount": 658.5,
-      "lossCount": 514.5,
-      "winProb": 0.5615,
+      "winCount": 659.5,
+      "lossCount": 521.5,
+      "winProb": 0.5586,
       "multiplier": 0.85,
       "knowledgeBoost": 0.85,
       "blendRatio": 0.96,
@@ -366,25 +366,25 @@
     },
     "trend:TREND_EMA": {
       "winCount": 165.5,
-      "lossCount": 128.5,
-      "winProb": 0.5634,
-      "multiplier": 0.9809,
+      "lossCount": 129.5,
+      "winProb": 0.5615,
+      "multiplier": 0.9801,
       "knowledgeBoost": 1.08,
-      "blendRatio": 0.85
+      "blendRatio": 0.86
     },
     "risk_interaction:INTERACTION_DRY_VOL_COOLING_OI": {
       "winCount": 76.5,
       "lossCount": 45.5,
-      "winProb": 0.6211,
+      "winProb": 0.6209,
       "multiplier": 0.8,
       "knowledgeBoost": 0.75,
       "blendRatio": 0.71,
       "sanityCapped": true
     },
     "score_group:SCORE_DANGER_LT4": {
-      "winCount": 947.5,
-      "lossCount": 664.5,
-      "winProb": 0.5876,
+      "winCount": 953.5,
+      "lossCount": 669.5,
+      "winProb": 0.5873,
       "multiplier": 0.55,
       "knowledgeBoost": 0.6,
       "blendRatio": 0.97,
@@ -393,7 +393,7 @@
     "btc_flash:BTC_FLASH_PUMP_ACTIVE": {
       "winCount": 0,
       "lossCount": 0,
-      "winProb": 0.5723,
+      "winProb": 0.5707,
       "multiplier": 0.4,
       "knowledgeBoost": 0.4,
       "blendRatio": 0.0
@@ -401,7 +401,7 @@
     "btc_flash:BTC_FLASH_DUMP_ACTIVE": {
       "winCount": 0,
       "lossCount": 0,
-      "winProb": 0.5723,
+      "winProb": 0.5707,
       "multiplier": 0.4,
       "knowledgeBoost": 0.4,
       "blendRatio": 0.0
@@ -409,7 +409,7 @@
     "turnover_guard:TURNOVER_RISK_BLOCKED": {
       "winCount": 0,
       "lossCount": 0,
-      "winProb": 0.5723,
+      "winProb": 0.5707,
       "multiplier": 0.35,
       "knowledgeBoost": 0.4,
       "blendRatio": 0.0,
@@ -418,7 +418,7 @@
     "candle_shape:CANDLE_MARUBOZU_DUMP": {
       "winCount": 0,
       "lossCount": 0,
-      "winProb": 0.5723,
+      "winProb": 0.5707,
       "multiplier": 0.5,
       "knowledgeBoost": 0.5,
       "blendRatio": 0.0
@@ -426,7 +426,7 @@
     "candle_shape:CANDLE_MARUBOZU_PUMP": {
       "winCount": 0,
       "lossCount": 0,
-      "winProb": 0.5723,
+      "winProb": 0.5707,
       "multiplier": 0.5,
       "knowledgeBoost": 0.5,
       "blendRatio": 0.0
@@ -434,7 +434,7 @@
     "candle_shape:CANDLE_PINBAR_HAMMER": {
       "winCount": 0,
       "lossCount": 0,
-      "winProb": 0.5723,
+      "winProb": 0.5707,
       "multiplier": 1.08,
       "knowledgeBoost": 1.08,
       "blendRatio": 0.0
@@ -442,7 +442,7 @@
     "candle_shape:CANDLE_PINBAR_SHOOTING": {
       "winCount": 0,
       "lossCount": 0,
-      "winProb": 0.5723,
+      "winProb": 0.5707,
       "multiplier": 1.08,
       "knowledgeBoost": 1.08,
       "blendRatio": 0.0
@@ -450,7 +450,7 @@
     "candle_shape:CANDLE_NORMAL": {
       "winCount": 0,
       "lossCount": 0,
-      "winProb": 0.5723,
+      "winProb": 0.5707,
       "multiplier": 1.0,
       "knowledgeBoost": 1.0,
       "blendRatio": 0.0
@@ -458,7 +458,7 @@
     "level_freshness:FRESH_LEVEL_TOUCH1": {
       "winCount": 0,
       "lossCount": 0,
-      "winProb": 0.5723,
+      "winProb": 0.5707,
       "multiplier": 1.12,
       "knowledgeBoost": 1.12,
       "blendRatio": 0.0
@@ -466,7 +466,7 @@
     "level_freshness:RETEST_LEVEL_TOUCH2": {
       "winCount": 0,
       "lossCount": 0,
-      "winProb": 0.5723,
+      "winProb": 0.5707,
       "multiplier": 0.95,
       "knowledgeBoost": 0.95,
       "blendRatio": 0.0
@@ -474,7 +474,7 @@
     "level_freshness:EXHAUSTED_LEVEL_TOUCH3": {
       "winCount": 0,
       "lossCount": 0,
-      "winProb": 0.5723,
+      "winProb": 0.5707,
       "multiplier": 0.7,
       "knowledgeBoost": 0.7,
       "blendRatio": 0.0

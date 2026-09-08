@@ -11942,3 +11942,19 @@
 2026-08-22 00:03:26: [PP369 WARN] [Telegram] Nội dung bị lỗi (300 ký tự đầu): 🤖 <b>[AI Khuyến Nghị] #JASMY (SHORT)</b>↵• <b>Entry:</b> <code>$0.004625</code> (17x | Ký quỹ: $10.46)↵• <b>AI Đánh giá:</b> 🟢 <b>NÊN VÀO LỆNH</b> (WinRate: <b>73.5%</b> | EV: <b>+5.15% ROI</b>)↵• <b>Mục tiêu:</b> SL: <code>$0.004755</code> | TP 1.5R: <code>$0.00443</code>↵• <b>Score kỹ thuật:</b> 
 2026-08-22 00:03:45: [PP369 WARN] [AutoTrade] Lỗi kiểm tra virtual TP/SL: timeout of 10000ms exceeded 
 2026-08-22 09:30:19: [PP369 WARN] [Telegram] Lỗi gửi tin nhắn (Lần 1/3): read ECONNRESET. Thử lại sau 2 giây... 
+2026-09-07 16:17:52: [ShadowTracker] registerShadowTrade: MINA không có entryPrice hợp lệ (0)
+2026-09-07 17:25:15: [AutoRetrainer] [AutoRetrain] ❌ Huấn luyện thất bại: spawn python ENOENT
+2026-09-07 18:25:15: [AutoRetrainer] [AutoRetrain] ❌ Huấn luyện thất bại: spawn python ENOENT
+2026-09-07 19:25:16: [AutoRetrainer] [AutoRetrain] ❌ Huấn luyện thất bại: spawn python ENOENT
+2026-09-07 20:25:16: [AutoRetrainer] [AutoRetrain] ❌ Huấn luyện thất bại: spawn python ENOENT
+2026-09-07 21:25:16: [AutoRetrainer] [AutoRetrain] ❌ Huấn luyện thất bại: spawn python ENOENT
+2026-09-07 22:25:17: [AutoRetrainer] [AutoRetrain] ❌ Huấn luyện thất bại: spawn python ENOENT
+2026-09-07 23:25:17: [AutoRetrainer] [AutoRetrain] ❌ Huấn luyện thất bại: spawn python ENOENT
+2026-09-08 00:25:18: [AutoRetrainer] [AutoRetrain] ❌ Huấn luyện thất bại: spawn python ENOENT
+2026-09-08 01:25:18: [AutoRetrainer] [AutoRetrain] ❌ Huấn luyện thất bại: spawn python ENOENT
+2026-09-08 02:25:19: [AutoRetrainer] [AutoRetrain] ❌ Huấn luyện thất bại: spawn python ENOENT
+2026-09-08 03:25:18: [AutoRetrainer] [AutoRetrain] ❌ Huấn luyện thất bại: spawn python ENOENT
+2026-09-08 04:25:19: [AutoRetrainer] [AutoRetrain] ❌ Huấn luyện thất bại: spawn python ENOENT
+2026-09-08 05:25:19: [AutoRetrainer] [AutoRetrain] ❌ Huấn luyện thất bại: spawn python ENOENT
+2026-09-08 06:25:19: [AutoRetrainer] [AutoRetrain] ❌ Huấn luyện thất bại: spawn python ENOENT
+2026-09-08 07:25:20: [AutoRetrainer] [AutoRetrain] ❌ Huấn luyện thất bại: spawn python ENOENT

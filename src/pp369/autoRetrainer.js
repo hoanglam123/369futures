@@ -2,7 +2,7 @@
 
 const fs = require('fs');
 const path = require('path');
-const { spawn } = require('child_process');
+const { spawn, spawnSync } = require('child_process');
 const aiReviewer = require('./aiReviewer');
 
 const DATA_DIR = path.join(process.cwd(), 'data');
@@ -74,6 +74,27 @@ function countDatasetSamples() {
 }
 
 /**
+ * Detect available Python binary across Windows and Linux VPS
+ */
+function _getPythonBinary() {
+  const candidates = [
+    process.env.PYTHON_BIN,
+    process.env.PYTHON_PATH,
+    process.platform === 'win32' ? 'python' : 'python3',
+    'python3',
+    'python'
+  ].filter(Boolean);
+
+  for (const cmd of candidates) {
+    try {
+      const check = spawnSync(cmd, ['--version'], { encoding: 'utf8' });
+      if (check.status === 0) return cmd;
+    } catch (e) {}
+  }
+  return process.platform === 'win32' ? 'python' : 'python3';
+}
+
+/**
  * Execute python scripts/train_ai_model.py safely
  */
 function _executePythonTraining() {
@@ -83,9 +104,10 @@ function _executePythonTraining() {
       return resolve({ success: false, error: `Script không tồn tại: ${pythonScript}` });
     }
 
-    _logger.system(`[AutoRetrain] 🚀 Đang khởi chạy huấn luyện AI model (Python: scripts/train_ai_model.py)...`);
+    const pyBin = _getPythonBinary();
+    _logger.system(`[AutoRetrain] 🚀 Đang khởi chạy huấn luyện AI model (${pyBin}: scripts/train_ai_model.py)...`);
 
-    const pyProcess = spawn('python', [pythonScript], {
+    const pyProcess = spawn(pyBin, [pythonScript], {
       cwd: process.cwd(),
       env: { ...process.env, PYTHONIOENCODING: 'utf-8' }
     });
