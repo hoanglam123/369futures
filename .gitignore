@@ -18,3 +18,5 @@ scratch/
 data/retrain_state.json
 data/shadow_positions.json
 data/shadow_trades_history.jsonl
+__pycache__/
+*.pyc

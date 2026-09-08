@@ -1,3 +1,4 @@
+// @ts-nocheck
 'use strict';
 
 const fs = require('fs');
@@ -77,9 +78,9 @@ function _appendDatasetRecord(record) {
 /**
  * Register a vetoed signal as a shadow trade
  *
- * @param {object} sig - Signal object from autoTrade / PP369
- * @param {object} evalResult - Evaluation result from evaluateSignalWithAI()
- * @param {object} [options]
+ * @param {any} sig - Signal object from autoTrade / PP369
+ * @param {any} [evalResult] - Evaluation result from evaluateSignalWithAI()
+ * @param {any} [options]
  */
 function registerShadowTrade(sig, evalResult, options = {}) {
   if (!sig || !sig.symbol || !sig.signal) return null;
@@ -178,7 +179,7 @@ function registerShadowTrade(sig, evalResult, options = {}) {
  * Update shadow positions against latest price map
  * Called periodically or on every websocket ticker update
  *
- * @param {Map|object} priceMap - Map or Object of symbol -> markPrice
+ * @param {any} priceMap - Map or Object of symbol -> markPrice
  */
 function updateShadowPrices(priceMap) {
   const ids = Object.keys(activeShadowPositions);
