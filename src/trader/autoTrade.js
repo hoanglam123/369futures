@@ -1397,6 +1397,7 @@ async function startAutoTrade(coins) {
             step: sig.step || getStep(markPrice),
             gridWidthPct: sig.gridWidthPct || gridStepPct,
             marketCapRank: rank,
+            margin: tradeAmount,
             timestamp: Date.now()
           };
           log.system(`[AutoTrade] 📋 Đưa ${sym} (${sig.signal} @ $${sig.targetLevel}) vào Watchlist chờ xác nhận Retest nến H1.`);
@@ -2023,6 +2024,16 @@ async function checkH1RetestSignals(client, activeSymbols, leverageInfo = {}) {
 
       // ── AI Reviewer Machine Learning Offline (Retest H1) ──
       const rank = watchData.marketCapRank || (getMarketCapRank ? getMarketCapRank(sym) : 999);
+      const baseEnvMarginRetest = parseFloat(process.env.TRADE_AMOUNT) || 30;
+      let tradeAmountRetest = baseEnvMarginRetest;
+      if (sym === 'BTC' || sym === 'ETH' || rank <= 10) {
+        tradeAmountRetest = Math.max(baseEnvMarginRetest, 50);
+      } else if (rank <= 50) {
+        tradeAmountRetest = Math.max(baseEnvMarginRetest, 40);
+      } else if (rank <= 150) {
+        tradeAmountRetest = Math.max(baseEnvMarginRetest, 35);
+      }
+
       const sigForAI = {
         symbol: sym,
         signal: signal,
@@ -2031,7 +2042,7 @@ async function checkH1RetestSignals(client, activeSymbols, leverageInfo = {}) {
         scoreReasons: watchData.scoreReasons || [],
         marketCapRank: rank,
         gridWidthPct: gridStepPct,
-        margin: watchData.margin || tradeAmount || 30,
+        margin: watchData.margin || tradeAmountRetest || 30,
       };
 
       let rawMarketDataRetest = null;
