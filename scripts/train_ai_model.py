@@ -415,21 +415,124 @@ def train_and_export_model():
     if guard_count > 0:
         print(f"🛡️ Đã áp dụng Sanity Bounds bảo vệ trên {guard_count} đặc trưng rủi ro cao.")
 
+    # 🧠 TỰ ĐỘNG TÍNH TOÁN & HIỆU CHUẨN NGƯỠNG DUYỆT TỐI ƯU (AUTONOMOUS THRESHOLD CALIBRATION)
+    optimal_thresholds = calibrate_optimal_thresholds(BASE_DIR)
+
     model_output = {
-        "version": "1.3.0",
+        "version": "1.3.1",
         "trainedAt": time.strftime("%Y-%m-%d %H:%M:%S"),
         "totalSamples": total_samples,
         "priorWinProb": round(prior_win, 4),
         "priorOdds": round(prior_odds, 4),
-        "thresholdApprovalPct": 58.0,
-        "minExpectedEvRoi": 0.5,
+        "optimalThresholds": optimal_thresholds,
+        "thresholdApprovalPct": optimal_thresholds.get("lowcap", 48.0),
+        "minExpectedEvRoi": optimal_thresholds.get("minExpectedEvRoi", 0.0),
         "featureWeights": feature_weights
     }
 
     with open(OUTPUT_MODEL_PATH, 'w', encoding='utf-8') as f:
         json.dump(model_output, f, indent=2, ensure_ascii=False)
 
-    print(f"\n✅ Đã xuất mô hình AI Reviewer Offline v1.3.0 thành công tại: {OUTPUT_MODEL_PATH}")
+    print(f"\n✅ Đã xuất mô hình AI Reviewer v1.3.1 thành công tại: {OUTPUT_MODEL_PATH}")
+
+def calibrate_optimal_thresholds(base_dir):
+    """
+    Tự động quét và hiệu chuẩn ngưỡng duyệt tối ưu (Dynamic Threshold Calibration)
+    dựa trên kết quả thực tế của shadow trades và real trades.
+    Tìm (threshold_top150, threshold_lowcap) tối đa hóa Lợi nhuận ròng (Net PnL) và Win Rate >= 65%.
+    """
+    shadow_path = os.path.join(base_dir, "data", "shadow_trades_history.jsonl")
+    if not os.path.exists(shadow_path):
+        return {
+            "top150": 46.0,
+            "lowcap": 48.0,
+            "minExpectedEvRoi": 0.0,
+            "autoCalibrated": False,
+            "reason": "Chưa có file shadow_trades_history"
+        }
+
+    trades = []
+    try:
+        with open(shadow_path, "r", encoding="utf-8") as f:
+            for line in f:
+                if line.strip():
+                    trades.append(json.loads(line))
+    except Exception as e:
+        print(f"⚠️ Lỗi đọc shadow trades khi hiệu chuẩn ngưỡng: {e}")
+        return {"top150": 46.0, "lowcap": 48.0, "minExpectedEvRoi": 0.0, "autoCalibrated": False}
+
+    if len(trades) < 15:
+        return {
+            "top150": 46.0,
+            "lowcap": 48.0,
+            "minExpectedEvRoi": 0.0,
+            "autoCalibrated": False,
+            "sampleCount": len(trades)
+        }
+
+    # Grid search across candidate thresholds
+    best_utility = -999999.0
+    best_th_top = 46.0
+    best_th_low = 48.0
+    best_stats = {}
+
+    candidate_top = [44.0, 45.0, 46.0, 47.0, 48.0, 50.0]
+    candidate_low = [45.0, 46.0, 47.0, 48.0, 50.0, 52.0]
+
+    for th_top in candidate_top:
+        for th_low in candidate_low:
+            if th_low < th_top:
+                continue
+
+            n_win = 0
+            n_loss = 0
+            pnl = 0.0
+
+            for t in trades:
+                rank = t.get("marketCapRank", 999)
+                th = th_top if rank <= 150 else th_low
+                p = t.get("winProbability", 0)
+
+                if p >= th:
+                    if t.get("outcome") == "MISSED_TP" or t.get("isMissedTP"):
+                        n_win += 1
+                        pnl += t.get("missedProfitUSD", 0)
+                    elif t.get("outcome") == "SAVED_SL" or t.get("isSavedSL"):
+                        n_loss += 1
+                        pnl -= t.get("savedLossUSD", 0)
+
+            total = n_win + n_loss
+            wr = (n_win / total * 100.0) if total > 0 else 0.0
+
+            # Tiêu chuẩn an toàn: Win rate >= 65.0% và có lợi nhuận dương
+            if total >= 3 and wr >= 65.0 and pnl > 0:
+                utility = pnl * (wr / 100.0)
+                if utility > best_utility:
+                    best_utility = utility
+                    best_th_top = th_top
+                    best_th_low = th_low
+                    best_stats = {
+                        "testedSamples": len(trades),
+                        "approvedTrades": total,
+                        "expectedWins": n_win,
+                        "expectedLosses": n_loss,
+                        "expectedWinRate": round(wr, 1),
+                        "expectedNetPnlUsd": round(pnl, 2)
+                    }
+
+    print(f"\n🧠 [AI Auto-Calibration] Đã tự động hiệu chuẩn ngưỡng duyệt tối ưu:")
+    print(f"   • Top 150 Threshold: {best_th_top}%")
+    print(f"   • Lowcap Threshold:  {best_th_low}%")
+    print(f"   • Thống kê kỳ vọng:  {best_stats.get('expectedWins', 0)}W / {best_stats.get('expectedLosses', 0)}L (WinRate: {best_stats.get('expectedWinRate', 0)}%, Lãi ròng: +${best_stats.get('expectedNetPnlUsd', 0)} USD)")
+
+    return {
+        "top150": best_th_top,
+        "lowcap": best_th_low,
+        "minExpectedEvRoi": 0.0,
+        "autoCalibrated": True,
+        "calibratedAt": time.strftime("%Y-%m-%d %H:%M:%S"),
+        "calibrationStats": best_stats
+    }
 
 if __name__ == "__main__":
     train_and_export_model()

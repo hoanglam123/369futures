@@ -359,16 +359,6 @@
     "xPct": 40.41,
     "yPct": 3.11
   },
-  "CYS": {
-    "symbol": "CYS",
-    "addedAt": 1788250524986,
-    "addedAtStr": "2026-09-01 15:15:24",
-    "expiresAt": 1788855324986,
-    "expiresAtStr": "2026-09-08 15:15:24",
-    "reason": "x*2 (6.21%) > y (3.06%)",
-    "xPct": 6.21,
-    "yPct": 3.06
-  },
   "PROM": {
     "symbol": "PROM",
     "addedAt": 1788343932423,
@@ -688,5 +678,15 @@
     "reason": "x*2 (12.29%) > y (10.61%)",
     "xPct": 12.29,
     "yPct": 10.61
+  },
+  "CYS": {
+    "symbol": "CYS",
+    "addedAt": 1788855327630,
+    "addedAtStr": "2026-09-08 15:15:27",
+    "expiresAt": 1789460127630,
+    "expiresAtStr": "2026-09-15 15:15:27",
+    "reason": "x*2 (16.21%) > y (8.00%)",
+    "xPct": 16.21,
+    "yPct": 8
   }
 }

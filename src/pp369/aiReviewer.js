@@ -384,13 +384,24 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
   // Bound winProbability strictly between 5% and 95%
   winProb = Math.max(5.0, Math.min(95.0, winProb));
 
-  // Phân cấp ngưỡng phê duyệt WinProbability tích hợp theo Vốn hóa (Rank-based Threshold)
-  // - Top 150: Ngưỡng >= 50.0% (Với prior cơ sở = 57.2%, lệnh có EV dương và WinProb >= 50% là đủ chuẩn)
-  // - Lowcap (ngoài Top 150): Ngưỡng >= 55.0%
-  const threshold = (rank <= 150) ? 50.0 : 55.0;
+  // ── [MỚI] TỰ ĐỘNG NẠP NGƯỠNG TỐI ƯU DO AI TỰ HỌC (AUTONOMOUS THRESHOLD CALIBRATION) ──
+  // Ngưỡng không bao giờ cố định cứng (hardcoded) mà được mô hình AI tự tính toán tối ưu từ dữ liệu thực tế
+  const optimalTh = _modelConfig?.optimalThresholds || {};
+  const baseTop150 = optimalTh.top150 ?? 46.0;
+  const baseLowcap = optimalTh.lowcap ?? 48.0;
+  let threshold = (rank <= 150) ? baseTop150 : baseLowcap;
+
+  // 🌊 MARKET REGIME FLEXIBILITY (Co giãn theo nhịp thở thị trường)
+  // Thuận sóng BTC: Tự tin nới nhẹ -0.5% để đón sóng
+  // Ngược sóng BTC hoặc bão Flash: Tự động siết thêm +1.0% để bảo vệ vốn
+  if (features['btc_wave'] === 'BTC_ALIGNED') {
+    threshold = Math.max(40.0, threshold - 0.5);
+  } else if (features['btc_wave'] === 'BTC_COUNTER' || features['btc_flash'] !== 'BTC_FLASH_NORMAL') {
+    threshold += 1.0;
+  }
 
   // EV (Expected Value) Calculation
-  const minEvRoiThreshold = _modelConfig?.minExpectedEvRoi ?? 0.5;
+  const minEvRoiThreshold = optimalTh.minExpectedEvRoi ?? _modelConfig?.minExpectedEvRoi ?? 0.0;
 
   // Estimate Target Profit (ROI %) and Stop Loss (ROI %)
   const estSlRoi = 13.0 + (gridWidthPct > 8.0 ? (gridWidthPct - 8.0) * 0.5 : 0);

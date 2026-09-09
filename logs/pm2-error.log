@@ -11958,3 +11958,5 @@
 2026-09-08 05:25:19: [AutoRetrainer] [AutoRetrain] ❌ Huấn luyện thất bại: spawn python ENOENT
 2026-09-08 06:25:19: [AutoRetrainer] [AutoRetrain] ❌ Huấn luyện thất bại: spawn python ENOENT
 2026-09-08 07:25:20: [AutoRetrainer] [AutoRetrain] ❌ Huấn luyện thất bại: spawn python ENOENT
+2026-09-08 12:00:07: [PP369 ERR] [H1Retest] Lỗi xử lý CRV: tradeAmount is not defined 
+2026-09-08 13:00:08: [PP369 ERR] [H1Retest] Lỗi xử lý CRV: tradeAmount is not defined 
