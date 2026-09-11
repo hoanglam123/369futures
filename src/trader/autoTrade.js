@@ -1342,9 +1342,15 @@ async function startAutoTrade(coins) {
       let klinesM15 = null;
       let m15VolRatio = 1.0;
       let m15RangePct = 0.0;
+      let klinesH1 = null;
       try {
         klinesM15 = await fetchBinanceKlines(sym, '15m', null, 21);
+        klinesH1 = await fetchBinanceKlines(sym, '1h', null, 5);
         const currM15 = klinesM15 && klinesM15.length > 0 ? klinesM15[klinesM15.length - 1] : null;
+        const lastClosedM15 = klinesM15 && klinesM15.length > 1 ? klinesM15[klinesM15.length - 2] : null;
+        const currH1 = klinesH1 && klinesH1.length > 0 ? klinesH1[klinesH1.length - 1] : null;
+        const lastClosedH1 = klinesH1 && klinesH1.length > 1 ? klinesH1[klinesH1.length - 2] : null;
+
         if (klinesM15 && klinesM15.length >= 20 && currM15) {
           const past20 = klinesM15.slice(0, klinesM15.length - 1);
           const avgVol20 = past20.reduce((sum, c) => sum + c.volume, 0) / past20.length;
@@ -1353,6 +1359,12 @@ async function startAutoTrade(coins) {
         }
         rawMarketData = {
           lastM15: currM15,
+          currM15,
+          lastClosedM15,
+          currH1,
+          lastClosedH1,
+          targetLevel: sig.targetLevel,
+          step: sig.step,
           m15VolRatio,
           m15RangePct,
           touchCount: 1,
@@ -1363,6 +1375,8 @@ async function startAutoTrade(coins) {
         };
       } catch (err) {
         rawMarketData = {
+          targetLevel: sig.targetLevel,
+          step: sig.step,
           btcFlashPump: btcFlashState.isShortLocked,
           btcFlashDump: btcFlashState.isLongLocked,
           turnoverBlocked: turnoverCheck.isBlocked,
@@ -2076,7 +2090,12 @@ async function checkH1RetestSignals(client, activeSymbols, leverageInfo = {}) {
       let m15RangePctRetest = 0.0;
       try {
         klinesM15Retest = await fetchBinanceKlines(sym, '15m', null, 21);
+        const klinesH1Retest = await fetchBinanceKlines(sym, '1h', null, 5);
         const currM15 = klinesM15Retest && klinesM15Retest.length > 0 ? klinesM15Retest[klinesM15Retest.length - 1] : null;
+        const lastClosedM15 = klinesM15Retest && klinesM15Retest.length > 1 ? klinesM15Retest[klinesM15Retest.length - 2] : null;
+        const currH1 = klinesH1Retest && klinesH1Retest.length > 0 ? klinesH1Retest[klinesH1Retest.length - 1] : null;
+        const lastClosedH1 = klinesH1Retest && klinesH1Retest.length > 1 ? klinesH1Retest[klinesH1Retest.length - 2] : null;
+
         if (klinesM15Retest && klinesM15Retest.length >= 20 && currM15) {
           const past20 = klinesM15Retest.slice(0, klinesM15Retest.length - 1);
           const avgVol20 = past20.reduce((sum, c) => sum + c.volume, 0) / past20.length;
@@ -2085,6 +2104,12 @@ async function checkH1RetestSignals(client, activeSymbols, leverageInfo = {}) {
         }
         rawMarketDataRetest = {
           lastM15: currM15,
+          currM15,
+          lastClosedM15,
+          currH1,
+          lastClosedH1,
+          targetLevel,
+          step,
           m15VolRatio: m15VolRatioRetest,
           m15RangePct: m15RangePctRetest,
           touchCount: 2,
@@ -2095,6 +2120,8 @@ async function checkH1RetestSignals(client, activeSymbols, leverageInfo = {}) {
         };
       } catch (err) {
         rawMarketDataRetest = {
+          targetLevel,
+          step,
           touchCount: 2,
           btcFlashPump: btcFlashPumpRetest,
           btcFlashDump: btcFlashDumpRetest,

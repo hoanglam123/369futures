@@ -4,6 +4,7 @@ const fs = require('fs');
 const path = require('path');
 const { log } = require('./_logger');
 const { isTurnoverBlocked } = require('./turnoverGuard');
+const { classifyCandleGeometry, getStep } = require('./core');
 
 const { exec } = require('child_process');
 
@@ -176,14 +177,66 @@ function extractSignalFeatures(reasons, score, rank, gridWidthPct, rawMarketData
   else if (gw >= 2.5) features['grid_width'] = 'GRID_NORMAL';
   else features['grid_width'] = 'GRID_NARROW';
 
-  // ── [MỚI] 13. Candlestick Geometry AI (Đo hình thái nến M15/H1 thực tế) ──
+  // ── [MỚI] 13. Candlestick Geometry AI (Đo hình thái nến M15 & H1 so với Entry) ──
+  let h1Geom = 'H1_HOLD_OR_HOVER';
+  let m15Geom = 'M15_HOLD_OR_HOVER';
+
+  // 13a. Đọc từ reasonsStr nếu có sẵn
+  if (reasonsStr.includes('H1 đóng nến lụt sâu')) h1Geom = 'H1_PUNCTURED_DEEP';
+  else if (reasonsStr.includes('H1 đóng nến chớm lụt')) h1Geom = 'H1_PUNCTURED_LIGHT';
+  else if (reasonsStr.includes('H1 rút chân') || reasonsStr.includes('H1 rút râu')) h1Geom = 'H1_REJECT_PINBAR';
+
+  if (reasonsStr.includes('M15 đóng nến lụt sâu')) m15Geom = 'M15_PUNCTURED_DEEP';
+  else if (reasonsStr.includes('M15 đóng nến chớm lụt')) m15Geom = 'M15_PUNCTURED_LIGHT';
+  else if (reasonsStr.includes('M15 rút chân') || reasonsStr.includes('M15 rút râu')) m15Geom = 'M15_REJECT_PINBAR';
+
+  // 13b. Đo đạc trực tiếp từ rawMarketData nếu có dữ liệu nến thực tế
+  const isLong = signal === 'LONG' || signal === 'BUY';
+  const isShort = signal === 'SHORT' || signal === 'SELL';
+  const targetLevel = entryPrice || rawMarketData?.targetLevel || rawMarketData?.lastM15?.open;
+  const step = rawMarketData?.step || (targetLevel ? getStep(targetLevel) : 0);
+
+  if (targetLevel && (rawMarketData?.currH1 || rawMarketData?.lastClosedH1)) {
+    const c1 = rawMarketData.currH1;
+    const c2 = rawMarketData.lastClosedH1;
+    const g1 = classifyCandleGeometry(c1, targetLevel, isLong, step);
+    const g2 = classifyCandleGeometry(c2, targetLevel, isLong, step);
+    if (g1 === 'PUNCTURED_DEEP' || g2 === 'PUNCTURED_DEEP') h1Geom = 'H1_PUNCTURED_DEEP';
+    else if (g1 === 'PUNCTURED_LIGHT' || g2 === 'PUNCTURED_LIGHT') h1Geom = 'H1_PUNCTURED_LIGHT';
+    else if (g1 === 'REJECT_PINBAR' || g2 === 'REJECT_PINBAR') h1Geom = 'H1_REJECT_PINBAR';
+  }
+
+  if (targetLevel && (rawMarketData?.currM15 || rawMarketData?.lastClosedM15 || rawMarketData?.lastM15)) {
+    const c1 = rawMarketData.currM15 || rawMarketData.lastM15;
+    const c2 = rawMarketData.lastClosedM15;
+    const g1 = classifyCandleGeometry(c1, targetLevel, isLong, step);
+    const g2 = classifyCandleGeometry(c2, targetLevel, isLong, step);
+    if (g1 === 'PUNCTURED_DEEP' || g2 === 'PUNCTURED_DEEP') m15Geom = 'M15_PUNCTURED_DEEP';
+    else if (g1 === 'PUNCTURED_LIGHT' || g2 === 'PUNCTURED_LIGHT') m15Geom = 'M15_PUNCTURED_LIGHT';
+    else if (g1 === 'REJECT_PINBAR' || g2 === 'REJECT_PINBAR') m15Geom = 'M15_REJECT_PINBAR';
+  }
+
+  features['h1_candle_geometry'] = h1Geom;
+  features['m15_candle_geometry'] = m15Geom;
+
+  // 13c. Tương tác đóng nến đâm lụt
+  if (h1Geom === 'H1_PUNCTURED_DEEP' && (m15Geom === 'M15_PUNCTURED_DEEP' || m15Geom === 'M15_PUNCTURED_LIGHT')) {
+    features['puncture_interaction'] = 'INTERACTION_H1_M15_PUNCTURED';
+  } else if (h1Geom === 'H1_PUNCTURED_DEEP') {
+    features['puncture_interaction'] = 'INTERACTION_H1_PUNCTURED_DEEP';
+  } else if (m15Geom === 'M15_PUNCTURED_DEEP') {
+    features['puncture_interaction'] = 'INTERACTION_M15_PUNCTURED_DEEP';
+  } else {
+    features['puncture_interaction'] = 'INTERACTION_PUNCTURE_NORMAL';
+  }
+
+  // 13d. Tương thích ngược: Candlestick Geometry Shape (Pinbar / Marubozu)
   if (rawMarketData?.lastM15) {
     const { open, high, low, close } = rawMarketData.lastM15;
     const totalRange = Math.max(1e-9, high - low);
     const body = Math.abs(close - open);
     const upperWick = high - Math.max(open, close);
     const lowerWick = Math.min(open, close) - low;
-    const isLong = signal === 'LONG' || signal === 'BUY';
     const m15VolRatio = parseFloat(rawMarketData?.m15VolRatio) || 1.0;
     const m15RangePct = parseFloat(rawMarketData?.m15RangePct) || 0.0;
     const isSpike = m15RangePct > 1.4 && m15VolRatio >= 2.5;
@@ -191,7 +244,7 @@ function extractSignalFeatures(reasons, score, rank, gridWidthPct, rawMarketData
     if (isLong) {
       if (lowerWick / totalRange >= 0.40 && !isSpike) {
         features['candle_shape'] = 'CANDLE_PINBAR_HAMMER';
-      } else if (isSpike || (close < open && (body / totalRange >= 0.70) && (entryPrice ? close <= entryPrice : true))) {
+      } else if (isSpike || (close < open && (body / totalRange >= 0.70) && (targetLevel ? close <= targetLevel : true))) {
         features['candle_shape'] = 'CANDLE_MARUBOZU_DUMP';
       } else {
         features['candle_shape'] = 'CANDLE_NORMAL';
@@ -199,7 +252,7 @@ function extractSignalFeatures(reasons, score, rank, gridWidthPct, rawMarketData
     } else {
       if (upperWick / totalRange >= 0.40 && !isSpike) {
         features['candle_shape'] = 'CANDLE_PINBAR_SHOOTING';
-      } else if (isSpike || (close > open && (body / totalRange >= 0.70) && (entryPrice ? close >= entryPrice : true))) {
+      } else if (isSpike || (close > open && (body / totalRange >= 0.70) && (targetLevel ? close >= targetLevel : true))) {
         features['candle_shape'] = 'CANDLE_MARUBOZU_PUMP';
       } else {
         features['candle_shape'] = 'CANDLE_NORMAL';
@@ -219,8 +272,6 @@ function extractSignalFeatures(reasons, score, rank, gridWidthPct, rawMarketData
   }
 
   // ── [MỚI] 15. BTC Flash Pump / Dump Market Regime ──
-  const isShort = signal === 'SHORT' || signal === 'SELL';
-  const isLong = signal === 'LONG' || signal === 'BUY';
   if (rawMarketData?.btcFlashPump && isShort) {
     features['btc_flash'] = 'BTC_FLASH_PUMP_ACTIVE';
   } else if (rawMarketData?.btcFlashDump && isLong) {
@@ -309,10 +360,22 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
     'm15_volatility:M15_VOLATILE_DANGER': 0.60,   // M15 biến động mạnh rủi ro đâm thủng Tier
     'm15_volatility:M15_VOLUME_SURGE': 0.55,      // Đột biến volume M15
     'h1_stagnant:H1_STAGNANT_TRAP': 0.65,         // Nén bế tắc bẫy thanh khoản
-    'candle_shape:CANDLE_PINBAR_HAMMER': 1.08,    // [HẠ NHIỆT] Giảm từ 1.25 (+25%) xuống 1.08 (+8%) để tránh râu nến M15 thổi phồng WinProb
-    'candle_shape:CANDLE_PINBAR_SHOOTING': 1.08,  // [HẠ NHIỆT] Giảm từ 1.25 (+25%) xuống 1.08 (+8%) để tránh râu nến M15 thổi phồng WinProb
-    'candle_shape:CANDLE_MARUBOZU_DUMP': 0.45,  // Phạt nặng nến đâm cản -> Tự động Veto
-    'candle_shape:CANDLE_MARUBOZU_PUMP': 0.45,  // Phạt nặng nến đâm cản -> Tự động Veto
+    'h1_candle_geometry:H1_PUNCTURED_DEEP': 0.22, // Tỷ lệ thắng thực nghiệm 19.8% (x0.22) -> Veto dứt khoát
+    'h1_candle_geometry:H1_PUNCTURED_LIGHT': 0.60,
+    'h1_candle_geometry:H1_REJECT_PINBAR': 1.72,  // Tỷ lệ thắng thực nghiệm 65.6% (x1.72)
+    'h1_candle_geometry:H1_HOLD_OR_HOVER': 1.55,
+    'm15_candle_geometry:M15_PUNCTURED_DEEP': 0.40, // Tỷ lệ thắng thực nghiệm 30.6% (x0.40)
+    'm15_candle_geometry:M15_PUNCTURED_LIGHT': 0.46,
+    'm15_candle_geometry:M15_REJECT_PINBAR': 1.21,
+    'm15_candle_geometry:M15_HOLD_OR_HOVER': 1.19,
+    'puncture_interaction:INTERACTION_H1_M15_PUNCTURED': 0.32,
+    'puncture_interaction:INTERACTION_H1_PUNCTURED_DEEP': 0.22,
+    'puncture_interaction:INTERACTION_M15_PUNCTURED_DEEP': 0.85,
+    'puncture_interaction:INTERACTION_PUNCTURE_NORMAL': 1.34,
+    'candle_shape:CANDLE_PINBAR_HAMMER': 1.15,
+    'candle_shape:CANDLE_PINBAR_SHOOTING': 1.15,
+    'candle_shape:CANDLE_MARUBOZU_DUMP': 0.45,
+    'candle_shape:CANDLE_MARUBOZU_PUMP': 0.45,
     'candle_shape:CANDLE_NORMAL': 1.00,
     'level_freshness:FRESH_LEVEL_TOUCH1': 1.12,
     'level_freshness:RETEST_LEVEL_TOUCH2': 0.95,
@@ -452,7 +515,10 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
   let reasonText = '';
 
   if (!isApproved) {
-    if (features['risk_interaction'] && features['risk_interaction'].startsWith('INTERACTION_') && features['risk_interaction'] !== 'INTERACTION_BALANCED') {
+    if (features['puncture_interaction'] && (features['puncture_interaction'] === 'INTERACTION_H1_M15_PUNCTURED' || features['puncture_interaction'].startsWith('INTERACTION_H1_'))) {
+      vetoCategory = features['puncture_interaction'];
+      reasonText = `[ĐÁNH GIÁ RỦI RO AI: ${features['puncture_interaction']}] Nến đâm lụt qua Entry, xác suất thắng ${winProb.toFixed(1)}% < ${threshold}% [Rank #${rank}] (${factorSummary})`;
+    } else if (features['risk_interaction'] && features['risk_interaction'].startsWith('INTERACTION_') && features['risk_interaction'] !== 'INTERACTION_BALANCED') {
       vetoCategory = features['risk_interaction'];
       reasonText = `[ĐÁNH GIÁ RỦI RO AI: ${features['risk_interaction']}] Xác suất thắng ${winProb.toFixed(1)}% < ${threshold}% [Rank #${rank}] (${factorSummary})`;
     } else if (winProb < threshold) {

@@ -1,31 +1,31 @@
 {
   "version": "1.4.0-auto",
-  "trainedAt": "2026-09-11 14:37:08",
+  "trainedAt": "2026-09-11 15:25:45",
   "totalSamples": 970,
   "priorWinProb": 0.5254,
   "priorOdds": 1.107,
   "optimalThresholds": {
     "top150": 50.0,
-    "lowcap": 60.0,
+    "lowcap": 65.0,
     "minExpectedEvRoi": 0.0,
     "autoCalibrated": true,
-    "calibratedAt": "2026-09-11 14:37:08",
+    "calibratedAt": "2026-09-11 15:25:45",
     "calibrationStats": {
       "testedSamples": 642,
-      "approvedTrades": 331,
-      "expectedWins": 258,
-      "expectedLosses": 73,
-      "expectedWinRate": 77.9,
-      "expectedNetPnlUsd": 6502.56
+      "approvedTrades": 410,
+      "expectedWins": 298,
+      "expectedLosses": 112,
+      "expectedWinRate": 72.7,
+      "expectedNetPnlUsd": 6859.86
     }
   },
-  "thresholdApprovalPct": 60.0,
+  "thresholdApprovalPct": 65.0,
   "minExpectedEvRoi": 0.0,
   "mfeMaeProfile": {
     "optimalTpGridRatio": 0.45,
     "recommendedBeTriggerPct": 0.6,
     "sampleCount": 642,
-    "calculatedAt": "2026-09-11 14:37:08"
+    "calculatedAt": "2026-09-11 15:25:45"
   },
   "featureWeights": {
     "score_group:SCORE_HIGH_GE7": {
@@ -190,6 +190,30 @@
       "sanityCapped": false,
       "isAutonomous": true
     },
+    "h1_candle_geometry:H1_PUNCTURED_DEEP": {
+      "winCount": 38.0,
+      "lossCount": 178.0,
+      "winProb": 0.1986,
+      "multiplier": 0.2239,
+      "sanityCapped": false,
+      "isAutonomous": true
+    },
+    "m15_candle_geometry:M15_HOLD_OR_HOVER": {
+      "winCount": 522.0,
+      "lossCount": 395.0,
+      "winProb": 0.5685,
+      "multiplier": 1.1904,
+      "sanityCapped": false,
+      "isAutonomous": true
+    },
+    "puncture_interaction:INTERACTION_H1_PUNCTURED_DEEP": {
+      "winCount": 21.0,
+      "lossCount": 114.0,
+      "winProb": 0.1925,
+      "multiplier": 0.2154,
+      "sanityCapped": false,
+      "isAutonomous": true
+    },
     "score_group:SCORE_LOW_5_TO_6": {
       "winCount": 127.0,
       "lossCount": 147.0,
@@ -292,6 +316,22 @@
       "sanityCapped": false,
       "isAutonomous": true
     },
+    "h1_candle_geometry:H1_REJECT_PINBAR": {
+      "winCount": 200.0,
+      "lossCount": 102.0,
+      "winProb": 0.6558,
+      "multiplier": 1.721,
+      "sanityCapped": false,
+      "isAutonomous": true
+    },
+    "puncture_interaction:INTERACTION_PUNCTURE_NORMAL": {
+      "winCount": 634.0,
+      "lossCount": 426.0,
+      "winProb": 0.5971,
+      "multiplier": 1.3388,
+      "sanityCapped": false,
+      "isAutonomous": true
+    },
     "trend:TREND_PERFECT": {
       "winCount": 100.0,
       "lossCount": 88.0,
@@ -356,6 +396,14 @@
       "sanityCapped": false,
       "isAutonomous": true
     },
+    "h1_candle_geometry:H1_HOLD_OR_HOVER": {
+      "winCount": 363.0,
+      "lossCount": 209.0,
+      "winProb": 0.6318,
+      "multiplier": 1.5503,
+      "sanityCapped": false,
+      "isAutonomous": true
+    },
     "h1_volatility:H1_MID_COMPRESSED": {
       "winCount": 142.0,
       "lossCount": 158.0,
@@ -373,6 +421,14 @@
       "multiplier": 1.2595,
       "knowledgeBoost": 1.15,
       "blendRatio": 0.92,
+      "sanityCapped": false,
+      "isAutonomous": true
+    },
+    "h1_candle_geometry:H1_PUNCTURED_LIGHT": {
+      "winCount": 82.0,
+      "lossCount": 128.0,
+      "winProb": 0.3995,
+      "multiplier": 0.6009,
       "sanityCapped": false,
       "isAutonomous": true
     },
@@ -587,6 +643,46 @@
       "multiplier": 0.8108,
       "knowledgeBoost": 0.55,
       "blendRatio": 0.83,
+      "sanityCapped": false,
+      "isAutonomous": true
+    },
+    "m15_candle_geometry:M15_REJECT_PINBAR": {
+      "winCount": 98.0,
+      "lossCount": 72.0,
+      "winProb": 0.5723,
+      "multiplier": 1.2089,
+      "sanityCapped": false,
+      "isAutonomous": true
+    },
+    "m15_candle_geometry:M15_PUNCTURED_LIGHT": {
+      "winCount": 40.0,
+      "lossCount": 87.0,
+      "winProb": 0.3372,
+      "multiplier": 0.4596,
+      "sanityCapped": false,
+      "isAutonomous": true
+    },
+    "m15_candle_geometry:M15_PUNCTURED_DEEP": {
+      "winCount": 23.0,
+      "lossCount": 63.0,
+      "winProb": 0.3058,
+      "multiplier": 0.3978,
+      "sanityCapped": false,
+      "isAutonomous": true
+    },
+    "puncture_interaction:INTERACTION_H1_M15_PUNCTURED": {
+      "winCount": 17.0,
+      "lossCount": 64.0,
+      "winProb": 0.2592,
+      "multiplier": 0.316,
+      "sanityCapped": false,
+      "isAutonomous": true
+    },
+    "puncture_interaction:INTERACTION_M15_PUNCTURED_DEEP": {
+      "winCount": 11.0,
+      "lossCount": 13.0,
+      "winProb": 0.4841,
+      "multiplier": 0.8478,
       "sanityCapped": false,
       "isAutonomous": true
     },

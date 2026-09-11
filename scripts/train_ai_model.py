@@ -90,7 +90,7 @@ def simulate_skipped_signal(rec):
                 return "SL"
     return "TIMEOUT"
 
-def extract_features(reasons, score, rank, grid_width_pct, timestamp_ms=None):
+def extract_features(reasons, score, rank, grid_width_pct, timestamp_ms=None, direct_record=None):
     reasons_str = " ".join(reasons)
     features = {}
 
@@ -238,6 +238,39 @@ def extract_features(reasons, score, rank, grid_width_pct, timestamp_ms=None):
     else:
         features["btc_flash"] = "BTC_FLASH_NORMAL"
 
+    # 17. H1 Candle Geometry vs Entry
+    h1_direct = str(direct_record.get("h1CandleGeometry") or "") if direct_record else ""
+    if "PUNCTURED_DEEP" in h1_direct or "H1 đóng nến lụt sâu" in reasons_str:
+        features["h1_candle_geometry"] = "H1_PUNCTURED_DEEP"
+    elif "PUNCTURED_LIGHT" in h1_direct or "H1 đóng nến chớm lụt" in reasons_str:
+        features["h1_candle_geometry"] = "H1_PUNCTURED_LIGHT"
+    elif "REJECT_PINBAR" in h1_direct or "H1 rút chân" in reasons_str or "H1 rút râu" in reasons_str:
+        features["h1_candle_geometry"] = "H1_REJECT_PINBAR"
+    else:
+        features["h1_candle_geometry"] = "H1_HOLD_OR_HOVER"
+
+    # 18. M15 Candle Geometry vs Entry
+    m15_direct = str(direct_record.get("m15CandleGeometry") or "") if direct_record else ""
+    if "PUNCTURED_DEEP" in m15_direct or "M15 đóng nến lụt sâu" in reasons_str:
+        features["m15_candle_geometry"] = "M15_PUNCTURED_DEEP"
+    elif "PUNCTURED_LIGHT" in m15_direct or "M15 đóng nến chớm lụt" in reasons_str:
+        features["m15_candle_geometry"] = "M15_PUNCTURED_LIGHT"
+    elif "REJECT_PINBAR" in m15_direct or "M15 rút chân" in reasons_str or "M15 rút râu" in reasons_str:
+        features["m15_candle_geometry"] = "M15_REJECT_PINBAR"
+    else:
+        features["m15_candle_geometry"] = "M15_HOLD_OR_HOVER"
+
+    # 19. Interaction: Cả H1 và M15 đều đóng nến lụt sâu qua Entry
+    if (features["h1_candle_geometry"] == "H1_PUNCTURED_DEEP" and
+        features["m15_candle_geometry"] in ["M15_PUNCTURED_DEEP", "M15_PUNCTURED_LIGHT"]):
+        features["puncture_interaction"] = "INTERACTION_H1_M15_PUNCTURED"
+    elif features["h1_candle_geometry"] == "H1_PUNCTURED_DEEP":
+        features["puncture_interaction"] = "INTERACTION_H1_PUNCTURED_DEEP"
+    elif features["m15_candle_geometry"] == "M15_PUNCTURED_DEEP":
+        features["puncture_interaction"] = "INTERACTION_M15_PUNCTURED_DEEP"
+    else:
+        features["puncture_interaction"] = "INTERACTION_PUNCTURE_NORMAL"
+
     return features
 
 def train_and_export_model():
@@ -283,7 +316,8 @@ def train_and_export_model():
                                 entry.get("score", 0),
                                 entry.get("marketCapRank", 999),
                                 entry.get("gridWidthPct", 3.5),
-                                entry.get("timestamp")
+                                entry.get("timestamp"),
+                                direct_record=entry
                             )
                         })
                         real_count += 1
@@ -308,7 +342,8 @@ def train_and_export_model():
                                 rec.get("score", 0),
                                 rec.get("marketCapRank", 999),
                                 rec.get("gridWidthPct", 3.5),
-                                rec.get("entryTimestamp")
+                                rec.get("entryTimestamp"),
+                                direct_record=rec
                             )
                         })
                         shadow_count += 1

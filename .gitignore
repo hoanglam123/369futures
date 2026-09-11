@@ -13,6 +13,7 @@ data/knowledge/*.jpeg
 data/knowledge/*.png
 data/data/*
 data/kline_cache/
+data/klines_cache/
 logs/
 scratch/
 data/retrain_state.json

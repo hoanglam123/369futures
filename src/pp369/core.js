@@ -1707,6 +1707,45 @@ async function getCachedBtcState() {
 }
 
 /**
+ * Phân loại hình thái nến so với Entry (targetLevel)
+ * @param {object} candle - { open, high, low, close }
+ * @param {number} targetLevel - Giá Entry
+ * @param {boolean} isLong - true nếu LONG, false nếu SHORT
+ * @param {number} [step] - Grid step
+ * @returns {'PUNCTURED_DEEP' | 'PUNCTURED_LIGHT' | 'REJECT_PINBAR' | 'HOLD_OR_HOVER'}
+ */
+function classifyCandleGeometry(candle, targetLevel, isLong, step) {
+  if (!candle || !targetLevel || typeof candle.close !== 'number') return 'HOLD_OR_HOVER';
+  const totalRange = Math.max(1e-9, candle.high - candle.low);
+  const stepDist = step || (targetLevel * 0.01);
+  const deepThreshold = Math.max(stepDist * 0.10, targetLevel * 0.002);
+
+  if (isLong) {
+    const lowerWick = Math.min(candle.open, candle.close) - candle.low;
+    const isWickRejection = (lowerWick / totalRange >= 0.35) && (candle.low <= targetLevel);
+
+    if (isWickRejection) {
+      return 'REJECT_PINBAR';
+    }
+    if (candle.close < targetLevel) {
+      return (targetLevel - candle.close >= deepThreshold) ? 'PUNCTURED_DEEP' : 'PUNCTURED_LIGHT';
+    }
+    return 'HOLD_OR_HOVER';
+  } else {
+    const upperWick = candle.high - Math.max(candle.open, candle.close);
+    const isWickRejection = (upperWick / totalRange >= 0.35) && (candle.high >= targetLevel);
+
+    if (isWickRejection) {
+      return 'REJECT_PINBAR';
+    }
+    if (candle.close > targetLevel) {
+      return (candle.close - targetLevel >= deepThreshold) ? 'PUNCTURED_DEEP' : 'PUNCTURED_LIGHT';
+    }
+    return 'HOLD_OR_HOVER';
+  }
+}
+
+/**
  * @param {object} sig369   - Kết quả từ get369Signal
  * @param {string} direction - 'LONG' | 'SHORT'
  * @returns {Promise<{ score: number, reasons: string[] }>}
@@ -1952,8 +1991,8 @@ async function score369Method(sig369, direction) {
       }
 
       // 2.2 Kiểm tra biến động & Khối lượng M15 (Tối đa 0.5đ) - Check cả Range % VÀ Đột biến Volume M15
+      let m15Klines = m15Data;
       try {
-        let m15Klines = m15Data;
         if (!m15Klines || m15Klines.length < 22) {
           m15Klines = await fetchBinanceKlines(sig369.symbol, '15m', Date.now() - 6 * 3600_000, 22);
         }
@@ -2028,6 +2067,62 @@ async function score369Method(sig369, direction) {
 
     score += volScore;
     reasons.push(`[Biến động H1/M15] ${volReasons.join(' | ')}`);
+
+    // 2.4 Kiểm tra hình thái nến M15 & H1 so với Entry (targetLevel)
+    const targetLevel = sig369.targetLevel;
+    const candleReasons = [];
+    if (targetLevel) {
+      if (h1Candles && h1Candles.length >= 2) {
+        const prevH1 = h1Candles[h1Candles.length - 2];
+        const currH1 = h1Candles[h1Candles.length - 1];
+        const h1GeomPrev = classifyCandleGeometry(prevH1, targetLevel, isLong, step);
+        const h1GeomCurr = classifyCandleGeometry(currH1, targetLevel, isLong, step);
+        const h1Geom = (h1GeomCurr === 'PUNCTURED_DEEP' || h1GeomPrev === 'PUNCTURED_DEEP')
+          ? 'H1_PUNCTURED_DEEP'
+          : (h1GeomCurr === 'PUNCTURED_LIGHT' || h1GeomPrev === 'PUNCTURED_LIGHT')
+            ? 'H1_PUNCTURED_LIGHT'
+            : (h1GeomCurr === 'REJECT_PINBAR' || h1GeomPrev === 'REJECT_PINBAR')
+              ? 'H1_REJECT_PINBAR'
+              : 'H1_HOLD_OR_HOVER';
+
+        if (h1Geom === 'H1_PUNCTURED_DEEP') {
+          candleReasons.push(`🚨 H1 đóng nến lụt sâu qua Entry (Close $${currH1.close} vs Entry $${targetLevel})`);
+        } else if (h1Geom === 'H1_PUNCTURED_LIGHT') {
+          candleReasons.push(`⚠️ H1 đóng nến chớm lụt qua Entry (Close $${currH1.close} vs Entry $${targetLevel})`);
+        } else if (h1Geom === 'H1_REJECT_PINBAR') {
+          candleReasons.push(`✓ H1 rút chân/rút râu giữ vững Entry ($${targetLevel})`);
+        } else {
+          candleReasons.push(`H1 giữ cấu trúc mốc Entry`);
+        }
+      }
+
+      if (m15Klines && m15Klines.length >= 2) {
+        const prevM15 = m15Klines[m15Klines.length - 2];
+        const currM15 = m15Klines[m15Klines.length - 1];
+        const m15GeomPrev = classifyCandleGeometry(prevM15, targetLevel, isLong, step);
+        const m15GeomCurr = classifyCandleGeometry(currM15, targetLevel, isLong, step);
+        const m15Geom = (m15GeomCurr === 'PUNCTURED_DEEP' || m15GeomPrev === 'PUNCTURED_DEEP')
+          ? 'M15_PUNCTURED_DEEP'
+          : (m15GeomCurr === 'PUNCTURED_LIGHT' || m15GeomPrev === 'PUNCTURED_LIGHT')
+            ? 'M15_PUNCTURED_LIGHT'
+            : (m15GeomCurr === 'REJECT_PINBAR' || m15GeomPrev === 'REJECT_PINBAR')
+              ? 'M15_REJECT_PINBAR'
+              : 'M15_HOLD_OR_HOVER';
+
+        if (m15Geom === 'M15_PUNCTURED_DEEP') {
+          candleReasons.push(`🚨 M15 đóng nến lụt sâu qua Entry (Close $${currM15.close} vs Entry $${targetLevel})`);
+        } else if (m15Geom === 'M15_PUNCTURED_LIGHT') {
+          candleReasons.push(`⚠️ M15 đóng nến chớm lụt qua Entry (Close $${currM15.close} vs Entry $${targetLevel})`);
+        } else if (m15Geom === 'M15_REJECT_PINBAR') {
+          candleReasons.push(`✓ M15 rút chân/rút râu phản ứng tại Entry ($${targetLevel})`);
+        } else {
+          candleReasons.push(`M15 giữ cấu trúc mốc Entry`);
+        }
+      }
+    }
+    if (candleReasons.length > 0) {
+      reasons.push(`[Hình thái nến M15/H1] ${candleReasons.join(' | ')}`);
+    }
 
     // 3. Tiêu chí 3: Quá mua / Quá bán RSI H1 (Tối đa +1đ: cực đại +1đ, cận cản +0.5đ)
     const rsi14 = calculateRSI(h1Candles, 14);
@@ -2130,7 +2225,6 @@ async function score369Method(sig369, direction) {
     // 6. Tiêu chí 6: Trùng cản Price Action (Swing S/R) (Tối đa +1đ: 0.4đ H4 và 0.6đ D1)
     let paScore = 0;
     const paReasons = [];
-    const targetLevel = sig369.targetLevel;
 
     if (step > 0 && targetLevel > 0) {
       const maxDev = 0.15 * step;
@@ -2492,5 +2586,5 @@ module.exports = {
   getLevelCache, overrideLevelLastSide, PROXIMITY_PCT, getDecimals, getStep,
   initH4Cache, YEAR_START_MS, fetchBinanceKlines, fetchH4Reference, buildLevelGrid,
   getGridStepPct, isGridWidthValid, GRID_MIN_PCT, GRID_MIN_PCT_TOP100, GRID_MAX_PCT, getMinGridPct, isTop100Symbol, getMarketCapRank,
-  isSymbolInGridBlacklist, getGridBlacklistInfo, addToGridBlacklist,
+  isSymbolInGridBlacklist, getGridBlacklistInfo, addToGridBlacklist, classifyCandleGeometry,
 };

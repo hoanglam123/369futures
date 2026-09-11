@@ -676,3 +676,4 @@
 {"ts":"2026-09-06T14:15:35","symbol":"GUA","signal":"LONG","price":0.0378,"leverage":10,"score":5.3,"margin":30.77}
 {"ts":"2026-09-07T22:18:37","symbol":"HYPE","signal":"LONG","price":85.8511119,"leverage":50,"score":5.6,"margin":15}
 {"ts":"2026-09-07T22:56:58","symbol":"VIRTUAL","signal":"LONG","price":0.7085336,"leverage":50,"score":5.4,"margin":15}
+{"ts":"2026-09-11T13:24:37","symbol":"ARB","signal":"LONG","price":0.1452,"leverage":50,"score":2.9,"margin":15}

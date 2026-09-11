@@ -97,6 +97,7 @@ module.exports = {
   isSymbolInGridBlacklist: core.isSymbolInGridBlacklist,
   getGridBlacklistInfo:    core.getGridBlacklistInfo,
   addToGridBlacklist:      core.addToGridBlacklist,
+  classifyCandleGeometry:  core.classifyCandleGeometry,
 
   // ── WebSocket stream ─────────────────────────────────────────────────────
   start369Stream:   stream.start369Stream,
