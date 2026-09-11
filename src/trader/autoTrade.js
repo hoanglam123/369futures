@@ -1780,14 +1780,16 @@ async function checkPendingLimits(client, activeSymbols) {
             }
           } catch (e) {
             const errStr = _binanceErr(e);
-            log.warn(`[AutoTrade] [BounceCancel] Không hủy được LIMIT ${sym}: ${errStr}`);
             if (errStr.includes('-2011') || errStr.includes('Unknown order')) {
+              log.system(`[AutoTrade] [BounceCancel] Lệnh LIMIT ${sym} đã khớp vị thế hoặc đã hủy trước đó trên sàn (-2011).`);
               if (!lastActivePositions.has(sym)) {
                 delete activeTradesMetadata[sym];
                 saveActiveTradesMetadata();
               } else {
                 meta.orderId = null;
               }
+            } else {
+              log.warn(`[AutoTrade] [BounceCancel] Không hủy được LIMIT ${sym}: ${errStr}`);
             }
           }
         }
@@ -1855,14 +1857,16 @@ async function checkPendingLimits(client, activeSymbols) {
             }
           } catch (e) {
             const errStr = _binanceErr(e);
-            log.warn(`[AutoTrade] [BounceCancel] Không hủy được LIMIT ${sym}: ${errStr}`);
             if (errStr.includes('-2011') || errStr.includes('Unknown order')) {
+              log.system(`[AutoTrade] [BounceCancel] Lệnh LIMIT ${sym} đã khớp vị thế hoặc đã hủy trước đó trên sàn (-2011).`);
               if (!lastActivePositions.has(sym)) {
                 delete activeTradesMetadata[sym];
                 saveActiveTradesMetadata();
               } else {
                 meta.orderId = null;
               }
+            } else {
+              log.warn(`[AutoTrade] [BounceCancel] Không hủy được LIMIT ${sym}: ${errStr}`);
             }
           }
         }
