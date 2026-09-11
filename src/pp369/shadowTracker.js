@@ -95,9 +95,9 @@ function registerShadowTrade(sig, evalResult, options = {}) {
     return null;
   }
 
-  // Check if already tracking this symbol in shadow positions within last 30 minutes
+  // 🛡️ DEDUPLICATION: Không tạo vị thế Shadow trùng lặp nếu vị thế trước đó của cùng coin/cùng chiều vẫn đang chạy (hoặc chưa quá 90 phút)
   const existing = Object.values(activeShadowPositions).find(p => p.symbol === sym && p.signal === side);
-  if (existing && (Date.now() - existing.entryTimestamp) < 30 * 60 * 1000) {
+  if (existing && (Date.now() - existing.entryTimestamp) < 90 * 60 * 1000) {
     return existing; // Don't duplicate active shadow position
   }
 
@@ -105,10 +105,14 @@ function registerShadowTrade(sig, evalResult, options = {}) {
   const gridWidthPct = parseFloat(sig.gridWidthPct || options.gridWidthPct || 4.0);
   const leverage = parseInt(sig.leverage || options.leverage || 10, 10);
   const margin = parseFloat(sig.margin || options.margin || 75.0);
+  const coinRank = parseInt(sig.marketCapRank || options.marketCapRank || 999, 10);
+  const isLowcap = coinRank > 150;
+  const minSlPct = isLowcap ? 1.8 : 1.0;
 
-  // Approximate SL: 50% gridWidth or ~2.0% - 3.0%
-  const slPct = Math.min(Math.max(gridWidthPct * 0.5, 1.5), 5.0);
-  const tpPct = Math.min(Math.max(gridWidthPct * 0.8, 2.0), 6.0);
+  // 🛡️ SL an toàn chống quét râu (Neo theo 50% gridWidth hoặc mốc sàn minSlPct, tối đa 3.5%)
+  const slPct = Math.min(Math.max(gridWidthPct * 0.5, minSlPct), 3.5);
+  // 🎯 TP chuẩn theo biên Grid (45% độ rộng grid, min 1.2%, max 3.0%) để chốt ngay đỉnh nhịp nảy
+  const tpPct = Math.min(Math.max(gridWidthPct * 0.45, 1.2), 3.0);
 
   const tierSlPrice = options.tierSlPrice || (isLong ? entryPrice * (1 - slPct / 100) : entryPrice * (1 + slPct / 100));
   const tierTpPrice = options.tierTpPrice || (isLong ? entryPrice * (1 + tpPct / 100) : entryPrice * (1 - tpPct / 100));

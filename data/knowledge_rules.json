@@ -17,7 +17,7 @@
     "volatility:VOL_ULTRA": 1.15,
     "volume:VOL_SURGE": 1.12,
     "volume:VOL_DRY": 0.85,
-    "risk_interaction:INTERACTION_TREND_FLOW_CONFLICT": 0.55,
+    "risk_interaction:INTERACTION_TREND_FLOW_CONFLICT": 1.00,
     "risk_interaction:INTERACTION_NO_SR_WEAK_SETUP": 0.65,
     "risk_interaction:INTERACTION_DRY_VOL_COOLING_OI": 0.75,
     "risk_interaction:INTERACTION_BALANCED": 1.05,
@@ -38,8 +38,11 @@
     "trading_session:SESSION_EUROPE": 1.01,
     "trading_session:SESSION_US_OPEN": 0.98,
     "trading_session:SESSION_US_LATE": 1.00,
-    "trading_session:SESSION_WEEKEND": 0.98
+    "trading_session:SESSION_WEEKEND": 0.98,
+    "grid_width:GRID_WIDE": 1.05,
+    "grid_width:GRID_NORMAL": 1.00,
+    "grid_width:GRID_NARROW": 0.90
   },
-  "rules_count": 37,
-  "extracted_at": "2026-09-07 11:30:00"
+  "rules_count": 40,
+  "extracted_at": "2026-09-11 11:30:00"
 }

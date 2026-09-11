@@ -38,13 +38,11 @@ const PROXIMITY_PCT = 0.02;  // 2% = ngưỡng lọc WebSocket — chỉ scan co
 // Mốc gốc H4: nến H4 đầu tiên của năm 2026 (01/01/2026 00:00:00 UTC = 07:00 VN)
 const YEAR_START_MS = Date.UTC(2026, 0, 1);
 
-// ─── Lọc coin theo độ rộng grid ──────────────────────────────────────────────
-// Ngưỡng:
-//   - Coin Top 100 MarketCap: 2% – 25%
-//   - Các coin còn lại: 3% – 25%
-const GRID_MIN_PCT = 3;          // 3% cho các coin thông thường (ngoài Top 100)
-const GRID_MIN_PCT_TOP100 = 2;   // 2% cho Top 100 MarketCap
-const GRID_MAX_PCT = 25;         // 25%
+// ─── Lọc coin theo độ rộng grid (Sàn an toàn vật lý - Sanity Guard) ───────────
+// Hạ sàn lọc thô từ 3% về 1.5% - 30% để Lõi AI Reviewer toàn quyền thẩm định độ rộng Grid:
+const GRID_MIN_PCT = 1.5;          // Sàn vật lý 1.5% (tối thiểu đủ bù phí + slippage)
+const GRID_MIN_PCT_TOP100 = 1.5;   // Đồng nhất sàn vật lý 1.5% cho mọi nhóm coin
+const GRID_MAX_PCT = 30;           // Trần vật lý 30%
 
 let _top100SymbolsCache = null;
 let _top100CacheTime = 0;
@@ -141,9 +139,9 @@ function isGridWidthValid(h1Entry, currentPrice, symbol) {
   return pct >= minPct && pct <= GRID_MAX_PCT;
 }
 
-// ─── Quản lý Blacklist 7 ngày cho mốc hẹp (x*2 > y) ───────────────────────────
+// ─── Quản lý Blacklist tạm thời cho mốc lệch (x*2 > y) ─────────────────────────
 const GRID_BLACKLIST_FILE = path.join(process.cwd(), 'data', 'grid_blacklist.json');
-const BLACKLIST_DURATION_MS = 7 * 24 * 60 * 60 * 1000; // 7 ngày
+const BLACKLIST_DURATION_MS = 6 * 60 * 60 * 1000; // 6 giờ (thay vì 7 ngày cứng, cho phép coin tái hòa nhập theo chu kỳ nến H4/H6)
 
 function _loadGridBlacklist() {
   try {
@@ -178,7 +176,7 @@ function isSymbolInGridBlacklist(symbol) {
   if (now >= item.expiresAt) {
     delete blacklist[cleanSym];
     _saveGridBlacklist(blacklist);
-    log.system(`[GridBlacklist] Đã tự động giải phóng ${cleanSym} khỏi Blacklist sau 1 tuần.`);
+    log.system(`[GridBlacklist] Đã tự động giải phóng ${cleanSym} khỏi Blacklist sau 6 giờ.`);
     return false;
   }
   return true;
@@ -199,7 +197,7 @@ function addToGridBlacklist(symbol, reason, xVal, yVal) {
   const expiresAt = now + BLACKLIST_DURATION_MS;
 
   if (!blacklist[cleanSym]) {
-    log.system(`[GridBlacklist] ĐÃ THÊM ${cleanSym} VÀO BLACKLIST 7 NGÀY (Lý do: ${reason}). Sẽ tự động giải phóng sau 7 ngày.`);
+    log.system(`[GridBlacklist] Tạm ngưng ${cleanSym} trong 6 giờ (Lý do: ${reason}). Sẽ tự động giải phóng.`);
   }
 
   blacklist[cleanSym] = {
@@ -938,7 +936,7 @@ async function get369Signal(symbol, currentPrice = null) {
     const info = getGridBlacklistInfo(symbol);
     return {
       signal: 'NONE', symbol, month, openPrice: null, closePrice: null, step: null,
-      reason: `[GridBlacklist 7d] Mã ${symbol} bị khóa 7 ngày do khung hẹp x*2 > y (Hết hạn lúc ${info?.expiresAtStr || 'chưa rõ'})`
+      reason: `[GridBlacklist 6h] Mã ${symbol} tạm ngưng do khung hẹp x*2 > y (Hết hạn lúc ${info?.expiresAtStr || 'chưa rõ'})`
     };
   }
 
@@ -983,7 +981,7 @@ async function get369Signal(symbol, currentPrice = null) {
           _levelCache[symbol] = { longEntry: longEntry.value, shortEntry: shortEntry.value, step: step };
           return {
             signal: 'NONE', symbol, month, openPrice, closePrice, step: step,
-            reason: `[GridBlacklist 7d] Đã cho ${symbol} vào Blacklist 7 ngày: x*2 (${(x * 2).toFixed(2)}%) > y (${y.toFixed(2)}%)`
+            reason: `[GridBlacklist 6h] Tạm ngưng ${symbol} do khung kẹp lệch: x*2 (${(x * 2).toFixed(2)}%) > y (${y.toFixed(2)}%)`
           };
         }
 
@@ -1048,7 +1046,7 @@ async function get369Signal(symbol, currentPrice = null) {
       addToGridBlacklist(symbol, `x*2 (${(x * 2).toFixed(2)}%) > y (${y.toFixed(2)}%)`, x, y);
       return {
         signal: 'NONE', symbol, month, openPrice, closePrice, step: step,
-        reason: `[GridBlacklist 7d] Đã cho ${symbol} vào Blacklist 7 ngày: x*2 (${(x * 2).toFixed(2)}%) > y (${y.toFixed(2)}%)`
+        reason: `[GridBlacklist 6h] Tạm ngưng ${symbol} do khung kẹp lệch: x*2 (${(x * 2).toFixed(2)}%) > y (${y.toFixed(2)}%)`
       };
     }
 

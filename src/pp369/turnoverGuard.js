@@ -198,10 +198,21 @@ function checkTurnoverGuard(symbol) {
   const effectiveMC = rawMarketCap || (rank > 300 ? 40_000_000 : 70_000_000);
   const turnoverRatioPct = effectiveMC > 0 ? (vol24hUSD / effectiveMC) * 100 : 0;
 
-  // 3. Quy tắc chặn: Market Cap < 100M VÀ Turnover > 8.0%
-  const MAX_LOWCAP_TURNOVER_PCT = 8.0;
+  // 3. Quy tắc chặn thích ứng (Adaptive AI Turnover Guard):
+  // Phân tầng ngưỡng vòng quay vốn theo quy mô Market Cap, không ép trần 8% tĩnh:
+  // - Micro-cap (< 30M USD hoặc Rank > 350): Ngưỡng 12.0%
+  // - Low-cap thông thường (30M - 100M USD): Ngưỡng 15.0%
+  // - Mid-cap (100M - 500M USD): Ngưỡng 20.0%
+  let maxTurnoverPct = 15.0;
+  if (effectiveMC < 30_000_000 || rank > 350) {
+    maxTurnoverPct = 12.0;
+  } else if (effectiveMC <= 100_000_000) {
+    maxTurnoverPct = 15.0;
+  } else {
+    maxTurnoverPct = 20.0;
+  }
 
-  if (isLowCap && vol24hUSD > 0 && turnoverRatioPct > MAX_LOWCAP_TURNOVER_PCT) {
+  if (isLowCap && vol24hUSD > 0 && turnoverRatioPct > maxTurnoverPct) {
     const mcStr = (effectiveMC / 1e6).toFixed(1);
     const volStr = (vol24hUSD / 1e6).toFixed(2);
     return {
@@ -210,7 +221,8 @@ function checkTurnoverGuard(symbol) {
       marketCapUSD: effectiveMC,
       vol24hUSD,
       turnoverRatioPct,
-      reason: `MarketCap nhỏ ($${mcStr}M < 100M) nhưng KL 24H quá lớn ($${volStr}M ~ ${turnoverRatioPct.toFixed(1)}% MC > 8%) — Nguy cơ quét râu cao, DỪNG GIAO DỊCH`
+      maxAllowedTurnoverPct: maxTurnoverPct,
+      reason: `MarketCap nhỏ ($${mcStr}M < 100M) nhưng KL 24H đột biến ($${volStr}M ~ ${turnoverRatioPct.toFixed(1)}% MC > ngưỡng thích ứng ${maxTurnoverPct}%) — Nguy cơ quét râu cao, DỪNG GIAO DỊCH`
     };
   }
 
@@ -220,6 +232,7 @@ function checkTurnoverGuard(symbol) {
     marketCapUSD: effectiveMC,
     vol24hUSD,
     turnoverRatioPct,
+    maxAllowedTurnoverPct: maxTurnoverPct,
     reason: 'Thanh khoản và vòng quay vốn ổn định'
   };
 }

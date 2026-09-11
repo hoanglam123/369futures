@@ -50,6 +50,7 @@ const {
   getRetrainStatus,
 } = require('../pp369');
 const { log } = require('../pp369/_logger');
+const { isSymbolInCooldown, getRemainingCooldownHours, addSymbolToCooldown } = require('./cooldownManager');
 
 const SCAN_INTERVAL_MS = 30_000;   // scan mỗi 30 giây
 const TRAILING_SL_INTERVAL_MS = 6_000; // kiểm tra vị thế để dịch SL mỗi 6 giây
@@ -63,7 +64,7 @@ const ENABLE_TRAILING_BE = process.env.ENABLE_TRAILING_BE === 'true';
 
 // Debounce map: key → timestamp lần đặt lệnh gần nhất
 const _fired = new Map();
-const bounceCancelledLevels = new Map(); // key: sym_targetLevel -> expireTimestamp (60 phút cooldown)
+const bounceCancelledLevels = new Map(); // key: sym_targetLevel -> expireTimestamp (20 phút cooldown thích ứng)
 
 function isBounceCooldown(sym, targetLevel) {
   const exp = bounceCancelledLevels.get(`${sym}_${targetLevel}`);
@@ -393,30 +394,34 @@ function calcHalfQuantity(sym, totalQty) {
  * @param {string} symbol
  * @param {'LONG'|'SHORT'} side
 /**
- * Tính toán Target Loss & Tỷ lệ R:R Take Profit linh hoạt theo chất lượng tín hiệu (Smart Dynamic Risk Sizing & Asymmetric R:R)
- * - Hạng S (Super Sniper): Top 10 hoặc (Top 50 + Score >= 6.5 & WinProb >= 72%): Scale up 2.0x, TP 1:2.0
- * - Hạng S (Super Sniper): Top 10 hoặc (Top 50 + Score >= 6.5 & WinProb >= 55%): TP 1:2.0
- * - Hạng A (High Quality): Top 50 + WinProb >= 53% hoặc (Top 150 + Score >= 6.2 & WinProb >= 54%): TP 1:1.75
- * - Hạng B (Solid Midcap): Top 150 + WinProb >= 51%: TP 1:1.5
- * - Hạng C (Standard / Lowcap): Giữ mức cơ sở, TP 1:1.5
+ * Tính toán Target Loss & Tỷ lệ R:R Take Profit linh hoạt theo AI (Data-Driven Dynamic Risk & Adaptive R:R)
+ * Phân tầng dựa trên xác suất thắng WinProb (từ Bayesian Model) kết hợp Confluence Score và MarketCap Rank:
+ * - Hạng S (Super Sniper): WinProb >= 65% hoặc (Top 10 & WinProb >= 55%) hoặc (Top 50 & WinProb >= 60% & Score >= 6.5): TP 1:2.0
+ * - Hạng A (High Quality): WinProb >= 58% hoặc (Top 50 & WinProb >= 53%) hoặc (Top 150 & WinProb >= 55% & Score >= 6.0): TP 1:1.75
+ * - Hạng B (Solid Quality): WinProb >= 52% hoặc (Top 150 & WinProb >= 50%): TP 1:1.50
+ * - Hạng C (Standard): Còn lại: TP 1:1.35
  */
 function getDynamicRiskProfile(rank, winProb, score, baseLossUSD = 7.5) {
   let multiplier = 1.0;
-  let tpRatio = 1.5;
+  let tpRatio = 1.35;
   let grade = 'C (Standard)';
 
-  if (rank <= 10 || (rank <= 50 && score >= 6.5 && winProb >= 55.0)) {
-    multiplier = 1.0; // Cố định rủi ro 1.0x (~$7.5 USD), không phóng đại loss
-    tpRatio = 2.0;    // Tỷ lệ R:R 1:2.0 (Ăn đậm 2.0R = ~$15.0 USD)
+  const wp = typeof winProb === 'number' && !isNaN(winProb) ? winProb : 50.0;
+  const sc = typeof score === 'number' && !isNaN(score) ? score : 5.0;
+  const rk = typeof rank === 'number' && !isNaN(rank) ? rank : 999;
+
+  if (wp >= 65.0 || (rk <= 10 && wp >= 55.0) || (rk <= 50 && wp >= 60.0 && sc >= 6.5)) {
+    multiplier = 1.0;
+    tpRatio = 2.0;    // R:R 1:2.0
     grade = 'S (Super Sniper)';
-  } else if ((rank <= 50 && winProb >= 53.0) || (rank <= 150 && score >= 6.2 && winProb >= 54.0)) {
-    multiplier = 1.0; // Cố định rủi ro 1.0x (~$7.5 USD)
-    tpRatio = 1.75;   // Tỷ lệ R:R 1:1.75 (Ăn 1.75R = ~$13.1 USD)
+  } else if (wp >= 58.0 || (rk <= 50 && wp >= 53.0) || (rk <= 150 && wp >= 55.0 && sc >= 6.0)) {
+    multiplier = 1.0;
+    tpRatio = 1.75;   // R:R 1:1.75
     grade = 'A (High Quality)';
-  } else if (rank <= 150 && winProb >= 51.0) {
-    multiplier = 1.0; // Cố định rủi ro 1.0x (~$7.5 USD)
-    tpRatio = 1.5;     // Tỷ lệ R:R 1:1.5 (Ăn 1.5R = ~$11.25 USD)
-    grade = 'B (Solid Midcap)';
+  } else if (wp >= 52.0 || (rk <= 150 && wp >= 50.0)) {
+    multiplier = 1.0;
+    tpRatio = 1.5;    // R:R 1:1.5
+    grade = 'B (Solid Quality)';
   }
 
   return {
@@ -456,7 +461,7 @@ function getDynamicTargetLossUSD(rank, winProb, score, baseLossUSD = 5.0) {
  * @param {number} [tpRatio=1.5]
  * @param {number} [rank=null]
  */
-function calculateTierSLTP(symbol, side, entryPrice, h4Ref, tickSize, maxExchangeLeverage, targetLossUSD = 5.0, tpRatio = 1.5, rank = null) {
+function calculateTierSLTP(symbol, side, entryPrice, h4Ref, tickSize, maxExchangeLeverage, targetLossUSD = 5.0, tpRatio = 1.5, rank = null, gridWidthPct = null) {
   const coinRank = (typeof rank === 'number' && !isNaN(rank)) ? rank : (getMarketCapRank ? getMarketCapRank(symbol) : 999);
   const isLowcap = coinRank > 150;
   const minSlPct = isLowcap ? 1.8 : 1.0;
@@ -504,9 +509,22 @@ function calculateTierSLTP(symbol, side, entryPrice, h4Ref, tickSize, maxExchang
   // Margin cần nạp để nếu dính SL thì lỗ đúng targetLossUSD
   const actualMargin = targetLossUSD / (leverage * (slPct / 100));
 
+  // 🎯 TÍNH TOÁN TP NEO THEO BIÊN ĐỘ GRID (Grid-Relative TP)
+  // Khống chế trần TP không vượt quá 45% biên Grid (1.2% - 3.0%), tránh đòi hỏi giá phải chạy 90% lưới mới chốt lời
+  const effGridWidth = (typeof gridWidthPct === 'number' && gridWidthPct > 0)
+    ? gridWidthPct
+    : (((step * 10) / entryPrice) * 100);
   const actualTpRatio = tpRatio || 1.5;
-  const tpPrice = (side === 'LONG' || side === 'BUY') ? (entryPrice + slDist * actualTpRatio) : (entryPrice - slDist * actualTpRatio);
-  const beTriggerPrice = (side === 'LONG' || side === 'BUY') ? (entryPrice + slDist * 0.50) : (entryPrice - slDist * 0.50);
+  const rawTpDist = slDist * actualTpRatio;
+  const tpGridLimit = entryPrice * (Math.min(Math.max(effGridWidth * 0.45, 1.2), 3.0) / 100.0);
+  const finalTpDist = Math.min(rawTpDist, tpGridLimit);
+
+  const tpPrice = (side === 'LONG' || side === 'BUY') ? (entryPrice + finalTpDist) : (entryPrice - finalTpDist);
+
+  // 🛡️ DỜI SL VỀ HÒA VỐN SỚM (Trailing Breakeven Trigger)
+  // Kích hoạt ngay khi giá nảy được +0.6% (hoặc 35% khoảng cách SL), triệt tiêu rủi ro bị quay đầu ăn SL 1.8%
+  const beDist = Math.min(slDist * 0.35, entryPrice * 0.006);
+  const beTriggerPrice = (side === 'LONG' || side === 'BUY') ? (entryPrice + beDist) : (entryPrice - beDist);
 
   return {
     valid: true,
@@ -520,7 +538,8 @@ function calculateTierSLTP(symbol, side, entryPrice, h4Ref, tickSize, maxExchang
     leverage: leverage,
     margin: actualMargin,
     targetLossUSD: targetLossUSD,
-    tpRatio: actualTpRatio
+    tpRatio: actualTpRatio,
+    gridWidthPct: effGridWidth
   };
 }
 
@@ -1178,7 +1197,16 @@ async function startAutoTrade(coins) {
 
       if (isBounceCooldown(sym, sig.targetLevel)) {
         if (isNewSignalLog) {
-          log.system(`[AutoTrade] 🛑 ${sym} ${sig.signal} @ $${sig.targetLevel} vừa bị Bounce Cancel (đang trong Cooldown 60p) — bỏ qua khuyến nghị`);
+          log.system(`[AutoTrade] 🛑 ${sym} ${sig.signal} @ $${sig.targetLevel} vừa bị Bounce Cancel (đang trong Cooldown 20p) — bỏ qua khuyến nghị`);
+        }
+        return;
+      }
+
+      // ── SL COOLDOWN GUARD: Tránh tái vào lệnh liên tục sau khi dính SL ──
+      if (isSymbolInCooldown(sym)) {
+        const remH = getRemainingCooldownHours(sym);
+        if (_shouldLogSignal(sym, sig.signal, sig.targetLevel, 'cooldown_active', 30 * 60 * 1000)) {
+          log.system(`[AutoTrade] ⏸️ ${sym} đang trong thời gian SL Cooldown (${remH}h còn lại) — bỏ qua tín hiệu`);
         }
         return;
       }
@@ -1199,11 +1227,12 @@ async function startAutoTrade(coins) {
         return;
       }
 
-      // Ngưỡng nảy xa trước khi đặt lệnh (Pre-entry bounce): Cố định 40 ticks (0.40 * unit)
+      // Ngưỡng nảy xa trước khi đặt lệnh (Pre-entry bounce): Thích ứng theo 25% độ rộng Grid (min 0.60%, max 1.50%)
       const entryPrice = sig.targetLevel;
       const stepVal = sig.step || getStep(entryPrice);
       const unit = stepVal / 3;
-      const preEntryBouncePct = (unit * 0.40 / entryPrice) * 100; // Cố định 40 ticks (0.40 * unit)
+      const effGridPct = (sig.gridWidthPct && sig.gridWidthPct > 0) ? sig.gridWidthPct : ((stepVal / entryPrice) * 100);
+      const preEntryBouncePct = Math.min(Math.max(effGridPct * 0.25, 0.60), 1.50);
       const touchThresholdPct = 0.12;
       let maxRecentBouncePct = null;
 
@@ -1417,7 +1446,7 @@ async function startAutoTrade(coins) {
       const tpRatio = riskProfile.tpRatio;
       const maxAllowed = leverageInfo[sym] ?? leverage;
 
-      const tierSetup = calculateTierSLTP(sym, sig.signal, sig.targetLevel, h4Ref, tickSize, maxAllowed, targetLossUSD, tpRatio, rank);
+      const tierSetup = calculateTierSLTP(sym, sig.signal, sig.targetLevel, h4Ref, tickSize, maxAllowed, targetLossUSD, tpRatio, rank, sig.gridWidthPct);
       if (!tierSetup.valid) {
         log.system(`[AutoTrade] ⏭️ ${sym} (${sig.signal}) bỏ qua: ${tierSetup.reason}`);
         return;
@@ -1681,8 +1710,9 @@ async function checkPendingLimits(client, activeSymbols) {
       const entry = meta.entryPrice;
       const stepVal = meta.step || getStep(entry);
       const unit = stepVal / 3;
-      const bounceDistance = unit * 0.40; // Cố định 40 ticks (0.40 * unit) nảy khỏi entry là hủy LIMIT ngay
-      const bouncePct = (bounceDistance / entry) * 100;
+      // Ngưỡng nảy xa hủy lệnh LIMIT: Đồng bộ theo 25% độ rộng Grid (min 0.60%, max 1.50%)
+      const effGridPct = (meta.gridWidthPct && meta.gridWidthPct > 0) ? meta.gridWidthPct : ((stepVal / entry) * 100);
+      const bouncePct = Math.min(Math.max(effGridPct * 0.25, 0.60), 1.50);
 
       if (meta.side === 'BUY') {
         // ── LONG: giá tốt khi đi LÊN khỏi entry ──────────────────────────────
@@ -1717,7 +1747,7 @@ async function checkPendingLimits(client, activeSymbols) {
           try {
             await client.cancelOrder(sym, meta.orderId);
             overrideLevelLastSide(sym, 'lower'); // Khóa mốc LONG cho đến khi giá chạm mốc trên
-            bounceCancelledLevels.set(`${sym}_${entry}`, Date.now() + 60 * 60_000);
+            bounceCancelledLevels.set(`${sym}_${entry}`, Date.now() + 20 * 60_000);
             sendTelegram(
               `🔄 <b>[AutoTrade] Hủy LIMIT (Bounce Cancel)</b>\n` +
               `• Coin: <b>${sym} LONG</b>\n` +
@@ -1792,7 +1822,7 @@ async function checkPendingLimits(client, activeSymbols) {
           try {
             await client.cancelOrder(sym, meta.orderId);
             overrideLevelLastSide(sym, 'upper'); // Khóa mốc SHORT cho đến khi giá chạm mốc dưới
-            bounceCancelledLevels.set(`${sym}_${entry}`, Date.now() + 60 * 60_000);
+            bounceCancelledLevels.set(`${sym}_${entry}`, Date.now() + 20 * 60_000);
             sendTelegram(
               `🔄 <b>[AutoTrade] Hủy LIMIT (Bounce Cancel)</b>\n` +
               `• Coin: <b>${sym} SHORT</b>\n` +
@@ -2016,6 +2046,12 @@ async function checkH1RetestSignals(client, activeSymbols, leverageInfo = {}) {
         continue;
       }
 
+      // ── SL COOLDOWN GUARD CHO H1 RETEST ──
+      if (isSymbolInCooldown(sym)) {
+        delete lowScoreWatchlist[sym];
+        continue;
+      }
+
       // ── BTC FLASH & TURNOVER GUARD CHO H1 RETEST: Chuyển giao toàn quyền cho AI Reviewer ──
       const turnoverCheckRetest = checkTurnoverGuard(sym);
       const nowTimeRetest = Date.now();
@@ -2108,7 +2144,7 @@ async function checkH1RetestSignals(client, activeSymbols, leverageInfo = {}) {
       const tpRatioRetest = riskProfileRetest.tpRatio;
       const maxAllowedRetest = (leverageInfo && leverageInfo[sym]) ?? getLeverageCached(sym) ?? 20;
 
-      const tierSetupRetest = calculateTierSLTP(sym, signal, targetLevel, h4RefRetest, tickSizeRetest, maxAllowedRetest, targetLossUSDRetest, tpRatioRetest, rank);
+      const tierSetupRetest = calculateTierSLTP(sym, signal, targetLevel, h4RefRetest, tickSizeRetest, maxAllowedRetest, targetLossUSDRetest, tpRatioRetest, rank, watchData.gridWidthPct || gridStepPct);
       if (!tierSetupRetest.valid) {
         log.system(`[H1Retest] ⏭️ ${sym} (${signal}) bỏ qua: ${tierSetupRetest.reason}`);
         delete lowScoreWatchlist[sym];
@@ -2597,6 +2633,7 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
               isWin: false,
             });
           }
+          addSymbolToCooldown(sym, null, 'HARD_MAX_LOSS');
         } catch (e) {
           justClosedByBot.delete(sym);
           log.error(`[AutoTrade] [Hard Max Loss Guard] Lỗi đóng vị thế ${sym}: ${e.message}`);
@@ -2637,6 +2674,9 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
               holdingDurationMinutes: holdingDurationMinutes,
               isWin: roi >= 0,
             });
+          }
+          if (meta?.isPanicEscape) {
+            addSymbolToCooldown(sym, null, 'PANIC_ESCAPE');
           }
         } catch (e) {
           justClosedByBot.delete(sym);
@@ -2939,6 +2979,10 @@ async function notifyRealClose(client, sym, prevPos, meta) {
         holdingDurationMinutes: holdingDurationMinutes,
         isWin: hasTradeData && realizedProfit >= 0,
       });
+    }
+
+    if (exitType === 'SL') {
+      addSymbolToCooldown(sym, null, 'SL_NORMAL');
     }
 
     const pnlSign = realizedProfit >= 0 ? '+' : '';

@@ -39,9 +39,10 @@ loadCooldowns();
  */
 function isSymbolInCooldown(sym) {
   const cleanSym = sym.replace('USDT', '');
-  const expiry = _cooldownMap[cleanSym];
-  if (!expiry) return false;
+  const entry = _cooldownMap[cleanSym];
+  if (!entry) return false;
 
+  const expiry = typeof entry === 'object' ? entry.expiry : entry;
   const now = Date.now();
   if (now < expiry) {
     return true;
@@ -60,9 +61,10 @@ function isSymbolInCooldown(sym) {
  */
 function getRemainingCooldownHours(sym) {
   const cleanSym = sym.replace('USDT', '');
-  const expiry = _cooldownMap[cleanSym];
-  if (!expiry) return 0;
+  const entry = _cooldownMap[cleanSym];
+  if (!entry) return 0;
 
+  const expiry = typeof entry === 'object' ? entry.expiry : entry;
   const now = Date.now();
   if (now >= expiry) return 0;
 
@@ -70,18 +72,45 @@ function getRemainingCooldownHours(sym) {
 }
 
 /**
- * Thêm một coin vào danh sách Cooldown sau khi bị dính SL.
+ * Thêm một coin vào danh sách Cooldown sau khi bị dính SL / thoát lệnh.
+ * Thời gian cooldown được tính toán động (AI dynamic) dựa trên nguyên nhân và loại thoát lệnh:
+ * - 'BTC_DUMP' / 'MARKET_CRASH' / 'FLASH': 2.5h (sốc nến toàn thị trường, coin riêng lẻ chưa hẳn vỡ cản)
+ * - 'HARD_MAX_LOSS' / 'BREAK_SUPPORT' / 'TREND_BROKEN': 16.0h (vỡ cản mạnh/trend xả dài hạn, tránh bắt dao rơi liên tục)
+ * - 'PANIC' / 'EMERGENCY': 8.0h (thoát khẩn cấp)
+ * - 'SL_NORMAL' / default: 5.0h (đủ 1-2 chu kỳ M15/H1 tái tích luỹ thay vì 12h cứng)
+ * 
  * @param {string} sym 
- * @param {number} hours Số giờ cooldown (mặc định 12h)
+ * @param {number|null} hours Nếu truyền số cụ thể sẽ dùng số đó, nếu null/undefined sẽ tự tính theo reason
+ * @param {string} reason Nguyên nhân dính SL / exit
  */
-function addSymbolToCooldown(sym, hours = 12) {
+function addSymbolToCooldown(sym, hours = null, reason = 'SL_NORMAL') {
   const cleanSym = sym.replace('USDT', '');
-  const expiry = Date.now() + hours * 3600 * 1000;
-  _cooldownMap[cleanSym] = expiry;
+  
+  let effHours = hours;
+  if (!effHours || typeof effHours !== 'number' || isNaN(effHours) || effHours <= 0) {
+    const r = (reason || '').toUpperCase();
+    if (r.includes('BTC') || r.includes('MARKET') || r.includes('FLASH')) {
+      effHours = 2.5;
+    } else if (r.includes('HARD') || r.includes('MAX_LOSS') || r.includes('BREAK') || r.includes('TREND_BROKEN')) {
+      effHours = 16.0;
+    } else if (r.includes('PANIC') || r.includes('EMERGENCY')) {
+      effHours = 8.0;
+    } else {
+      effHours = 5.0; // SL bình thường do biến động ngắn hạn
+    }
+  }
+
+  const expiry = Date.now() + effHours * 3600 * 1000;
+  _cooldownMap[cleanSym] = {
+    expiry,
+    hours: effHours,
+    reason: reason || 'SL_NORMAL',
+    updatedAt: Date.now()
+  };
   saveCooldowns();
 
   const expiryTimeStr = new Date(expiry).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' });
-  log.system(`[CooldownManager] ⏸️ Kích hoạt Cooldown ${hours}h cho ${cleanSym} đến ${expiryTimeStr}.`);
+  log.system(`[CooldownManager] ⏸️ Kích hoạt Dynamic Cooldown ${effHours}h cho ${cleanSym} (Lý do: ${reason}) đến ${expiryTimeStr}.`);
 }
 
 /**

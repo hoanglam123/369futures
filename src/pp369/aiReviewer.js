@@ -302,7 +302,7 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
     'turnover_guard:TURNOVER_NORMAL': 1.00,
     'price_action:PA_0_LEVEL': 0.85,              // [LÕI AI] Rỗng cản S/R là rủi ro rất cao, phạt 15% (x0.85) thay vì chỉ trừ 5%
     'ls_flow:LS_DIVERGENCE': 0.80,                // [CÂN BẰNG] Phạt vừa phải 20% khi dòng tiền Cá voi và Retail phân kỳ ngược nhau
-    'risk_interaction:INTERACTION_TREND_FLOW_CONFLICT': 0.60, // Fallback nếu chưa có trong weights
+    'risk_interaction:INTERACTION_TREND_FLOW_CONFLICT': 1.00, // Tự động thích ứng hoàn toàn theo weights học được (fallback trung tính 1.00)
     'risk_interaction:INTERACTION_NO_SR_WEAK_SETUP': 0.65,      // Fallback nếu chưa có trong weights
     'risk_interaction:INTERACTION_DRY_VOL_COOLING_OI': 0.80,     // Fallback nếu chưa có trong weights
     'risk_interaction:INTERACTION_BALANCED': 1.00,
@@ -400,18 +400,21 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
     threshold += 1.0;
   }
 
-  // EV (Expected Value) Calculation
+  // ── 🎯 TÍNH TOÁN LỢI NHUẬN KỲ VỌNG (EXPECTED VALUE - EV) CHUẨN XÁC THEO TIER VÀ GRID ──
   const minEvRoiThreshold = optimalTh.minExpectedEvRoi ?? _modelConfig?.minExpectedEvRoi ?? 0.0;
 
-  // Estimate Target Profit (ROI %) and Stop Loss (ROI %)
-  const estSlRoi = 13.0 + (gridWidthPct > 8.0 ? (gridWidthPct - 8.0) * 0.5 : 0);
-  let estTpRoi = 11.7; // default 90 ticks (~11.7% ROI)
-  if (score >= 8.0) estTpRoi = 19.5; // 150 ticks (~19.5% ROI)
-  else if (score >= 7.0) estTpRoi = 15.6; // 120 ticks (~15.6% ROI)
+  // Với hệ thống Tier Leverage: calcLeverage = 50 / slPct -> Lỗ khi dính SL luôn chuẩn ~50.0% ROI
+  const estSlRoi = 50.0;
+
+  // TP neo theo tỷ lệ 45% độ rộng Grid (dao động 1.2% - 3.0%), quy đổi sang ROI % theo tỷ lệ đòn bẩy:
+  const isLowcap = rank > 150;
+  const effSlPct = isLowcap ? 1.8 : 1.0;
+  const tpGridPct = Math.min(Math.max(gridWidthPct * 0.45, 1.2), 3.0);
+  const estTpRoi = Math.max(15.0, Math.min(75.0, (tpGridPct / effSlPct) * 50.0));
 
   const winProbDec = winProb / 100.0;
   const evRoi = (winProbDec * estTpRoi) - ((1.0 - winProbDec) * estSlRoi);
-  const tradeMargin = parseFloat(sig.margin) || 30;
+  const tradeMargin = parseFloat(sig.margin) || 75;
   const evUsd = (evRoi / 100.0) * tradeMargin;
 
   // ── AI LÀ NGƯỜI RA QUYẾT ĐỊNH 100% ──

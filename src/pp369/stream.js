@@ -265,9 +265,9 @@ function getNearbySymbols(symbols, levelCache, threshold = 0.015, strict = false
     // Chưa có level -> include để tính mốc
     if (!levels?.longEntry || !levels?.shortEntry) return true;
 
-    // Kiểm tra khoảng cách lưới tại mức giá hiện tại (phải đạt 3-20%)
+    // Kiểm tra khoảng cách lưới tại mức giá hiện tại theo sàn vật lý 1.5% - 30% (AI thẩm định chi tiết)
     const currentGridPct = ((levels.shortEntry - levels.longEntry) / levels.longEntry) * 100;
-    if (currentGridPct < 3 || currentGridPct > 20) return false;
+    if (currentGridPct < 1.5 || currentGridPct > 30) return false;
 
     // Adaptive threshold: Giữ ngưỡng lắng nghe ở mức tối thiểu 1.5% giá hoặc 50% bước giá step cho WebSocket
     // Với strict = true (dùng cho scan polling), dùng chính xác threshold truyền vào (ví dụ 0.3%)
