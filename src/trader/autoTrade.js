@@ -1257,16 +1257,15 @@ async function startAutoTrade(coins) {
             }
           }
 
+          maxRecentBouncePct = maxBouncePct;
           if (maxBouncePct >= preEntryBouncePct) {
             if (_shouldLogSignal(sym, sig.signal, sig.targetLevel, 'stale_canceled')) {
               log.system(
-                `[AutoTrade] ${sym} LONG: Từ khi chạm mốc Short ($${sig.condLevel}), nến M1 đã xát mốc entry LONG ($${bestTouchLow.toFixed(6)}) ` +
-                `rồi nảy lên đỉnh $${bestPeakHigh.toFixed(6)} (+${maxBouncePct.toFixed(2)}% >= ${preEntryBouncePct.toFixed(2)}% Khung/5) — HỦY LIMIT stale.`
+                `[AutoTrade] ⚠️ ${sym} LONG: Từ khi chạm mốc Short ($${sig.condLevel}), nến M1 đã xát mốc entry LONG ($${bestTouchLow.toFixed(6)}) ` +
+                `rồi nảy lên đỉnh $${bestPeakHigh.toFixed(6)} (+${maxBouncePct.toFixed(2)}% >= ${preEntryBouncePct.toFixed(2)}% Khung/5) — Chuyển giao AI Reviewer thẩm định rủi ro.`
               );
             }
-            return;
           }
-          maxRecentBouncePct = maxBouncePct;
         } else if (sig.signal === 'SHORT') {
           let startIdx = 0;
           for (let i = recentM1.length - 1; i >= 0; i--) {
@@ -1301,32 +1300,45 @@ async function startAutoTrade(coins) {
             }
           }
 
+          maxRecentBouncePct = maxDropPct;
           if (maxDropPct >= preEntryBouncePct) {
             if (_shouldLogSignal(sym, sig.signal, sig.targetLevel, 'stale_canceled')) {
               log.system(
-                `[AutoTrade] ${sym} SHORT: Từ khi chạm mốc Long ($${sig.condLevel}), nến M1 đã xát mốc entry SHORT ($${bestTouchHigh.toFixed(6)}) ` +
-                `rồi nảy xuống đáy $${bestTroughLow.toFixed(6)} (-${maxDropPct.toFixed(2)}% >= ${preEntryBouncePct.toFixed(2)}% Khung/5) — HỦY LIMIT stale.`
+                `[AutoTrade] ⚠️ ${sym} SHORT: Từ khi chạm mốc Long ($${sig.condLevel}), nến M1 đã xát mốc entry SHORT ($${bestTouchHigh.toFixed(6)}) ` +
+                `rồi nảy xuống đáy $${bestTroughLow.toFixed(6)} (-${maxDropPct.toFixed(2)}% >= ${preEntryBouncePct.toFixed(2)}% Khung/5) — Chuyển giao AI Reviewer thẩm định rủi ro.`
               );
             }
-            return;
           }
-          maxRecentBouncePct = maxDropPct;
         }
       } else {
         if (sig.signal === 'LONG') {
           const bouncedAwayPct = ((markPrice - sig.targetLevel) / sig.targetLevel) * 100;
+          maxRecentBouncePct = Math.max(0, bouncedAwayPct);
           if (bouncedAwayPct >= preEntryBouncePct) {
             if (_shouldLogSignal(sym, sig.signal, sig.targetLevel, 'stale_canceled_fallback')) {
-              log.system(`[AutoTrade] ${sym} LONG đã nảy xa mốc entry ($${sig.targetLevel} → $${markPrice.toFixed(6)} +${bouncedAwayPct.toFixed(2)}% >= ${preEntryBouncePct.toFixed(2)}%) — bỏ qua không đặt lệnh LIMIT stale.`);
+              log.system(`[AutoTrade] ⚠️ ${sym} LONG đã nảy xa mốc entry ($${sig.targetLevel} → $${markPrice.toFixed(6)} +${bouncedAwayPct.toFixed(2)}% >= ${preEntryBouncePct.toFixed(2)}%) — Chuyển giao AI Reviewer thẩm định rủi ro.`);
             }
-            return;
           }
         } else if (sig.signal === 'SHORT') {
           const bouncedAwayPct = ((sig.targetLevel - markPrice) / sig.targetLevel) * 100;
+          maxRecentBouncePct = Math.max(0, bouncedAwayPct);
           if (bouncedAwayPct >= preEntryBouncePct) {
-            log.system(`[AutoTrade] ${sym} SHORT đã nảy xa mốc entry ($${sig.targetLevel} → $${markPrice.toFixed(6)} -${bouncedAwayPct.toFixed(2)}% >= ${preEntryBouncePct.toFixed(2)}%) — bỏ qua không đặt lệnh LIMIT stale.`);
-            return;
+            log.system(`[AutoTrade] ⚠️ ${sym} SHORT đã nảy xa mốc entry ($${sig.targetLevel} → $${markPrice.toFixed(6)} -${bouncedAwayPct.toFixed(2)}% >= ${preEntryBouncePct.toFixed(2)}%) — Chuyển giao AI Reviewer thẩm định rủi ro.`);
           }
+        }
+      }
+
+      sig.maxRecentBouncePct = maxRecentBouncePct;
+      sig.preEntryBouncePct = preEntryBouncePct;
+
+      if (!sig.scoreReasons) sig.scoreReasons = [];
+      if (typeof maxRecentBouncePct === 'number') {
+        if (maxRecentBouncePct >= preEntryBouncePct) {
+          sig.scoreReasons.push(`[Độ nảy M1] Giá đã nảy xa mốc trước khi vào lệnh (${maxRecentBouncePct.toFixed(2)}% >= ${preEntryBouncePct.toFixed(2)}% Khung/5)`);
+        } else if (maxRecentBouncePct >= 0.50) {
+          sig.scoreReasons.push(`[Độ nảy M1] Giá chớm nảy (${maxRecentBouncePct.toFixed(2)}% < ${preEntryBouncePct.toFixed(2)}%)`);
+        } else {
+          sig.scoreReasons.push(`[Độ nảy M1] Mốc mới, chưa bị nảy xa (${maxRecentBouncePct.toFixed(2)}%)`);
         }
       }
 
@@ -1371,7 +1383,12 @@ async function startAutoTrade(coins) {
           btcFlashPump: btcFlashState.isShortLocked,
           btcFlashDump: btcFlashState.isLongLocked,
           turnoverBlocked: turnoverCheck.isBlocked,
-          symbol: sym
+          symbol: sym,
+          maxRecentBouncePct: sig.maxRecentBouncePct ?? null,
+          preEntryBouncePct: sig.preEntryBouncePct ?? null,
+          isPreEntryStale: (typeof sig.maxRecentBouncePct === 'number' && typeof sig.preEntryBouncePct === 'number')
+            ? sig.maxRecentBouncePct >= sig.preEntryBouncePct
+            : false,
         };
       } catch (err) {
         rawMarketData = {
@@ -1380,7 +1397,12 @@ async function startAutoTrade(coins) {
           btcFlashPump: btcFlashState.isShortLocked,
           btcFlashDump: btcFlashState.isLongLocked,
           turnoverBlocked: turnoverCheck.isBlocked,
-          symbol: sym
+          symbol: sym,
+          maxRecentBouncePct: sig.maxRecentBouncePct ?? null,
+          preEntryBouncePct: sig.preEntryBouncePct ?? null,
+          isPreEntryStale: (typeof sig.maxRecentBouncePct === 'number' && typeof sig.preEntryBouncePct === 'number')
+            ? sig.maxRecentBouncePct >= sig.preEntryBouncePct
+            : false,
         };
       }
 

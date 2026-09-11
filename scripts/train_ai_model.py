@@ -209,6 +209,18 @@ def extract_features(reasons, score, rank, grid_width_pct, timestamp_ms=None, di
     elif gw >= 2.5: features["grid_width"] = "GRID_NORMAL"
     else: features["grid_width"] = "GRID_NARROW"
 
+    # 12b. Pre-Entry Bounce (Độ nảy trước khi khớp lệnh)
+    bounce_val = None
+    if direct_record and isinstance(direct_record.get("maxRecentBouncePct"), (int, float)):
+        bounce_val = float(direct_record["maxRecentBouncePct"])
+
+    if "Giá đã nảy xa mốc" in reasons_str or (bounce_val is not None and bounce_val >= 1.0):
+        features["pre_entry_bounce"] = "BOUNCE_STALE_HIGH"
+    elif "Giá chớm nảy" in reasons_str or (bounce_val is not None and bounce_val >= 0.40):
+        features["pre_entry_bounce"] = "BOUNCE_MODERATE"
+    else:
+        features["pre_entry_bounce"] = "BOUNCE_FRESH"
+
     # 13. Trading Session & Time-of-Day
     if timestamp_ms:
         try:

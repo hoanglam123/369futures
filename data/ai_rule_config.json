@@ -1,6 +1,6 @@
 {
   "version": "1.4.0-auto",
-  "trainedAt": "2026-09-11 16:22:27",
+  "trainedAt": "2026-09-11 16:36:08",
   "totalSamples": 970,
   "priorWinProb": 0.5254,
   "priorOdds": 1.107,
@@ -9,14 +9,14 @@
     "lowcap": 65.0,
     "minExpectedEvRoi": 0.0,
     "autoCalibrated": true,
-    "calibratedAt": "2026-09-11 16:22:27",
+    "calibratedAt": "2026-09-11 16:36:08",
     "calibrationStats": {
       "testedSamples": 642,
-      "approvedTrades": 396,
+      "approvedTrades": 395,
       "expectedWins": 295,
-      "expectedLosses": 101,
-      "expectedWinRate": 74.5,
-      "expectedNetPnlUsd": 6967.28
+      "expectedLosses": 100,
+      "expectedWinRate": 74.7,
+      "expectedNetPnlUsd": 6990.23
     }
   },
   "thresholdApprovalPct": 65.0,
@@ -25,7 +25,7 @@
     "optimalTpGridRatio": 0.45,
     "recommendedBeTriggerPct": 0.6,
     "sampleCount": 642,
-    "calculatedAt": "2026-09-11 16:22:27"
+    "calculatedAt": "2026-09-11 16:36:08"
   },
   "featureWeights": {
     "score_group:SCORE_HIGH_GE7": {
@@ -179,6 +179,14 @@
       "multiplier": 1.0037,
       "knowledgeBoost": 1.0,
       "blendRatio": 0.95,
+      "sanityCapped": false,
+      "isAutonomous": true
+    },
+    "pre_entry_bounce:BOUNCE_MODERATE": {
+      "winCount": 52.0,
+      "lossCount": 42.0,
+      "winProb": 0.5494,
+      "multiplier": 1.1013,
       "sanityCapped": false,
       "isAutonomous": true
     },
@@ -341,6 +349,14 @@
       "lossCount": 174.0,
       "winProb": 0.3755,
       "multiplier": 0.5431,
+      "sanityCapped": false,
+      "isAutonomous": true
+    },
+    "pre_entry_bounce:BOUNCE_FRESH": {
+      "winCount": 625.0,
+      "lossCount": 571.0,
+      "winProb": 0.5226,
+      "multiplier": 0.9889,
       "sanityCapped": false,
       "isAutonomous": true
     },
@@ -705,6 +721,14 @@
       "multiplier": 0.6235,
       "knowledgeBoost": 0.6,
       "blendRatio": 0.46,
+      "sanityCapped": false,
+      "isAutonomous": true
+    },
+    "pre_entry_bounce:BOUNCE_STALE_HIGH": {
+      "winCount": 6.0,
+      "lossCount": 4.0,
+      "winProb": 0.5552,
+      "multiplier": 1.1277,
       "sanityCapped": false,
       "isAutonomous": true
     },

@@ -215,6 +215,23 @@ function extractSignalFeatures(reasons, score, rank, gridWidthPct, rawMarketData
   else if (gw >= 2.5) features['grid_width'] = 'GRID_NORMAL';
   else features['grid_width'] = 'GRID_NARROW';
 
+  // 12b. Pre-Entry Bounce (Độ nảy trước khi khớp lệnh)
+  let bouncePct = null;
+  if (typeof rawMarketData?.maxRecentBouncePct === 'number') {
+    bouncePct = rawMarketData.maxRecentBouncePct;
+  }
+  const preEntryThreshold = (typeof rawMarketData?.preEntryBouncePct === 'number')
+    ? rawMarketData.preEntryBouncePct
+    : 1.25;
+
+  if (reasonsStr.includes('Giá đã nảy xa mốc') || rawMarketData?.isPreEntryStale || (bouncePct !== null && bouncePct >= preEntryThreshold)) {
+    features['pre_entry_bounce'] = 'BOUNCE_STALE_HIGH';
+  } else if (reasonsStr.includes('Giá chớm nảy') || (bouncePct !== null && bouncePct >= 0.40)) {
+    features['pre_entry_bounce'] = 'BOUNCE_MODERATE';
+  } else {
+    features['pre_entry_bounce'] = 'BOUNCE_FRESH';
+  }
+
   // ── [MỚI] 13. Candlestick Geometry AI (Đo hình thái nến M15 & H1 so với Entry) ──
   let h1Geom = 'H1_HOLD_OR_HOVER';
   let m15Geom = 'M15_HOLD_OR_HOVER';
@@ -404,6 +421,9 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
     'candle_shape:CANDLE_MARUBOZU_DUMP': 0.45,
     'candle_shape:CANDLE_MARUBOZU_PUMP': 0.45,
     'candle_shape:CANDLE_NORMAL': 1.00,
+    'pre_entry_bounce:BOUNCE_STALE_HIGH': 1.13,  // Dữ liệu thực tế cho thấy N=10 lệnh stale vẫn có winRate 55.5% (x1.13)
+    'pre_entry_bounce:BOUNCE_MODERATE': 1.10,
+    'pre_entry_bounce:BOUNCE_FRESH': 0.99,
     'trend:TREND_M15_ALIGNED': 1.34,             // M15 cấu trúc hoàn chỉnh khi H1 sideway -> Thưởng +34%
     'adx_strength:ADX_STRONG_TREND': 0.82,       // ADX >= 25 trend mạnh dễ xuyên thủng lưới 369 -> Phạt -18%
     'adx_strength:ADX_WEAK_TREND': 1.29,         // ADX < 25 nén đẹp, dao động mốc chuẩn xác -> Thưởng +29%
@@ -441,7 +461,12 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
   const entryPrice = sig.targetLevel || sig.price || null;
   const sym = sig.symbol || sig.sym || '';
 
-  const mergedMarketData = { ...(rawMarketData || {}), symbol: sym };
+  const mergedMarketData = {
+    ...(rawMarketData || {}),
+    symbol: sym,
+    maxRecentBouncePct: rawMarketData?.maxRecentBouncePct ?? sig?.maxRecentBouncePct ?? null,
+    preEntryBouncePct: rawMarketData?.preEntryBouncePct ?? sig?.preEntryBouncePct ?? null,
+  };
   const features = extractSignalFeatures(reasons, score, rank, gridWidthPct, mergedMarketData, sig.signal, entryPrice, sig.timestamp);
 
   let combinedMultiplier = 1.0;
