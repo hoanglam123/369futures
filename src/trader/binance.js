@@ -137,13 +137,48 @@ async function _delete(path, params, apiKey, secret) {
 
 // ─── Exchange info (không cần auth) ──────────────────────────────────────────
 
-async function loadStepSizes() {
+let _stepSizesCache = {};
+let _tickSizesCache = {};
+
+function getSymbolTickSizeSync(symbol) {
+  const symUsdt = symbol.toUpperCase().endsWith('USDT') ? symbol.toUpperCase() : `${symbol.toUpperCase()}USDT`;
+  if (_tickSizesCache[symUsdt]) return _tickSizesCache[symUsdt];
+  try {
+    if (fs.existsSync(FILE_PATH)) {
+      const data = JSON.parse(fs.readFileSync(FILE_PATH, 'utf8'));
+      _stepSizesCache = data.stepSizes || {};
+      _tickSizesCache = data.tickSizes || {};
+      if (_tickSizesCache[symUsdt]) return _tickSizesCache[symUsdt];
+    }
+  } catch (_) {}
+  return null;
+}
+
+function getSymbolStepSizeSync(symbol) {
+  const symUsdt = symbol.toUpperCase().endsWith('USDT') ? symbol.toUpperCase() : `${symbol.toUpperCase()}USDT`;
+  if (_stepSizesCache[symUsdt]) return _stepSizesCache[symUsdt];
+  try {
+    if (fs.existsSync(FILE_PATH)) {
+      const data = JSON.parse(fs.readFileSync(FILE_PATH, 'utf8'));
+      _stepSizesCache = data.stepSizes || {};
+      _tickSizesCache = data.tickSizes || {};
+      if (_stepSizesCache[symUsdt]) return _stepSizesCache[symUsdt];
+    }
+  } catch (_) {}
+  return null;
+}
+
+async function loadStepSizes(forceRefresh = false) {
   if (isIpBanned()) return;
-  if (fs.existsSync(FILE_PATH)) {
+  if (!forceRefresh && fs.existsSync(FILE_PATH)) {
     try {
+      const stat = fs.statSync(FILE_PATH);
+      const isFresh = (Date.now() - stat.mtimeMs) < 12 * 3600 * 1000; // Tươi mới trong 12h
       const content = fs.readFileSync(FILE_PATH, 'utf8');
       const data = JSON.parse(content);
-      if (data.stepSizes && data.tickSizes) {
+      if (isFresh && data.stepSizes && data.tickSizes && Object.keys(data.stepSizes).length > 800) {
+        _stepSizesCache = data.stepSizes;
+        _tickSizesCache = data.tickSizes;
         log.system(`[Binance] Loaded step and tick sizes from existing file: ${Object.keys(data.stepSizes).length} symbols`);
         return;
       }
@@ -152,37 +187,41 @@ async function loadStepSizes() {
     }
   }
 
-  const res = await axios.get(`${BASE}/fapi/v1/exchangeInfo`, { timeout: 15000 });
-  const stepSizes = {};
-  const tickSizes = {};
-  for (const s of res.data.symbols) {
-    const lot = s.filters.find(f => f.filterType === 'LOT_SIZE');
-    if (lot) stepSizes[s.symbol] = parseFloat(lot.stepSize);
-
-    const priceFilter = s.filters.find(f => f.filterType === 'PRICE_FILTER');
-    if (priceFilter) tickSizes[s.symbol] = parseFloat(priceFilter.tickSize);
-  }
-  const dir = path.dirname(FILE_PATH);
-  if (!fs.existsSync(dir)) {
-    fs.mkdirSync(dir, { recursive: true });
-  }
-
-  let data = {};
   try {
-    if (fs.existsSync(FILE_PATH)) {
-      data = JSON.parse(fs.readFileSync(FILE_PATH, 'utf8'));
+    const res = await axios.get(`${BASE}/fapi/v1/exchangeInfo`, { timeout: 15000 });
+    const stepSizes = {};
+    const tickSizes = {};
+    for (const s of res.data.symbols) {
+      if (s.contractType !== 'PERPETUAL' && s.status !== 'TRADING') continue;
+      const lot = s.filters.find(f => f.filterType === 'LOT_SIZE');
+      if (lot) stepSizes[s.symbol] = parseFloat(lot.stepSize);
+
+      const priceFilter = s.filters.find(f => f.filterType === 'PRICE_FILTER');
+      if (priceFilter) tickSizes[s.symbol] = parseFloat(priceFilter.tickSize);
     }
-  } catch (_) { }
+    const dir = path.dirname(FILE_PATH);
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
 
-  // Nếu file cũ có dạng root level (chứa BTCUSDT trực tiếp), làm sạch để chuyển sang dạng mới
-  if (data.BTCUSDT) {
-    data = { h1Cache: data.h1Cache ?? {} };
+    let data = {};
+    try {
+      if (fs.existsSync(FILE_PATH)) {
+        data = JSON.parse(fs.readFileSync(FILE_PATH, 'utf8'));
+      }
+    } catch (_) { }
+
+    data.stepSizes = stepSizes;
+    data.tickSizes = tickSizes;
+    data.lastUpdated = Date.now();
+    data.lastUpdatedStr = new Date().toISOString();
+    fs.writeFileSync(FILE_PATH, JSON.stringify(data, null, 2), 'utf8');
+    _stepSizesCache = stepSizes;
+    _tickSizesCache = tickSizes;
+    log.system(`[Binance] Loaded and saved step/tick sizes to file: ${Object.keys(stepSizes).length} symbols`);
+  } catch (err) {
+    log.warn(`[Binance] Lỗi cập nhật exchangeInfo step/tick sizes: ${err.message}`);
   }
-
-  data.stepSizes = stepSizes;
-  data.tickSizes = tickSizes;
-  fs.writeFileSync(FILE_PATH, JSON.stringify(data, null, 2), 'utf8');
-  log.system(`[Binance] Loaded and saved step/tick sizes to file: ${Object.keys(stepSizes).length} symbols`);
 }
 
 // ─── Leverage brackets (cần auth) ────────────────────────────────────────────
@@ -246,23 +285,8 @@ async function loadLeverageBrackets(symbols, apiKey, secret) {
 
 // ─── Quantity helper ──────────────────────────────────────────────────────────
 
-let _stepSizesCache = null;
-
 function _getStepSizeCached(symbol) {
-  if (!_stepSizesCache) {
-    try {
-      if (fs.existsSync(FILE_PATH)) {
-        const content = fs.readFileSync(FILE_PATH, 'utf8');
-        const data = JSON.parse(content);
-        _stepSizesCache = data.stepSizes ?? {};
-      } else {
-        _stepSizesCache = {};
-      }
-    } catch (_) {
-      _stepSizesCache = {};
-    }
-  }
-  return _stepSizesCache[`${symbol}USDT`] ?? 0.001;
+  return getSymbolStepSizeSync(symbol) ?? 0.001;
 }
 
 function calcQuantity(symbol, notional, price) {
@@ -303,15 +327,7 @@ function createClient(apiKey, secret) {
      * @param {number} decimals - Số decimal của price trên Binance
      */
     placeLimit(symbol, side, qty, price, decimals) {
-      let tickSize = null;
-      try {
-        if (fs.existsSync(FILE_PATH)) {
-          const content = fs.readFileSync(FILE_PATH, 'utf8');
-          const data = JSON.parse(content);
-          const tickSizes = data.tickSizes ?? {};
-          tickSize = tickSizes[`${symbol}USDT`] ?? null;
-        }
-      } catch (_) { }
+      const tickSize = getSymbolTickSizeSync(symbol);
 
       let finalPriceStr;
       if (tickSize) {
@@ -350,15 +366,7 @@ function createClient(apiKey, secret) {
      * Đặt lệnh Stop Market (SL) hoặc Take Profit Market (TP) với closePosition=true.
      */
     placeStopOrder(symbol, side, type, stopPrice) {
-      let tickSize = null;
-      try {
-        if (fs.existsSync(FILE_PATH)) {
-          const content = fs.readFileSync(FILE_PATH, 'utf8');
-          const data = JSON.parse(content);
-          const tickSizes = data.tickSizes ?? {};
-          tickSize = tickSizes[`${symbol}USDT`] ?? null;
-        }
-      } catch (_) { }
+      const tickSize = getSymbolTickSizeSync(symbol);
 
       let finalStopPriceStr;
       if (tickSize) {
@@ -459,4 +467,12 @@ function createClient(apiKey, secret) {
   };
 }
 
-module.exports = { createClient, loadStepSizes, loadLeverageBrackets, calcQuantity, syncTimeOffset };
+module.exports = {
+  createClient,
+  loadStepSizes,
+  loadLeverageBrackets,
+  calcQuantity,
+  syncTimeOffset,
+  getSymbolTickSizeSync,
+  getSymbolStepSizeSync,
+};

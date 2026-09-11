@@ -12,7 +12,7 @@
 
 const path = require('path');
 const fs = require('fs');
-const { createClient, loadStepSizes, loadLeverageBrackets, calcQuantity } = require('./binance');
+const { createClient, loadStepSizes, loadLeverageBrackets, calcQuantity, getSymbolTickSizeSync } = require('./binance');
 const { isIpBanned } = require('./circuitBreaker');
 const {
   get369Signal,
@@ -137,21 +137,8 @@ try {
   log.warn(`[AutoTrade] Lỗi đọc active_trades.json: ${err.message}`);
 }
 
-let tickSizesCache = null;
 function getTickSizeCached(sym) {
-  if (!tickSizesCache) {
-    try {
-      const filePath = path.join(process.cwd(), 'data', 'step_sizes.json');
-      if (fs.existsSync(filePath)) {
-        const content = fs.readFileSync(filePath, 'utf8');
-        const data = JSON.parse(content);
-        tickSizesCache = data.tickSizes ?? {};
-      }
-    } catch (_) {
-      tickSizesCache = {};
-    }
-  }
-  return tickSizesCache[`${sym}USDT`] ?? null;
+  return getSymbolTickSizeSync(sym);
 }
 
 function saveActiveTradesMetadata() {
