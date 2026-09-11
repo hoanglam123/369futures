@@ -408,9 +408,11 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
 
   // TP neo theo tỷ lệ 45% độ rộng Grid (dao động 1.2% - 3.0%), quy đổi sang ROI % theo tỷ lệ đòn bẩy:
   const isLowcap = rank > 150;
-  const effSlPct = isLowcap ? 1.8 : 1.0;
+  const defaultSlPct = isLowcap ? 1.8 : 1.0;
+  // Lấy khoảng cách SL thực tế từ mốc cản của tín hiệu nếu có, fallback về defaultSlPct:
+  const effSlPct = (typeof sig.actualSlPct === 'number' && sig.actualSlPct > 0) ? sig.actualSlPct : defaultSlPct;
   const tpGridPct = Math.min(Math.max(gridWidthPct * 0.45, 1.2), 3.0);
-  const estTpRoi = Math.max(15.0, Math.min(75.0, (tpGridPct / effSlPct) * 50.0));
+  const estTpRoi = Math.max(10.0, Math.min(100.0, (tpGridPct / effSlPct) * 50.0));
 
   const winProbDec = winProb / 100.0;
   const evRoi = (winProbDec * estTpRoi) - ((1.0 - winProbDec) * estSlRoi);
@@ -435,7 +437,8 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
       reasonText = `Xác suất thắng ${winProb.toFixed(1)}% < ${threshold}% [Rank #${rank}] (${factorSummary})`;
     } else if (evRoi < minEvRoiThreshold) {
       vetoCategory = 'EV_BELOW_THRESHOLD';
-      reasonText = `Xác suất thắng ${winProb.toFixed(1)}% >= ${threshold}%, nhưng Lợi Nhuận Kỳ Vọng (EV) chưa đạt (${evRoi.toFixed(2)}% ROI, $${evUsd.toFixed(2)}) (${factorSummary})`;
+      const rrNotice = (effSlPct > tpGridPct) ? ` [R:R bất lợi: Cản SL ${effSlPct.toFixed(2)}% > TP ${tpGridPct.toFixed(2)}%]` : '';
+      reasonText = `Xác suất thắng ${winProb.toFixed(1)}% >= ${threshold}%, nhưng Lợi Nhuận Kỳ Vọng (EV) âm/thấp (${evRoi.toFixed(2)}% ROI, $${evUsd.toFixed(2)})${rrNotice} (${factorSummary})`;
     } else {
       vetoCategory = 'AI_VETO';
       reasonText = `Phủ quyết bởi AI [Rank #${rank}] (${factorSummary})`;

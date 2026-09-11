@@ -494,13 +494,11 @@ function calculateTierSLTP(symbol, side, entryPrice, h4Ref, tickSize, maxExchang
   let slDist = Math.abs(entryPrice - rawSL);
   let slPct = (slDist / entryPrice) * 100;
 
-  // Phân tầng Min SL: Top 150 = 1.0%, Lowcap = 1.8% | Max SL = 3.5%
+  // Phân tầng Min SL: Top 150 = 1.0%, Lowcap = 1.8% (Không ép trần 3.5% cứng, để AI Reviewer thẩm định qua EV)
   if (slPct < minSlPct) {
     slPct = minSlPct;
     slDist = entryPrice * (minSlPct / 100.0);
     rawSL = (side === 'LONG' || side === 'BUY') ? (entryPrice - slDist) : (entryPrice + slDist);
-  } else if (slPct > 3.5) {
-    return { valid: false, reason: `SL theo Tier quá rộng (${slPct.toFixed(2)}% > 3.5%)` };
   }
 
   const calcLeverage = Math.max(1, Math.floor(50 / slPct)); // target ~50% ROI SL
@@ -1385,11 +1383,19 @@ async function startAutoTrade(coins) {
         };
       }
 
+      // ── Đo trước cấu trúc cản thực tế để nạp khoảng cách SL chuẩn vào AI Reviewer tính EV ──
+      const h4Ref = await fetchH4Reference(sym);
+      const tickSize = getTickSizeCached(sym) || (getDecimals(sig.targetLevel) === 5 ? 0.00001 : (getDecimals(sig.targetLevel) === 4 ? 0.0001 : 0.000001));
+      const maxAllowed = leverageInfo[sym] ?? leverage;
+      const baseTargetLossUSD = parseFloat(process.env.MAX_LOSS_PER_TRADE_USD || '5.0');
+      const prelimSetup = calculateTierSLTP(sym, sig.signal, sig.targetLevel, h4Ref, tickSize, maxAllowed, baseTargetLossUSD, 1.5, rank, sig.gridWidthPct);
+      sig.actualSlPct = prelimSetup.valid ? prelimSetup.slPct : null;
+
       const aiEval = evaluateSignalWithAI(sig, rawMarketData);
       recordAIEvaluation(sig, aiEval);
 
       // ── TIÊU CHÍ DUY NHẤT: Đánh giá Rủi ro Toàn diện từ Lõi AI (AI Reviewer Core) ──
-      // Toàn bộ các tiêu chí (Trend, S/R, Flow, Volume, BTC Flash, Turnover, M15 Spike) được AI tự học và ra quyết định
+      // Toàn bộ các tiêu chí (Trend, S/R, Flow, Volume, BTC Flash, Turnover, M15 Spike, EV R:R) được AI tự học và ra quyết định
       if (!aiEval.isApproved) {
         log.system(`[AutoTrade] 🛑 [AI Veto] ${sym} (${sig.signal}) bị phủ quyết: ${aiEval.reason} — Bỏ qua không đặt lệnh.`);
 
@@ -1438,13 +1444,9 @@ async function startAutoTrade(coins) {
       log.system(`[AI Reviewer] 🟢 Khuyên NÊN ĐẶT LỆNH ${sym} (${sig.signal}) - ${aiEval.reason}`);
 
       // ── LOGIC MỚI: TÍNH TOÁN STOPLOSS THEO TIER, TP ĐỘNG (1:1.5 -> 1:2.0), VÀ ĐÒN BẨY / MARGIN ĐỘNG ──
-      const h4Ref = await fetchH4Reference(sym);
-      const tickSize = getTickSizeCached(sym) || (getDecimals(sig.targetLevel) === 5 ? 0.00001 : (getDecimals(sig.targetLevel) === 4 ? 0.0001 : 0.000001));
-      const baseTargetLossUSD = parseFloat(process.env.MAX_LOSS_PER_TRADE_USD || '5.0');
       const riskProfile = getDynamicRiskProfile(rank, aiEval.winProbability, sig.score ?? 0, baseTargetLossUSD);
       const targetLossUSD = riskProfile.targetLossUSD;
       const tpRatio = riskProfile.tpRatio;
-      const maxAllowed = leverageInfo[sym] ?? leverage;
 
       const tierSetup = calculateTierSLTP(sym, sig.signal, sig.targetLevel, h4Ref, tickSize, maxAllowed, targetLossUSD, tpRatio, rank, sig.gridWidthPct);
       if (!tierSetup.valid) {
@@ -2114,6 +2116,14 @@ async function checkH1RetestSignals(client, activeSymbols, leverageInfo = {}) {
         };
       }
 
+      // ── Đo trước cấu trúc cản thực tế cho Retest H1 để nạp vào AI Reviewer ──
+      const h4RefRetest = await fetchH4Reference(sym);
+      const tickSizeRetest = getTickSizeCached(sym) || (getDecimals(targetLevel) === 5 ? 0.00001 : (getDecimals(targetLevel) === 4 ? 0.0001 : 0.000001));
+      const maxAllowedRetest = (leverageInfo && leverageInfo[sym]) ?? getLeverageCached(sym) ?? 20;
+      const baseLossRetest = parseFloat(process.env.MAX_LOSS_PER_TRADE_USD || '5.0');
+      const prelimRetest = calculateTierSLTP(sym, signal, targetLevel, h4RefRetest, tickSizeRetest, maxAllowedRetest, baseLossRetest, 1.5, rank, watchData.gridWidthPct || gridStepPct);
+      sigForAI.actualSlPct = prelimRetest.valid ? prelimRetest.slPct : null;
+
       const aiEval = evaluateSignalWithAI(sigForAI, rawMarketDataRetest);
       recordAIEvaluation(sigForAI, aiEval);
 
@@ -2136,13 +2146,9 @@ async function checkH1RetestSignals(client, activeSymbols, leverageInfo = {}) {
       log.system(`[AI Reviewer (Retest H1)] 🟢 Khuyên NÊN ĐẶT LỆNH ${sym} (${signal}) - ${aiEval.reason}`);
 
       // ── TÍNH TOÁN STOPLOSS THEO TIER, TP ĐỘNG (1:1.5 -> 1:2.0), VÀ ĐÒN BẨY / MARGIN ĐỘNG CHO RETEST H1 ──
-      const h4RefRetest = await fetchH4Reference(sym);
-      const tickSizeRetest = getTickSizeCached(sym) || (getDecimals(targetLevel) === 5 ? 0.00001 : (getDecimals(targetLevel) === 4 ? 0.0001 : 0.000001));
-      const baseLossRetest = parseFloat(process.env.MAX_LOSS_PER_TRADE_USD || '5.0');
       const riskProfileRetest = getDynamicRiskProfile(rank, aiEval.winProbability, watchData.score ?? 0, baseLossRetest);
       const targetLossUSDRetest = riskProfileRetest.targetLossUSD;
       const tpRatioRetest = riskProfileRetest.tpRatio;
-      const maxAllowedRetest = (leverageInfo && leverageInfo[sym]) ?? getLeverageCached(sym) ?? 20;
 
       const tierSetupRetest = calculateTierSLTP(sym, signal, targetLevel, h4RefRetest, tickSizeRetest, maxAllowedRetest, targetLossUSDRetest, tpRatioRetest, rank, watchData.gridWidthPct || gridStepPct);
       if (!tierSetupRetest.valid) {

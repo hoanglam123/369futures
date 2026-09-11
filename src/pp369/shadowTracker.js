@@ -109,8 +109,8 @@ function registerShadowTrade(sig, evalResult, options = {}) {
   const isLowcap = coinRank > 150;
   const minSlPct = isLowcap ? 1.8 : 1.0;
 
-  // 🛡️ SL an toàn chống quét râu (Neo theo 50% gridWidth hoặc mốc sàn minSlPct, tối đa 3.5%)
-  const slPct = Math.min(Math.max(gridWidthPct * 0.5, minSlPct), 3.5);
+  // 🛡️ SL an toàn chống quét râu (Neo theo 50% gridWidth hoặc mốc sàn minSlPct, không ép trần 3.5% tĩnh)
+  const slPct = Math.max(gridWidthPct * 0.5, minSlPct);
   // 🎯 TP chuẩn theo biên Grid (45% độ rộng grid, min 1.2%, max 3.0%) để chốt ngay đỉnh nhịp nảy
   const tpPct = Math.min(Math.max(gridWidthPct * 0.45, 1.2), 3.0);
 
