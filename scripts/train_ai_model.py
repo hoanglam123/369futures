@@ -109,9 +109,19 @@ def extract_features(reasons, score, rank, grid_width_pct, timestamp_ms=None, di
 
     # 3. Trend Alignment
     if "Dow & Trendline" in reasons_str: features["trend"] = "TREND_PERFECT"
+    elif "H1 Sideway nhưng M15 có cấu trúc" in reasons_str: features["trend"] = "TREND_M15_ALIGNED"
     elif "EMA20<EMA50" in reasons_str or "EMA20>EMA50" in reasons_str: features["trend"] = "TREND_EMA"
     elif "Ngược/Mâu thuẫn" in reasons_str: features["trend"] = "TREND_CONFLICT"
     else: features["trend"] = "TREND_NEUTRAL"
+
+    # 3b. ADX Momentum Strength
+    import re
+    adx_match = re.search(r"ADX=(\d+\.?\d*)", reasons_str)
+    if adx_match:
+        adx_val = float(adx_match.group(1))
+        features["adx_strength"] = "ADX_STRONG_TREND" if adx_val >= 25.0 else "ADX_WEAK_TREND"
+    else:
+        features["adx_strength"] = "ADX_NORMAL"
 
     # 4. H1 Volatility Compression
     if "H1 siêu nén" in reasons_str: features["h1_volatility"] = "H1_ULTRA_COMPRESSED"
@@ -148,6 +158,19 @@ def extract_features(reasons, score, rank, grid_width_pct, timestamp_ms=None, di
     elif "1 cản cũ" in reasons_str: features["price_action"] = "PA_1_LEVEL"
     else: features["price_action"] = "PA_0_LEVEL"
 
+    # 7b. Price Action S/R Quality (Phân cấp cản D1 bảo trợ vs H4 ngắn hạn vs Không cản)
+    d1_part = reasons_str.split("D1:")[1] if "D1:" in reasons_str else ""
+    has_d1 = bool(d1_part and "không cản" not in d1_part and "thiếu nến" not in d1_part)
+    h4_part = reasons_str.split("H4:")[1].split("|")[0] if "H4:" in reasons_str else ""
+    has_h4 = bool(h4_part and "chỉ có 0 cản" not in h4_part and "0 cản cũ" not in h4_part and "thiếu nến" not in h4_part)
+
+    if has_d1:
+        features["sr_quality"] = "SR_DAILY_D1_INCLUDED"
+    elif has_h4:
+        features["sr_quality"] = "SR_H4_ONLY"
+    else:
+        features["sr_quality"] = "SR_NONE"
+
     # 8. Open Interest (OI) Change
     if "Hạ nhiệt vị thế" in reasons_str or "giảm -" in reasons_str: features["oi_change"] = "OI_COOLING"
     elif "Tăng mạnh" in reasons_str or "bùng nổ" in reasons_str: features["oi_change"] = "OI_SURGE"
@@ -158,6 +181,12 @@ def extract_features(reasons, score, rank, grid_width_pct, timestamp_ms=None, di
     elif "Volume ổn định" in reasons_str: features["volume"] = "VOL_STABLE"
     else: features["volume"] = "VOL_DRY"
 
+    # 9b. H1 3-Candle Volume Burst (Bão Volume H1)
+    if "Đột biến Volume 3 H1" in reasons_str:
+        features["h1_volume_burst"] = "H1_VOL_BURST_DANGER"
+    else:
+        features["h1_volume_burst"] = "H1_VOL_BURST_NORMAL"
+
     # 10. Funding Rate
     if "Short Crowded" in reasons_str or "Long Crowded" in reasons_str: features["funding"] = "FUNDING_SQUEEZE"
     elif "Short đu bám" in reasons_str or "Long đu bám" in reasons_str or "Nóng" in reasons_str: features["funding"] = "FUNDING_DANGER"
@@ -167,6 +196,12 @@ def extract_features(reasons, score, rank, grid_width_pct, timestamp_ms=None, di
     if "BTC thuận Dow/EMA" in reasons_str: features["btc_wave"] = "BTC_ALIGNED"
     elif "BTC đi ngang/trung tính" in reasons_str: features["btc_wave"] = "BTC_NEUTRAL"
     else: features["btc_wave"] = "BTC_COUNTER"
+
+    # 11b. BTC M15 Extreme Volatility Storm (> 1.0%)
+    if "BTC bão giá" in reasons_str:
+        features["btc_storm"] = "BTC_STORM_VOLATILE"
+    else:
+        features["btc_storm"] = "BTC_STORM_NORMAL"
 
     # 12. Grid Width Pct
     gw = float(grid_width_pct) if grid_width_pct is not None else 3.5

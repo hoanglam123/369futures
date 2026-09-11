@@ -112,9 +112,19 @@ function extractSignalFeatures(reasons, score, rank, gridWidthPct, rawMarketData
 
   // 3. Trend
   if (reasonsStr.includes('Dow & Trendline')) features['trend'] = 'TREND_PERFECT';
+  else if (reasonsStr.includes('H1 Sideway nhưng M15 có cấu trúc')) features['trend'] = 'TREND_M15_ALIGNED';
   else if (reasonsStr.includes('EMA20<EMA50') || reasonsStr.includes('EMA20>EMA50')) features['trend'] = 'TREND_EMA';
   else if (reasonsStr.includes('Ngược/Mâu thuẫn')) features['trend'] = 'TREND_CONFLICT';
   else features['trend'] = 'TREND_NEUTRAL';
+
+  // 3b. ADX Momentum Strength
+  const adxMatch = reasonsStr.match(/ADX=(\d+\.?\d*)/);
+  if (adxMatch) {
+    const adxVal = parseFloat(adxMatch[1]);
+    features['adx_strength'] = adxVal >= 25.0 ? 'ADX_STRONG_TREND' : 'ADX_WEAK_TREND';
+  } else {
+    features['adx_strength'] = 'ADX_NORMAL';
+  }
 
   // 4. H1 Volatility Compression
   if (reasonsStr.includes('H1 siêu nén')) features['h1_volatility'] = 'H1_ULTRA_COMPRESSED';
@@ -151,6 +161,20 @@ function extractSignalFeatures(reasons, score, rank, gridWidthPct, rawMarketData
   else if (reasonsStr.includes('1 cản cũ')) features['price_action'] = 'PA_1_LEVEL';
   else features['price_action'] = 'PA_0_LEVEL';
 
+  // 7b. Price Action S/R Quality (Phân cấp cản D1 bảo trợ vs H4 ngắn hạn vs Không cản)
+  const d1Part = reasonsStr.includes('D1:') ? reasonsStr.split('D1:')[1] : '';
+  const hasD1 = Boolean(d1Part && !d1Part.includes('không cản') && !d1Part.includes('thiếu nến'));
+  const h4Part = reasonsStr.includes('H4:') ? reasonsStr.split('H4:')[1].split('|')[0] : '';
+  const hasH4 = Boolean(h4Part && !h4Part.includes('chỉ có 0 cản') && !h4Part.includes('0 cản cũ') && !h4Part.includes('thiếu nến'));
+
+  if (hasD1) {
+    features['sr_quality'] = 'SR_DAILY_D1_INCLUDED';
+  } else if (hasH4) {
+    features['sr_quality'] = 'SR_H4_ONLY';
+  } else {
+    features['sr_quality'] = 'SR_NONE';
+  }
+
   // 8. Open Interest (OI) Change
   if (reasonsStr.includes('Hạ nhiệt vị thế') || reasonsStr.includes('giảm -')) features['oi_change'] = 'OI_COOLING';
   else if (reasonsStr.includes('Tăng mạnh') || reasonsStr.includes('bùng nổ')) features['oi_change'] = 'OI_SURGE';
@@ -161,6 +185,13 @@ function extractSignalFeatures(reasons, score, rank, gridWidthPct, rawMarketData
   else if (reasonsStr.includes('Volume ổn định')) features['volume'] = 'VOL_STABLE';
   else features['volume'] = 'VOL_DRY';
 
+  // 9b. H1 3-Candle Volume Burst (Bão Volume H1)
+  if (reasonsStr.includes('Đột biến Volume 3 H1')) {
+    features['h1_volume_burst'] = 'H1_VOL_BURST_DANGER';
+  } else {
+    features['h1_volume_burst'] = 'H1_VOL_BURST_NORMAL';
+  }
+
   // 10. Funding Rate
   if (reasonsStr.includes('Short Crowded') || reasonsStr.includes('Long Crowded')) features['funding'] = 'FUNDING_SQUEEZE';
   else if (reasonsStr.includes('Short đu bám') || reasonsStr.includes('Long đu bám') || reasonsStr.includes('Nóng')) features['funding'] = 'FUNDING_DANGER';
@@ -170,6 +201,13 @@ function extractSignalFeatures(reasons, score, rank, gridWidthPct, rawMarketData
   if (reasonsStr.includes('BTC thuận Dow/EMA')) features['btc_wave'] = 'BTC_ALIGNED';
   else if (reasonsStr.includes('BTC đi ngang/trung tính')) features['btc_wave'] = 'BTC_NEUTRAL';
   else features['btc_wave'] = 'BTC_COUNTER';
+
+  // 11b. BTC M15 Extreme Volatility Storm (> 1.0%)
+  if (reasonsStr.includes('BTC bão giá') || rawMarketData?.btcM15Pct > 1.0) {
+    features['btc_storm'] = 'BTC_STORM_VOLATILE';
+  } else {
+    features['btc_storm'] = 'BTC_STORM_NORMAL';
+  }
 
   // 12. Grid Width Pct
   const gw = parseFloat(gridWidthPct) || 3.5;
@@ -257,17 +295,6 @@ function extractSignalFeatures(reasons, score, rank, gridWidthPct, rawMarketData
       } else {
         features['candle_shape'] = 'CANDLE_NORMAL';
       }
-    }
-  }
-
-  // ── [MỚI] 14. Touch Count / Level Freshness ──
-  if (typeof rawMarketData?.touchCount === 'number') {
-    if (rawMarketData.touchCount <= 1) {
-      features['level_freshness'] = 'FRESH_LEVEL_TOUCH1';
-    } else if (rawMarketData.touchCount === 2) {
-      features['level_freshness'] = 'RETEST_LEVEL_TOUCH2';
-    } else {
-      features['level_freshness'] = 'EXHAUSTED_LEVEL_TOUCH3';
     }
   }
 
@@ -377,9 +404,17 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
     'candle_shape:CANDLE_MARUBOZU_DUMP': 0.45,
     'candle_shape:CANDLE_MARUBOZU_PUMP': 0.45,
     'candle_shape:CANDLE_NORMAL': 1.00,
-    'level_freshness:FRESH_LEVEL_TOUCH1': 1.12,
-    'level_freshness:RETEST_LEVEL_TOUCH2': 0.95,
-    'level_freshness:EXHAUSTED_LEVEL_TOUCH3': 0.70,
+    'trend:TREND_M15_ALIGNED': 1.34,             // M15 cấu trúc hoàn chỉnh khi H1 sideway -> Thưởng +34%
+    'adx_strength:ADX_STRONG_TREND': 0.82,       // ADX >= 25 trend mạnh dễ xuyên thủng lưới 369 -> Phạt -18%
+    'adx_strength:ADX_WEAK_TREND': 1.29,         // ADX < 25 nén đẹp, dao động mốc chuẩn xác -> Thưởng +29%
+    'adx_strength:ADX_NORMAL': 1.00,
+    'sr_quality:SR_DAILY_D1_INCLUDED': 1.01,     // Có cản Daily bảo trợ
+    'sr_quality:SR_H4_ONLY': 0.93,               // Chỉ có cản H4
+    'sr_quality:SR_NONE': 1.00,
+    'h1_volume_burst:H1_VOL_BURST_DANGER': 0.81, // Đột biến Volume 3 nến H1 -> Phạt -19%
+    'h1_volume_burst:H1_VOL_BURST_NORMAL': 1.05,
+    'btc_storm:BTC_STORM_VOLATILE': 0.43,        // BTC bão M15 > 1% -> Phạt -57%
+    'btc_storm:BTC_STORM_NORMAL': 1.03,
     'btc_flash:BTC_FLASH_PUMP_ACTIVE': 0.35,     // Phạt nặng bão BTC Flash Pump khi đánh SHORT -> Veto ngay
     'btc_flash:BTC_FLASH_DUMP_ACTIVE': 0.35,     // Phạt nặng bão BTC Flash Dump khi đánh LONG -> Veto ngay
     'btc_flash:BTC_FLASH_NORMAL': 1.00,

@@ -98,22 +98,32 @@ test('Candlestick Geometry: Marubozu Dump Triggers Strong AI Veto Penalty', () =
   assert(dumpEval.reason.includes('CANDLE_MARUBOZU_DUMP'), 'Should flag CANDLE_MARUBOZU_DUMP');
 });
 
-// Test 4: Touch Count / Level Freshness
-test('Level Freshness: Fresh level (touch 1) gives boost, exhausted level (touch 3) penalizes', () => {
-  const sig = {
+// Test 4: Autonomous Features — BTC Storm Penalty and M15 Sideway Boost
+test('Autonomous Features: BTC Storm penalizes, M15 Sideway structure boosts Win Probability', () => {
+  const baseSig = {
     symbol: 'NEARUSDT',
     signal: 'SHORT',
     score: 6.5,
     marketCapRank: 25,
     gridWidthPct: 3.5,
-    scoreReasons: ['EMA20>EMA50', 'H1 nén vừa', '2 cản cũ']
+    scoreReasons: ['EMA20>EMA50', 'H1 nén vừa', '2 cản cũ', 'BTC đi ngang/trung tính (ADX=18.0)']
   };
-  const freshEval = evaluateSignalWithAI(sig, { touchCount: 1 });
-  const exhaustedEval = evaluateSignalWithAI(sig, { touchCount: 3 });
+  const baseEval = evaluateSignalWithAI(baseSig);
 
-  assert(freshEval.winProbability > exhaustedEval.winProbability, `Fresh touch (${freshEval.winProbability}) must be higher than exhausted touch (${exhaustedEval.winProbability})`);
-  assert(freshEval.reason.includes('FRESH_LEVEL_TOUCH1'), 'Should flag FRESH_LEVEL_TOUCH1');
-  assert(exhaustedEval.reason.includes('EXHAUSTED_LEVEL_TOUCH3'), 'Should flag EXHAUSTED_LEVEL_TOUCH3');
+  const stormSig = {
+    ...baseSig,
+    scoreReasons: ['EMA20>EMA50', 'H1 nén vừa', '2 cản cũ', 'BTC bão giá: M15 biến động 1.2% > 1.0%']
+  };
+  const stormEval = evaluateSignalWithAI(stormSig);
+
+  const m15AlignedSig = {
+    ...baseSig,
+    scoreReasons: ['H1 Sideway nhưng M15 có cấu trúc SHORT hoàn chỉnh (LH + LL M15)', 'H1 nén vừa', '2 cản cũ']
+  };
+  const m15AlignedEval = evaluateSignalWithAI(m15AlignedSig);
+
+  assert(stormEval.winProbability < baseEval.winProbability, `Storm WinProb (${stormEval.winProbability}) must be lower than base (${baseEval.winProbability})`);
+  assert(m15AlignedEval.winProbability > baseEval.winProbability, `M15 Aligned WinProb (${m15AlignedEval.winProbability}) must be higher than base (${baseEval.winProbability})`);
 });
 
 console.log('=' .repeat(80));
