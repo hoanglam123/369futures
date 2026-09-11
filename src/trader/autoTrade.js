@@ -1367,7 +1367,7 @@ async function startAutoTrade(coins) {
           step: sig.step,
           m15VolRatio,
           m15RangePct,
-          touchCount: 1,
+          touchCount: (typeof sig.touchCount === 'number' ? sig.touchCount + 1 : 1),
           btcFlashPump: btcFlashState.isShortLocked,
           btcFlashDump: btcFlashState.isLongLocked,
           turnoverBlocked: turnoverCheck.isBlocked,

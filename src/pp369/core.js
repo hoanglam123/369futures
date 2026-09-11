@@ -1763,6 +1763,7 @@ async function score369Method(sig369, direction) {
   let isM15Volatile = false;
   let isStagnant = false;
   let isH1VolSurge = false;
+  let m15Klines = [];
   const reasons = [];
 
   try {
@@ -1803,6 +1804,7 @@ async function score369Method(sig369, direction) {
     } catch (err) {
       log.warn(`[Confluence Scorer] Không thể lấy klines M15 cho ${sig369.symbol}: ${err.message}`);
     }
+    m15Klines = m15Data;
 
     let isM15HigherLow = false;
     let isM15HigherHigh = false;
@@ -1991,7 +1993,9 @@ async function score369Method(sig369, direction) {
       }
 
       // 2.2 Kiểm tra biến động & Khối lượng M15 (Tối đa 0.5đ) - Check cả Range % VÀ Đột biến Volume M15
-      let m15Klines = m15Data;
+      if (!m15Klines || m15Klines.length === 0) {
+        m15Klines = m15Data;
+      }
       try {
         if (!m15Klines || m15Klines.length < 22) {
           m15Klines = await fetchBinanceKlines(sig369.symbol, '15m', Date.now() - 6 * 3600_000, 22);
