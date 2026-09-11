@@ -12,6 +12,7 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATASET_PATH = os.path.join(BASE_DIR, "data", "ai_trade_dataset.jsonl")
 SKIPPED_PATH = os.path.join(BASE_DIR, "data", "skipped_signals.jsonl")
 MINED_PATH = os.path.join(BASE_DIR, "data", "ai_mined_dataset.jsonl")
+SHADOW_PATH = os.path.join(BASE_DIR, "data", "shadow_trades_history.jsonl")
 STEP_SIZES_PATH = os.path.join(BASE_DIR, "data", "step_sizes.json")
 OUTPUT_MODEL_PATH = os.path.join(BASE_DIR, "data", "ai_rule_config.json")
 
@@ -112,10 +113,22 @@ def extract_features(reasons, score, rank, grid_width_pct, timestamp_ms=None):
     elif "Ngược/Mâu thuẫn" in reasons_str: features["trend"] = "TREND_CONFLICT"
     else: features["trend"] = "TREND_NEUTRAL"
 
-    # 4. Volatility Compression
-    if "H1 siêu nén" in reasons_str: features["volatility"] = "VOL_ULTRA"
-    elif "H1 nén vừa" in reasons_str: features["volatility"] = "VOL_MID"
-    else: features["volatility"] = "VOL_WEAK"
+    # 4. H1 Volatility Compression
+    if "H1 siêu nén" in reasons_str: features["h1_volatility"] = "H1_ULTRA_COMPRESSED"
+    elif "H1 nén vừa" in reasons_str: features["h1_volatility"] = "H1_MID_COMPRESSED"
+    elif "H1 biến động mạnh" in reasons_str: features["h1_volatility"] = "H1_VOLATILE_DANGER"
+    else: features["h1_volatility"] = "H1_VOL_NORMAL"
+
+    # 4b. M15 Volatility Compression & Volume Surge
+    if "M15 siêu nén" in reasons_str: features["m15_volatility"] = "M15_ULTRA_COMPRESSED"
+    elif "M15 nén vừa" in reasons_str: features["m15_volatility"] = "M15_MID_COMPRESSED"
+    elif "M15 đột biến Volume" in reasons_str: features["m15_volatility"] = "M15_VOLUME_SURGE"
+    elif "M15 biến động mạnh" in reasons_str: features["m15_volatility"] = "M15_VOLATILE_DANGER"
+    else: features["m15_volatility"] = "M15_VOL_NORMAL"
+
+    # 4c. H1 Stagnant Liquidity Trap
+    if "Nén bế tắc H1" in reasons_str: features["h1_stagnant"] = "H1_STAGNANT_TRAP"
+    else: features["h1_stagnant"] = "H1_NOT_STAGNANT"
 
     # 5. RSI Condition
     if "Quá bán cực đại" in reasons_str or "Quá mua cực đại" in reasons_str: features["rsi"] = "RSI_EXTREME"
@@ -181,9 +194,9 @@ def extract_features(reasons, score, rank, grid_width_pct, timestamp_ms=None):
             else:
                 features["trading_session"] = "SESSION_US_LATE"
         except Exception:
-            features["trading_session"] = "SESSION_ASIA"
+            features["trading_session"] = "SESSION_UNKNOWN"
     else:
-        features["trading_session"] = "SESSION_ASIA"
+        features["trading_session"] = "SESSION_UNKNOWN"
 
     # 14. Phân loại vốn hóa Lowcap vs Majors đã được đảm nhiệm toàn diện bởi:
     # - Đặc trưng rank_group (RANK_LOWCAP_OUT150 vs RANK_TOP10/30/MIDCAP)
@@ -196,8 +209,14 @@ def extract_features(reasons, score, rank, grid_width_pct, timestamp_ms=None):
     is_no_sr = features.get("price_action") == "PA_0_LEVEL"
     is_dry_vol = features.get("volume") == "VOL_DRY"
     is_cooling_oi = features.get("oi_change") == "OI_COOLING"
+    is_vol_danger = (
+        features.get("h1_volatility") == "H1_VOLATILE_DANGER" or
+        features.get("m15_volatility") in ["M15_VOLATILE_DANGER", "M15_VOLUME_SURGE"]
+    )
 
-    if is_trend_conflict and is_ls_div:
+    if is_vol_danger and (is_trend_conflict or is_no_sr or is_ls_div):
+        features["risk_interaction"] = "INTERACTION_HIGH_VOLATILITY_WEAK_SETUP"
+    elif is_trend_conflict and is_ls_div:
         features["risk_interaction"] = "INTERACTION_TREND_FLOW_CONFLICT"
     elif is_no_sr and (is_trend_conflict or is_ls_div or features.get("trend") == "TREND_NEUTRAL"):
         features["risk_interaction"] = "INTERACTION_NO_SR_WEAK_SETUP"
@@ -228,7 +247,8 @@ def train_and_export_model():
 
     dataset = []
 
-    # 1. Load real trades từ ai_trade_dataset.jsonl
+    # 1. Load real trades từ ai_trade_dataset.jsonl (Trọng số 2.0 vì là lệnh thực tế nạp rút tiền)
+    real_count = 0
     if os.path.exists(DATASET_PATH):
         entries = {}
         with open(DATASET_PATH, 'r', encoding='utf-8') as f:
@@ -248,7 +268,6 @@ def train_and_export_model():
                     if exit_type in ["TP", "SL", "TRAILING_SL", "HARD_MAX_LOSS", "BE_EXIT"] and tid in entries:
                         entry = entries[tid]
                         is_win = rec.get("isWin", False)
-                        # Gán trọng số Win credit: Thắng = 1.0, Hòa vốn = 0.50 (Push - không thắng không thua), Thua = 0.0
                         if is_win:
                             win_credit = 1.0
                         elif exit_type == "BE_EXIT":
@@ -258,6 +277,7 @@ def train_and_export_model():
 
                         dataset.append({
                             "win_credit": win_credit,
+                            "weight": 2.0,
                             "features": extract_features(
                                 entry.get("scoreReasons", []),
                                 entry.get("score", 0),
@@ -266,9 +286,39 @@ def train_and_export_model():
                                 entry.get("timestamp")
                             )
                         })
+                        real_count += 1
+        print(f"💰 Đã nạp {real_count} mẫu từ tài khoản thực tế (ai_trade_dataset.jsonl, Trọng số 2.0x)")
 
-    # 2. Load mined dataset từ ai_mined_dataset.jsonl (Bao gồm cả 1,418 lệnh BREAKEVEN)
-    if os.path.exists(MINED_PATH):
+    # 2. Load shadow trades từ shadow_trades_history.jsonl (Trọng số 1.0, theo dõi khớp lệnh thật sàn Binance)
+    shadow_count = 0
+    if os.path.exists(SHADOW_PATH):
+        with open(SHADOW_PATH, 'r', encoding='utf-8') as f:
+            for l in f:
+                if not l.strip(): continue
+                try:
+                    rec = json.loads(l.strip())
+                    outcome = rec.get("outcome")
+                    if outcome in ["MISSED_TP", "SAVED_SL", "TP", "SL"]:
+                        win_credit = 1.0 if outcome in ["MISSED_TP", "TP"] else 0.0
+                        dataset.append({
+                            "win_credit": win_credit,
+                            "weight": 1.0,
+                            "features": extract_features(
+                                rec.get("scoreReasons", []),
+                                rec.get("score", 0),
+                                rec.get("marketCapRank", 999),
+                                rec.get("gridWidthPct", 3.5),
+                                rec.get("entryTimestamp")
+                            )
+                        })
+                        shadow_count += 1
+                except Exception:
+                    continue
+        print(f"👻 Đã nạp {shadow_count} mẫu từ shadow trading sàn Binance (shadow_trades_history.jsonl, Trọng số 1.0x)")
+
+    # 3. Load mined dataset từ ai_mined_dataset.jsonl (Chỉ dùng làm dữ liệu mồi nếu chưa đủ 200 mẫu lệnh thật)
+    real_sample_count = len(dataset)
+    if real_sample_count < 200 and os.path.exists(MINED_PATH):
         mined_count = 0
         mined_tp = 0
         mined_be = 0
@@ -280,13 +330,12 @@ def train_and_export_model():
                 try:
                     rec = json.loads(l_str)
                     outcome = rec.get("outcome")
-                    # Huấn luyện trên toàn bộ các mẫu có kết quả: TP (Thắng), BREAKEVEN (Hòa vốn), SL (Thua)
                     if outcome in ["TP", "BREAKEVEN", "SL"]:
                         if outcome == "TP":
                             win_credit = 1.0
                             mined_tp += 1
                         elif outcome == "BREAKEVEN":
-                            win_credit = 0.50  # Lệnh chạm trailing BE (+0.5R rồi hòa vốn) là kết quả Hòa (Push)
+                            win_credit = 0.50
                             mined_be += 1
                         else:
                             win_credit = 0.0
@@ -294,6 +343,7 @@ def train_and_export_model():
 
                         dataset.append({
                             "win_credit": win_credit,
+                            "weight": 0.20,
                             "features": extract_features(
                                 rec.get("scoreReasons", []),
                                 rec.get("score", 0),
@@ -305,27 +355,31 @@ def train_and_export_model():
                         mined_count += 1
                 except Exception:
                     continue
-        print(f"⛏️  Đã nạp {mined_count} mẫu từ tệp khai phá (ai_mined_dataset.jsonl): {mined_tp} TP, {mined_be} BE (Hòa vốn), {mined_sl} SL")
+        print(f"⛏️  Đã nạp {mined_count} mẫu bổ trợ từ tệp khai phá (ai_mined_dataset.jsonl): {mined_tp} TP, {mined_be} BE, {mined_sl} SL")
+    else:
+        print(f"🎯 Dữ liệu thực tế sàn Binance đã đạt {real_sample_count} mẫu (>= 200). Ưu tiên 100% dữ liệu thị trường thực tế (Real + Shadow Trades).")
 
     total_samples = len(dataset)
-    total_win_credit = sum(d["win_credit"] for d in dataset)
-    total_loss_credit = sum((1.0 - d["win_credit"]) for d in dataset)
-    prior_win = total_win_credit / total_samples if total_samples > 0 else 0.525
+    total_weight = sum(d["weight"] for d in dataset)
+    total_win_credit = sum(d["win_credit"] * d["weight"] for d in dataset)
+    total_loss_credit = sum((1.0 - d["win_credit"]) * d["weight"] for d in dataset)
+    prior_win = total_win_credit / total_weight if total_weight > 0 else 0.525
     prior_odds = prior_win / (1.0 - prior_win)
 
-    print(f"\n📊 Dữ liệu huấn luyện toàn diện: {total_samples} mẫu (Tổng điểm Win: {total_win_credit:.1f}, Loss: {total_loss_credit:.1f})")
+    print(f"\n📊 Dữ liệu huấn luyện toàn diện: {total_samples} mẫu (Tổng điểm Win có trọng số: {total_win_credit:.1f}, Loss: {total_loss_credit:.1f})")
     print(f"   • Tỷ lệ thắng cơ sở thực tế (Prior Win Probability): {prior_win * 100:.2f}%")
     print(f"   • Tỷ lệ cược cơ sở (Prior Odds): {prior_odds:.4f}\n")
 
     # Count feature occurrences with weighted win/loss credits
     feature_counts = defaultdict(lambda: {"win": 0.0, "loss": 0.0})
     for d in dataset:
-        w_cred = d["win_credit"]
-        l_cred = 1.0 - w_cred
+        w_cred = d["win_credit"] * d["weight"]
+        l_cred = (1.0 - d["win_credit"]) * d["weight"]
         for feat_category, feat_val in d["features"].items():
             key = f"{feat_category}:{feat_val}"
             feature_counts[key]["win"] += w_cred
             feature_counts[key]["loss"] += l_cred
+
 
     # Apply m-estimate smoothing (m = 15.0, p = prior_win) và tính Bayesian Odds Ratio
     M_SMOOTHING = 15.0
@@ -530,14 +584,14 @@ def calibrate_optimal_thresholds(base_dir, feature_weights=None, prior_odds=1.3,
             "savedLossUSD": t.get("savedLossUSD", 0) or abs(t.get("pnlUsd", 0))
         })
 
-    # Grid search across candidate thresholds
+    # Grid search across candidate thresholds (Bảo vệ vốn nghiêm ngặt, ngưỡng duyệt >= 50%)
     best_utility = -999999.0
-    best_th_top = 45.0
-    best_th_low = 47.0
+    best_th_top = 50.0
+    best_th_low = 60.0
     best_stats = {}
 
-    candidate_top = [42.0, 43.0, 44.0, 45.0, 46.0, 47.0, 48.0, 50.0]
-    candidate_low = [43.0, 44.0, 45.0, 46.0, 47.0, 48.0, 50.0, 52.0]
+    candidate_top = [50.0, 52.0, 54.0, 56.0, 58.0, 60.0]
+    candidate_low = [52.0, 54.0, 56.0, 58.0, 60.0, 62.0, 65.0]
 
     for th_top in candidate_top:
         for th_low in candidate_low:
@@ -564,8 +618,8 @@ def calibrate_optimal_thresholds(base_dir, feature_weights=None, prior_odds=1.3,
             total = n_win + n_loss
             wr = (n_win / total * 100.0) if total > 0 else 0.0
 
-            # Tiêu chuẩn an toàn: Tỷ lệ thắng >= 55.0% và Lợi nhuận kỳ vọng dương
-            if total >= 10 and wr >= 55.0 and pnl > 0:
+            # Tiêu chuẩn an toàn: Tỷ lệ thắng >= 60.0% và Lợi nhuận kỳ vọng dương
+            if total >= 10 and wr >= 60.0 and pnl > 0:
                 utility = pnl * (wr / 100.0)
                 if utility > best_utility:
                     best_utility = utility
@@ -586,7 +640,7 @@ def calibrate_optimal_thresholds(base_dir, feature_weights=None, prior_odds=1.3,
     if best_stats:
         print(f"   • Thống kê kỳ vọng:  {best_stats.get('expectedWins', 0)}W / {best_stats.get('expectedLosses', 0)}L (WinRate: {best_stats.get('expectedWinRate', 0)}%, Lãi ròng: +${best_stats.get('expectedNetPnlUsd', 0)} USD)")
     else:
-        print("   • Dữ liệu chưa đủ để tối ưu hóa utility, áp dụng ngưỡng an toàn mặc định (Top150: 45%, Lowcap: 47%)")
+        print("   • Dữ liệu chưa đủ để tối ưu hóa utility, áp dụng ngưỡng an toàn mặc định (Top150: 50%, Lowcap: 60%)")
 
     return {
         "top150": best_th_top,

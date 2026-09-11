@@ -84,7 +84,8 @@ function startAutoRetrainTimer() {
     runAutoRetrain();
   }
   // Đặt lịch chạy định kỳ mỗi 3 ngày
-  setInterval(runAutoRetrain, RETRAIN_INTERVAL_MS);
+  const timer = setInterval(runAutoRetrain, RETRAIN_INTERVAL_MS);
+  if (timer && timer.unref) timer.unref();
 }
 
 // Nạp mô hình và khởi chạy bộ đếm tự động re-train khi module được load
@@ -114,10 +115,22 @@ function extractSignalFeatures(reasons, score, rank, gridWidthPct, rawMarketData
   else if (reasonsStr.includes('Ngược/Mâu thuẫn')) features['trend'] = 'TREND_CONFLICT';
   else features['trend'] = 'TREND_NEUTRAL';
 
-  // 4. Volatility
-  if (reasonsStr.includes('H1 siêu nén')) features['volatility'] = 'VOL_ULTRA';
-  else if (reasonsStr.includes('H1 nén vừa')) features['volatility'] = 'VOL_MID';
-  else features['volatility'] = 'VOL_WEAK';
+  // 4. H1 Volatility Compression
+  if (reasonsStr.includes('H1 siêu nén')) features['h1_volatility'] = 'H1_ULTRA_COMPRESSED';
+  else if (reasonsStr.includes('H1 nén vừa')) features['h1_volatility'] = 'H1_MID_COMPRESSED';
+  else if (reasonsStr.includes('H1 biến động mạnh')) features['h1_volatility'] = 'H1_VOLATILE_DANGER';
+  else features['h1_volatility'] = 'H1_VOL_NORMAL';
+
+  // 4b. M15 Volatility Compression & Volume Surge
+  if (reasonsStr.includes('M15 siêu nén')) features['m15_volatility'] = 'M15_ULTRA_COMPRESSED';
+  else if (reasonsStr.includes('M15 nén vừa')) features['m15_volatility'] = 'M15_MID_COMPRESSED';
+  else if (reasonsStr.includes('M15 đột biến Volume')) features['m15_volatility'] = 'M15_VOLUME_SURGE';
+  else if (reasonsStr.includes('M15 biến động mạnh')) features['m15_volatility'] = 'M15_VOLATILE_DANGER';
+  else features['m15_volatility'] = 'M15_VOL_NORMAL';
+
+  // 4c. H1 Stagnant Liquidity Trap
+  if (reasonsStr.includes('Nén bế tắc H1')) features['h1_stagnant'] = 'H1_STAGNANT_TRAP';
+  else features['h1_stagnant'] = 'H1_NOT_STAGNANT';
 
   // 5. RSI
   if (reasonsStr.includes('Quá bán cực đại') || reasonsStr.includes('Quá mua cực đại')) features['rsi'] = 'RSI_EXTREME';
@@ -247,8 +260,13 @@ function extractSignalFeatures(reasons, score, rank, gridWidthPct, rawMarketData
   const isNoSR = features['price_action'] === 'PA_0_LEVEL';
   const isDryVol = features['volume'] === 'VOL_DRY';
   const isCoolingOi = features['oi_change'] === 'OI_COOLING';
+  const isVolDanger = features['h1_volatility'] === 'H1_VOLATILE_DANGER' ||
+    features['m15_volatility'] === 'M15_VOLATILE_DANGER' ||
+    features['m15_volatility'] === 'M15_VOLUME_SURGE';
 
-  if (isTrendConflict && isLsDiv) {
+  if (isVolDanger && (isTrendConflict || isNoSR || isLsDiv)) {
+    features['risk_interaction'] = 'INTERACTION_HIGH_VOLATILITY_WEAK_SETUP';
+  } else if (isTrendConflict && isLsDiv) {
     features['risk_interaction'] = 'INTERACTION_TREND_FLOW_CONFLICT';
   } else if (isNoSR && (isTrendConflict || isLsDiv || features['trend'] === 'TREND_NEUTRAL')) {
     features['risk_interaction'] = 'INTERACTION_NO_SR_WEAK_SETUP';
@@ -287,6 +305,10 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
   const dynamicModifiers = {
     'score_group:SCORE_DANGER_LT4': 0.50,         // Phạt trừ 50% WinProb cho Score < 4đ -> Veto ngay
     'score_group:SCORE_WEAK_4_TO_5': 0.85,
+    'h1_volatility:H1_VOLATILE_DANGER': 0.65,     // H1 biến động mạnh nguy cơ quét SL
+    'm15_volatility:M15_VOLATILE_DANGER': 0.60,   // M15 biến động mạnh rủi ro đâm thủng Tier
+    'm15_volatility:M15_VOLUME_SURGE': 0.55,      // Đột biến volume M15
+    'h1_stagnant:H1_STAGNANT_TRAP': 0.65,         // Nén bế tắc bẫy thanh khoản
     'candle_shape:CANDLE_PINBAR_HAMMER': 1.08,    // [HẠ NHIỆT] Giảm từ 1.25 (+25%) xuống 1.08 (+8%) để tránh râu nến M15 thổi phồng WinProb
     'candle_shape:CANDLE_PINBAR_SHOOTING': 1.08,  // [HẠ NHIỆT] Giảm từ 1.25 (+25%) xuống 1.08 (+8%) để tránh râu nến M15 thổi phồng WinProb
     'candle_shape:CANDLE_MARUBOZU_DUMP': 0.45,  // Phạt nặng nến đâm cản -> Tự động Veto
@@ -302,6 +324,7 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
     'turnover_guard:TURNOVER_NORMAL': 1.00,
     'price_action:PA_0_LEVEL': 0.85,              // [LÕI AI] Rỗng cản S/R là rủi ro rất cao, phạt 15% (x0.85) thay vì chỉ trừ 5%
     'ls_flow:LS_DIVERGENCE': 0.80,                // [CÂN BẰNG] Phạt vừa phải 20% khi dòng tiền Cá voi và Retail phân kỳ ngược nhau
+    'risk_interaction:INTERACTION_HIGH_VOLATILITY_WEAK_SETUP': 0.50, // Biến động mạnh kết hợp thế nến/cản yếu -> Veto
     'risk_interaction:INTERACTION_TREND_FLOW_CONFLICT': 1.00, // Tự động thích ứng hoàn toàn theo weights học được (fallback trung tính 1.00)
     'risk_interaction:INTERACTION_NO_SR_WEAK_SETUP': 0.65,      // Fallback nếu chưa có trong weights
     'risk_interaction:INTERACTION_DRY_VOL_COOLING_OI': 0.80,     // Fallback nếu chưa có trong weights
