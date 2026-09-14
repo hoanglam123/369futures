@@ -356,9 +356,12 @@ async function fetchBinanceKlines(symbol, interval, startTimeMs, limit = 1500) {
         triggerCircuitBreaker(err, '369');
         return [];
       }
+      if (status === 429) {
+        triggerCircuitBreaker(err, '369');
+        return [];
+      }
       const isNetworkErr = !err.response || err.code === 'ENOTFOUND' || err.code === 'ETIMEDOUT' || err.code === 'ECONNRESET' || err.code === 'ECONNREFUSED';
-      const isRateLimit = status === 429;
-      if ((isRateLimit || isNetworkErr) && attempt < 3) {
+      if (isNetworkErr && attempt < 3) {
         const delay = (attempt + 1) * 2000;
         await new Promise(r => setTimeout(r, delay));
         continue;
@@ -1470,7 +1473,7 @@ async function fetchAllFundingRates() {
       return map;
     }
   } catch (err) {
-    if (err.response?.status === 418 || err.response?.data?.code === -1003) {
+    if (err.response?.status === 418 || err.response?.data?.code === -1003 || err.response?.status === 429) {
       triggerCircuitBreaker(err, '369');
     }
   }

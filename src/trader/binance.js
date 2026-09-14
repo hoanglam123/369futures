@@ -79,6 +79,11 @@ async function _requestWithRetry(fn) {
         checkCircuitBreaker(); // Throw [IP_BAN_CIRCUIT_BREAKER] error immediately
       }
 
+      if (status === 429) {
+        triggerCircuitBreaker(err, 'Binance 429');
+        checkCircuitBreaker(); // Throw [RATE_LIMIT_THROTTLE] error immediately
+      }
+
       if (data && data.code === -1021) {
         log.system(`[Binance] Lỗi -1021 (Timestamp outside recvWindow). Đang tự động đồng bộ lại giờ và thử lại (Lần ${attempt + 1}/3)...`);
         await syncTimeOffset(true);
@@ -88,9 +93,7 @@ async function _requestWithRetry(fn) {
       }
 
       const isNetworkErr = !err.response || err.code === 'ENOTFOUND' || err.code === 'ETIMEDOUT' || err.code === 'ECONNRESET' || err.code === 'ECONNREFUSED' || err.code === 'EHOSTUNREACH';
-      const isRateLimit = status === 429;
-
-      if ((isRateLimit || isNetworkErr) && attempt < 2) {
+      if (isNetworkErr && attempt < 2) {
         await new Promise(r => setTimeout(r, (attempt + 1) * 2000));
         continue;
       }

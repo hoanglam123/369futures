@@ -1195,6 +1195,11 @@ async function startAutoTrade(coins) {
         rankTierLabel = `Lowcap (Rank #${rank})`;
       }
 
+      const gridStepPct = (sig.step / sig.targetLevel) * 100;
+      sig.marketCapRank = rank;
+      sig.gridWidthPct = gridStepPct;
+      sig.margin = tradeAmount;
+
       const score = sig.score ?? 0;
       if (isNewSignalLog) {
         log.system(
@@ -1466,11 +1471,6 @@ async function startAutoTrade(coins) {
         }
       }
 
-      const gridStepPct = (sig.step / sig.targetLevel) * 100;
-      sig.marketCapRank = rank;
-      sig.gridWidthPct = gridStepPct;
-      sig.margin = tradeAmount;
-
       // ── Tiêu chí 2: Đã gỡ bỏ bộ lọc chặn cứng MIN_CONFLUENCE_SCORE — Toàn quyền thẩm định trao cho AI Reviewer ──
 
       // ── Thu thập toàn bộ dữ liệu thị trường nạp vào Lõi AI Reviewer ──
@@ -1588,6 +1588,10 @@ async function startAutoTrade(coins) {
 
         // ── Thêm vào lowScoreWatchlist để chờ nến H1 Retest xác nhận rút râu/rút chân ──
         if (!lowScoreWatchlist[sym] || lowScoreWatchlist[sym].targetLevel !== sig.targetLevel) {
+          const keys = Object.keys(lowScoreWatchlist);
+          if (keys.length >= 40) {
+            delete lowScoreWatchlist[keys[0]];
+          }
           lowScoreWatchlist[sym] = {
             symbol: sym,
             signal: sig.signal,
@@ -2077,19 +2081,44 @@ async function checkH1RetestSignals(client, activeSymbols, leverageInfo = {}) {
   const currentH1Time = Math.floor(Date.now() / 3600000) * 3600000;
   if (currentH1Time === lastCheckedH1Time) return;
   lastCheckedH1Time = currentH1Time;
+  const nowMs = Date.now();
+  // Dọn dẹp các mã quá 12h
+  for (const sym of Object.keys(lowScoreWatchlist)) {
+    const d = lowScoreWatchlist[sym];
+    if (!d || nowMs - d.timestamp > 12 * 3600 * 1000) {
+      delete lowScoreWatchlist[sym];
+    }
+  }
 
-  const symbolsToWatch = Object.keys(lowScoreWatchlist);
-  if (symbolsToWatch.length === 0) return;
+  // Chỉ lọc các mã có giá hiện tại gần targetLevel (trong vòng 3.5%) và chưa có vị thế
+  const eligibleSymbols = Object.keys(lowScoreWatchlist).filter(sym => {
+    if (activeSymbols && activeSymbols.has(sym)) {
+      delete lowScoreWatchlist[sym];
+      return false;
+    }
+    const d = lowScoreWatchlist[sym];
+    if (!d) return false;
+    const mp = getMarkPrice(sym);
+    if (!mp || !d.targetLevel) return true;
+    const distPct = Math.abs(mp - d.targetLevel) / d.targetLevel;
+    return distPct <= 0.035; // Trong vòng 3.5%
+  });
+
+  if (eligibleSymbols.length === 0) return;
+
+  // Giới hạn kiểm tra tối đa 12 coin tiềm năng nhất mỗi nến H1 để triệt tiêu request burst
+  const symbolsToWatch = eligibleSymbols.slice(0, 12);
 
   const watchlistSummary = symbolsToWatch.map(s => {
     const d = lowScoreWatchlist[s];
     return `${s}(${d?.signal || '?'} @$${d?.targetLevel || '?'})`;
   }).join(', ');
-  log.system(`[H1Retest] === Kiểm tra ${symbolsToWatch.length} coin trong Watchlist: [${watchlistSummary}] ===`);
+  log.system(`[H1Retest] === Kiểm tra ${symbolsToWatch.length} coin tiềm năng trong Watchlist: [${watchlistSummary}] ===`);
 
   const prevH1Start = currentH1Time - 3600000;
 
   for (const sym of symbolsToWatch) {
+    if (isIpBanned()) break;
     const watchData = lowScoreWatchlist[sym];
     if (!watchData) continue;
 
@@ -2449,6 +2478,8 @@ async function checkH1RetestSignals(client, activeSymbols, leverageInfo = {}) {
     } catch (e) {
       log.error(`[H1Retest] Lỗi xử lý ${sym}: ${e.message}`);
     }
+    // Giãn cách 200ms giữa các symbol để tránh request burst
+    await new Promise(r => setTimeout(r, 200));
   }
 }
 
@@ -2511,14 +2542,28 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
     // Lấy các symbols của vị thế đang mở
     const openSymbols = positions.map(p => p.symbol.replace('USDT', ''));
 
-    // Lấy toàn bộ lệnh thường và lệnh algo 1 lần (không theo symbol) rồi lọc — tránh N×2 requests song song gây timeout
-    const [allOpenOrders, allAlgoOrdersRaw] = await Promise.all([
-      client.getOpenOrders(),
-      client.getOpenAlgoOrders()
-    ]);
-    const allAlgoOrders = Array.isArray(allAlgoOrdersRaw)
-      ? allAlgoOrdersRaw
-      : (allAlgoOrdersRaw?.orders ?? []);
+    // Lấy danh sách lệnh thường và lệnh algo:
+    // Khi số lượng vị thế ít (<= 5), gọi theo từng symbol để chỉ tốn 1 Weight/request thay vì 40 Weight!
+    let allOpenOrders = [];
+    let allAlgoOrders = [];
+
+    if (openSymbols.length <= 5) {
+      const ordersPromises = openSymbols.map(sym => client.getOpenOrders(sym).catch(() => []));
+      const algoPromises = openSymbols.map(sym => client.getOpenAlgoOrders(sym).catch(() => []));
+      const [ordersArr, algosArr] = await Promise.all([
+        Promise.all(ordersPromises),
+        Promise.all(algoPromises)
+      ]);
+      allOpenOrders = ordersArr.flat();
+      allAlgoOrders = algosArr.flatMap(a => Array.isArray(a) ? a : (a?.orders ?? []));
+    } else {
+      const [openOrdersRes, algoOrdersRes] = await Promise.all([
+        client.getOpenOrders().catch(() => []),
+        client.getOpenAlgoOrders().catch(() => [])
+      ]);
+      allOpenOrders = openOrdersRes || [];
+      allAlgoOrders = Array.isArray(algoOrdersRes) ? algoOrdersRes : (algoOrdersRes?.orders ?? []);
+    }
 
     const symbolOrdersResults = openSymbols.map((sym) => {
       const symUsdt = `${sym}USDT`;
