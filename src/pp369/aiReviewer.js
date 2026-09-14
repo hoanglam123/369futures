@@ -533,15 +533,15 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
   // ── [MỚI] TỰ ĐỘNG NẠP NGƯỠNG TỐI ƯU DO AI TỰ HỌC (AUTONOMOUS THRESHOLD CALIBRATION) ──
   // Ngưỡng hoàn toàn do AI tự động tối ưu hóa (Grid Search Utility & Net PnL) sau mỗi chu kỳ huấn luyện hàng ngày
   const optimalTh = _modelConfig?.optimalThresholds || {};
-  const baseTop150 = typeof optimalTh.top150 === 'number' ? optimalTh.top150 : 55.0;
-  const baseLowcap = typeof optimalTh.lowcap === 'number' ? optimalTh.lowcap : 75.0;
+  const baseTop150 = typeof optimalTh.top150 === 'number' ? optimalTh.top150 : 50.0;
+  const baseLowcap = typeof optimalTh.lowcap === 'number' ? optimalTh.lowcap : 60.0;
   let threshold = (rank <= 150) ? baseTop150 : baseLowcap;
 
   // 🌊 MARKET REGIME FLEXIBILITY (Co giãn theo nhịp thở thị trường)
   // Thuận sóng BTC: Tự tin nới nhẹ -0.5% để đón sóng
   // Ngược sóng BTC hoặc bão Flash: Tự động siết thêm +2.0% để bảo vệ vốn
   if (features['btc_wave'] === 'BTC_ALIGNED') {
-    threshold = Math.max(60.0, threshold - 0.5);
+    threshold = Math.max(45.0, threshold - 0.5);
   } else if (features['btc_wave'] === 'BTC_COUNTER' || features['btc_flash'] !== 'BTC_FLASH_NORMAL') {
     threshold += 2.0;
   }

@@ -637,7 +637,8 @@ def calibrate_optimal_thresholds(base_dir, feature_weights=None, prior_odds=1.3,
     # Tính toán lại WinProb của từng lệnh shadow dựa trên feature_weights mới
     recalculated_trades = []
     for t in trades:
-        p = t.get("winProbability", 0)
+        raw_p = t.get("winProbability")
+        p = float(raw_p) if raw_p is not None else 50.0
         if feature_weights and t.get("scoreReasons"):
             feats = extract_features(
                 t.get("scoreReasons", []),
@@ -668,9 +669,10 @@ def calibrate_optimal_thresholds(base_dir, feature_weights=None, prior_odds=1.3,
             p = (post_odds / (1.0 + post_odds)) * 100.0
             p = max(5.0, min(95.0, p))
 
+        p_final = float(p) if p is not None else 50.0
         recalculated_trades.append({
             "marketCapRank": t.get("marketCapRank", 999),
-            "winProb": p,
+            "winProb": p_final,
             "outcome": t.get("outcome"),
             "isMissedTP": t.get("outcome") == "MISSED_TP" or t.get("isMissedTP", False),
             "isSavedSL": t.get("outcome") == "SAVED_SL" or t.get("isSavedSL", False),
@@ -678,14 +680,14 @@ def calibrate_optimal_thresholds(base_dir, feature_weights=None, prior_odds=1.3,
             "savedLossUSD": t.get("savedLossUSD", 0) or abs(t.get("pnlUsd", 0))
         })
 
-    # Grid search across candidate thresholds (Bảo vệ vốn nghiêm ngặt, ngưỡng duyệt >= 55%)
+    # Grid search across candidate thresholds thực tế chuẩn xác theo Payoff Ratio R:R 1.5:1
     best_utility = -999999.0
-    best_th_top = 65.0
-    best_th_low = 70.0
+    best_th_top = 50.0
+    best_th_low = 58.0
     best_stats = {}
 
-    candidate_top = [55.0, 60.0, 65.0, 68.0, 70.0]
-    candidate_low = [60.0, 65.0, 68.0, 70.0, 72.0, 75.0]
+    candidate_top = [48.0, 50.0, 52.0, 55.0, 58.0]
+    candidate_low = [54.0, 56.0, 58.0, 60.0, 62.0, 65.0]
 
     for th_top in candidate_top:
         for th_low in candidate_low:
