@@ -3203,11 +3203,15 @@ async function notifyRealClose(client, sym, prevPos, meta) {
     let hasTradeData = false;
 
     try {
-      // Lấy 5 giao dịch cá nhân gần nhất của symbol này
-      const trades = await client.getUserTrades(sym, 5);
+      // Lấy 20 giao dịch cá nhân gần nhất của symbol này để đảm bảo không bị sót nếu có nhiều fill nhỏ
+      const trades = await client.getUserTrades(sym, 20);
       if (trades && trades.length > 0) {
         const oppositeSide = prevPos.isLong ? 'SELL' : 'BUY';
-        const closeTrades = trades.filter(t => t.side === oppositeSide);
+        // 🛡️ BẮT BUỘC lọc các giao dịch khớp SAU KHI vị thế được mở (meta.time - 10s buffer)
+        // để tránh nhặt nhầm giao dịch đóng vị thế cũ từ các ngày trước!
+        const minTradeTime = meta?.time ? (meta.time - 10000) : (Date.now() - 30 * 60 * 1000);
+        const closeTrades = trades.filter(t => t.side === oppositeSide && t.time >= minTradeTime);
+        
         if (closeTrades.length > 0) {
           closeTrades.sort((a, b) => b.time - a.time);
           const recentCloseTime = closeTrades[0].time;
@@ -3231,23 +3235,38 @@ async function notifyRealClose(client, sym, prevPos, meta) {
       log.warn(`[AutoTrade] Lỗi lấy userTrades cho ${sym}: ${tradeErr.message}`);
     }
 
-    // Phân loại lý do đóng
+    // Nếu không lấy được tradeData mới (hoặc API Binance trả trễ), fallback tính theo markPrice hiện tại
+    if (!hasTradeData) {
+      const currentMark = (typeof getMarkPrice === 'function' ? getMarkPrice(sym) : null) || prevPos.entryPrice;
+      closePrice = currentMark;
+      const priceDiff = prevPos.isLong ? (closePrice - prevPos.entryPrice) : (prevPos.entryPrice - closePrice);
+      roi = (priceDiff / (prevPos.entryPrice || 1)) * (prevPos.leverage || 1) * 100;
+      const marginUsed = meta?.margin || (Math.abs(prevPos.amt || 1) * prevPos.entryPrice / (prevPos.leverage || 1));
+      realizedProfit = (roi / 100) * marginUsed;
+      hasTradeData = true;
+    }
+
+    // Phân loại lý do đóng chính xác dựa vào cả PnL và mức giá chạm so với target TP/SL
     let label = '🛡️ Đóng vị thế (Sàn khớp)';
     let exitType = 'SL';
-    if (hasTradeData) {
-      if (realizedProfit <= -0.5) {
-        label = '🛡️ Stop Loss';
-        exitType = 'SL';
-      } else if (realizedProfit > 0.5 && roi >= 15) {
-        label = '🎯 Take Profit';
-        exitType = 'TP';
-      } else if (realizedProfit > 0.2) {
-        label = '🛡️ Trailing SL (Khóa lãi)';
-        exitType = 'TRAILING_SL';
-      } else {
-        label = '🛡️ Trailing SL (Hòa vốn)';
-        exitType = 'TRAILING_SL';
-      }
+    
+    // Kiểm tra xem giá đóng có khớp với TP mục tiêu không
+    const isTpTargetHit = meta?.tierTpPrice
+      ? (prevPos.isLong ? (closePrice >= meta.tierTpPrice - 1e-8) : (closePrice <= meta.tierTpPrice + 1e-8))
+      : false;
+
+    if (isTpTargetHit || (realizedProfit > 0.3 && roi >= 15)) {
+      label = '🎯 Take Profit';
+      exitType = 'TP';
+    } else if (realizedProfit > 0.2) {
+      label = '🛡️ Trailing SL (Khóa lãi)';
+      exitType = 'TRAILING_SL';
+    } else if (realizedProfit >= -0.2 && roi >= -2.0) {
+      label = '🛡️ Trailing SL (Hòa vốn)';
+      exitType = 'TRAILING_SL';
+    } else {
+      label = '🛡️ Stop Loss';
+      exitType = 'SL';
     }
 
     // ── Record trade exit for AI Dataset ──
