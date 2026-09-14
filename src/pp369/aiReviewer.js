@@ -531,19 +531,19 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
   winProb = Math.max(5.0, Math.min(95.0, winProb));
 
   // ── [MỚI] TỰ ĐỘNG NẠP NGƯỠNG TỐI ƯU DO AI TỰ HỌC (AUTONOMOUS THRESHOLD CALIBRATION) ──
-  // Ngưỡng không bao giờ cố định cứng (hardcoded) mà được mô hình AI tự tính toán tối ưu từ dữ liệu thực tế
+  // Ngưỡng hoàn toàn do AI tự động tối ưu hóa (Grid Search Utility & Net PnL) sau mỗi chu kỳ huấn luyện hàng ngày
   const optimalTh = _modelConfig?.optimalThresholds || {};
-  const baseTop150 = optimalTh.top150 ?? 46.0;
-  const baseLowcap = optimalTh.lowcap ?? 48.0;
+  const baseTop150 = typeof optimalTh.top150 === 'number' ? optimalTh.top150 : 55.0;
+  const baseLowcap = typeof optimalTh.lowcap === 'number' ? optimalTh.lowcap : 75.0;
   let threshold = (rank <= 150) ? baseTop150 : baseLowcap;
 
   // 🌊 MARKET REGIME FLEXIBILITY (Co giãn theo nhịp thở thị trường)
   // Thuận sóng BTC: Tự tin nới nhẹ -0.5% để đón sóng
-  // Ngược sóng BTC hoặc bão Flash: Tự động siết thêm +1.0% để bảo vệ vốn
+  // Ngược sóng BTC hoặc bão Flash: Tự động siết thêm +2.0% để bảo vệ vốn
   if (features['btc_wave'] === 'BTC_ALIGNED') {
-    threshold = Math.max(40.0, threshold - 0.5);
+    threshold = Math.max(60.0, threshold - 0.5);
   } else if (features['btc_wave'] === 'BTC_COUNTER' || features['btc_flash'] !== 'BTC_FLASH_NORMAL') {
-    threshold += 1.0;
+    threshold += 2.0;
   }
 
   // ── 🎯 TÍNH TOÁN LỢI NHUẬN KỲ VỌNG (EXPECTED VALUE - EV) CHUẨN XÁC THEO TIER VÀ GRID ──
@@ -565,17 +565,23 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
   const tradeMargin = parseFloat(sig.margin) || 75;
   const evUsd = (evRoi / 100.0) * tradeMargin;
 
+  // 🛡️ BẮT BUỘC R:R TỐI THIỂU 1.0:1 — Triệt tiêu các lệnh rủi ro cao bất cân xứng (R:R < 1.0)
+  const rrRatio = effSlPct > 0 ? (tpGridPct / effSlPct) : 1.0;
+  const isRrAcceptable = rrRatio >= 1.0;
+
   // ── AI LÀ NGƯỜI RA QUYẾT ĐỊNH 100% ──
-  // Quyết định duyệt hay phủ quyết hoàn toàn dựa trên Xác suất thắng dự đoán (WinProbability >= threshold)
-  // và Lợi Nhuận Kỳ Vọng (EV >= minEvRoiThreshold), được AI tổng hợp từ toàn bộ các tiêu chí thị trường.
-  const isApproved = winProb >= threshold && evRoi >= minEvRoiThreshold;
+  // Quyết định duyệt hay phủ quyết dựa trên WinProbability >= threshold, EV >= minEvRoiThreshold, và R:R >= 1.0:1
+  const isApproved = winProb >= threshold && evRoi >= minEvRoiThreshold && isRrAcceptable;
   const factorSummary = keyFactors.length > 0 ? keyFactors.join(', ') : 'Điều kiện trung tính';
 
   let vetoCategory = null;
   let reasonText = '';
 
   if (!isApproved) {
-    if (features['puncture_interaction'] && (features['puncture_interaction'] === 'INTERACTION_H1_M15_PUNCTURED' || features['puncture_interaction'].startsWith('INTERACTION_H1_'))) {
+    if (!isRrAcceptable) {
+      vetoCategory = 'BAD_RR_LESS_THAN_1';
+      reasonText = `[RỦI RO R:R < 1.0] Tỷ lệ R:R không đạt chuẩn (TP ${tpGridPct.toFixed(2)}% / SL ${effSlPct.toFixed(2)}% = ${rrRatio.toFixed(2)}:1 < 1.0:1) [Rank #${rank}] (${factorSummary})`;
+    } else if (features['puncture_interaction'] && (features['puncture_interaction'] === 'INTERACTION_H1_M15_PUNCTURED' || features['puncture_interaction'].startsWith('INTERACTION_H1_'))) {
       vetoCategory = features['puncture_interaction'];
       reasonText = `[ĐÁNH GIÁ RỦI RO AI: ${features['puncture_interaction']}] Nến đâm lụt qua Entry, xác suất thắng ${winProb.toFixed(1)}% < ${threshold}% [Rank #${rank}] (${factorSummary})`;
     } else if (features['risk_interaction'] && features['risk_interaction'].startsWith('INTERACTION_') && features['risk_interaction'] !== 'INTERACTION_BALANCED') {

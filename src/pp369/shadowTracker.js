@@ -103,19 +103,45 @@ function registerShadowTrade(sig, evalResult, options = {}) {
 
   // Calculate SL / TP distances
   const gridWidthPct = parseFloat(sig.gridWidthPct || options.gridWidthPct || 4.0);
-  const leverage = parseInt(sig.leverage || options.leverage || 10, 10);
-  const margin = parseFloat(sig.margin || options.margin || 75.0);
   const coinRank = parseInt(sig.marketCapRank || options.marketCapRank || 999, 10);
   const isLowcap = coinRank > 150;
   const minSlPct = isLowcap ? 1.8 : 1.0;
 
-  // 🛡️ SL an toàn chống quét râu (Neo theo 50% gridWidth hoặc mốc sàn minSlPct, không ép trần 3.5% tĩnh)
-  const slPct = Math.max(gridWidthPct * 0.5, minSlPct);
-  // 🎯 TP chuẩn theo biên Grid (45% độ rộng grid, min 1.2%, max 3.0%) để chốt ngay đỉnh nhịp nảy
-  const tpPct = Math.min(Math.max(gridWidthPct * 0.45, 1.2), 3.0);
+  // 🛡️ ĐÒN BẨY & MARGIN ĐỘNG: Phản ánh trung thực lệnh thật trên Binance (20x-50x, margin tính theo targetLossUSD)
+  const leverage = parseInt(options.leverage || sig.leverage || (isLowcap ? 20 : 35), 10);
+  const margin = parseFloat(options.margin || sig.margin || 25.0);
 
-  const tierSlPrice = options.tierSlPrice || (isLong ? entryPrice * (1 - slPct / 100) : entryPrice * (1 + slPct / 100));
-  const tierTpPrice = options.tierTpPrice || (isLong ? entryPrice * (1 + tpPct / 100) : entryPrice * (1 - tpPct / 100));
+  // 🛡️ SL CHUẨN TIER: Ưu tiên tierSlPrice chuẩn từ calculateTierSLTP của Binance
+  let tierSlPrice = options.tierSlPrice || options.slPrice || null;
+  let slPct = options.slPct;
+  if (!tierSlPrice) {
+    slPct = Math.max(gridWidthPct * 0.5, minSlPct);
+    tierSlPrice = isLong ? entryPrice * (1 - slPct / 100) : entryPrice * (1 + slPct / 100);
+  } else if (!slPct) {
+    slPct = Math.abs((tierSlPrice - entryPrice) / entryPrice) * 100;
+  }
+
+  // 🎯 TP CHUẨN TIER: Ưu tiên tierTpPrice chuẩn từ calculateTierSLTP của Binance
+  let tierTpPrice = options.tierTpPrice || options.tpPrice || null;
+  let tpPct = options.tpPct;
+  if (!tierTpPrice) {
+    tpPct = Math.min(Math.max(gridWidthPct * 0.45, 1.2), 3.0);
+    tierTpPrice = isLong ? entryPrice * (1 + tpPct / 100) : entryPrice * (1 - tpPct / 100);
+  } else if (!tpPct) {
+    tpPct = Math.abs((tierTpPrice - entryPrice) / entryPrice) * 100;
+  }
+
+  // 🛡️ BREAKEVEN TRIGGER: Mức giá kích hoạt kéo SL về Hòa vốn (tương ứng ROI >= +20%)
+  let beTriggerPrice = options.beTriggerPrice || null;
+  if (!beTriggerPrice) {
+    const beDeltaPct = 20.0 / leverage; // ví dụ 50x -> 0.4%, 25x -> 0.8%
+    beTriggerPrice = isLong ? entryPrice * (1 + beDeltaPct / 100) : entryPrice * (1 - beDeltaPct / 100);
+  }
+
+  // 🛡️ MỨC GIÁ THỊ TRƯỜNG HIỆN TẠI VÀ TRẠNG THÁI KHỚP LỆNH LIMIT
+  const currentMark = parseFloat(options.markPrice || entryPrice);
+  // Nếu giá hiện tại đã chạm hoặc xuyên qua mốc entry thì tính là khớp ngay, ngược lại đặt cờ PENDING_LIMIT
+  const isImmediatelyFilled = isLong ? (currentMark <= entryPrice) : (currentMark >= entryPrice);
 
   const shadowId = `SHADOW-${sym}-${Date.now()}`;
   const hypotheticalLossUSD = (margin * (slPct / 100) * leverage);
@@ -127,7 +153,13 @@ function registerShadowTrade(sig, evalResult, options = {}) {
     signal: side,
     entryPrice,
     tierSlPrice,
+    originalSlPrice: tierSlPrice,
     tierTpPrice,
+    beTriggerPrice,
+    isBeTriggered: false,
+    isFilled: isImmediatelyFilled,
+    fillTimestamp: isImmediatelyFilled ? Date.now() : null,
+    targetLossUSD: options.targetLossUSD || (margin * (slPct / 100) * leverage),
     slPct,
     tpPct,
     gridWidthPct,
@@ -147,13 +179,14 @@ function registerShadowTrade(sig, evalResult, options = {}) {
     maxAdversePrice: entryPrice,
     maxFavorableRoi: 0,
     maxAdverseRoi: 0,
-    status: 'ACTIVE'
+    status: isImmediatelyFilled ? 'ACTIVE' : 'PENDING_LIMIT'
   };
 
   activeShadowPositions[shadowId] = shadowTrade;
   saveActiveShadowPositions();
 
-  _logger.system(`[Shadow PnL] 👁️ Bắt đầu theo dõi VỊ THẾ BÓNG TỐI: ${sym} (${side}) @ $${entryPrice} | SL: $${tierSlPrice.toFixed(4)} (-${slPct.toFixed(2)}%) | TP: $${tierTpPrice.toFixed(4)} (+${tpPct.toFixed(2)}%) | WinProb: ${shadowTrade.winProbability}% (Lý do Veto: ${shadowTrade.vetoCategory})`);
+  const fillStatusMsg = isImmediatelyFilled ? 'Đã khớp ngay' : 'Đang chờ râu nến khớp Limit';
+  _logger.system(`[Shadow PnL] 👁️ Bắt đầu theo dõi VỊ THẾ BÓNG TỐI: ${sym} (${side}) @ $${entryPrice} [${fillStatusMsg}] | Đòn bẩy: ${leverage}x | Margin: $${margin} | SL: $${tierSlPrice.toFixed(4)} (-${slPct.toFixed(2)}%) | TP: $${tierTpPrice.toFixed(4)} (+${tpPct.toFixed(2)}%) | BE Trigger: $${beTriggerPrice.toFixed(4)} | WinProb: ${shadowTrade.winProbability}% (Veto: ${shadowTrade.vetoCategory})`);
 
   // Record entry in ai_trade_dataset.jsonl (marked as shadow)
   _appendDatasetRecord({
@@ -164,7 +197,7 @@ function registerShadowTrade(sig, evalResult, options = {}) {
     symbol: sym,
     signal: side,
     entryPrice,
-    markPrice: entryPrice,
+    markPrice: currentMark,
     timestamp: shadowTrade.entryTimestamp,
     score: shadowTrade.score,
     scoreReasons: shadowTrade.scoreReasons,
@@ -180,10 +213,10 @@ function registerShadowTrade(sig, evalResult, options = {}) {
 }
 
 /**
- * Update shadow positions against latest price map
- * Called periodically or on every websocket ticker update
+ * Update shadow positions against latest price map or candlestick wicks
+ * Called periodically or on every websocket ticker/kline update
  *
- * @param {any} priceMap - Map or Object of symbol -> markPrice
+ * @param {any} priceMap - Map or Object of symbol -> markPrice OR { price, high, low }
  */
 function updateShadowPrices(priceMap) {
   const ids = Object.keys(activeShadowPositions);
@@ -196,58 +229,158 @@ function updateShadowPrices(priceMap) {
     const p = activeShadowPositions[id];
     if (!p) continue;
 
-    // Get current price for symbol
-    let currentPrice = null;
+    // Get current price, candle high, candle low for symbol
+    let priceData = null;
     if (priceMap instanceof Map) {
-      currentPrice = priceMap.get(p.symbol) || priceMap.get(`${p.symbol}USDT`);
+      priceData = priceMap.get(p.symbol) || priceMap.get(`${p.symbol}USDT`);
     } else if (typeof priceMap === 'object' && priceMap !== null) {
-      currentPrice = priceMap[p.symbol] || priceMap[`${p.symbol}USDT`];
+      priceData = priceMap[p.symbol] || priceMap[`${p.symbol}USDT`];
+    }
+
+    if (!priceData) continue;
+
+    let currentPrice = 0;
+    let candleHigh = 0;
+    let candleLow = 0;
+
+    if (typeof priceData === 'object' && priceData !== null) {
+      currentPrice = parseFloat(priceData.price || priceData.close || priceData.markPrice || 0);
+      candleHigh = parseFloat(priceData.high || priceData.h || currentPrice);
+      candleLow = parseFloat(priceData.low || priceData.l || currentPrice);
+    } else {
+      currentPrice = parseFloat(priceData);
+      candleHigh = currentPrice;
+      candleLow = currentPrice;
     }
 
     if (!currentPrice || currentPrice <= 0) continue;
-    currentPrice = parseFloat(currentPrice);
 
     const isLong = p.signal === 'LONG';
     const entry = p.entryPrice;
 
-    // Track MFE (Max Favorable Excursion) & MAE (Max Adverse Excursion)
+    // ─────────────────────────────────────────────────────────────────────────────
+    // 1. NẾU LỆNH CHƯA KHỚP LIMIT: Theo dõi râu nến xem có khớp hay bị Bounce Cancel
+    // ─────────────────────────────────────────────────────────────────────────────
+    if (!p.isFilled) {
+      const canFill = isLong ? (candleLow <= entry) : (candleHigh >= entry);
+      if (canFill) {
+        p.isFilled = true;
+        p.fillTimestamp = now;
+        p.status = 'ACTIVE';
+        p.maxFavorablePrice = entry;
+        p.maxAdversePrice = entry;
+        _logger.system(`[Shadow PnL] 🎯 [Limit Filled] ${p.symbol} (${p.signal}) đã khớp Limit bóng tối @ $${entry} (Râu nến: ${isLong ? candleLow : candleHigh})`);
+      } else {
+        // Kiểm tra xem giá có nảy xa mốc trước khi khớp không (BOUNCE_CANCEL)
+        const bounceCancelPct = Math.max((p.gridWidthPct || 3.0) * 0.20, 1.5);
+        const isBouncedAway = isLong 
+          ? (candleHigh >= entry * (1 + bounceCancelPct / 100))
+          : (candleLow <= entry * (1 - bounceCancelPct / 100));
+        
+        const pendingMins = (now - p.entryTimestamp) / (60 * 1000);
+        if (isBouncedAway) {
+          _logger.system(`[Shadow PnL] ↩️ [Bounce Cancel] ${p.symbol} (${p.signal}) nảy xa mốc ${bounceCancelPct.toFixed(2)}% trước khi khớp -> Hủy lệnh chờ Limit.`);
+          _resolveShadowTrade(p, 'BOUNCE_CANCEL', currentPrice, 0, now);
+          continue;
+        } else if (pendingMins >= 90) { // Quá 90 phút không khớp
+          _logger.system(`[Shadow PnL] ⏱️ [Limit Timeout] ${p.symbol} (${p.signal}) chờ khớp Limit quá 90p -> Hủy lệnh.`);
+          _resolveShadowTrade(p, 'LIMIT_TIMEOUT', currentPrice, 0, now);
+          continue;
+        }
+        // Vẫn đang chờ râu nến khớp limit -> Bỏ qua kiểm tra TP/SL
+        continue;
+      }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────────
+    // 2. VỊ THẾ ĐÃ KHỚP (ACTIVE): Theo dõi MFE, MAE, Breakeven, TP, SL y hệt sàn thật
+    // ─────────────────────────────────────────────────────────────────────────────
+
+    // Track MFE (Max Favorable Excursion) & MAE (Max Adverse Excursion) bằng râu nến (Wicks)
     if (isLong) {
-      if (currentPrice > p.maxFavorablePrice) p.maxFavorablePrice = currentPrice;
-      if (currentPrice < p.maxAdversePrice) p.maxAdversePrice = currentPrice;
+      if (candleHigh > p.maxFavorablePrice) p.maxFavorablePrice = candleHigh;
+      if (candleLow < p.maxAdversePrice) p.maxAdversePrice = candleLow;
     } else {
-      if (currentPrice < p.maxFavorablePrice) p.maxFavorablePrice = currentPrice;
-      if (currentPrice > p.maxAdversePrice) p.maxAdversePrice = currentPrice;
+      if (candleLow < p.maxFavorablePrice) p.maxFavorablePrice = candleLow;
+      if (candleHigh > p.maxAdversePrice) p.maxAdversePrice = candleHigh;
     }
 
     const currentRoi = isLong 
       ? ((currentPrice - entry) / entry) * p.leverage * 100 
       : ((entry - currentPrice) / entry) * p.leverage * 100;
 
-    const holdingHours = (now - p.entryTimestamp) / (3600 * 1000);
+    const favorableRoi = isLong
+      ? ((p.maxFavorablePrice - entry) / entry) * p.leverage * 100
+      : ((entry - p.maxFavorablePrice) / entry) * p.leverage * 100;
+    p.maxFavorableRoi = Math.max(p.maxFavorableRoi || 0, favorableRoi);
 
-    let resolvedOutcome = null; // 'SAVED_SL' | 'MISSED_TP' | 'TIMEOUT_CLOSED'
-
-    if (isLong) {
-      if (currentPrice <= p.tierSlPrice) {
-        resolvedOutcome = 'SAVED_SL';
-      } else if (currentPrice >= p.tierTpPrice) {
-        resolvedOutcome = 'MISSED_TP';
-      }
-    } else {
-      if (currentPrice >= p.tierSlPrice) {
-        resolvedOutcome = 'SAVED_SL';
-      } else if (currentPrice <= p.tierTpPrice) {
-        resolvedOutcome = 'MISSED_TP';
+    // 🛡️ DỜI SL VỀ HÒA VỐN (BREAKEVEN):
+    // Kích hoạt ngay khi râu nến chạm beTriggerPrice HOẶC ROI nảy đạt >= +20%
+    if (!p.isBeTriggered && p.beTriggerPrice) {
+      const hitBeTrigger = isLong ? (candleHigh >= p.beTriggerPrice) : (candleLow <= p.beTriggerPrice);
+      if (hitBeTrigger || favorableRoi >= 20.0) {
+        p.isBeTriggered = true;
+        p.tierSlPrice = entry; // Dời SL về hòa vốn y hệt bot thật trên Binance
+        _logger.system(`[Shadow PnL] 🛡️ [Breakeven Active] ${p.symbol} (${p.signal}) chạm mốc BE ($${p.beTriggerPrice}) / ROI +${favorableRoi.toFixed(1)}% -> Đã kéo SL về Hòa vốn (Entry $${entry})!`);
       }
     }
 
-    // Check timeout
+    const holdingHours = (now - (p.fillTimestamp || p.entryTimestamp)) / (3600 * 1000);
+    let resolvedOutcome = null; // 'SAVED_SL' | 'SAVED_BE' | 'MISSED_TP' | 'TIMEOUT_CLOSED'
+
+    // 🚨 HARD MAX LOSS GUARD (Khống chế trần lỗ tối đa)
+    const hardLossCapUSD = (p.targetLossUSD || 5.0) * 1.15;
+    const unrealizedPnlUsd = (currentRoi / 100) * p.margin;
+    if (unrealizedPnlUsd <= -hardLossCapUSD || currentRoi <= -55.0) {
+      resolvedOutcome = p.isBeTriggered ? 'SAVED_BE' : 'SAVED_SL';
+    }
+
+    // 🎯 KIỂM TRA KHỚP LỆNH THEO RÂU NẾN (WICKS) VÀ GIÁ HIỆN TẠI
+    if (!resolvedOutcome) {
+      if (isLong) {
+        if (candleHigh >= p.tierTpPrice) {
+          resolvedOutcome = 'MISSED_TP';
+        } else if (candleLow <= p.tierSlPrice) {
+          resolvedOutcome = p.isBeTriggered ? 'SAVED_BE' : 'SAVED_SL';
+        }
+      } else {
+        if (candleLow <= p.tierTpPrice) {
+          resolvedOutcome = 'MISSED_TP';
+        } else if (candleHigh >= p.tierSlPrice) {
+          resolvedOutcome = p.isBeTriggered ? 'SAVED_BE' : 'SAVED_SL';
+        }
+      }
+    }
+
+    // Check timeout (tự động đóng sau 48h nếu không cắn TP/SL)
     if (!resolvedOutcome && holdingHours >= MAX_HOLDING_HOURS) {
       resolvedOutcome = currentRoi >= 0 ? 'TIMEOUT_PROFIT' : 'TIMEOUT_LOSS';
     }
 
+    // 🚀 AI DYNAMIC RECOVERY: Nếu coin đang trong Cooldown do dính SL trước đó,
+    // hoặc chiều giao dịch (LONG/SHORT) đang bị Circuit Breaker khóa nhưng vị thế Shadow
+    // cho thấy chiều này đã hồi phục ổn định (ROI >= +10% hoặc chạm TP)
+    // -> AI nhận diện sóng ngược đã kết thúc -> Tự động giải phóng Cooldown & Mở khóa chiều sớm!
+    if (currentRoi >= 10.0 || resolvedOutcome === 'MISSED_TP') {
+      try {
+        const { isSymbolInCooldown, clearCooldown } = require('../trader/cooldownManager');
+        if (isSymbolInCooldown(p.symbol)) {
+          _logger.system(`[CooldownManager] 🚀 [AI Dynamic Recovery] ${p.symbol} đã hồi phục ổn định (Shadow ROI: +${currentRoi.toFixed(2)}%) -> Tự động giải phóng Cooldown sớm!`);
+          clearCooldown(p.symbol);
+        }
+      } catch (err) {}
+
+      try {
+        const { tryEarlyDirectionalRecovery } = require('../trader/directionalCircuitBreaker');
+        tryEarlyDirectionalRecovery(p.signal, p.symbol, currentRoi, resolvedOutcome === 'MISSED_TP' ? 'SHADOW_TP' : 'SHADOW_PROFIT');
+      } catch (err) {}
+    }
+
     if (resolvedOutcome) {
-      _resolveShadowTrade(p, resolvedOutcome, currentPrice, currentRoi, now);
+      const exitPrice = resolvedOutcome === 'MISSED_TP' 
+        ? p.tierTpPrice 
+        : (resolvedOutcome === 'SAVED_BE' ? entry : p.tierSlPrice);
+      _resolveShadowTrade(p, resolvedOutcome, exitPrice, currentRoi, now);
     }
   }
 }
@@ -257,11 +390,27 @@ function updateShadowPrices(priceMap) {
  */
 function _resolveShadowTrade(p, outcome, exitPrice, exitRoi, exitTimestamp) {
   const isLong = p.signal === 'LONG';
+  const isSavedBE = outcome === 'SAVED_BE';
   const isSavedSL = outcome === 'SAVED_SL' || outcome === 'TIMEOUT_LOSS';
   const isMissedTP = outcome === 'MISSED_TP' || outcome === 'TIMEOUT_PROFIT';
+  const isCancelled = outcome === 'BOUNCE_CANCEL' || outcome === 'LIMIT_TIMEOUT';
 
-  const durationMin = (exitTimestamp - p.entryTimestamp) / (60 * 1000);
-  const pnlUsd = (exitRoi / 100) * p.margin;
+  const durationMin = (exitTimestamp - (p.fillTimestamp || p.entryTimestamp)) / (60 * 1000);
+  
+  // Tính PnL và ROI chuẩn xác tương ứng kết quả
+  let finalRoi = 0;
+  let pnlUsd = 0;
+
+  if (isMissedTP) {
+    finalRoi = p.tpPct * p.leverage;
+    pnlUsd = (finalRoi / 100) * p.margin;
+  } else if (isSavedSL) {
+    finalRoi = -p.slPct * p.leverage;
+    pnlUsd = (finalRoi / 100) * p.margin;
+  } else if (isSavedBE || isCancelled) {
+    finalRoi = 0;
+    pnlUsd = 0;
+  }
 
   const resultRecord = {
     shadowId: p.shadowId,
@@ -272,16 +421,17 @@ function _resolveShadowTrade(p, outcome, exitPrice, exitRoi, exitTimestamp) {
     tierSlPrice: p.tierSlPrice,
     tierTpPrice: p.tierTpPrice,
     entryTimestamp: p.entryTimestamp,
+    fillTimestamp: p.fillTimestamp,
     exitTimestamp,
     holdingDurationMinutes: Math.round(durationMin * 10) / 10,
     outcome,
     isSavedSL,
+    isSavedBE,
     isMissedTP,
-    // From trading perspective: if trade would have hit TP, isWin = true (meaning AI vetoed a winner)
-    // if trade would have hit SL, isWin = false (meaning AI correctly vetoed a loser)
+    isCancelled,
     isTradeWin: isMissedTP,
-    aiDecisionWasCorrect: isSavedSL,
-    pnlPercent: Math.round(exitRoi * 100) / 100,
+    aiDecisionWasCorrect: isSavedSL || isSavedBE || isCancelled,
+    pnlPercent: Math.round(finalRoi * 100) / 100,
     pnlUsd: Math.round(pnlUsd * 100) / 100,
     savedLossUSD: isSavedSL ? Math.abs(p.hypotheticalLossUSD) : 0,
     missedProfitUSD: isMissedTP ? Math.abs(p.hypotheticalProfitUSD) : 0,
@@ -291,6 +441,18 @@ function _resolveShadowTrade(p, outcome, exitPrice, exitRoi, exitTimestamp) {
     vetoCategory: p.vetoCategory,
     vetoReason: p.vetoReason
   };
+
+  // Ghi nhận vào Rolling Performance Guard để AI đánh giá khôi phục nếu đang trong chế độ Stand-Down
+  try {
+    const { recordShadowTradeOutcome } = require('../trader/rollingPerformanceGuard');
+    recordShadowTradeOutcome({
+      symbol: p.symbol,
+      signal: p.signal,
+      outcome,
+      pnlUsd,
+      roi: finalRoi
+    });
+  } catch (_) {}
 
   // Remove from active map
   delete activeShadowPositions[p.shadowId];
@@ -308,18 +470,22 @@ function _resolveShadowTrade(p, outcome, exitPrice, exitRoi, exitTimestamp) {
     symbol: p.symbol,
     exitPrice,
     exitTimestamp,
-    exitType: isSavedSL ? 'SL' : 'TP',
-    pnlPercent: Math.round(exitRoi * 100) / 100,
+    exitType: isCancelled ? outcome : (isSavedBE ? 'BE' : (isSavedSL ? 'SL' : 'TP')),
+    pnlPercent: Math.round(finalRoi * 100) / 100,
     pnlUsd: Math.round(pnlUsd * 100) / 100,
     holdingDurationMinutes: Math.round(durationMin * 10) / 10,
-    isWin: isMissedTP // If it hit TP, it was a winning trade
+    isWin: isMissedTP
   });
 
   // Log notification
-  if (isSavedSL) {
-    _logger.system(`[Shadow PnL] 🛡️ AI ĐÃ CỨU TÀI KHOẢN! ${p.symbol} (${p.signal}) chạm SL tại $${exitPrice} (Tránh mất -$${Math.abs(p.hypotheticalLossUSD).toFixed(2)} USD | ROI: ${exitRoi.toFixed(2)}% | Veto: ${p.vetoCategory})`);
+  if (isCancelled) {
+    _logger.system(`[Shadow PnL] ⚪ ${p.symbol} (${p.signal}) đã kết thúc: ${outcome} (Lệnh Limit không khớp, không tính lãi lỗ)`);
+  } else if (isSavedBE) {
+    _logger.system(`[Shadow PnL] ⚖️ AI THOÁT HÒA VỐN (BE): ${p.symbol} (${p.signal}) đã kéo SL về Entry và cắn BE tại $${exitPrice} (Không lỗ, bảo toàn vốn thành công | Veto: ${p.vetoCategory})`);
+  } else if (isSavedSL) {
+    _logger.system(`[Shadow PnL] 🛡️ AI ĐÃ CỨU TÀI KHOẢN! ${p.symbol} (${p.signal}) cắn râu SL tại $${exitPrice} (Tránh mất -$${Math.abs(pnlUsd).toFixed(2)} USD | ROI: ${finalRoi.toFixed(2)}% | Veto: ${p.vetoCategory})`);
   } else if (isMissedTP) {
-    _logger.system(`[Shadow PnL] ⚠️ AI BỎ LỠ LÃI: ${p.symbol} (${p.signal}) chạm TP tại $${exitPrice} (Bỏ lỡ +$${Math.abs(p.hypotheticalProfitUSD).toFixed(2)} USD | ROI: +${exitRoi.toFixed(2)}% | Veto: ${p.vetoCategory})`);
+    _logger.system(`[Shadow PnL] ⚠️ AI BỎ LỠ LÃI: ${p.symbol} (${p.signal}) chạm TP tại $${exitPrice} (Bỏ lỡ +$${Math.abs(pnlUsd).toFixed(2)} USD | ROI: +${finalRoi.toFixed(2)}% | Veto: ${p.vetoCategory})`);
   } else {
     _logger.system(`[Shadow PnL] ⏱️ Vị thế bóng tối kết thúc: ${p.symbol} (${p.signal}) đóng tại $${exitPrice} (${outcome})`);
   }

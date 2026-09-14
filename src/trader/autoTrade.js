@@ -45,12 +45,15 @@ const {
   updateVolume24hCache,
   registerShadowTrade,
   updateShadowPrices,
+  getActiveShadowPositions,
   getShadowStats,
   startPeriodicRetrain,
   getRetrainStatus,
 } = require('../pp369');
 const { log } = require('../pp369/_logger');
 const { isSymbolInCooldown, getRemainingCooldownHours, addSymbolToCooldown } = require('./cooldownManager');
+const { isDirectionLocked, recordDirectionalTradeExit, tryEarlyDirectionalRecovery } = require('./directionalCircuitBreaker');
+const { isRealTradingSuspended, recordRealTradeOutcome } = require('./rollingPerformanceGuard');
 
 const SCAN_INTERVAL_MS = 30_000;   // scan mỗi 30 giây
 const TRAILING_SL_INTERVAL_MS = 6_000; // kiểm tra vị thế để dịch SL mỗi 6 giây
@@ -511,6 +514,19 @@ function calculateTierSLTP(symbol, side, entryPrice, h4Ref, tickSize, maxExchang
   const beDist = Math.min(slDist * 0.35, entryPrice * 0.006);
   const beTriggerPrice = (side === 'LONG' || side === 'BUY') ? (entryPrice + beDist) : (entryPrice - beDist);
 
+  // 🛡️ BẮT BUỘC TỶ LỆ R:R TỐI THIỂU 1.0:1 (Loại bỏ triệt để các lệnh R:R < 1.0 như 0.5:1)
+  const rrRatio = slDist > 0 ? (finalTpDist / slDist) : 0;
+  if (rrRatio < 1.0) {
+    return {
+      valid: false,
+      reason: `BAD_RR_LESS_THAN_1 (TP ${(finalTpDist / entryPrice * 100).toFixed(2)}% / SL ${slPct.toFixed(2)}% = ${rrRatio.toFixed(2)}:1 < 1.0:1)`,
+      rrRatio: parseFloat(rrRatio.toFixed(2)),
+      slDistance: slDist,
+      slPct: slPct,
+      tpDistance: finalTpDist
+    };
+  }
+
   return {
     valid: true,
     slPrice: parseFloat(rawSL.toFixed(decimals)),
@@ -524,7 +540,8 @@ function calculateTierSLTP(symbol, side, entryPrice, h4Ref, tickSize, maxExchang
     margin: actualMargin,
     targetLossUSD: targetLossUSD,
     tpRatio: actualTpRatio,
-    gridWidthPct: effGridWidth
+    gridWidthPct: effGridWidth,
+    rrRatio: parseFloat(rrRatio.toFixed(2))
   };
 }
 
@@ -679,6 +696,31 @@ async function startAutoTrade(coins) {
       }
     }
   });
+
+  // ── Luồng quét râu nến (Candle Wicks) cho các vị thế Shadow PnL đang chạy (mỗi 60s) ────
+  // Giúp phát hiện tức thì mọi pha quét râu cắn SL hoặc chạm TP/BE của nến 15m/1m mà tick WebSocket có thể bỏ sót
+  setInterval(async () => {
+    try {
+      const activeShadows = typeof getActiveShadowPositions === 'function' ? getActiveShadowPositions() : {};
+      const shadowSyms = Object.values(activeShadows).map(p => p.symbol);
+      const uniqueSyms = [...new Set(shadowSyms)];
+      for (const sym of uniqueSyms) {
+        try {
+          const klines = await fetchBinanceKlines(sym, '15m', null, 2);
+          if (klines && klines.length > 0) {
+            const curr = klines[klines.length - 1];
+            updateShadowPrices({
+              [sym]: {
+                price: curr.close,
+                high: curr.high,
+                low: curr.low
+              }
+            });
+          }
+        } catch (_) {}
+      }
+    } catch (_) {}
+  }, 60_000);
 
   // ── Tái kiểm tra danh sách coin mỗi 4 giờ theo giá thị trường hiện tại ────
   setInterval(async () => {
@@ -1191,8 +1233,90 @@ async function startAutoTrade(coins) {
       if (isSymbolInCooldown(sym)) {
         const remH = getRemainingCooldownHours(sym);
         if (_shouldLogSignal(sym, sig.signal, sig.targetLevel, 'cooldown_active', 30 * 60 * 1000)) {
-          log.system(`[AutoTrade] ⏸️ ${sym} đang trong thời gian SL Cooldown (${remH}h còn lại) — bỏ qua tín hiệu`);
+          log.system(`[AutoTrade] ⏸️ ${sym} đang trong thời gian SL Cooldown (${remH}h còn lại) — Đăng ký Shadow theo dõi nhịp hồi phục.`);
         }
+        // Đăng ký vị thế Shadow với thông số thực tế để AI theo dõi PnL hồi phục của coin này
+        let prelimSetupCd = null;
+        try {
+          const h4RefCd = await fetchH4Reference(sym);
+          const tickSizeCd = getTickSizeCached(sym) || (getDecimals(sig.targetLevel) === 5 ? 0.00001 : (getDecimals(sig.targetLevel) === 4 ? 0.0001 : 0.000001));
+          const maxAllowedCd = leverageInfo[sym] ?? leverage;
+          const baseTargetLossUSDCd = parseFloat(process.env.MAX_LOSS_PER_TRADE_USD || '5.0');
+          prelimSetupCd = calculateTierSLTP(sym, sig.signal, sig.targetLevel, h4RefCd, tickSizeCd, maxAllowedCd, baseTargetLossUSDCd, 1.5, rank, sig.gridWidthPct);
+        } catch (_) {}
+
+        registerShadowTrade(sig, null, {
+          markPrice,
+          marketCapRank: rank,
+          gridWidthPct: sig.gridWidthPct || gridStepPct,
+          leverage: prelimSetupCd?.leverage,
+          margin: prelimSetupCd?.margin,
+          tierSlPrice: prelimSetupCd?.slPrice,
+          tierTpPrice: prelimSetupCd?.tpPrice,
+          beTriggerPrice: prelimSetupCd?.beTriggerPrice,
+          slPct: prelimSetupCd?.slPct
+        });
+        return;
+      }
+
+      // ── DIRECTIONAL CIRCUIT BREAKER: Kiểm tra xem chiều này có đang bị ngắt mạch không ──
+      const dirCheck = isDirectionLocked(sig.signal);
+      if (dirCheck.isLocked) {
+        if (_shouldLogSignal(sym, sig.signal, sig.targetLevel, 'dir_circuit_breaker', 15 * 60 * 1000)) {
+          log.system(`[AutoTrade] 🛑 [Directional Circuit Breaker] Chiều ${sig.signal} đang bị khóa (${dirCheck.reason} - còn ${dirCheck.remainingMinutes}p) — Chuyển sang theo dõi Shadow ${sym} để dò nhịp hồi phục.`);
+        }
+
+        // Đăng ký vị thế Shadow để AI thăm dò nhiệt độ thị trường mà không rủi ro vốn thật
+        let prelimSetupDir = null;
+        try {
+          const h4RefDir = await fetchH4Reference(sym);
+          const tickSizeDir = getTickSizeCached(sym) || (getDecimals(sig.targetLevel) === 5 ? 0.00001 : (getDecimals(sig.targetLevel) === 4 ? 0.0001 : 0.000001));
+          const maxAllowedDir = leverageInfo[sym] ?? leverage;
+          const baseTargetLossUSDDir = parseFloat(process.env.MAX_LOSS_PER_TRADE_USD || '5.0');
+          prelimSetupDir = calculateTierSLTP(sym, sig.signal, sig.targetLevel, h4RefDir, tickSizeDir, maxAllowedDir, baseTargetLossUSDDir, 1.5, rank, sig.gridWidthPct);
+        } catch (_) {}
+
+        registerShadowTrade(sig, null, {
+          markPrice,
+          marketCapRank: rank,
+          gridWidthPct: sig.gridWidthPct || gridStepPct,
+          leverage: prelimSetupDir?.leverage,
+          margin: prelimSetupDir?.margin,
+          tierSlPrice: prelimSetupDir?.slPrice,
+          tierTpPrice: prelimSetupDir?.tpPrice,
+          beTriggerPrice: prelimSetupDir?.beTriggerPrice,
+          slPct: prelimSetupDir?.slPct
+        });
+        return;
+      }
+
+      // ── ROLLING PERFORMANCE GUARD: Kiểm tra bot có đang trong Stand-Down Mode không ──
+      const suspendCheck = isRealTradingSuspended();
+      if (suspendCheck.isSuspended) {
+        if (_shouldLogSignal(sym, sig.signal, sig.targetLevel, 'stand_down_mode', 15 * 60 * 1000)) {
+          log.system(`[AutoTrade] 🛑 [Stand-Down Mode] Tạm dừng tiền thật do AI đang lệch pha (${suspendCheck.reason} - còn ${suspendCheck.remainingMinutes}p, đã test ${suspendCheck.shadowCount}/3 lệnh Shadow) — Chuyển sang theo dõi Shadow ${sym}.`);
+        }
+
+        let prelimSetupSd = null;
+        try {
+          const h4RefSd = await fetchH4Reference(sym);
+          const tickSizeSd = getTickSizeCached(sym) || (getDecimals(sig.targetLevel) === 5 ? 0.00001 : (getDecimals(sig.targetLevel) === 4 ? 0.0001 : 0.000001));
+          const maxAllowedSd = leverageInfo[sym] ?? leverage;
+          const baseTargetLossUSDSd = parseFloat(process.env.MAX_LOSS_PER_TRADE_USD || '5.0');
+          prelimSetupSd = calculateTierSLTP(sym, sig.signal, sig.targetLevel, h4RefSd, tickSizeSd, maxAllowedSd, baseTargetLossUSDSd, 1.5, rank, sig.gridWidthPct);
+        } catch (_) {}
+
+        registerShadowTrade(sig, null, {
+          markPrice,
+          marketCapRank: rank,
+          gridWidthPct: sig.gridWidthPct || gridStepPct,
+          leverage: prelimSetupSd?.leverage,
+          margin: prelimSetupSd?.margin,
+          tierSlPrice: prelimSetupSd?.slPrice,
+          tierTpPrice: prelimSetupSd?.tpPrice,
+          beTriggerPrice: prelimSetupSd?.beTriggerPrice,
+          slPct: prelimSetupSd?.slPct
+        });
         return;
       }
 
@@ -1363,6 +1487,16 @@ async function startAutoTrade(coins) {
         const currH1 = klinesH1 && klinesH1.length > 0 ? klinesH1[klinesH1.length - 1] : null;
         const lastClosedH1 = klinesH1 && klinesH1.length > 1 ? klinesH1[klinesH1.length - 2] : null;
 
+        if (currM15) {
+          updateShadowPrices({
+            [sym]: {
+              price: currM15.close,
+              high: currM15.high,
+              low: currM15.low
+            }
+          });
+        }
+
         if (klinesM15 && klinesM15.length >= 20 && currM15) {
           const past20 = klinesM15.slice(0, klinesM15.length - 1);
           const avgVol20 = past20.reduce((sum, c) => sum + c.volume, 0) / past20.length;
@@ -1412,7 +1546,11 @@ async function startAutoTrade(coins) {
       const maxAllowed = leverageInfo[sym] ?? leverage;
       const baseTargetLossUSD = parseFloat(process.env.MAX_LOSS_PER_TRADE_USD || '5.0');
       const prelimSetup = calculateTierSLTP(sym, sig.signal, sig.targetLevel, h4Ref, tickSize, maxAllowed, baseTargetLossUSD, 1.5, rank, sig.gridWidthPct);
-      sig.actualSlPct = prelimSetup.valid ? prelimSetup.slPct : null;
+      if (!prelimSetup.valid) {
+        log.system(`[AutoTrade] ⚠️ Bỏ qua ${sym} (${sig.signal}): ${prelimSetup.reason} — Không đạt chuẩn R:R >= 1.0.`);
+        return;
+      }
+      sig.actualSlPct = prelimSetup.slPct;
 
       const aiEval = evaluateSignalWithAI(sig, rawMarketData);
       recordAIEvaluation(sig, aiEval);
@@ -1422,11 +1560,17 @@ async function startAutoTrade(coins) {
       if (!aiEval.isApproved) {
         log.system(`[AutoTrade] 🛑 [AI Veto] ${sym} (${sig.signal}) bị phủ quyết: ${aiEval.reason} — Bỏ qua không đặt lệnh.`);
 
-        // Đăng ký vị thế Shadow PnL để theo dõi kết quả thực tế trên thị trường
+        // Đăng ký vị thế Shadow PnL để theo dõi kết quả thực tế trên thị trường với đòn bẩy và SL/TP thực
         registerShadowTrade(sig, aiEval, {
           markPrice,
           marketCapRank: rank,
-          gridWidthPct: sig.gridWidthPct || gridStepPct
+          gridWidthPct: sig.gridWidthPct || gridStepPct,
+          leverage: prelimSetup.leverage,
+          margin: prelimSetup.margin,
+          tierSlPrice: prelimSetup.slPrice,
+          tierTpPrice: prelimSetup.tpPrice,
+          beTriggerPrice: prelimSetup.beTriggerPrice,
+          slPct: prelimSetup.slPct
         });
 
         if (_shouldLogSignal(sym, sig.signal, sig.targetLevel, 'ai_veto_skipped')) {
@@ -2081,6 +2225,22 @@ async function checkH1RetestSignals(client, activeSymbols, leverageInfo = {}) {
         continue;
       }
 
+      // ── DIRECTIONAL CIRCUIT BREAKER CHO H1 RETEST ──
+      const dirCheckRetest = isDirectionLocked(signal);
+      if (dirCheckRetest.isLocked) {
+        log.system(`[AutoTrade (Retest H1)] 🛑 [Directional Circuit Breaker] Chiều ${signal} đang bị khóa (${dirCheckRetest.reason} - còn ${dirCheckRetest.remainingMinutes}p) — Bỏ qua ${sym}`);
+        delete lowScoreWatchlist[sym];
+        continue;
+      }
+
+      // ── ROLLING PERFORMANCE GUARD CHO H1 RETEST ──
+      const suspendCheckRetest = isRealTradingSuspended();
+      if (suspendCheckRetest.isSuspended) {
+        log.system(`[AutoTrade (Retest H1)] 🛑 [Stand-Down Mode] Tạm dừng tiền thật do AI đang lệch pha (${suspendCheckRetest.reason} - còn ${suspendCheckRetest.remainingMinutes}p) — Bỏ qua ${sym}`);
+        delete lowScoreWatchlist[sym];
+        continue;
+      }
+
       // ── BTC FLASH & TURNOVER GUARD CHO H1 RETEST: Chuyển giao toàn quyền cho AI Reviewer ──
       const turnoverCheckRetest = checkTurnoverGuard(sym);
       const nowTimeRetest = Date.now();
@@ -2122,6 +2282,16 @@ async function checkH1RetestSignals(client, activeSymbols, leverageInfo = {}) {
         const currH1 = klinesH1Retest && klinesH1Retest.length > 0 ? klinesH1Retest[klinesH1Retest.length - 1] : null;
         const lastClosedH1 = klinesH1Retest && klinesH1Retest.length > 1 ? klinesH1Retest[klinesH1Retest.length - 2] : null;
 
+        if (currM15) {
+          updateShadowPrices({
+            [sym]: {
+              price: currM15.close,
+              high: currM15.high,
+              low: currM15.low
+            }
+          });
+        }
+
         if (klinesM15Retest && klinesM15Retest.length >= 20 && currM15) {
           const past20 = klinesM15Retest.slice(0, klinesM15Retest.length - 1);
           const avgVol20 = past20.reduce((sum, c) => sum + c.volume, 0) / past20.length;
@@ -2162,7 +2332,12 @@ async function checkH1RetestSignals(client, activeSymbols, leverageInfo = {}) {
       const maxAllowedRetest = (leverageInfo && leverageInfo[sym]) ?? getLeverageCached(sym) ?? 20;
       const baseLossRetest = parseFloat(process.env.MAX_LOSS_PER_TRADE_USD || '5.0');
       const prelimRetest = calculateTierSLTP(sym, signal, targetLevel, h4RefRetest, tickSizeRetest, maxAllowedRetest, baseLossRetest, 1.5, rank, watchData.gridWidthPct || gridStepPct);
-      sigForAI.actualSlPct = prelimRetest.valid ? prelimRetest.slPct : null;
+      if (!prelimRetest.valid) {
+        log.system(`[AutoTrade (Retest H1)] ⚠️ Bỏ qua ${sym} (${signal}): ${prelimRetest.reason} — Không đạt chuẩn R:R >= 1.0.`);
+        delete lowScoreWatchlist[sym];
+        continue;
+      }
+      sigForAI.actualSlPct = prelimRetest.slPct;
 
       const aiEval = evaluateSignalWithAI(sigForAI, rawMarketDataRetest);
       recordAIEvaluation(sigForAI, aiEval);
@@ -2176,7 +2351,13 @@ async function checkH1RetestSignals(client, activeSymbols, leverageInfo = {}) {
         registerShadowTrade(sigForAI, aiEval, {
           markPrice: currentPriceRetest,
           marketCapRank: rank,
-          gridWidthPct: gridStepPct
+          gridWidthPct: gridStepPct,
+          leverage: prelimRetest.leverage,
+          margin: prelimRetest.margin,
+          tierSlPrice: prelimRetest.slPrice,
+          tierTpPrice: prelimRetest.tpPrice,
+          beTriggerPrice: prelimRetest.beTriggerPrice,
+          slPct: prelimRetest.slPct
         });
 
         delete lowScoreWatchlist[sym];
@@ -2648,6 +2829,11 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
       const posNotional = absAmt * entryPrice;
       const unrealizedPnlUsd = (roi / 100) * (meta?.margin || (posNotional / leverageVal));
 
+      // 🚀 AI Directional Early Recovery: Nếu lệnh thật đang chạy đạt ROI >= +10%, tự động mở khóa chiều sớm!
+      if (roi >= 10.0) {
+        tryEarlyDirectionalRecovery(isLong ? 'LONG' : 'SHORT', sym, roi, 'REAL_PROFIT');
+      }
+
       // ----------------------------------------------------
       // 0. HARD MAX LOSS GUARD (Khống chế trần lỗ tối đa)
       // ----------------------------------------------------
@@ -2677,6 +2863,22 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
               pnlUsd: unrealizedPnlUsd,
               holdingDurationMinutes: holdingDurationMinutes,
               isWin: false,
+            });
+            recordDirectionalTradeExit({
+              symbol: sym,
+              side: isLong ? 'LONG' : 'SHORT',
+              isWin: false,
+              exitType: 'HARD_MAX_LOSS',
+              pnlUsd: unrealizedPnlUsd,
+              pnlPercent: roi
+            });
+            recordRealTradeOutcome({
+              symbol: sym,
+              side: isLong ? 'LONG' : 'SHORT',
+              isWin: false,
+              exitType: 'HARD_MAX_LOSS',
+              pnlUsd: unrealizedPnlUsd,
+              pnlPercent: roi
             });
           }
           addSymbolToCooldown(sym, null, 'HARD_MAX_LOSS');
@@ -2719,6 +2921,22 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
               pnlUsd: (roi / 100) * (meta.margin || 0),
               holdingDurationMinutes: holdingDurationMinutes,
               isWin: roi >= 0,
+            });
+            recordDirectionalTradeExit({
+              symbol: sym,
+              side: isLong ? 'LONG' : 'SHORT',
+              isWin: roi >= 0,
+              exitType: meta?.isPanicEscape ? 'PANIC_ESCAPE' : 'TP',
+              pnlUsd: (roi / 100) * (meta.margin || 0),
+              pnlPercent: roi
+            });
+            recordRealTradeOutcome({
+              symbol: sym,
+              side: isLong ? 'LONG' : 'SHORT',
+              isWin: roi >= 0,
+              exitType: meta?.isPanicEscape ? 'PANIC_ESCAPE' : (meta?.isH1Failed ? 'BE_EXIT' : 'TP'),
+              pnlUsd: (roi / 100) * (meta.margin || 0),
+              pnlPercent: roi
             });
           }
           if (meta?.isPanicEscape) {
@@ -2920,6 +3138,29 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
                 holdingDurationMinutes: holdingDurationMinutes,
                 isWin: false,
               });
+              recordDirectionalTradeExit({
+                symbol: sym,
+                side: isLong ? 'LONG' : 'SHORT',
+                isWin: false,
+                exitType: typeLabel === 'Trailing SL' ? 'TRAILING_SL' : 'SL',
+                pnlUsd: (roi / 100) * (meta.margin || 0),
+                pnlPercent: roi
+              });
+              recordRealTradeOutcome({
+                symbol: sym,
+                side: isLong ? 'LONG' : 'SHORT',
+                isWin: false,
+                exitType: typeLabel === 'Trailing SL' ? 'TRAILING_SL' : 'SL',
+                pnlUsd: (roi / 100) * (meta.margin || 0),
+                pnlPercent: roi
+              });
+            }
+
+            // 🛡️ Kích hoạt Cooldown nếu lệnh đóng do Stop Loss hoặc bị lỗ âm
+            const estPnlUsd = (roi / 100) * (meta?.margin || 0);
+            if (typeLabel === 'Stop Loss' || roi < 0 || estPnlUsd < -0.2) {
+              addSymbolToCooldown(sym, 8.0, 'VIRTUAL_SL_LOSS');
+              log.system(`[CooldownManager] ⏳ Đưa ${sym} vào Cooldown 8 giờ do Virtual SL / Lỗ âm (${roi.toFixed(2)}%)`);
             }
           } catch (e) {
             justClosedByBot.delete(sym);
@@ -3025,10 +3266,27 @@ async function notifyRealClose(client, sym, prevPos, meta) {
         holdingDurationMinutes: holdingDurationMinutes,
         isWin: hasTradeData && realizedProfit >= 0,
       });
+      recordDirectionalTradeExit({
+        symbol: sym,
+        side: prevPos.isLong ? 'LONG' : 'SHORT',
+        isWin: hasTradeData && realizedProfit >= 0,
+        exitType: exitType,
+        pnlUsd: realizedProfit,
+        pnlPercent: roi
+      });
+      recordRealTradeOutcome({
+        symbol: sym,
+        side: prevPos.isLong ? 'LONG' : 'SHORT',
+        isWin: hasTradeData && realizedProfit >= 0,
+        exitType: exitType,
+        pnlUsd: realizedProfit,
+        pnlPercent: roi
+      });
     }
 
-    if (exitType === 'SL') {
-      addSymbolToCooldown(sym, null, 'SL_NORMAL');
+    if (exitType === 'SL' || realizedProfit < -0.2 || roi < -0.5) {
+      addSymbolToCooldown(sym, 8.0, 'SL_LOSS');
+      log.system(`[CooldownManager] ⏳ Đưa ${sym} vào Cooldown 8 giờ do khớp SL sàn / Lỗ âm (PnL: $${realizedProfit.toFixed(2)}, ROI: ${roi.toFixed(2)}%)`);
     }
 
     const pnlSign = realizedProfit >= 0 ? '+' : '';

@@ -357,7 +357,7 @@ def train_and_export_model():
 
                         dataset.append({
                             "win_credit": win_credit,
-                            "weight": 2.0,
+                            "weight": 4.0,
                             "features": extract_features(
                                 entry.get("scoreReasons", []),
                                 entry.get("score", 0),
@@ -368,9 +368,9 @@ def train_and_export_model():
                             )
                         })
                         real_count += 1
-        print(f"💰 Đã nạp {real_count} mẫu từ tài khoản thực tế (ai_trade_dataset.jsonl, Trọng số 2.0x)")
+        print(f"💰 Đã nạp {real_count} mẫu từ tài khoản thực tế (ai_trade_dataset.jsonl, Trọng số 4.0x)")
 
-    # 2. Load shadow trades từ shadow_trades_history.jsonl (Trọng số 1.0, theo dõi khớp lệnh thật sàn Binance)
+    # 2. Load shadow trades từ shadow_trades_history.jsonl (Trọng số 0.5, theo dõi nhịp nảy nhanh <= 4h)
     shadow_count = 0
     if os.path.exists(SHADOW_PATH):
         with open(SHADOW_PATH, 'r', encoding='utf-8') as f:
@@ -379,11 +379,24 @@ def train_and_export_model():
                 try:
                     rec = json.loads(l.strip())
                     outcome = rec.get("outcome")
-                    if outcome in ["MISSED_TP", "SAVED_SL", "TP", "SL"]:
-                        win_credit = 1.0 if outcome in ["MISSED_TP", "TP"] else 0.0
+                    if outcome in ["MISSED_TP", "SAVED_SL", "SAVED_BE", "TP", "SL", "BE"]:
+                        holding_mins = rec.get("holdingDurationMinutes") or (
+                            (rec.get("exitTimestamp", 0) - rec.get("entryTimestamp", 0)) / 60000
+                            if rec.get("exitTimestamp") and rec.get("entryTimestamp") else 0
+                        )
+                        # 🛡️ LOẠI BỎ ẢO TƯỞNG SHADOW TRADES:
+                        # Bản chất lưới 369 là nhịp nảy ngắn hạn (1-4h). Nếu shadow trade ngâm 10-48h mới chạm TP
+                        # thì đó là do thị trường trôi dạt tự do, KHÔNG PHẢI edge của chiến lược -> Không tính là Win!
+                        if outcome in ["MISSED_TP", "TP"]:
+                            win_credit = 0.0 if holding_mins > 240 else 1.0
+                        elif outcome in ["SAVED_BE", "BE"]:
+                            win_credit = 0.50
+                        else:
+                            win_credit = 0.0
+
                         dataset.append({
                             "win_credit": win_credit,
-                            "weight": 1.0,
+                            "weight": 0.5,
                             "features": extract_features(
                                 rec.get("scoreReasons", []),
                                 rec.get("score", 0),
@@ -396,7 +409,7 @@ def train_and_export_model():
                         shadow_count += 1
                 except Exception:
                     continue
-        print(f"👻 Đã nạp {shadow_count} mẫu từ shadow trading sàn Binance (shadow_trades_history.jsonl, Trọng số 1.0x)")
+        print(f"👻 Đã nạp {shadow_count} mẫu từ shadow trading sàn Binance (shadow_trades_history.jsonl, Trọng số 0.5x, Lọc trần <= 4h)")
 
     # 3. Load mined dataset từ ai_mined_dataset.jsonl (Chỉ dùng làm dữ liệu mồi nếu chưa đủ 200 mẫu lệnh thật)
     real_sample_count = len(dataset)
@@ -520,20 +533,19 @@ def train_and_export_model():
         except Exception as e:
             print(f"⚠️ Lỗi nạp knowledge_rules.json: {e}")
 
-    # 🤖 AUTONOMOUS BAYESIAN ADAPTATION (CƠ CHẾ TỰ ĐỘNG HÓA HOÀN TOÀN THEO DỮ LIỆU)
-    # Loại bỏ hoàn toàn các trần ép cứng (SANITY_BOUNDS). Dữ liệu thực tế tự do quyết định hệ số nhân.
-    # Chỉ duy trì cận phân tán toàn cục [0.20, 2.50] để tránh lỗi chia số học hoặc overfit cực đoan.
+    # 🤖 AUTONOMOUS BAYESIAN ADAPTATION (HOÀN TOÀN TỰ DO THEO DỮ LIỆU & XÁC SUẤT BAYES)
+    # Không áp đặt trần ép cứng (SANITY_BOUNDS). AI tự học và tự quyết định trọng số theo phân phối dữ liệu thực tế.
+    # Chỉ duy trì cận số học [0.10, 3.00] để chống lỗi chia cho 0 hoặc vô hạn trong phép tính Odds.
     auto_tuned_count = 0
     for feat_k, feat_data in feature_weights.items():
         curr_m = feat_data["multiplier"]
-        clamped_m = max(0.20, min(2.50, curr_m))
-        if clamped_m != curr_m:
-            feat_data["multiplier"] = clamped_m
+        clamped_m = max(0.10, min(3.00, curr_m))
+        feat_data["multiplier"] = round(clamped_m, 4)
         feat_data["sanityCapped"] = False
         feat_data["isAutonomous"] = True
         auto_tuned_count += 1
 
-    print(f"🤖 [Auto-Adaptation] Đã tự động thích ứng {auto_tuned_count} trọng số hoàn toàn theo dữ liệu Bayes (Không trần ép cứng).")
+    print(f"🤖 [Auto-Adaptation] Đã tự động thích ứng {auto_tuned_count} trọng số hoàn toàn tự do theo dữ liệu Bayes (Không dùng Sanity Bounds).")
 
     # 🧠 TỰ ĐỘNG TÍNH TOÁN & HIỆU CHUẨN NGƯỠNG DUYỆT TỐI ƯU (AUTONOMOUS THRESHOLD CALIBRATION)
     optimal_thresholds = calibrate_optimal_thresholds(BASE_DIR, feature_weights, prior_odds, prior_win)
@@ -666,14 +678,14 @@ def calibrate_optimal_thresholds(base_dir, feature_weights=None, prior_odds=1.3,
             "savedLossUSD": t.get("savedLossUSD", 0) or abs(t.get("pnlUsd", 0))
         })
 
-    # Grid search across candidate thresholds (Bảo vệ vốn nghiêm ngặt, ngưỡng duyệt >= 50%)
+    # Grid search across candidate thresholds (Bảo vệ vốn nghiêm ngặt, ngưỡng duyệt >= 55%)
     best_utility = -999999.0
-    best_th_top = 50.0
-    best_th_low = 60.0
+    best_th_top = 65.0
+    best_th_low = 70.0
     best_stats = {}
 
-    candidate_top = [50.0, 52.0, 54.0, 56.0, 58.0, 60.0]
-    candidate_low = [52.0, 54.0, 56.0, 58.0, 60.0, 62.0, 65.0]
+    candidate_top = [55.0, 60.0, 65.0, 68.0, 70.0]
+    candidate_low = [60.0, 65.0, 68.0, 70.0, 72.0, 75.0]
 
     for th_top in candidate_top:
         for th_low in candidate_low:

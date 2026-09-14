@@ -1,0 +1,12 @@
+{
+  "LONG": {
+    "losses": [],
+    "lockedUntil": 0,
+    "lockReason": ""
+  },
+  "SHORT": {
+    "losses": [],
+    "lockedUntil": 0,
+    "lockReason": ""
+  }
+}
