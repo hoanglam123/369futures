@@ -141,9 +141,15 @@ function extractSignalFeatures(reasons, score, rank, gridWidthPct, rawMarketData
     // Nhánh 1: Dữ liệu số học chuẩn xác (Độc lập 100%, không dính dáng text)
     const currH1Range = mm?.h1RangePct ?? (rawMarketData?.currH1 ? ((rawMarketData.currH1.high - rawMarketData.currH1.low) / (rawMarketData.currH1.low || 1)) * 100 : null);
     const lastH1Range = mm?.lastClosedH1RangePct ?? (rawMarketData?.lastClosedH1 ? ((rawMarketData.lastClosedH1.high - rawMarketData.lastClosedH1.low) / (rawMarketData.lastClosedH1.low || 1)) * 100 : null);
-    const maxH1Range = Math.max(...[currH1Range, lastH1Range].filter(r => typeof r === 'number'), 0.0);
+    let maxKlinesH1Range = null;
+    if (Array.isArray(rawMarketData?.h1Klines) && rawMarketData.h1Klines.length > 0) {
+      maxKlinesH1Range = Math.max(...rawMarketData.h1Klines.slice(-3).map(k => (((k.high ?? k[2]) - (k.low ?? k[3])) / ((k.low ?? k[3]) || 1)) * 100));
+    }
+    const maxH1Range = Math.max(...[currH1Range, lastH1Range, mm?.max3H1RangePct, maxKlinesH1Range].filter(r => typeof r === 'number' && !isNaN(r)), 0.0);
 
-    if (maxH1Range >= 3.5) {
+    if (maxH1Range >= 8.0) {
+      features['h1_volatility'] = 'H1_EXTREME_STORM_PUMP_DUMP';
+    } else if (maxH1Range >= 4.0) {
       features['h1_volatility'] = 'H1_VOLATILE_DANGER';
     } else if (maxH1Range <= 1.5) {
       features['h1_volatility'] = 'H1_ULTRA_COMPRESSED';
@@ -158,10 +164,12 @@ function extractSignalFeatures(reasons, score, rank, gridWidthPct, rawMarketData
     const lastM15Range = mm?.lastClosedM15RangePct ?? (rawMarketData?.lastClosedM15 ? ((rawMarketData.lastClosedM15.high - rawMarketData.lastClosedM15.low) / (rawMarketData.lastClosedM15.low || 1)) * 100 : null);
     const maxM15Range = Math.max(...[currM15Range, lastM15Range].filter(r => typeof r === 'number'), 0.0);
 
-    if (m15Vol >= 2.5) {
-      features['m15_volatility'] = 'M15_VOLUME_SURGE';
-    } else if (maxM15Range >= 3.0) {
+    if (maxM15Range >= 6.0) {
+      features['m15_volatility'] = 'M15_EXTREME_STORM';
+    } else if (m15Vol >= 3.0 || maxM15Range >= 3.0) {
       features['m15_volatility'] = 'M15_VOLATILE_DANGER';
+    } else if (m15Vol >= 2.0) {
+      features['m15_volatility'] = 'M15_VOLUME_SURGE';
     } else if (maxM15Range <= 0.8) {
       features['m15_volatility'] = 'M15_ULTRA_COMPRESSED';
     } else if (maxM15Range <= 1.5) {
@@ -171,7 +179,9 @@ function extractSignalFeatures(reasons, score, rank, gridWidthPct, rawMarketData
     }
   } else {
     // Nhánh 2: Dự phòng (Fallback) cho các bản ghi cũ chưa có số liệu nến
-    if (reasonsStr.includes('H1 biến động mạnh') || reasonsStr.includes('đều biến động mạnh')) {
+    if (reasonsStr.includes('H1 bão giá') || reasonsStr.includes('biến động cực đại')) {
+      features['h1_volatility'] = 'H1_EXTREME_STORM_PUMP_DUMP';
+    } else if (reasonsStr.includes('H1 biến động mạnh') || reasonsStr.includes('đều biến động mạnh')) {
       features['h1_volatility'] = 'H1_VOLATILE_DANGER';
     } else if (reasonsStr.includes('H1 siêu nén')) {
       features['h1_volatility'] = 'H1_ULTRA_COMPRESSED';
@@ -181,7 +191,9 @@ function extractSignalFeatures(reasons, score, rank, gridWidthPct, rawMarketData
       features['h1_volatility'] = 'H1_VOL_NORMAL';
     }
 
-    if (reasonsStr.includes('M15 đột biến Volume') || reasonsStr.includes('đột biến Volume')) {
+    if (reasonsStr.includes('M15 bão giá')) {
+      features['m15_volatility'] = 'M15_EXTREME_STORM';
+    } else if (reasonsStr.includes('M15 đột biến Volume') || reasonsStr.includes('đột biến Volume')) {
       features['m15_volatility'] = 'M15_VOLUME_SURGE';
     } else if (reasonsStr.includes('M15 biến động mạnh') || reasonsStr.includes('đều biến động mạnh')) {
       features['m15_volatility'] = 'M15_VOLATILE_DANGER';
@@ -503,11 +515,13 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
 
   // Custom weights for raw market features and risk interactions
   const dynamicModifiers = {
-    'score_group:SCORE_DANGER_LT4': 0.50,         // Phạt trừ 50% WinProb cho Score < 4đ -> Veto ngay
-    'score_group:SCORE_WEAK_4_TO_5': 0.85,
+    'h1_volatility:H1_EXTREME_STORM_PUMP_DUMP': 0.10, // Bão H1 >= 8% -> Phạt 90% WinProb -> Veto ngay
     'h1_volatility:H1_VOLATILE_DANGER': 0.65,     // H1 biến động mạnh nguy cơ quét SL
+    'm15_volatility:M15_EXTREME_STORM': 0.15,     // Bão M15 >= 6% -> Phạt 85% WinProb -> Veto ngay
     'm15_volatility:M15_VOLATILE_DANGER': 0.60,   // M15 biến động mạnh rủi ro đâm thủng Tier
     'm15_volatility:M15_VOLUME_SURGE': 0.55,      // Đột biến volume M15
+    'score_group:SCORE_DANGER_LT4': 0.50,         // Phạt trừ 50% WinProb cho Score < 4đ -> Veto ngay
+    'score_group:SCORE_WEAK_4_TO_5': 0.85,
     'h1_stagnant:H1_STAGNANT_TRAP': 0.65,         // Nén bế tắc bẫy thanh khoản
     'h1_candle_geometry:H1_PUNCTURED_DEEP': 0.22, // Tỷ lệ thắng thực nghiệm 19.8% (x0.22) -> Veto dứt khoát
     'h1_candle_geometry:H1_PUNCTURED_LIGHT': 0.60,
@@ -676,15 +690,18 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
   const isRrAcceptable = rrRatio >= 1.0;
 
   // ── AI LÀ NGƯỜI RA QUYẾT ĐỊNH 100% ──
-  // Quyết định duyệt hay phủ quyết dựa trên WinProbability >= threshold, EV >= minEvRoiThreshold, và R:R >= 1.0:1
-  const isApproved = winProb >= threshold && evRoi >= minEvRoiThreshold && isRrAcceptable;
+  const isExtremeStorm = features['h1_volatility'] === 'H1_EXTREME_STORM_PUMP_DUMP' || features['m15_volatility'] === 'M15_EXTREME_STORM';
+  const isApproved = !isExtremeStorm && winProb >= threshold && evRoi >= minEvRoiThreshold && isRrAcceptable;
   const factorSummary = keyFactors.length > 0 ? keyFactors.join(', ') : 'Điều kiện trung tính';
 
   let vetoCategory = null;
   let reasonText = '';
 
   if (!isApproved) {
-    if (!isRrAcceptable) {
+    if (isExtremeStorm) {
+      vetoCategory = features['h1_volatility'] === 'H1_EXTREME_STORM_PUMP_DUMP' ? 'H1_EXTREME_STORM' : 'M15_EXTREME_STORM';
+      reasonText = `[AI VETO BÃO NẾN CỰC ĐẠI] ${vetoCategory} (Biên độ nến vượt ngưỡng an toàn, rủi ro Pump & Dump càn quét mốc) [Rank #${rank}] (${factorSummary})`;
+    } else if (!isRrAcceptable) {
       vetoCategory = 'BAD_RR_LESS_THAN_1';
       reasonText = `[RỦI RO R:R < 1.0] Tỷ lệ R:R không đạt chuẩn (TP ${tpGridPct.toFixed(2)}% / SL ${effSlPct.toFixed(2)}% = ${rrRatio.toFixed(2)}:1 < 1.0:1) [Rank #${rank}] (${factorSummary})`;
     } else if (features['puncture_interaction'] && (features['puncture_interaction'] === 'INTERACTION_H1_M15_PUNCTURED' || features['puncture_interaction'].startsWith('INTERACTION_H1_'))) {

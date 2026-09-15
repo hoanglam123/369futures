@@ -400,15 +400,15 @@ function getDynamicRiskProfile(rank, winProb, score, baseLossUSD = 7.5) {
   const sc = typeof score === 'number' && !isNaN(score) ? score : 5.0;
   const rk = typeof rank === 'number' && !isNaN(rank) ? rank : 999;
 
-  if (wp >= 65.0 || (rk <= 10 && wp >= 55.0) || (rk <= 50 && wp >= 60.0 && sc >= 6.5)) {
+  if ((wp >= 65.0 && sc >= 6.0) || (rk <= 10 && wp >= 55.0) || (rk <= 50 && wp >= 60.0 && sc >= 6.5)) {
     multiplier = 1.0;
     tpRatio = 2.0;    // R:R 1:2.0
     grade = 'S (Super Sniper)';
-  } else if (wp >= 58.0 || (rk <= 50 && wp >= 53.0) || (rk <= 150 && wp >= 55.0 && sc >= 6.0)) {
+  } else if ((wp >= 58.0 && sc >= 5.5) || (rk <= 50 && wp >= 53.0) || (rk <= 150 && wp >= 55.0 && sc >= 6.0)) {
     multiplier = 1.0;
     tpRatio = 1.75;   // R:R 1:1.75
     grade = 'A (High Quality)';
-  } else if (wp >= 52.0 || (rk <= 150 && wp >= 50.0)) {
+  } else if ((wp >= 52.0 && sc >= 4.5) || (rk <= 150 && wp >= 50.0 && sc >= 4.5)) {
     multiplier = 1.0;
     tpRatio = 1.5;    // R:R 1:1.5
     grade = 'B (Solid Quality)';
@@ -1572,6 +1572,9 @@ async function startAutoTrade(coins) {
         h1VolRatio: rawMarketData?.h1VolRatio != null ? Number(rawMarketData.h1VolRatio.toFixed(2)) : null,
         lastClosedM15RangePct: rawMarketData?.lastClosedM15 ? Number((((rawMarketData.lastClosedM15.high - rawMarketData.lastClosedM15.low) / (rawMarketData.lastClosedM15.low || 1)) * 100).toFixed(2)) : null,
         lastClosedH1RangePct: rawMarketData?.lastClosedH1 ? Number((((rawMarketData.lastClosedH1.high - rawMarketData.lastClosedH1.low) / (rawMarketData.lastClosedH1.low || 1)) * 100).toFixed(2)) : null,
+        max3H1RangePct: Array.isArray(rawMarketData?.h1Klines) && rawMarketData.h1Klines.length > 0
+          ? Number(Math.max(...rawMarketData.h1Klines.slice(-3).map(k => (((k.high ?? k[2]) - (k.low ?? k[3])) / ((k.low ?? k[3]) || 1)) * 100)).toFixed(2))
+          : null,
         m15IsGreen: rawMarketData?.currM15 ? rawMarketData.currM15.close >= rawMarketData.currM15.open : null,
         m15BodyPct: rawMarketData?.currM15 ? Number(((Math.abs(rawMarketData.currM15.close - rawMarketData.currM15.open) / (rawMarketData.currM15.low || 1)) * 100).toFixed(2)) : null
       };
@@ -2419,6 +2422,9 @@ async function checkH1RetestSignals(client, activeSymbols, leverageInfo = {}) {
         h1VolRatio: rawMarketDataRetest?.h1VolRatio != null ? Number(rawMarketDataRetest.h1VolRatio.toFixed(2)) : null,
         lastClosedM15RangePct: rawMarketDataRetest?.lastClosedM15 ? Number((((rawMarketDataRetest.lastClosedM15.high - rawMarketDataRetest.lastClosedM15.low) / (rawMarketDataRetest.lastClosedM15.low || 1)) * 100).toFixed(2)) : null,
         lastClosedH1RangePct: rawMarketDataRetest?.lastClosedH1 ? Number((((rawMarketDataRetest.lastClosedH1.high - rawMarketDataRetest.lastClosedH1.low) / (rawMarketDataRetest.lastClosedH1.low || 1)) * 100).toFixed(2)) : null,
+        max3H1RangePct: Array.isArray(rawMarketDataRetest?.h1Klines) && rawMarketDataRetest.h1Klines.length > 0
+          ? Number(Math.max(...rawMarketDataRetest.h1Klines.slice(-3).map(k => (((k.high ?? k[2]) - (k.low ?? k[3])) / ((k.low ?? k[3]) || 1)) * 100)).toFixed(2))
+          : null,
         m15IsGreen: rawMarketDataRetest?.currM15 ? rawMarketDataRetest.currM15.close >= rawMarketDataRetest.currM15.open : null,
         m15BodyPct: rawMarketDataRetest?.currM15 ? Number(((Math.abs(rawMarketDataRetest.currM15.close - rawMarketDataRetest.currM15.open) / (rawMarketDataRetest.currM15.low || 1)) * 100).toFixed(2)) : null
       };

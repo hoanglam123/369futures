@@ -1075,3 +1075,9 @@
 {"ts":"2026-09-15T04:32:57","symbol":"ZEC","signal":"LONG","price":1175.27,"leverage":50,"score":6.8,"margin":3}
 {"ts":"2026-09-15T04:46:56","symbol":"ARB","signal":"LONG","price":0.13615184,"leverage":50,"score":4.9,"margin":3}
 {"ts":"2026-09-15T07:17:33","symbol":"VTHO","signal":"SHORT","price":0.0006305,"leverage":26,"score":3.0999999999999996,"margin":3.03}
+{"ts":"2026-09-15T14:32:41","symbol":"FF","signal":"LONG","price":0.14057,"leverage":20,"score":5.3,"margin":7.5}
+{"ts":"2026-09-15T14:34:13","symbol":"VET","signal":"LONG","price":0.007436,"leverage":50,"score":4.3,"margin":3}
+{"ts":"2026-09-15T14:50:48","symbol":"INJ","signal":"LONG","price":6.016,"leverage":50,"score":4.6,"margin":3}
+{"ts":"2026-09-15T14:51:12","symbol":"MASK","signal":"LONG","price":0.45084029,"leverage":27,"score":4.8,"margin":3.09}
+{"ts":"2026-09-15T14:52:08","symbol":"DOGE","signal":"LONG","price":0.0824774,"leverage":35,"score":5,"margin":3.06}
+{"ts":"2026-09-15T15:00:43","symbol":"AXS","signal":"LONG","price":0.9264,"leverage":44,"score":3.8,"margin":3.06}

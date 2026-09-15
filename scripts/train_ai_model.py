@@ -139,9 +139,12 @@ def extract_features(reasons, score, rank, grid_width_pct, timestamp_ms=None, di
         # Nhánh 1: Dữ liệu số học chuẩn xác (Độc lập 100%, không dính dáng text)
         curr_h1_range = mm.get("h1RangePct")
         last_h1_range = mm.get("lastClosedH1RangePct")
-        max_h1_range = max([r for r in [curr_h1_range, last_h1_range] if r is not None] or [0.0])
+        max_3h1_range = mm.get("max3H1RangePct")
+        max_h1_range = max([r for r in [curr_h1_range, last_h1_range, max_3h1_range] if r is not None] or [0.0])
 
-        if max_h1_range >= 3.5:
+        if max_h1_range >= 8.0:
+            features["h1_volatility"] = "H1_EXTREME_STORM_PUMP_DUMP"
+        elif max_h1_range >= 4.0:
             features["h1_volatility"] = "H1_VOLATILE_DANGER"
         elif max_h1_range <= 1.5:
             features["h1_volatility"] = "H1_ULTRA_COMPRESSED"
@@ -155,10 +158,12 @@ def extract_features(reasons, score, rank, grid_width_pct, timestamp_ms=None, di
         last_m15_range = mm.get("lastClosedM15RangePct")
         max_m15_range = max([r for r in [curr_m15_range, last_m15_range] if r is not None] or [0.0])
 
-        if m15_vol >= 2.5:
-            features["m15_volatility"] = "M15_VOLUME_SURGE"
-        elif max_m15_range >= 3.0:
+        if max_m15_range >= 6.0:
+            features["m15_volatility"] = "M15_EXTREME_STORM"
+        elif m15_vol >= 3.0 or max_m15_range >= 3.0:
             features["m15_volatility"] = "M15_VOLATILE_DANGER"
+        elif m15_vol >= 2.0:
+            features["m15_volatility"] = "M15_VOLUME_SURGE"
         elif max_m15_range <= 0.8:
             features["m15_volatility"] = "M15_ULTRA_COMPRESSED"
         elif max_m15_range <= 1.5:
@@ -167,7 +172,9 @@ def extract_features(reasons, score, rank, grid_width_pct, timestamp_ms=None, di
             features["m15_volatility"] = "M15_VOL_NORMAL"
     else:
         # Nhánh 2: Dự phòng (Fallback) cho các bản ghi lịch sử cũ chưa có marketMetrics
-        if "H1 biến động mạnh" in reasons_str or "đều biến động mạnh" in reasons_str:
+        if "H1 bão giá" in reasons_str or "biến động cực đại" in reasons_str:
+            features["h1_volatility"] = "H1_EXTREME_STORM_PUMP_DUMP"
+        elif "H1 biến động mạnh" in reasons_str or "đều biến động mạnh" in reasons_str:
             features["h1_volatility"] = "H1_VOLATILE_DANGER"
         elif "H1 siêu nén" in reasons_str:
             features["h1_volatility"] = "H1_ULTRA_COMPRESSED"
@@ -176,7 +183,9 @@ def extract_features(reasons, score, rank, grid_width_pct, timestamp_ms=None, di
         else:
             features["h1_volatility"] = "H1_VOL_NORMAL"
 
-        if "M15 đột biến Volume" in reasons_str or "đột biến Volume" in reasons_str:
+        if "M15 bão giá" in reasons_str:
+            features["m15_volatility"] = "M15_EXTREME_STORM"
+        elif "M15 đột biến Volume" in reasons_str or "đột biến Volume" in reasons_str:
             features["m15_volatility"] = "M15_VOLUME_SURGE"
         elif "M15 biến động mạnh" in reasons_str or "đều biến động mạnh" in reasons_str:
             features["m15_volatility"] = "M15_VOLATILE_DANGER"
@@ -584,6 +593,12 @@ def train_and_export_model():
         # Giới hạn an toàn (cap) từ 0.20 đến 3.0 để tránh phân kỳ cực đoan
         weight_mult = max(0.20, min(3.0, weight_mult))
 
+        # 🎯 BASELINE ANCHORING: Các trạng thái bình thường/trung tính là mốc quy chiếu (baseline = 1.0),
+        # triệt tiêu hoàn toàn hiện tượng 10-15 nhãn "bình thường" cùng nhân dồn đẩy xác suất ảo lên 85%-95%!
+        feat_val = key.split(":")[-1]
+        if feat_val.endswith("_NORMAL") or feat_val.endswith("_NEUTRAL") or feat_val.endswith("_BALANCED") or feat_val in ["SR_NONE", "PA_0_LEVEL"]:
+            weight_mult = min(1.00, weight_mult)
+
         feature_weights[key] = {
             "winCount": round(w_win, 1),
             "lossCount": round(w_loss, 1),
@@ -624,19 +639,51 @@ def train_and_export_model():
         except Exception as e:
             print(f"⚠️ Lỗi nạp knowledge_rules.json: {e}")
 
-    # 🤖 AUTONOMOUS BAYESIAN ADAPTATION (HOÀN TOÀN TỰ DO THEO DỮ LIỆU & XÁC SUẤT BAYES)
-    # Không áp đặt trần ép cứng (SANITY_BOUNDS). AI tự học và tự quyết định trọng số theo phân phối dữ liệu thực tế.
-    # Chỉ duy trì cận số học [0.10, 3.00] để chống lỗi chia cho 0 hoặc vô hạn trong phép tính Odds.
+    # 🛡️ DOMAIN-SPECIFIC BAYESIAN GUARDRAILS (Chống nhiễu dữ liệu làm sai lệch bản chất rủi ro)
+    # 1. Các trạng thái rủi ro/nguy hiểm KHÔNG BAO GIỜ được phép thành nhân tố thưởng (> 1.0)
+    # 2. Các trạng thái trung tính/thiếu cản không được phép nhân phóng đại quá mức (> 1.2)
+    GUARDRAIL_BOUNDS = {
+        "h1_volatility:H1_EXTREME_STORM_PUMP_DUMP": (0.05, 0.20),
+        "h1_volatility:H1_VOLATILE_DANGER": (0.30, 0.70),
+        "h1_volatility:H1_VOL_NORMAL": (0.85, 1.00),
+        "m15_volatility:M15_EXTREME_STORM": (0.05, 0.20),
+        "m15_volatility:M15_VOLATILE_DANGER": (0.30, 0.70),
+        "m15_volatility:M15_VOLUME_SURGE": (0.30, 0.75),
+        "m15_volatility:M15_VOL_NORMAL": (0.85, 1.00),
+        "trend:TREND_NEUTRAL": (0.85, 1.00),
+        "ls_flow:LS_NEUTRAL": (0.85, 1.00),
+        "score_group:SCORE_DANGER_LT4": (0.10, 0.40),
+        "score_group:SCORE_WEAK_4_TO_5": (0.40, 0.80),
+        "adx_strength:ADX_NORMAL": (0.85, 1.00),
+        "price_action:PA_0_LEVEL": (0.50, 0.85),
+        "sr_quality:SR_NONE": (0.50, 0.90),
+        "risk_interaction:INTERACTION_NO_SR_WEAK_SETUP": (0.30, 0.85),
+        "risk_interaction:INTERACTION_HIGH_VOLATILITY_WEAK_SETUP": (0.10, 0.50),
+        "candle_momentum:MOMENTUM_COUNTER_PUMP_TRAIN": (0.05, 0.30),
+        "candle_momentum:MOMENTUM_COUNTER_DUMP_TRAIN": (0.05, 0.30),
+        "puncture_interaction:INTERACTION_H1_M15_PUNCTURED": (0.05, 0.35),
+        "puncture_interaction:INTERACTION_H1_PUNCTURED_DEEP": (0.05, 0.40),
+    }
+
     auto_tuned_count = 0
+    capped_count = 0
     for feat_k, feat_data in feature_weights.items():
         curr_m = feat_data["multiplier"]
-        clamped_m = max(0.10, min(3.00, curr_m))
-        feat_data["multiplier"] = round(clamped_m, 4)
-        feat_data["sanityCapped"] = False
-        feat_data["isAutonomous"] = True
+        if feat_k in GUARDRAIL_BOUNDS:
+            min_b, max_b = GUARDRAIL_BOUNDS[feat_k]
+            clamped_m = max(min_b, min(max_b, curr_m))
+            feat_data["multiplier"] = round(clamped_m, 4)
+            feat_data["sanityCapped"] = (clamped_m != curr_m)
+            feat_data["isAutonomous"] = True
+            if feat_data["sanityCapped"]: capped_count += 1
+        else:
+            clamped_m = max(0.15, min(2.50, curr_m))
+            feat_data["multiplier"] = round(clamped_m, 4)
+            feat_data["sanityCapped"] = False
+            feat_data["isAutonomous"] = True
         auto_tuned_count += 1
 
-    print(f"🤖 [Auto-Adaptation] Đã tự động thích ứng {auto_tuned_count} trọng số hoàn toàn tự do theo dữ liệu Bayes (Không dùng Sanity Bounds).")
+    print(f"🛡️ [Guardrails & Auto-Adaptation] Đã chuẩn hóa {auto_tuned_count} trọng số (Áp dụng {capped_count} chốt chặn bảo vệ rủi ro).")
 
     # 🧠 TỰ ĐỘNG TÍNH TOÁN & HIỆU CHUẨN NGƯỠNG DUYỆT TỐI ƯU (AUTONOMOUS THRESHOLD CALIBRATION)
     optimal_thresholds = calibrate_optimal_thresholds(BASE_DIR, feature_weights, prior_odds, prior_win)

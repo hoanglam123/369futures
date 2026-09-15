@@ -11,12 +11,6 @@
     "reason": "SL_NORMAL",
     "updatedAt": 1789129809997
   },
-  "1000000BOB": {
-    "expiry": 1789176437887,
-    "hours": 5,
-    "reason": "SL_NORMAL",
-    "updatedAt": 1789158437887
-  },
   "SSV": {
     "expiry": 1789276202611,
     "hours": 5,
@@ -52,12 +46,6 @@
     "hours": 8,
     "reason": "SL_LOSS",
     "updatedAt": 1789412627507
-  },
-  "FF": {
-    "expiry": 1789445796339,
-    "hours": 8,
-    "reason": "SL_LOSS",
-    "updatedAt": 1789416996339
   },
   "ARB": {
     "expiry": 1789452068524,

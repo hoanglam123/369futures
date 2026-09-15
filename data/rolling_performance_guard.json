@@ -1,15 +1,6 @@
 {
   "recentRealTrades": [
     {
-      "symbol": "RUNE",
-      "side": "SHORT",
-      "isWin": true,
-      "pnlUsd": 0.16540648095509491,
-      "pnlPercent": 5.513549365169831,
-      "exitType": "TRAILING_SL",
-      "exitTime": 1789416744290
-    },
-    {
       "symbol": "ENS",
       "side": "SHORT",
       "isWin": true,
@@ -89,6 +80,15 @@
       "pnlPercent": 4.536082474226691,
       "exitType": "TRAILING_SL",
       "exitTime": 1789432191668
+    },
+    {
+      "symbol": "FF",
+      "side": "LONG",
+      "isWin": true,
+      "pnlUsd": 0.22558844507847264,
+      "pnlPercent": 3.007845934379635,
+      "exitType": "TRAILING_SL",
+      "exitTime": 1789457848294
     }
   ],
   "isStandDown": false,
