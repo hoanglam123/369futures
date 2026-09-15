@@ -818,6 +818,8 @@ def analyze_mfe_mae_profiles(base_dir):
     # MFE = khoảng cách từ entry đến exitPrice nếu thắng (hoặc đến tierTpPrice nếu hit TP)
     samples = []
     shadow_count = 0
+    # Mẫu riêng để học optimalTpGridRatio: chỉ lấy lệnh thắng có gridWidthPct rõ ràng
+    tp_ratio_samples = []   # list of (mfe_pct / grid_width_pct) for winning trades
 
     if os.path.exists(shadow_path):
         try:
@@ -833,6 +835,8 @@ def analyze_mfe_mae_profiles(base_dir):
                     xp = float(t.get("exitPrice") or 0)
                     is_win = bool(t.get("isTradeWin", False))
                     outcome = t.get("outcome", "")
+                    # gridWidthPct được ghi trong shadow trade khi tạo
+                    grid_w = float(t.get("gridWidthPct") or t.get("gridWidth") or 0)
 
                     if ep <= 0 or sl <= 0 or tp <= 0 or xp <= 0:
                         continue
@@ -842,16 +846,13 @@ def analyze_mfe_mae_profiles(base_dir):
                     if sl_dist_pct <= 0:
                         continue
 
-                    # MFE: khoảng cách tốt nhất giá đã chạy so với entry (% so với entry)
-                    # Với lệnh thắng (TP hit): MFE ≈ tp_dist_pct
-                    # Với lệnh thua (SL hit): MFE ≈ khoảng exit - entry (giá thường chạy 1 chút trước khi quay)
-                    # Với SAVED_SL: giá nảy đến gần TP rồi mới quay, MFE ≈ exit - entry (ở hướng tốt)
                     if is_win or outcome == "MISSED_TP":
-                        # Lệnh thắng: MFE đạt được ≈ tp_dist_pct
                         mfe_pct = tp_dist_pct
                         did_reach_tp = True
+                        # Học TP ratio: tỷ lệ MFE / GridWidth thực tế lệnh thắng
+                        if grid_w > 0:
+                            tp_ratio_samples.append(mfe_pct / grid_w)
                     else:
-                        # Lệnh thua: MFE tối thiểu = 0 (không chạy thuận chiều đủ)
                         mfe_pct = 0.0
                         did_reach_tp = False
 
@@ -916,6 +917,9 @@ def analyze_mfe_mae_profiles(base_dir):
                         "did_reach_tp": did_reach_tp,
                         "is_win": is_win
                     })
+                    # Học TP ratio từ real trades: TP dist thực tế / grid width
+                    if is_win and grid_w > 0:
+                        tp_ratio_samples.append(tp_dist_pct / grid_w)
                     real_count += 1
         except Exception as e:
             print(f"⚠️ [BE Calibration] Lỗi đọc ai_trade_dataset: {e}")
@@ -979,10 +983,42 @@ def analyze_mfe_mae_profiles(base_dir):
     else:
         print(f"⚠️ [BE Trigger Calibration] Chưa đủ dữ liệu ({total_samples} mẫu < 50), dùng mặc định {DEFAULT_BE}%")
 
-    print(f"📊 [MAE/MFE Profile] Hiệu chuẩn hoàn tất: Optimal TP = 45% GridWidth, Early BE Trigger = +{recommended_be_trigger_pct:.2f}% (Dựa trên {total_samples} mẫu: {shadow_count} shadow + {real_count} real)")
+    # === 4. Học optimalTpGridRatio từ phân phối MFE/GridWidth thực tế ===
+    # Chiến lược: lấy percentile 55 của phân phối (conservative — 55% lệnh thắng đạt được)
+    # Nếu TP đặt ở mức percentile 55 → 55% lệnh thắng sẽ chạm TP, không đặt quá xa.
+    DEFAULT_TP_RATIO = 0.45
+    optimal_tp_grid_ratio = DEFAULT_TP_RATIO
+    tp_ratio_stats = {}
+
+    if len(tp_ratio_samples) >= 30:
+        tp_ratio_samples_sorted = sorted(tp_ratio_samples)
+        n = len(tp_ratio_samples_sorted)
+        # Percentile 55: 55% lệnh thắng có MFE/GridWidth >= ngưỡng này
+        p55_idx = int(n * 0.45)  # index của 45th percentile từ dưới = 55th từ trên
+        p55_val = tp_ratio_samples_sorted[p55_idx]
+        p40_idx = int(n * 0.40)
+        p40_val = tp_ratio_samples_sorted[p40_idx]
+        # Lấy trung bình p40-p55 để smooth
+        learned_ratio = (p55_val + p40_val) / 2.0
+        # Guardrail: [0.30, 0.60] — không đặt TP quá gần (< 30% grid) hoặc quá xa (> 60% grid)
+        optimal_tp_grid_ratio = round(max(0.30, min(learned_ratio, 0.60)), 3)
+        tp_ratio_stats = {
+            "learnedRatio": round(learned_ratio, 3),
+            "p40": round(p40_val, 3),
+            "p55": round(p55_val, 3),
+            "sampleCount": n,
+            "medianRatio": round(tp_ratio_samples_sorted[n // 2], 3)
+        }
+        print(f"🎯 [TP Grid Ratio] Tỷ lệ TP/Grid tối ưu học được: {optimal_tp_grid_ratio:.3f} ({optimal_tp_grid_ratio*100:.1f}% GridWidth)")
+        print(f"   • P40={p40_val:.3f} | P55={p55_val:.3f} | Median={tp_ratio_samples_sorted[n // 2]:.3f} | N={n} mẫu thắng")
+    else:
+        print(f"⚠️ [TP Grid Ratio] Chưa đủ mẫu thắng có gridWidthPct ({len(tp_ratio_samples)} < 30), dùng mặc định {DEFAULT_TP_RATIO}")
+
+    print(f"📊 [MAE/MFE Profile] Hoàn tất: TP = {optimal_tp_grid_ratio*100:.1f}% GridWidth, BE Trigger = +{recommended_be_trigger_pct:.2f}% (N={total_samples}: {shadow_count} shadow + {real_count} real)")
 
     return {
-        "optimalTpGridRatio": 0.45,
+        "optimalTpGridRatio": optimal_tp_grid_ratio,
+        "tpRatioStats": tp_ratio_stats,
         "recommendedBeTriggerPct": recommended_be_trigger_pct,
         "beCalibrationStats": be_calibration_stats,
         "sampleCount": total_samples,

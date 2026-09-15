@@ -502,13 +502,21 @@ function calculateTierSLTP(symbol, side, entryPrice, h4Ref, tickSize, maxExchang
   const actualMargin = targetLossUSD / (leverage * (slPct / 100));
 
   // 🎯 TÍNH TOÁN TP NEO THEO BIÊN ĐỘ GRID (Grid-Relative TP)
-  // Khống chế trần TP không vượt quá 45% biên Grid (1.2% - 3.0%), tránh đòi hỏi giá phải chạy 90% lưới mới chốt lời
+  // Khống chế trần TP không vượt quá X% biên Grid (1.2% - 3.0%), tránh đòi hỏi giá phải chạy 90% lưới mới chốt lời
+  // mfeMaeCfg dùng chung cho cả TP grid ratio và BE trigger bên dưới
+  const mfeMaeCfg = (typeof getAIModelConfig === 'function' ? getAIModelConfig() : null)?.mfeMaeProfile;
   const effGridWidth = (typeof gridWidthPct === 'number' && gridWidthPct > 0)
     ? gridWidthPct
     : (((step * 10) / entryPrice) * 100);
   const actualTpRatio = tpRatio || 1.5;
   const rawTpDist = slDist * actualTpRatio;
-  const tpGridLimit = entryPrice * (Math.min(Math.max(effGridWidth * 0.45, 1.2), 3.0) / 100.0);
+  // 🧠 Tỷ lệ TP/Grid tối ưu — học từ phân phối MFE thực tế (percentile 55 lệnh thắng)
+  const rawTpGridRatio = typeof mfeMaeCfg?.optimalTpGridRatio === 'number'
+    ? mfeMaeCfg.optimalTpGridRatio
+    : 0.45;
+  // Guardrail: [0.30, 0.60] — không đặt TP quá gần hoặc quá xa biên Grid
+  const tpGridRatio = Math.max(0.30, Math.min(rawTpGridRatio, 0.60));
+  const tpGridLimit = entryPrice * (Math.min(Math.max(effGridWidth * tpGridRatio, 1.2), 3.0) / 100.0);
   const finalTpDist = Math.min(rawTpDist, tpGridLimit);
 
   const tpPrice = (side === 'LONG' || side === 'BUY') ? (entryPrice + finalTpDist) : (entryPrice - finalTpDist);
@@ -516,7 +524,7 @@ function calculateTierSLTP(symbol, side, entryPrice, h4Ref, tickSize, maxExchang
   // 🧠 DỜI SL VỀ HÒA VỐN SỚM (Adaptive Trailing Breakeven Trigger — tự học từ data)
   // Ngưỡng kích BE được hiệu chuẩn động mỗi lần training dựa trên F-beta optimization
   // (precision > recall: ưu tiên tránh false trigger hơn bỏ lỡ lần dời BE)
-  const mfeMaeCfg = (typeof getAIModelConfig === 'function' ? getAIModelConfig() : null)?.mfeMaeProfile;
+  // mfeMaeCfg đã được khai báo ở đoạn TP bên trên, dùng lại trực tiếp
   const rawBeTriggerPct = typeof mfeMaeCfg?.recommendedBeTriggerPct === 'number'
     ? mfeMaeCfg.recommendedBeTriggerPct
     : 0.60;
