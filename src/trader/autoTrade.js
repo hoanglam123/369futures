@@ -520,10 +520,12 @@ function calculateTierSLTP(symbol, side, entryPrice, h4Ref, tickSize, maxExchang
   const rawBeTriggerPct = typeof mfeMaeCfg?.recommendedBeTriggerPct === 'number'
     ? mfeMaeCfg.recommendedBeTriggerPct
     : 0.60;
-  // Guardrail: không để BE trigger < 0.35% (quá sớm gây false trigger) hoặc > 1.5% (quá muộn, bỏ lỡ)
+  // Guardrail: không để BE trigger < 0.35% (quá sớm) hoặc > 1.5% (quá muộn)
   const beTriggerPct = Math.max(0.35, Math.min(rawBeTriggerPct, 1.5));
-  // Lấy min của: (beTriggerPct% của entry) và (35% khoảng cách SL) để không dời BE quá gần SL
-  const beDist = Math.min(slDist * 0.35, entryPrice * (beTriggerPct / 100));
+  // Dùng trực tiếp % AI đã học — KHÔNG cap theo slDist (đã triệt tiêu giá trị AI học được).
+  // Chỉ giới hạn trên: không được vượt 70% khoảng cách TP (tránh trigger gần sát TP vô nghĩa)
+  const beDistRaw = entryPrice * (beTriggerPct / 100);
+  const beDist = Math.min(beDistRaw, finalTpDist * 0.70);
   const beTriggerPrice = (side === 'LONG' || side === 'BUY') ? (entryPrice + beDist) : (entryPrice - beDist);
 
   // 🛡️ BẮT BUỘC TỶ LỆ R:R TỐI THIỂU 1.0:1 (Loại bỏ triệt để các lệnh R:R < 1.0 như 0.5:1)
