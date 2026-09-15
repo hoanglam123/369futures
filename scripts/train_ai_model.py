@@ -800,29 +800,195 @@ def calibrate_adaptive_sl_profile(base_dir):
 
 def analyze_mfe_mae_profiles(base_dir):
     """
-    Thống kê và tính toán hồ sơ MAE (độ sâu thò râu) và MFE (đỉnh nhịp nảy)
-    từ dữ liệu lịch sử để tự động hiệu chuẩn TP theo tỷ lệ biên Grid và ngưỡng dời BE.
+    Tự động học ngưỡng dời BE (Breakeven Trigger) tối ưu từ dữ liệu giao dịch lịch sử.
+    
+    Logic: Với mỗi lệnh thắng, tính khoảng cách từ Entry đến điểm nảy tốt nhất (MFE %).
+    Tìm ngưỡng beTriggerPct tối ưu hóa: tỷ lệ lệnh có MFE >= ngưỡng VÀ đến được TP.
+    Ngưỡng tốt nhất = nảy đủ mạnh để dời BE mà không bị kích sớm quá (false trigger).
+    
+    Nguồn dữ liệu:
+      - shadow_trades_history.jsonl: entryPrice, tierSlPrice, tierTpPrice, exitPrice, isTradeWin
+      - ai_trade_dataset.jsonl: ENTRY có maxRecentBouncePct (MFE trước entry), EXIT có pnlPercent
     """
     shadow_path = os.path.join(base_dir, "data", "shadow_trades_history.jsonl")
-    optimal_tp_grid_ratio = 0.45  # Mặc định 45% độ rộng Grid
-    recommended_be_trigger_pct = 0.60  # Mặc định dời BE khi nảy +0.6%
+    dataset_path = os.path.join(base_dir, "data", "ai_trade_dataset.jsonl")
 
-    sample_count = 0
+    # === 1. Thu thập mẫu từ shadow trades ===
+    # Shadow trade có đủ: entryPrice, tierSlPrice, tierTpPrice, exitPrice, isTradeWin
+    # MFE = khoảng cách từ entry đến exitPrice nếu thắng (hoặc đến tierTpPrice nếu hit TP)
+    samples = []
+    shadow_count = 0
+
     if os.path.exists(shadow_path):
         try:
             with open(shadow_path, "r", encoding="utf-8") as f:
                 for line in f:
-                    if line.strip():
-                        sample_count += 1
-        except Exception:
-            pass
+                    if not line.strip():
+                        continue
+                    shadow_count += 1
+                    t = json.loads(line.strip())
+                    ep = float(t.get("entryPrice") or 0)
+                    sl = float(t.get("tierSlPrice") or 0)
+                    tp = float(t.get("tierTpPrice") or 0)
+                    xp = float(t.get("exitPrice") or 0)
+                    is_win = bool(t.get("isTradeWin", False))
+                    outcome = t.get("outcome", "")
 
-    print(f"📊 [MAE/MFE Profile] Đã hiệu chuẩn: Optimal TP = 45% GridWidth, Early BE Trigger = +0.60% (Dựa trên {sample_count} mẫu shadow)")
+                    if ep <= 0 or sl <= 0 or tp <= 0 or xp <= 0:
+                        continue
+
+                    sl_dist_pct = abs(ep - sl) / ep * 100
+                    tp_dist_pct = abs(ep - tp) / ep * 100
+                    if sl_dist_pct <= 0:
+                        continue
+
+                    # MFE: khoảng cách tốt nhất giá đã chạy so với entry (% so với entry)
+                    # Với lệnh thắng (TP hit): MFE ≈ tp_dist_pct
+                    # Với lệnh thua (SL hit): MFE ≈ khoảng exit - entry (giá thường chạy 1 chút trước khi quay)
+                    # Với SAVED_SL: giá nảy đến gần TP rồi mới quay, MFE ≈ exit - entry (ở hướng tốt)
+                    if is_win or outcome == "MISSED_TP":
+                        # Lệnh thắng: MFE đạt được ≈ tp_dist_pct
+                        mfe_pct = tp_dist_pct
+                        did_reach_tp = True
+                    else:
+                        # Lệnh thua: MFE tối thiểu = 0 (không chạy thuận chiều đủ)
+                        mfe_pct = 0.0
+                        did_reach_tp = False
+
+                    samples.append({
+                        "mfe_pct": mfe_pct,
+                        "sl_dist_pct": sl_dist_pct,
+                        "tp_dist_pct": tp_dist_pct,
+                        "did_reach_tp": did_reach_tp,
+                        "is_win": is_win
+                    })
+        except Exception as e:
+            print(f"⚠️ [BE Calibration] Lỗi đọc shadow trades: {e}")
+
+    # === 2. Thu thập mẫu bổ sung từ ai_trade_dataset (lệnh thực) ===
+    real_count = 0
+    if os.path.exists(dataset_path):
+        try:
+            records = []
+            with open(dataset_path, "r", encoding="utf-8") as f:
+                for line in f:
+                    if line.strip():
+                        records.append(json.loads(line.strip()))
+
+            exits = {r.get("tradeId"): r for r in records if r.get("type") == "EXIT"}
+            entries = {r.get("tradeId"): r for r in records if r.get("type") == "ENTRY"}
+
+            for tid, ex in exits.items():
+                en = entries.get(tid)
+                if not en:
+                    continue
+                ep = float(en.get("entryPrice") or 0)
+                is_win = bool(ex.get("isWin", False))
+                exit_type = ex.get("exitType", "")
+                pnl_pct = float(ex.get("pnlPercent") or 0)
+                grid_w = float(en.get("gridWidthPct") or 3.5)
+                if ep <= 0:
+                    continue
+
+                # Ước tính SL và TP từ gridWidth (tương tự calculateTierSLTP)
+                sl_dist_pct = min(max(grid_w * 0.5, 1.0), 2.5)
+                tp_dist_pct = min(max(grid_w * 0.45, 1.2), 3.0)
+
+                # MFE ước tính từ kết quả: pnlPercent của lệnh / leverage (≈ move%)
+                leverage = float(en.get("leverage") or 10)
+                move_pct = abs(pnl_pct) / max(leverage, 1) if leverage > 0 else 0
+
+                if is_win:
+                    mfe_pct = max(move_pct, tp_dist_pct * 0.8)
+                    did_reach_tp = True
+                elif exit_type == "TP":
+                    mfe_pct = tp_dist_pct
+                    did_reach_tp = True
+                else:
+                    mfe_pct = move_pct * 0.3  # Thua: MFE nhỏ, không chạy xa
+                    did_reach_tp = False
+
+                if sl_dist_pct > 0:
+                    samples.append({
+                        "mfe_pct": mfe_pct,
+                        "sl_dist_pct": sl_dist_pct,
+                        "tp_dist_pct": tp_dist_pct,
+                        "did_reach_tp": did_reach_tp,
+                        "is_win": is_win
+                    })
+                    real_count += 1
+        except Exception as e:
+            print(f"⚠️ [BE Calibration] Lỗi đọc ai_trade_dataset: {e}")
+
+    total_samples = len(samples)
+
+    # === 3. Tối ưu hóa ngưỡng beTriggerPct ===
+    # Ứng viên: 0.3% → 1.5% (bước 0.05%)
+    # Tiêu chí tối ưu: tối đa hóa (precision * recall)
+    #   precision = P(lệnh đến TP | MFE >= threshold) = tránh dời BE sớm với lệnh sẽ thua
+    #   recall    = P(MFE >= threshold | lệnh thắng) = đảm bảo dời BE được đủ nhiều lệnh thắng
+    DEFAULT_BE = 0.60
+    recommended_be_trigger_pct = DEFAULT_BE
+    be_calibration_stats = {}
+
+    if total_samples >= 50:
+        candidates = [round(x * 0.05, 2) for x in range(6, 32)]  # 0.30% → 1.55%
+        best_f1 = -1.0
+        best_threshold = DEFAULT_BE
+
+        win_samples = [s for s in samples if s["did_reach_tp"]]
+        all_count = total_samples
+
+        for th in candidates:
+            # Lệnh thắng có MFE >= th → True Positive (BE dời đúng)
+            tp_count = sum(1 for s in samples if s["mfe_pct"] >= th and s["did_reach_tp"])
+            # Lệnh thua có MFE >= th → False Positive (BE dời sai, lãng phí)
+            fp_count = sum(1 for s in samples if s["mfe_pct"] >= th and not s["did_reach_tp"])
+            # Lệnh thắng có MFE < th → False Negative (thắng nhưng không dời BE được)
+            fn_count = sum(1 for s in samples if s["mfe_pct"] < th and s["did_reach_tp"])
+
+            precision = tp_count / (tp_count + fp_count) if (tp_count + fp_count) > 0 else 0
+            recall = tp_count / (tp_count + fn_count) if (tp_count + fn_count) > 0 else 0
+
+            # F1 score: cân bằng giữa precision và recall
+            # Ưu tiên precision hơn (tránh dời BE quá sớm) → dùng F-beta với beta=0.7
+            beta = 0.7
+            if precision + recall > 0:
+                f_beta = (1 + beta**2) * (precision * recall) / ((beta**2 * precision) + recall)
+            else:
+                f_beta = 0.0
+
+            if f_beta > best_f1:
+                best_f1 = f_beta
+                best_threshold = th
+                be_calibration_stats = {
+                    "threshold": th,
+                    "precision": round(precision, 3),
+                    "recall": round(recall, 3),
+                    "fBeta": round(f_beta, 3),
+                    "truePositives": tp_count,
+                    "falsePositives": fp_count,
+                    "falseNegatives": fn_count
+                }
+
+        # Áp dụng guardrail: không để ngưỡng quá thấp (false trigger) hoặc quá cao (bỏ lỡ)
+        recommended_be_trigger_pct = max(0.35, min(best_threshold, 1.2))
+        print(f"🎯 [BE Trigger Calibration] Ngưỡng tối ưu học được: +{recommended_be_trigger_pct:.2f}%")
+        print(f"   • Precision: {be_calibration_stats.get('precision', 0):.1%} | Recall: {be_calibration_stats.get('recall', 0):.1%} | F-beta: {be_calibration_stats.get('fBeta', 0):.3f}")
+        print(f"   • TP/FP/FN: {be_calibration_stats.get('truePositives', 0)} / {be_calibration_stats.get('falsePositives', 0)} / {be_calibration_stats.get('falseNegatives', 0)}")
+    else:
+        print(f"⚠️ [BE Trigger Calibration] Chưa đủ dữ liệu ({total_samples} mẫu < 50), dùng mặc định {DEFAULT_BE}%")
+
+    print(f"📊 [MAE/MFE Profile] Hiệu chuẩn hoàn tất: Optimal TP = 45% GridWidth, Early BE Trigger = +{recommended_be_trigger_pct:.2f}% (Dựa trên {total_samples} mẫu: {shadow_count} shadow + {real_count} real)")
 
     return {
-        "optimalTpGridRatio": optimal_tp_grid_ratio,
+        "optimalTpGridRatio": 0.45,
         "recommendedBeTriggerPct": recommended_be_trigger_pct,
-        "sampleCount": sample_count,
+        "beCalibrationStats": be_calibration_stats,
+        "sampleCount": total_samples,
+        "shadowCount": shadow_count,
+        "realCount": real_count,
+        "autoCalibrated": total_samples >= 50,
         "calculatedAt": time.strftime("%Y-%m-%d %H:%M:%S")
     }
 

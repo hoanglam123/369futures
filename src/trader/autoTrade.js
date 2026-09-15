@@ -513,9 +513,17 @@ function calculateTierSLTP(symbol, side, entryPrice, h4Ref, tickSize, maxExchang
 
   const tpPrice = (side === 'LONG' || side === 'BUY') ? (entryPrice + finalTpDist) : (entryPrice - finalTpDist);
 
-  // 🛡️ DỜI SL VỀ HÒA VỐN SỚM (Trailing Breakeven Trigger)
-  // Kích hoạt ngay khi giá nảy được +0.6% (hoặc 35% khoảng cách SL), triệt tiêu rủi ro bị quay đầu ăn SL 1.8%
-  const beDist = Math.min(slDist * 0.35, entryPrice * 0.006);
+  // 🧠 DỜI SL VỀ HÒA VỐN SỚM (Adaptive Trailing Breakeven Trigger — tự học từ data)
+  // Ngưỡng kích BE được hiệu chuẩn động mỗi lần training dựa trên F-beta optimization
+  // (precision > recall: ưu tiên tránh false trigger hơn bỏ lỡ lần dời BE)
+  const mfeMaeCfg = (typeof getAIModelConfig === 'function' ? getAIModelConfig() : null)?.mfeMaeProfile;
+  const rawBeTriggerPct = typeof mfeMaeCfg?.recommendedBeTriggerPct === 'number'
+    ? mfeMaeCfg.recommendedBeTriggerPct
+    : 0.60;
+  // Guardrail: không để BE trigger < 0.35% (quá sớm gây false trigger) hoặc > 1.5% (quá muộn, bỏ lỡ)
+  const beTriggerPct = Math.max(0.35, Math.min(rawBeTriggerPct, 1.5));
+  // Lấy min của: (beTriggerPct% của entry) và (35% khoảng cách SL) để không dời BE quá gần SL
+  const beDist = Math.min(slDist * 0.35, entryPrice * (beTriggerPct / 100));
   const beTriggerPrice = (side === 'LONG' || side === 'BUY') ? (entryPrice + beDist) : (entryPrice - beDist);
 
   // 🛡️ BẮT BUỘC TỶ LỆ R:R TỐI THIỂU 1.0:1 (Loại bỏ triệt để các lệnh R:R < 1.0 như 0.5:1)
