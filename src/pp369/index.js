@@ -56,6 +56,7 @@ module.exports = {
   recordAIEvaluation:   aiReviewer.recordAIEvaluation,
   loadAIModel:          aiReviewer.loadAIModel,
   checkModelHotReload:  aiReviewer.checkModelHotReload,
+  getAIModelConfig:     aiReviewer.getAIModelConfig,
   // ── Cấu hình (optional) ──────────────────────────────────────────────────
   setLogger,                             // override logger (mặc định: console)
   setDataDir: signalLog.setDataDir,      // override thư mục lưu signal log

@@ -1,6 +1,6 @@
 {
   "version": "1.4.0-auto",
-  "trainedAt": "2026-09-15 15:16:57",
+  "trainedAt": "2026-09-15 15:44:33",
   "totalSamples": 3483,
   "priorWinProb": 0.6256,
   "priorOdds": 1.6712,
@@ -9,7 +9,7 @@
     "lowcap": 54.0,
     "minExpectedEvRoi": 0.0,
     "autoCalibrated": true,
-    "calibratedAt": "2026-09-15 15:16:57",
+    "calibratedAt": "2026-09-15 15:44:33",
     "calibrationStats": {
       "testedSamples": 1871,
       "approvedTrades": 12,
@@ -25,7 +25,14 @@
     "optimalTpGridRatio": 0.45,
     "recommendedBeTriggerPct": 0.6,
     "sampleCount": 1871,
-    "calculatedAt": "2026-09-15 15:16:57"
+    "calculatedAt": "2026-09-15 15:44:33"
+  },
+  "adaptiveSlProfile": {
+    "top150MinSlPct": 0.9,
+    "lowcapMinSlPct": 1.6,
+    "autoCalibrated": true,
+    "calculatedAt": "2026-09-15 15:44:33",
+    "sampleCount": 1933
   },
   "featureWeights": {
     "score_group:SCORE_HIGH_GE7": {

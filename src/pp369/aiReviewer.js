@@ -674,7 +674,10 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
 
   // TP neo theo tỷ lệ 45% độ rộng Grid (dao động 1.2% - 3.0%), quy đổi sang ROI % theo tỷ lệ đòn bẩy:
   const isLowcap = rank > 150;
-  const defaultSlPct = isLowcap ? 1.8 : 1.0;
+  const slCfg = _modelConfig?.adaptiveSlProfile;
+  const defaultLowcapMin = typeof slCfg?.lowcapMinSlPct === 'number' ? slCfg.lowcapMinSlPct : 1.8;
+  const defaultTop150Min = typeof slCfg?.top150MinSlPct === 'number' ? slCfg.top150MinSlPct : 1.0;
+  const defaultSlPct = isLowcap ? defaultLowcapMin : defaultTop150Min;
   // Lấy khoảng cách SL thực tế từ mốc cản của tín hiệu nếu có, fallback về defaultSlPct:
   const effSlPct = (typeof sig.actualSlPct === 'number' && sig.actualSlPct > 0) ? sig.actualSlPct : defaultSlPct;
   const tpGridPct = Math.min(Math.max(gridWidthPct * 0.45, 1.2), 3.0);
@@ -766,9 +769,15 @@ function recordAIEvaluation(sig, aiEval) {
   }
 }
 
+function getAIModelConfig() {
+  if (!_modelConfig) loadAIModel();
+  return _modelConfig;
+}
+
 module.exports = {
   evaluateSignalWithAI,
   recordAIEvaluation,
   loadAIModel,
   checkModelHotReload,
+  getAIModelConfig,
 };

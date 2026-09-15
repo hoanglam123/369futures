@@ -691,6 +691,9 @@ def train_and_export_model():
     # 📊 TỰ ĐỘNG THỐNG KÊ HỒ SƠ MFE/MAE ĐỂ TỐI ƯU HÓA TP VÀ BREAKEVEN
     mfe_mae_profile = analyze_mfe_mae_profiles(BASE_DIR)
 
+    # 🛡️ TỰ ĐỘNG HIỆU CHUẨN SÀN SL THÍCH ỨNG (ADAPTIVE DYNAMIC SL FLOOR CALIBRATION)
+    adaptive_sl_profile = calibrate_adaptive_sl_profile(BASE_DIR)
+
     model_output = {
         "version": "1.4.0-auto",
         "trainedAt": time.strftime("%Y-%m-%d %H:%M:%S"),
@@ -701,6 +704,7 @@ def train_and_export_model():
         "thresholdApprovalPct": optimal_thresholds.get("lowcap", 47.0),
         "minExpectedEvRoi": optimal_thresholds.get("minExpectedEvRoi", 0.0),
         "mfeMaeProfile": mfe_mae_profile,
+        "adaptiveSlProfile": adaptive_sl_profile,
         "featureWeights": feature_weights
     }
 
@@ -708,6 +712,91 @@ def train_and_export_model():
         json.dump(model_output, f, indent=2, ensure_ascii=False)
 
     print(f"\n✅ Đã xuất mô hình AI Reviewer v1.4.0-auto thành công tại: {OUTPUT_MODEL_PATH}")
+
+def calibrate_adaptive_sl_profile(base_dir):
+    """
+    Tự động phân tích và hiệu chuẩn sàn SL tối ưu (Adaptive Dynamic SL Floor)
+    cho Top 150 và Lowcap dựa trên dữ liệu lệnh thực tế và shadow trades.
+    """
+    rank_map = {}
+    mc_path = os.path.join(base_dir, "data", "market_cap_top.json")
+    if os.path.exists(mc_path):
+        try:
+            with open(mc_path, "r", encoding="utf-8") as f:
+                rank_map = json.load(f).get("rankMap", {})
+        except Exception:
+            pass
+
+    dataset_path = os.path.join(base_dir, "data", "ai_trade_dataset.jsonl")
+    top150_samples = []
+    lowcap_samples = []
+
+    if os.path.exists(dataset_path):
+        try:
+            records = []
+            with open(dataset_path, "r", encoding="utf-8") as f:
+                for line in f:
+                    if line.strip():
+                        records.append(json.loads(line.strip()))
+
+            exits = {r.get("tradeId"): r for r in records if r.get("type") == "EXIT"}
+            entries = {r.get("tradeId"): r for r in records if r.get("type") == "ENTRY"}
+
+            for tid, ex in exits.items():
+                en = entries.get(tid)
+                if not en: continue
+                ep = float(en.get("entryPrice", 0))
+                xp = float(ex.get("exitPrice", 0))
+                if ep <= 0 or xp <= 0: continue
+                sym = en.get("symbol", "").replace("USDT", "")
+                rk = rank_map.get(sym, 999)
+                is_win = ex.get("isWin", False)
+                grid_w = float(en.get("gridWidthPct") or 3.5)
+                move_pct = abs(xp - ep) / ep * 100
+
+                sample = {"is_win": is_win, "move_pct": move_pct, "grid_w": grid_w}
+                if rk <= 150:
+                    top150_samples.append(sample)
+                else:
+                    lowcap_samples.append(sample)
+        except Exception as e:
+            print(f"⚠️ Lỗi nạp dataset cho Adaptive SL: {e}")
+
+    # Tối ưu hóa mốc SL theo kỳ vọng lợi nhuận và biên độ an toàn chống nhiễu M15
+    def optimize_sl_floor(samples, candidates, default_floor, min_noise_guard):
+        if not samples or len(samples) < 30:
+            return default_floor
+        best_ev = -999999
+        best_floor = default_floor
+        for floor in candidates:
+            ev = 0.0
+            for s in samples:
+                tp_dist = min(max(s["grid_w"] * 0.45, 1.2), 3.0)
+                eff_floor = max(floor, min_noise_guard)
+                if s["is_win"]:
+                    ev += (tp_dist / eff_floor) * 1.5
+                else:
+                    ev -= 1.5
+            if floor < min_noise_guard:
+                ev -= len(samples) * 0.05
+            if ev > best_ev:
+                best_ev = ev
+                best_floor = floor
+        return best_floor
+
+    opt_top150 = optimize_sl_floor(top150_samples, [0.9, 1.0, 1.1, 1.2, 1.3], 1.0, 0.9)
+    opt_lowcap = optimize_sl_floor(lowcap_samples, [1.5, 1.6, 1.7, 1.8, 1.9, 2.0, 2.1], 1.8, 1.6)
+
+    total_samples = len(top150_samples) + len(lowcap_samples)
+    print(f"🛡️ [Adaptive SL Profile] Đã hiệu chuẩn: Top150 Min SL = {opt_top150:.2f}%, Lowcap Min SL = {opt_lowcap:.2f}% (Dựa trên {total_samples} mẫu)")
+
+    return {
+        "top150MinSlPct": round(opt_top150, 2),
+        "lowcapMinSlPct": round(opt_lowcap, 2),
+        "autoCalibrated": True,
+        "calculatedAt": time.strftime("%Y-%m-%d %H:%M:%S"),
+        "sampleCount": total_samples
+    }
 
 def analyze_mfe_mae_profiles(base_dir):
     """

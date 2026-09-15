@@ -40,6 +40,7 @@ const {
   recordTradeExit,
   evaluateSignalWithAI,
   recordAIEvaluation,
+  getAIModelConfig,
   recordSkippedSignal,
   checkTurnoverGuard,
   updateVolume24hCache,
@@ -454,7 +455,10 @@ function getDynamicTargetLossUSD(rank, winProb, score, baseLossUSD = 5.0) {
 function calculateTierSLTP(symbol, side, entryPrice, h4Ref, tickSize, maxExchangeLeverage, targetLossUSD = 5.0, tpRatio = 1.5, rank = null, gridWidthPct = null) {
   const coinRank = (typeof rank === 'number' && !isNaN(rank)) ? rank : (getMarketCapRank ? getMarketCapRank(symbol) : 999);
   const isLowcap = coinRank > 150;
-  const minSlPct = isLowcap ? 1.8 : 1.0;
+  const slCfg = (typeof getAIModelConfig === 'function' ? getAIModelConfig() : null)?.adaptiveSlProfile;
+  const lowcapMin = typeof slCfg?.lowcapMinSlPct === 'number' ? slCfg.lowcapMinSlPct : 1.8;
+  const top150Min = typeof slCfg?.top150MinSlPct === 'number' ? slCfg.top150MinSlPct : 1.0;
+  const minSlPct = isLowcap ? lowcapMin : top150Min;
 
   const step = h4Ref?.step || getStep(entryPrice);
   const decimals = h4Ref?.decimals || getDecimals(entryPrice);
@@ -3440,4 +3444,8 @@ async function notifyRealClose(client, sym, prevPos, meta) {
   }
 }
 
-module.exports = { startAutoTrade };
+module.exports = {
+  startAutoTrade,
+  calculateTierSLTP,
+  getDynamicRiskProfile
+};
