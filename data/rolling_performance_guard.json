@@ -1,5 +1,96 @@
 {
-  "recentRealTrades": [],
+  "recentRealTrades": [
+    {
+      "symbol": "RUNE",
+      "side": "SHORT",
+      "isWin": true,
+      "pnlUsd": 0.16540648095509491,
+      "pnlPercent": 5.513549365169831,
+      "exitType": "TRAILING_SL",
+      "exitTime": 1789416744290
+    },
+    {
+      "symbol": "ENS",
+      "side": "SHORT",
+      "isWin": true,
+      "pnlUsd": 0.1285,
+      "pnlPercent": 4.283333333333333,
+      "exitType": "TRAILING_SL",
+      "exitTime": 1789416768292
+    },
+    {
+      "symbol": "FF",
+      "side": "LONG",
+      "isWin": false,
+      "pnlUsd": -1.4629672523961756,
+      "pnlPercent": -19.50623003194901,
+      "exitType": "SL",
+      "exitTime": 1789416996338
+    },
+    {
+      "symbol": "DASH",
+      "side": "SHORT",
+      "isWin": true,
+      "pnlUsd": 0.11687999,
+      "pnlPercent": 3.8447365131578946,
+      "exitType": "TRAILING_SL",
+      "exitTime": 1789418052564
+    },
+    {
+      "symbol": "SWARMS",
+      "side": "LONG",
+      "isWin": true,
+      "pnlUsd": 1.4094959999999999,
+      "pnlPercent": 33.800863309352515,
+      "exitType": "TP",
+      "exitTime": 1789419126905
+    },
+    {
+      "symbol": "KAVA",
+      "side": "SHORT",
+      "isWin": true,
+      "pnlUsd": 1.33386,
+      "pnlPercent": 43.16699029126214,
+      "exitType": "TP",
+      "exitTime": 1789420657304
+    },
+    {
+      "symbol": "ZEC",
+      "side": "LONG",
+      "isWin": true,
+      "pnlUsd": 0.29570144821170335,
+      "pnlPercent": 9.85671494039011,
+      "exitType": "TRAILING_SL",
+      "exitTime": 1789421773606
+    },
+    {
+      "symbol": "ARB",
+      "side": "LONG",
+      "isWin": false,
+      "pnlUsd": -0.8711929307805517,
+      "pnlPercent": -29.03976435935172,
+      "exitType": "SL",
+      "exitTime": 1789423268523
+    },
+    {
+      "symbol": "CATI",
+      "side": "SHORT",
+      "isWin": true,
+      "pnlUsd": 0.02967998,
+      "pnlPercent": 0.9731140983606559,
+      "exitType": "TRAILING_SL",
+      "exitTime": 1789428909358
+    },
+    {
+      "symbol": "VTHO",
+      "side": "SHORT",
+      "isWin": true,
+      "pnlUsd": 0.13744329896906873,
+      "pnlPercent": 4.536082474226691,
+      "exitType": "TRAILING_SL",
+      "exitTime": 1789432191668
+    }
+  ],
   "isStandDown": false,
   "standDownUntil": 0,
   "standDownReason": "",

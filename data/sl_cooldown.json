@@ -40,5 +40,29 @@
     "hours": 5,
     "reason": "SL_NORMAL",
     "updatedAt": 1789278006310
+  },
+  "ALGO": {
+    "expiry": 1789440815770,
+    "hours": 8,
+    "reason": "SL_LOSS",
+    "updatedAt": 1789412015770
+  },
+  "BAN": {
+    "expiry": 1789441427507,
+    "hours": 8,
+    "reason": "SL_LOSS",
+    "updatedAt": 1789412627507
+  },
+  "FF": {
+    "expiry": 1789445796339,
+    "hours": 8,
+    "reason": "SL_LOSS",
+    "updatedAt": 1789416996339
+  },
+  "ARB": {
+    "expiry": 1789452068524,
+    "hours": 8,
+    "reason": "SL_LOSS",
+    "updatedAt": 1789423268524
   }
 }

@@ -72,6 +72,8 @@ function recordTradeEntry(entryData) {
     marketCapRank: entryData.marketCapRank ?? null,
     gridWidthPct: entryData.gridWidthPct ?? null,
     maxRecentBouncePct: entryData.maxRecentBouncePct ?? null,
+    marketMetrics: entryData.marketMetrics ?? null,
+    signalMetrics: entryData.signalMetrics ?? null,
     // Position sizing
     leverage: entryData.leverage,
     margin: entryData.margin,

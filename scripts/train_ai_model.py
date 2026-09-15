@@ -107,98 +107,170 @@ def extract_features(reasons, score, rank, grid_width_pct, timestamp_ms=None, di
     elif rank <= 150: features["rank_group"] = "RANK_MIDCAP_150"
     else: features["rank_group"] = "RANK_LOWCAP_OUT150"
 
+    # Extract structured signalMetrics if available in direct_record
+    sm = direct_record.get("signalMetrics") if (direct_record and isinstance(direct_record, dict)) else None
+
     # 3. Trend Alignment
-    if "Dow & Trendline" in reasons_str: features["trend"] = "TREND_PERFECT"
+    if sm and sm.get("trend"):
+        features["trend"] = sm["trend"]
+    elif "Dow & Trendline" in reasons_str: features["trend"] = "TREND_PERFECT"
     elif "H1 Sideway nhưng M15 có cấu trúc" in reasons_str: features["trend"] = "TREND_M15_ALIGNED"
     elif "EMA20<EMA50" in reasons_str or "EMA20>EMA50" in reasons_str: features["trend"] = "TREND_EMA"
     elif "Ngược/Mâu thuẫn" in reasons_str: features["trend"] = "TREND_CONFLICT"
     else: features["trend"] = "TREND_NEUTRAL"
 
     # 3b. ADX Momentum Strength
-    import re
-    adx_match = re.search(r"ADX=(\d+\.?\d*)", reasons_str)
-    if adx_match:
-        adx_val = float(adx_match.group(1))
-        features["adx_strength"] = "ADX_STRONG_TREND" if adx_val >= 25.0 else "ADX_WEAK_TREND"
+    if sm and sm.get("adxStrength"):
+        features["adx_strength"] = sm["adxStrength"]
     else:
-        features["adx_strength"] = "ADX_NORMAL"
+        import re
+        adx_match = re.search(r"ADX=(\d+\.?\d*)", reasons_str)
+        if adx_match:
+            adx_val = float(adx_match.group(1))
+            features["adx_strength"] = "ADX_STRONG_TREND" if adx_val >= 25.0 else "ADX_WEAK_TREND"
+        else:
+            features["adx_strength"] = "ADX_NORMAL"
 
-    # 4. H1 Volatility Compression
-    if "H1 siêu nén" in reasons_str: features["h1_volatility"] = "H1_ULTRA_COMPRESSED"
-    elif "H1 nén vừa" in reasons_str: features["h1_volatility"] = "H1_MID_COMPRESSED"
-    elif "H1 biến động mạnh" in reasons_str: features["h1_volatility"] = "H1_VOLATILE_DANGER"
-    else: features["h1_volatility"] = "H1_VOL_NORMAL"
+    # Extract numerical marketMetrics if available in direct_record
+    mm = direct_record.get("marketMetrics") if (direct_record and isinstance(direct_record, dict)) else None
 
-    # 4b. M15 Volatility Compression & Volume Surge
-    if "M15 siêu nén" in reasons_str: features["m15_volatility"] = "M15_ULTRA_COMPRESSED"
-    elif "M15 nén vừa" in reasons_str: features["m15_volatility"] = "M15_MID_COMPRESSED"
-    elif "M15 đột biến Volume" in reasons_str: features["m15_volatility"] = "M15_VOLUME_SURGE"
-    elif "M15 biến động mạnh" in reasons_str: features["m15_volatility"] = "M15_VOLATILE_DANGER"
-    else: features["m15_volatility"] = "M15_VOL_NORMAL"
+    # 4 & 4b. H1 & M15 Volatility Compression (Tách biệt 100% Số Học Thuần Túy)
+    if mm:
+        # Nhánh 1: Dữ liệu số học chuẩn xác (Độc lập 100%, không dính dáng text)
+        curr_h1_range = mm.get("h1RangePct")
+        last_h1_range = mm.get("lastClosedH1RangePct")
+        max_h1_range = max([r for r in [curr_h1_range, last_h1_range] if r is not None] or [0.0])
+
+        if max_h1_range >= 3.5:
+            features["h1_volatility"] = "H1_VOLATILE_DANGER"
+        elif max_h1_range <= 1.5:
+            features["h1_volatility"] = "H1_ULTRA_COMPRESSED"
+        elif max_h1_range <= 2.5:
+            features["h1_volatility"] = "H1_MID_COMPRESSED"
+        else:
+            features["h1_volatility"] = "H1_VOL_NORMAL"
+
+        m15_vol = mm.get("m15VolRatio") or 1.0
+        curr_m15_range = mm.get("m15RangePct")
+        last_m15_range = mm.get("lastClosedM15RangePct")
+        max_m15_range = max([r for r in [curr_m15_range, last_m15_range] if r is not None] or [0.0])
+
+        if m15_vol >= 2.5:
+            features["m15_volatility"] = "M15_VOLUME_SURGE"
+        elif max_m15_range >= 3.0:
+            features["m15_volatility"] = "M15_VOLATILE_DANGER"
+        elif max_m15_range <= 0.8:
+            features["m15_volatility"] = "M15_ULTRA_COMPRESSED"
+        elif max_m15_range <= 1.5:
+            features["m15_volatility"] = "M15_MID_COMPRESSED"
+        else:
+            features["m15_volatility"] = "M15_VOL_NORMAL"
+    else:
+        # Nhánh 2: Dự phòng (Fallback) cho các bản ghi lịch sử cũ chưa có marketMetrics
+        if "H1 biến động mạnh" in reasons_str or "đều biến động mạnh" in reasons_str:
+            features["h1_volatility"] = "H1_VOLATILE_DANGER"
+        elif "H1 siêu nén" in reasons_str:
+            features["h1_volatility"] = "H1_ULTRA_COMPRESSED"
+        elif "H1 nén vừa" in reasons_str:
+            features["h1_volatility"] = "H1_MID_COMPRESSED"
+        else:
+            features["h1_volatility"] = "H1_VOL_NORMAL"
+
+        if "M15 đột biến Volume" in reasons_str or "đột biến Volume" in reasons_str:
+            features["m15_volatility"] = "M15_VOLUME_SURGE"
+        elif "M15 biến động mạnh" in reasons_str or "đều biến động mạnh" in reasons_str:
+            features["m15_volatility"] = "M15_VOLATILE_DANGER"
+        elif "M15 siêu nén" in reasons_str:
+            features["m15_volatility"] = "M15_ULTRA_COMPRESSED"
+        elif "M15 nén vừa" in reasons_str:
+            features["m15_volatility"] = "M15_MID_COMPRESSED"
+        else:
+            features["m15_volatility"] = "M15_VOL_NORMAL"
 
     # 4c. H1 Stagnant Liquidity Trap
     if "Nén bế tắc H1" in reasons_str: features["h1_stagnant"] = "H1_STAGNANT_TRAP"
     else: features["h1_stagnant"] = "H1_NOT_STAGNANT"
 
     # 5. RSI Condition
-    if "Quá bán cực đại" in reasons_str or "Quá mua cực đại" in reasons_str: features["rsi"] = "RSI_EXTREME"
+    if sm and sm.get("rsiCondition"):
+        features["rsi"] = sm["rsiCondition"]
+    elif "Quá bán cực đại" in reasons_str or "Quá mua cực đại" in reasons_str: features["rsi"] = "RSI_EXTREME"
     elif "Cận quá bán" in reasons_str or "Cận quá mua" in reasons_str: features["rsi"] = "RSI_NEAR"
     else: features["rsi"] = "RSI_NEUTRAL"
 
     # 6. Whales vs Retail Flow
-    if "Gold Setup" in reasons_str or "Đồng thuận tuyệt đối" in reasons_str: features["ls_flow"] = "LS_GOLD"
+    if sm and sm.get("lsFlow"):
+        features["ls_flow"] = sm["lsFlow"]
+    elif "Gold Setup" in reasons_str or "Đồng thuận tuyệt đối" in reasons_str: features["ls_flow"] = "LS_GOLD"
     elif "Đồng thuận một phần" in reasons_str: features["ls_flow"] = "LS_PARTIAL"
     elif "Không đồng thuận" in reasons_str or "phân kỳ" in reasons_str: features["ls_flow"] = "LS_DIVERGENCE"
     else: features["ls_flow"] = "LS_NEUTRAL"
 
     # 7. Price Action S/R Levels
-    if "4 cản cũ" in reasons_str: features["price_action"] = "PA_4_LEVELS"
+    if sm and sm.get("priceAction"):
+        features["price_action"] = sm["priceAction"]
+    elif "4 cản cũ" in reasons_str: features["price_action"] = "PA_4_LEVELS"
     elif "3 cản cũ" in reasons_str: features["price_action"] = "PA_3_LEVELS"
     elif "2 cản cũ" in reasons_str: features["price_action"] = "PA_2_LEVELS"
     elif "1 cản cũ" in reasons_str: features["price_action"] = "PA_1_LEVEL"
     else: features["price_action"] = "PA_0_LEVEL"
 
     # 7b. Price Action S/R Quality (Phân cấp cản D1 bảo trợ vs H4 ngắn hạn vs Không cản)
-    d1_part = reasons_str.split("D1:")[1] if "D1:" in reasons_str else ""
-    has_d1 = bool(d1_part and "không cản" not in d1_part and "thiếu nến" not in d1_part)
-    h4_part = reasons_str.split("H4:")[1].split("|")[0] if "H4:" in reasons_str else ""
-    has_h4 = bool(h4_part and "chỉ có 0 cản" not in h4_part and "0 cản cũ" not in h4_part and "thiếu nến" not in h4_part)
-
-    if has_d1:
-        features["sr_quality"] = "SR_DAILY_D1_INCLUDED"
-    elif has_h4:
-        features["sr_quality"] = "SR_H4_ONLY"
+    if sm and sm.get("srQuality"):
+        features["sr_quality"] = sm["srQuality"]
     else:
-        features["sr_quality"] = "SR_NONE"
+        d1_part = reasons_str.split("D1:")[1] if "D1:" in reasons_str else ""
+        has_d1 = bool(d1_part and "không cản" not in d1_part and "thiếu nến" not in d1_part)
+        h4_part = reasons_str.split("H4:")[1].split("|")[0] if "H4:" in reasons_str else ""
+        has_h4 = bool(h4_part and "chỉ có 0 cản" not in h4_part and "0 cản cũ" not in h4_part and "thiếu nến" not in h4_part)
+
+        if has_d1:
+            features["sr_quality"] = "SR_DAILY_D1_INCLUDED"
+        elif has_h4:
+            features["sr_quality"] = "SR_H4_ONLY"
+        else:
+            features["sr_quality"] = "SR_NONE"
 
     # 8. Open Interest (OI) Change
-    if "Hạ nhiệt vị thế" in reasons_str or "giảm -" in reasons_str: features["oi_change"] = "OI_COOLING"
+    if sm and sm.get("oiState"):
+        features["oi_change"] = sm["oiState"]
+    elif "Hạ nhiệt vị thế" in reasons_str or "giảm -" in reasons_str: features["oi_change"] = "OI_COOLING"
     elif "Tăng mạnh" in reasons_str or "bùng nổ" in reasons_str: features["oi_change"] = "OI_SURGE"
     else: features["oi_change"] = "OI_STABLE"
 
     # 9. Volume Momentum
-    if "Volume bùng nổ" in reasons_str: features["volume"] = "VOL_SURGE"
+    if sm and sm.get("volumeState"):
+        features["volume"] = sm["volumeState"]
+    elif "Volume bùng nổ" in reasons_str: features["volume"] = "VOL_SURGE"
     elif "Volume ổn định" in reasons_str: features["volume"] = "VOL_STABLE"
     else: features["volume"] = "VOL_DRY"
 
     # 9b. H1 3-Candle Volume Burst (Bão Volume H1)
-    if "Đột biến Volume 3 H1" in reasons_str:
+    if sm and sm.get("h1VolumeBurst"):
+        features["h1_volume_burst"] = sm["h1VolumeBurst"]
+    elif "Đột biến Volume 3 H1" in reasons_str:
         features["h1_volume_burst"] = "H1_VOL_BURST_DANGER"
     else:
         features["h1_volume_burst"] = "H1_VOL_BURST_NORMAL"
 
     # 10. Funding Rate
-    if "Short Crowded" in reasons_str or "Long Crowded" in reasons_str: features["funding"] = "FUNDING_SQUEEZE"
+    if sm and sm.get("fundingState"):
+        features["funding"] = sm["fundingState"]
+    elif "Short Crowded" in reasons_str or "Long Crowded" in reasons_str: features["funding"] = "FUNDING_SQUEEZE"
     elif "Short đu bám" in reasons_str or "Long đu bám" in reasons_str or "Nóng" in reasons_str: features["funding"] = "FUNDING_DANGER"
     else: features["funding"] = "FUNDING_NORMAL"
 
     # 11. BTC Wave
-    if "BTC thuận Dow/EMA" in reasons_str: features["btc_wave"] = "BTC_ALIGNED"
+    if sm and sm.get("btcWave"):
+        features["btc_wave"] = sm["btcWave"]
+    elif "BTC thuận Dow/EMA" in reasons_str: features["btc_wave"] = "BTC_ALIGNED"
     elif "BTC đi ngang/trung tính" in reasons_str: features["btc_wave"] = "BTC_NEUTRAL"
     else: features["btc_wave"] = "BTC_COUNTER"
 
     # 11b. BTC M15 Extreme Volatility Storm (> 1.0%)
-    if "BTC bão giá" in reasons_str:
+    if sm and sm.get("btcStorm"):
+        features["btc_storm"] = sm["btcStorm"]
+    elif "BTC bão giá" in reasons_str:
         features["btc_storm"] = "BTC_STORM_VOLATILE"
     else:
         features["btc_storm"] = "BTC_STORM_NORMAL"
@@ -250,7 +322,24 @@ def extract_features(reasons, score, rank, grid_width_pct, timestamp_ms=None, di
     # - Ngưỡng phê duyệt WinProbability (68% cho Lowcap vs 60% cho Majors)
     # Không tạo thêm các feature lowcap_* nhân bản trùng lặp để tuân thủ nguyên lý Naive Bayes.
 
-    # 15. Multi-Factor Risk Interactions (AI tự học tương tác rủi ro)
+    # 15. M15 Dynamic Candle Momentum vs Signal Direction (Chống chặn đầu xe lửa Pump/Dump)
+    sig_dir = str(direct_record.get("signal") or "").upper() if direct_record else ""
+    if mm:
+        is_green = mm.get("m15IsGreen")
+        m15_range = mm.get("m15RangePct") or 0.0
+        m15_body = mm.get("m15BodyPct") or 0.0
+        m15_vol = mm.get("m15VolRatio") or 1.0
+
+        if sig_dir in ["SHORT", "SELL"] and is_green is True and (m15_body >= 3.0 or m15_range >= 5.0 or (m15_range >= 3.5 and m15_vol >= 3.0)):
+            features["candle_momentum"] = "MOMENTUM_COUNTER_PUMP_TRAIN"
+        elif sig_dir in ["LONG", "BUY"] and is_green is False and (m15_body >= 3.0 or m15_range >= 5.0 or (m15_range >= 3.5 and m15_vol >= 3.0)):
+            features["candle_momentum"] = "MOMENTUM_COUNTER_DUMP_TRAIN"
+        else:
+            features["candle_momentum"] = "MOMENTUM_NORMAL"
+    else:
+        features["candle_momentum"] = "MOMENTUM_NORMAL"
+
+    # 16. Multi-Factor Risk Interactions (AI tự học tương tác rủi ro)
     is_trend_conflict = features.get("trend") == "TREND_CONFLICT"
     is_ls_div = features.get("ls_flow") == "LS_DIVERGENCE"
     is_no_sr = features.get("price_action") == "PA_0_LEVEL"
@@ -260,8 +349,9 @@ def extract_features(reasons, score, rank, grid_width_pct, timestamp_ms=None, di
         features.get("h1_volatility") == "H1_VOLATILE_DANGER" or
         features.get("m15_volatility") in ["M15_VOLATILE_DANGER", "M15_VOLUME_SURGE"]
     )
+    is_counter_train = features.get("candle_momentum") in ["MOMENTUM_COUNTER_PUMP_TRAIN", "MOMENTUM_COUNTER_DUMP_TRAIN"]
 
-    if is_vol_danger and (is_trend_conflict or is_no_sr or is_ls_div):
+    if is_vol_danger and (is_trend_conflict or is_ls_div or is_counter_train):
         features["risk_interaction"] = "INTERACTION_HIGH_VOLATILITY_WEAK_SETUP"
     elif is_trend_conflict and is_ls_div:
         features["risk_interaction"] = "INTERACTION_TREND_FLOW_CONFLICT"
@@ -272,7 +362,7 @@ def extract_features(reasons, score, rank, grid_width_pct, timestamp_ms=None, di
     else:
         features["risk_interaction"] = "INTERACTION_BALANCED"
 
-    # 16. BTC Flash & Turnover Guard (chuyển giao cho AI học)
+    # 17. BTC Flash & Turnover Guard (chuyển giao cho AI học)
     if "Turnover" in reasons_str or "ABNORMAL_TURNOVER" in reasons_str:
         features["turnover_guard"] = "TURNOVER_RISK_BLOCKED"
     else:
@@ -285,8 +375,8 @@ def extract_features(reasons, score, rank, grid_width_pct, timestamp_ms=None, di
     else:
         features["btc_flash"] = "BTC_FLASH_NORMAL"
 
-    # 17. H1 Candle Geometry vs Entry
-    h1_direct = str(direct_record.get("h1CandleGeometry") or "") if direct_record else ""
+    # 18. H1 Candle Geometry vs Entry
+    h1_direct = str(direct_record.get("h1CandleGeometry") or (sm.get("h1CandleGeometry") if sm else "") or "") if direct_record else ""
     if "PUNCTURED_DEEP" in h1_direct or "H1 đóng nến lụt sâu" in reasons_str:
         features["h1_candle_geometry"] = "H1_PUNCTURED_DEEP"
     elif "PUNCTURED_LIGHT" in h1_direct or "H1 đóng nến chớm lụt" in reasons_str:
@@ -296,8 +386,8 @@ def extract_features(reasons, score, rank, grid_width_pct, timestamp_ms=None, di
     else:
         features["h1_candle_geometry"] = "H1_HOLD_OR_HOVER"
 
-    # 18. M15 Candle Geometry vs Entry
-    m15_direct = str(direct_record.get("m15CandleGeometry") or "") if direct_record else ""
+    # 19. M15 Candle Geometry vs Entry
+    m15_direct = str(direct_record.get("m15CandleGeometry") or (sm.get("m15CandleGeometry") if sm else "") or "") if direct_record else ""
     if "PUNCTURED_DEEP" in m15_direct or "M15 đóng nến lụt sâu" in reasons_str:
         features["m15_candle_geometry"] = "M15_PUNCTURED_DEEP"
     elif "PUNCTURED_LIGHT" in m15_direct or "M15 đóng nến chớm lụt" in reasons_str:
@@ -307,7 +397,7 @@ def extract_features(reasons, score, rank, grid_width_pct, timestamp_ms=None, di
     else:
         features["m15_candle_geometry"] = "M15_HOLD_OR_HOVER"
 
-    # 19. Interaction: Cả H1 và M15 đều đóng nến lụt sâu qua Entry
+    # 20. Interaction: Cả H1 và M15 đều đóng nến lụt sâu qua Entry
     if (features["h1_candle_geometry"] == "H1_PUNCTURED_DEEP" and
         features["m15_candle_geometry"] in ["M15_PUNCTURED_DEEP", "M15_PUNCTURED_LIGHT"]):
         features["puncture_interaction"] = "INTERACTION_H1_M15_PUNCTURED"
@@ -444,7 +534,8 @@ def train_and_export_model():
                                 rec.get("score", 0),
                                 rec.get("marketCapRank", 999),
                                 rec.get("gridWidthPct", 3.5),
-                                rec.get("timestamp")
+                                rec.get("timestamp"),
+                                direct_record=rec
                             )
                         })
                         mined_count += 1
@@ -645,7 +736,8 @@ def calibrate_optimal_thresholds(base_dir, feature_weights=None, prior_odds=1.3,
                 t.get("score", 0),
                 t.get("marketCapRank", 999),
                 t.get("gridWidthPct", 3.5),
-                t.get("entryTimestamp")
+                t.get("entryTimestamp"),
+                direct_record=t
             )
             comb_mult = 1.0
             risk_int = feats.get("risk_interaction")

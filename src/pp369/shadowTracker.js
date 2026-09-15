@@ -174,6 +174,8 @@ function registerShadowTrade(sig, evalResult, options = {}) {
     vetoCategory: evalResult ? (evalResult.vetoCategory || 'LOW_PROBABILITY') : 'UNKNOWN',
     vetoReason: evalResult ? evalResult.reason : 'AI_VETO',
     keyFactors: evalResult ? (evalResult.keyFactors || []) : [],
+    marketMetrics: options.marketMetrics || sig.marketMetrics || null,
+    signalMetrics: options.signalMetrics || sig.signalMetrics || null,
     entryTimestamp: Date.now(),
     maxFavorablePrice: entryPrice,
     maxAdversePrice: entryPrice,
@@ -203,6 +205,8 @@ function registerShadowTrade(sig, evalResult, options = {}) {
     scoreReasons: shadowTrade.scoreReasons,
     marketCapRank: shadowTrade.marketCapRank,
     gridWidthPct: shadowTrade.gridWidthPct,
+    marketMetrics: shadowTrade.marketMetrics,
+    signalMetrics: shadowTrade.signalMetrics,
     leverage: shadowTrade.leverage,
     margin: shadowTrade.margin,
     aiWinProbability: shadowTrade.winProbability,
@@ -439,7 +443,9 @@ function _resolveShadowTrade(p, outcome, exitPrice, exitRoi, exitTimestamp) {
     scoreReasons: p.scoreReasons,
     winProbability: p.winProbability,
     vetoCategory: p.vetoCategory,
-    vetoReason: p.vetoReason
+    vetoReason: p.vetoReason,
+    marketMetrics: p.marketMetrics || null,
+    signalMetrics: p.signalMetrics || null
   };
 
   // Ghi nhận vào Rolling Performance Guard để AI đánh giá khôi phục nếu đang trong chế độ Stand-Down

@@ -97,6 +97,8 @@ function extractSignalFeatures(reasons, score, rank, gridWidthPct, rawMarketData
   const reasonsStr = Array.isArray(reasons) ? reasons.join(' ') : String(reasons || '');
   const features = {};
 
+  const sm = rawMarketData?.signalMetrics || null;
+
   // 1. Score Group
   if (score >= 7.0) features['score_group'] = 'SCORE_HIGH_GE7';
   else if (score >= 6.0) features['score_group'] = 'SCORE_MID_6_TO_7';
@@ -111,99 +113,167 @@ function extractSignalFeatures(reasons, score, rank, gridWidthPct, rawMarketData
   else features['rank_group'] = 'RANK_LOWCAP_OUT150';
 
   // 3. Trend
-  if (reasonsStr.includes('Dow & Trendline')) features['trend'] = 'TREND_PERFECT';
+  if (sm?.trend) features['trend'] = sm.trend;
+  else if (reasonsStr.includes('Dow & Trendline')) features['trend'] = 'TREND_PERFECT';
   else if (reasonsStr.includes('H1 Sideway nhưng M15 có cấu trúc')) features['trend'] = 'TREND_M15_ALIGNED';
   else if (reasonsStr.includes('EMA20<EMA50') || reasonsStr.includes('EMA20>EMA50')) features['trend'] = 'TREND_EMA';
   else if (reasonsStr.includes('Ngược/Mâu thuẫn')) features['trend'] = 'TREND_CONFLICT';
   else features['trend'] = 'TREND_NEUTRAL';
 
   // 3b. ADX Momentum Strength
-  const adxMatch = reasonsStr.match(/ADX=(\d+\.?\d*)/);
-  if (adxMatch) {
-    const adxVal = parseFloat(adxMatch[1]);
-    features['adx_strength'] = adxVal >= 25.0 ? 'ADX_STRONG_TREND' : 'ADX_WEAK_TREND';
+  if (sm?.adxStrength) {
+    features['adx_strength'] = sm.adxStrength;
   } else {
-    features['adx_strength'] = 'ADX_NORMAL';
+    const adxMatch = reasonsStr.match(/ADX=(\d+\.?\d*)/);
+    if (adxMatch) {
+      const adxVal = parseFloat(adxMatch[1]);
+      features['adx_strength'] = adxVal >= 25.0 ? 'ADX_STRONG_TREND' : 'ADX_WEAK_TREND';
+    } else {
+      features['adx_strength'] = 'ADX_NORMAL';
+    }
   }
 
-  // 4. H1 Volatility Compression
-  if (reasonsStr.includes('H1 siêu nén')) features['h1_volatility'] = 'H1_ULTRA_COMPRESSED';
-  else if (reasonsStr.includes('H1 nén vừa')) features['h1_volatility'] = 'H1_MID_COMPRESSED';
-  else if (reasonsStr.includes('H1 biến động mạnh')) features['h1_volatility'] = 'H1_VOLATILE_DANGER';
-  else features['h1_volatility'] = 'H1_VOL_NORMAL';
+  // 4 & 4b. H1 & M15 Volatility Compression (Tách biệt 100% Số Học Thuần Túy)
+  const mm = rawMarketData?.marketMetrics;
+  const hasCandleData = Boolean(mm || rawMarketData?.currH1 || rawMarketData?.currM15);
 
-  // 4b. M15 Volatility Compression & Volume Surge
-  if (reasonsStr.includes('M15 siêu nén')) features['m15_volatility'] = 'M15_ULTRA_COMPRESSED';
-  else if (reasonsStr.includes('M15 nén vừa')) features['m15_volatility'] = 'M15_MID_COMPRESSED';
-  else if (reasonsStr.includes('M15 đột biến Volume')) features['m15_volatility'] = 'M15_VOLUME_SURGE';
-  else if (reasonsStr.includes('M15 biến động mạnh')) features['m15_volatility'] = 'M15_VOLATILE_DANGER';
-  else features['m15_volatility'] = 'M15_VOL_NORMAL';
+  if (hasCandleData) {
+    // Nhánh 1: Dữ liệu số học chuẩn xác (Độc lập 100%, không dính dáng text)
+    const currH1Range = mm?.h1RangePct ?? (rawMarketData?.currH1 ? ((rawMarketData.currH1.high - rawMarketData.currH1.low) / (rawMarketData.currH1.low || 1)) * 100 : null);
+    const lastH1Range = mm?.lastClosedH1RangePct ?? (rawMarketData?.lastClosedH1 ? ((rawMarketData.lastClosedH1.high - rawMarketData.lastClosedH1.low) / (rawMarketData.lastClosedH1.low || 1)) * 100 : null);
+    const maxH1Range = Math.max(...[currH1Range, lastH1Range].filter(r => typeof r === 'number'), 0.0);
+
+    if (maxH1Range >= 3.5) {
+      features['h1_volatility'] = 'H1_VOLATILE_DANGER';
+    } else if (maxH1Range <= 1.5) {
+      features['h1_volatility'] = 'H1_ULTRA_COMPRESSED';
+    } else if (maxH1Range <= 2.5) {
+      features['h1_volatility'] = 'H1_MID_COMPRESSED';
+    } else {
+      features['h1_volatility'] = 'H1_VOL_NORMAL';
+    }
+
+    const m15Vol = mm?.m15VolRatio ?? (parseFloat(rawMarketData?.m15VolRatio) || 1.0);
+    const currM15Range = mm?.m15RangePct ?? (rawMarketData?.currM15 ? ((rawMarketData.currM15.high - rawMarketData.currM15.low) / (rawMarketData.currM15.low || 1)) * 100 : null);
+    const lastM15Range = mm?.lastClosedM15RangePct ?? (rawMarketData?.lastClosedM15 ? ((rawMarketData.lastClosedM15.high - rawMarketData.lastClosedM15.low) / (rawMarketData.lastClosedM15.low || 1)) * 100 : null);
+    const maxM15Range = Math.max(...[currM15Range, lastM15Range].filter(r => typeof r === 'number'), 0.0);
+
+    if (m15Vol >= 2.5) {
+      features['m15_volatility'] = 'M15_VOLUME_SURGE';
+    } else if (maxM15Range >= 3.0) {
+      features['m15_volatility'] = 'M15_VOLATILE_DANGER';
+    } else if (maxM15Range <= 0.8) {
+      features['m15_volatility'] = 'M15_ULTRA_COMPRESSED';
+    } else if (maxM15Range <= 1.5) {
+      features['m15_volatility'] = 'M15_MID_COMPRESSED';
+    } else {
+      features['m15_volatility'] = 'M15_VOL_NORMAL';
+    }
+  } else {
+    // Nhánh 2: Dự phòng (Fallback) cho các bản ghi cũ chưa có số liệu nến
+    if (reasonsStr.includes('H1 biến động mạnh') || reasonsStr.includes('đều biến động mạnh')) {
+      features['h1_volatility'] = 'H1_VOLATILE_DANGER';
+    } else if (reasonsStr.includes('H1 siêu nén')) {
+      features['h1_volatility'] = 'H1_ULTRA_COMPRESSED';
+    } else if (reasonsStr.includes('H1 nén vừa')) {
+      features['h1_volatility'] = 'H1_MID_COMPRESSED';
+    } else {
+      features['h1_volatility'] = 'H1_VOL_NORMAL';
+    }
+
+    if (reasonsStr.includes('M15 đột biến Volume') || reasonsStr.includes('đột biến Volume')) {
+      features['m15_volatility'] = 'M15_VOLUME_SURGE';
+    } else if (reasonsStr.includes('M15 biến động mạnh') || reasonsStr.includes('đều biến động mạnh')) {
+      features['m15_volatility'] = 'M15_VOLATILE_DANGER';
+    } else if (reasonsStr.includes('M15 siêu nén')) {
+      features['m15_volatility'] = 'M15_ULTRA_COMPRESSED';
+    } else if (reasonsStr.includes('M15 nén vừa')) {
+      features['m15_volatility'] = 'M15_MID_COMPRESSED';
+    } else {
+      features['m15_volatility'] = 'M15_VOL_NORMAL';
+    }
+  }
 
   // 4c. H1 Stagnant Liquidity Trap
   if (reasonsStr.includes('Nén bế tắc H1')) features['h1_stagnant'] = 'H1_STAGNANT_TRAP';
   else features['h1_stagnant'] = 'H1_NOT_STAGNANT';
 
   // 5. RSI
-  if (reasonsStr.includes('Quá bán cực đại') || reasonsStr.includes('Quá mua cực đại')) features['rsi'] = 'RSI_EXTREME';
+  if (sm?.rsiCondition) features['rsi'] = sm.rsiCondition;
+  else if (reasonsStr.includes('Quá bán cực đại') || reasonsStr.includes('Quá mua cực đại')) features['rsi'] = 'RSI_EXTREME';
   else if (reasonsStr.includes('Cận quá bán') || reasonsStr.includes('Cận quá mua')) features['rsi'] = 'RSI_NEAR';
   else features['rsi'] = 'RSI_NEUTRAL';
 
   // 6. Whales vs Retail Flow
-  if (reasonsStr.includes('Gold Setup') || reasonsStr.includes('Đồng thuận tuyệt đối')) features['ls_flow'] = 'LS_GOLD';
-  else if (reasonsStr.includes('Không đồng thuận') || reasonsStr.includes('phân kỳ') || reasonsStr.includes('Cá voi không đạt')) features['ls_flow'] = 'LS_DIVERGENCE';
+  if (sm?.lsFlow) features['ls_flow'] = sm.lsFlow;
+  else if (reasonsStr.includes('Gold Setup') || reasonsStr.includes('Đồng thuận tuyệt đối')) features['ls_flow'] = 'LS_GOLD';
   else if (reasonsStr.includes('Đồng thuận một phần')) features['ls_flow'] = 'LS_PARTIAL';
+  else if (reasonsStr.includes('Không đồng thuận') || reasonsStr.includes('phân kỳ') || reasonsStr.includes('Cá voi không đạt')) features['ls_flow'] = 'LS_DIVERGENCE';
   else features['ls_flow'] = 'LS_NEUTRAL';
 
   // 7. Price Action S/R Levels
-  if (reasonsStr.includes('4 cản cũ')) features['price_action'] = 'PA_4_LEVELS';
+  if (sm?.priceAction) features['price_action'] = sm.priceAction;
+  else if (reasonsStr.includes('4 cản cũ')) features['price_action'] = 'PA_4_LEVELS';
   else if (reasonsStr.includes('3 cản cũ')) features['price_action'] = 'PA_3_LEVELS';
   else if (reasonsStr.includes('2 cản cũ')) features['price_action'] = 'PA_2_LEVELS';
   else if (reasonsStr.includes('1 cản cũ')) features['price_action'] = 'PA_1_LEVEL';
   else features['price_action'] = 'PA_0_LEVEL';
 
   // 7b. Price Action S/R Quality (Phân cấp cản D1 bảo trợ vs H4 ngắn hạn vs Không cản)
-  const d1Part = reasonsStr.includes('D1:') ? reasonsStr.split('D1:')[1] : '';
-  const hasD1 = Boolean(d1Part && !d1Part.includes('không cản') && !d1Part.includes('thiếu nến'));
-  const h4Part = reasonsStr.includes('H4:') ? reasonsStr.split('H4:')[1].split('|')[0] : '';
-  const hasH4 = Boolean(h4Part && !h4Part.includes('chỉ có 0 cản') && !h4Part.includes('0 cản cũ') && !h4Part.includes('thiếu nến'));
-
-  if (hasD1) {
-    features['sr_quality'] = 'SR_DAILY_D1_INCLUDED';
-  } else if (hasH4) {
-    features['sr_quality'] = 'SR_H4_ONLY';
+  if (sm?.srQuality) {
+    features['sr_quality'] = sm.srQuality;
   } else {
-    features['sr_quality'] = 'SR_NONE';
+    const d1Part = reasonsStr.includes('D1:') ? reasonsStr.split('D1:')[1] : '';
+    const hasD1 = Boolean(d1Part && !d1Part.includes('không cản') && !d1Part.includes('thiếu nến'));
+    const h4Part = reasonsStr.includes('H4:') ? reasonsStr.split('H4:')[1].split('|')[0] : '';
+    const hasH4 = Boolean(h4Part && !h4Part.includes('chỉ có 0 cản') && !h4Part.includes('0 cản cũ') && !h4Part.includes('thiếu nến'));
+
+    if (hasD1) {
+      features['sr_quality'] = 'SR_DAILY_D1_INCLUDED';
+    } else if (hasH4) {
+      features['sr_quality'] = 'SR_H4_ONLY';
+    } else {
+      features['sr_quality'] = 'SR_NONE';
+    }
   }
 
   // 8. Open Interest (OI) Change
-  if (reasonsStr.includes('Hạ nhiệt vị thế') || reasonsStr.includes('giảm -')) features['oi_change'] = 'OI_COOLING';
+  if (sm?.oiState) features['oi_change'] = sm.oiState;
+  else if (reasonsStr.includes('Hạ nhiệt vị thế') || reasonsStr.includes('giảm -')) features['oi_change'] = 'OI_COOLING';
   else if (reasonsStr.includes('Tăng mạnh') || reasonsStr.includes('bùng nổ')) features['oi_change'] = 'OI_SURGE';
   else features['oi_change'] = 'OI_STABLE';
 
   // 9. Volume Momentum
-  if (reasonsStr.includes('Volume bùng nổ')) features['volume'] = 'VOL_SURGE';
+  if (sm?.volumeState) features['volume'] = sm.volumeState;
+  else if (reasonsStr.includes('Volume bùng nổ')) features['volume'] = 'VOL_SURGE';
   else if (reasonsStr.includes('Volume ổn định')) features['volume'] = 'VOL_STABLE';
   else features['volume'] = 'VOL_DRY';
 
   // 9b. H1 3-Candle Volume Burst (Bão Volume H1)
-  if (reasonsStr.includes('Đột biến Volume 3 H1')) {
+  if (sm?.h1VolumeBurst) {
+    features['h1_volume_burst'] = sm.h1VolumeBurst;
+  } else if (reasonsStr.includes('Đột biến Volume 3 H1')) {
     features['h1_volume_burst'] = 'H1_VOL_BURST_DANGER';
   } else {
     features['h1_volume_burst'] = 'H1_VOL_BURST_NORMAL';
   }
 
   // 10. Funding Rate
-  if (reasonsStr.includes('Short Crowded') || reasonsStr.includes('Long Crowded')) features['funding'] = 'FUNDING_SQUEEZE';
+  if (sm?.fundingState) features['funding'] = sm.fundingState;
+  else if (reasonsStr.includes('Short Crowded') || reasonsStr.includes('Long Crowded')) features['funding'] = 'FUNDING_SQUEEZE';
   else if (reasonsStr.includes('Short đu bám') || reasonsStr.includes('Long đu bám') || reasonsStr.includes('Nóng')) features['funding'] = 'FUNDING_DANGER';
   else features['funding'] = 'FUNDING_NORMAL';
 
   // 11. BTC Wave
-  if (reasonsStr.includes('BTC thuận Dow/EMA')) features['btc_wave'] = 'BTC_ALIGNED';
+  if (sm?.btcWave) features['btc_wave'] = sm.btcWave;
+  else if (reasonsStr.includes('BTC thuận Dow/EMA')) features['btc_wave'] = 'BTC_ALIGNED';
   else if (reasonsStr.includes('BTC đi ngang/trung tính')) features['btc_wave'] = 'BTC_NEUTRAL';
   else features['btc_wave'] = 'BTC_COUNTER';
 
   // 11b. BTC M15 Extreme Volatility Storm (> 1.0%)
-  if (reasonsStr.includes('BTC bão giá') || rawMarketData?.btcM15Pct > 1.0) {
+  if (sm?.btcStorm) {
+    features['btc_storm'] = sm.btcStorm;
+  } else if (reasonsStr.includes('BTC bão giá') || rawMarketData?.btcM15Pct > 1.0) {
     features['btc_storm'] = 'BTC_STORM_VOLATILE';
   } else {
     features['btc_storm'] = 'BTC_STORM_NORMAL';
@@ -233,17 +303,21 @@ function extractSignalFeatures(reasons, score, rank, gridWidthPct, rawMarketData
   }
 
   // ── [MỚI] 13. Candlestick Geometry AI (Đo hình thái nến M15 & H1 so với Entry) ──
-  let h1Geom = 'H1_HOLD_OR_HOVER';
-  let m15Geom = 'M15_HOLD_OR_HOVER';
+  let h1Geom = sm?.h1CandleGeometry || 'H1_HOLD_OR_HOVER';
+  let m15Geom = sm?.m15CandleGeometry || 'M15_HOLD_OR_HOVER';
 
-  // 13a. Đọc từ reasonsStr nếu có sẵn
-  if (reasonsStr.includes('H1 đóng nến lụt sâu')) h1Geom = 'H1_PUNCTURED_DEEP';
-  else if (reasonsStr.includes('H1 đóng nến chớm lụt')) h1Geom = 'H1_PUNCTURED_LIGHT';
-  else if (reasonsStr.includes('H1 rút chân') || reasonsStr.includes('H1 rút râu')) h1Geom = 'H1_REJECT_PINBAR';
+  // 13a. Đọc từ reasonsStr nếu có sẵn (fallback khi không có signalMetrics)
+  if (!sm?.h1CandleGeometry) {
+    if (reasonsStr.includes('H1 đóng nến lụt sâu')) h1Geom = 'H1_PUNCTURED_DEEP';
+    else if (reasonsStr.includes('H1 đóng nến chớm lụt')) h1Geom = 'H1_PUNCTURED_LIGHT';
+    else if (reasonsStr.includes('H1 rút chân') || reasonsStr.includes('H1 rút râu')) h1Geom = 'H1_REJECT_PINBAR';
+  }
 
-  if (reasonsStr.includes('M15 đóng nến lụt sâu')) m15Geom = 'M15_PUNCTURED_DEEP';
-  else if (reasonsStr.includes('M15 đóng nến chớm lụt')) m15Geom = 'M15_PUNCTURED_LIGHT';
-  else if (reasonsStr.includes('M15 rút chân') || reasonsStr.includes('M15 rút râu')) m15Geom = 'M15_REJECT_PINBAR';
+  if (!sm?.m15CandleGeometry) {
+    if (reasonsStr.includes('M15 đóng nến lụt sâu')) m15Geom = 'M15_PUNCTURED_DEEP';
+    else if (reasonsStr.includes('M15 đóng nến chớm lụt')) m15Geom = 'M15_PUNCTURED_LIGHT';
+    else if (reasonsStr.includes('M15 rút chân') || reasonsStr.includes('M15 rút râu')) m15Geom = 'M15_REJECT_PINBAR';
+  }
 
   // 13b. Đo đạc trực tiếp từ rawMarketData nếu có dữ liệu nến thực tế
   const isLong = signal === 'LONG' || signal === 'BUY';
@@ -349,7 +423,41 @@ function extractSignalFeatures(reasons, score, rank, gridWidthPct, rawMarketData
     features['trading_session'] = 'SESSION_US_LATE'; // Đêm/Rạng sáng VN
   }
 
-  // ── [MỚI] 18. Multi-Factor Risk Interactions (Tương tác rủi ro do AI tự lượng hóa) ──
+  // ── 18. M15 Dynamic Candle Momentum vs Signal Direction (Chống chặn đầu xe lửa Pump/Dump) ──
+  const sigDir = (signal || '').toUpperCase();
+  const mmData = rawMarketData?.marketMetrics;
+  if (mmData) {
+    const isGreen = mmData.m15IsGreen;
+    const m15Range = mmData.m15RangePct || 0.0;
+    const m15Body = mmData.m15BodyPct || 0.0;
+    const m15Vol = mmData.m15VolRatio || 1.0;
+
+    if ((sigDir === 'SHORT' || sigDir === 'SELL') && isGreen === true && (m15Body >= 3.0 || m15Range >= 5.0 || (m15Range >= 3.5 && m15Vol >= 3.0))) {
+      features['candle_momentum'] = 'MOMENTUM_COUNTER_PUMP_TRAIN';
+    } else if ((sigDir === 'LONG' || sigDir === 'BUY') && isGreen === false && (m15Body >= 3.0 || m15Range >= 5.0 || (m15Range >= 3.5 && m15Vol >= 3.0))) {
+      features['candle_momentum'] = 'MOMENTUM_COUNTER_DUMP_TRAIN';
+    } else {
+      features['candle_momentum'] = 'MOMENTUM_NORMAL';
+    }
+  } else if (rawMarketData?.currM15) {
+    const c = rawMarketData.currM15;
+    const isGreen = c.close >= c.open;
+    const rangePct = ((c.high - c.low) / (c.low || 1)) * 100;
+    const bodyPct = (Math.abs(c.close - c.open) / (c.low || 1)) * 100;
+    const volRatio = parseFloat(rawMarketData?.m15VolRatio) || 1.0;
+
+    if ((sigDir === 'SHORT' || sigDir === 'SELL') && isGreen && (bodyPct >= 3.0 || rangePct >= 5.0 || (rangePct >= 3.5 && volRatio >= 3.0))) {
+      features['candle_momentum'] = 'MOMENTUM_COUNTER_PUMP_TRAIN';
+    } else if ((sigDir === 'LONG' || sigDir === 'BUY') && !isGreen && (bodyPct >= 3.0 || rangePct >= 5.0 || (rangePct >= 3.5 && volRatio >= 3.0))) {
+      features['candle_momentum'] = 'MOMENTUM_COUNTER_DUMP_TRAIN';
+    } else {
+      features['candle_momentum'] = 'MOMENTUM_NORMAL';
+    }
+  } else {
+    features['candle_momentum'] = 'MOMENTUM_NORMAL';
+  }
+
+  // ── [MỚI] 19. Multi-Factor Risk Interactions (Tương tác rủi ro do AI tự lượng hóa) ──
   const isTrendConflict = features['trend'] === 'TREND_CONFLICT';
   const isLsDiv = features['ls_flow'] === 'LS_DIVERGENCE';
   const isNoSR = features['price_action'] === 'PA_0_LEVEL';
@@ -358,8 +466,10 @@ function extractSignalFeatures(reasons, score, rank, gridWidthPct, rawMarketData
   const isVolDanger = features['h1_volatility'] === 'H1_VOLATILE_DANGER' ||
     features['m15_volatility'] === 'M15_VOLATILE_DANGER' ||
     features['m15_volatility'] === 'M15_VOLUME_SURGE';
+  const isCounterTrain = features['candle_momentum'] === 'MOMENTUM_COUNTER_PUMP_TRAIN' ||
+    features['candle_momentum'] === 'MOMENTUM_COUNTER_DUMP_TRAIN';
 
-  if (isVolDanger && (isTrendConflict || isNoSR || isLsDiv)) {
+  if (isVolDanger && (isTrendConflict || isLsDiv || isCounterTrain)) {
     features['risk_interaction'] = 'INTERACTION_HIGH_VOLATILITY_WEAK_SETUP';
   } else if (isTrendConflict && isLsDiv) {
     features['risk_interaction'] = 'INTERACTION_TREND_FLOW_CONFLICT';
@@ -370,11 +480,6 @@ function extractSignalFeatures(reasons, score, rank, gridWidthPct, rawMarketData
   } else {
     features['risk_interaction'] = 'INTERACTION_BALANCED';
   }
-
-  // ── 19. Phân loại vốn hóa Lowcap vs Majors được đảm nhiệm qua:
-  // - Đặc trưng rank_group (RANK_LOWCAP_OUT150 vs RANK_TOP10/30/MIDCAP)
-  // - Ngưỡng phê duyệt WinProbability (68% cho Lowcap vs 60% cho Majors)
-  // Không tạo thêm các feature lowcap_* trùng lặp để tuân thủ Naive Bayes.
 
   return features;
 }
@@ -464,6 +569,7 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
   const mergedMarketData = {
     ...(rawMarketData || {}),
     symbol: sym,
+    signalMetrics: rawMarketData?.signalMetrics || sig?.signalMetrics || null,
     maxRecentBouncePct: rawMarketData?.maxRecentBouncePct ?? sig?.maxRecentBouncePct ?? null,
     preEntryBouncePct: rawMarketData?.preEntryBouncePct ?? sig?.preEntryBouncePct ?? null,
   };

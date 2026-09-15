@@ -1159,6 +1159,7 @@ async function startAutoTrade(coins) {
         scoreRes = await score369Method(sig, sig.signal);
         sig.score = scoreRes.score;
         sig.scoreReasons = scoreRes.reasons;
+        sig.signalMetrics = scoreRes?.signalMetrics || null;
       } catch (err) {
         log.warn(`[AutoTrade] Lỗi tính score cho ${sym}: ${err.message}`);
       }
@@ -1259,7 +1260,8 @@ async function startAutoTrade(coins) {
           tierSlPrice: prelimSetupCd?.slPrice,
           tierTpPrice: prelimSetupCd?.tpPrice,
           beTriggerPrice: prelimSetupCd?.beTriggerPrice,
-          slPct: prelimSetupCd?.slPct
+          slPct: prelimSetupCd?.slPct,
+          signalMetrics: sig.signalMetrics || null
         });
         return;
       }
@@ -1290,7 +1292,8 @@ async function startAutoTrade(coins) {
           tierSlPrice: prelimSetupDir?.slPrice,
           tierTpPrice: prelimSetupDir?.tpPrice,
           beTriggerPrice: prelimSetupDir?.beTriggerPrice,
-          slPct: prelimSetupDir?.slPct
+          slPct: prelimSetupDir?.slPct,
+          signalMetrics: sig.signalMetrics || null
         });
         return;
       }
@@ -1320,7 +1323,8 @@ async function startAutoTrade(coins) {
           tierSlPrice: prelimSetupSd?.slPrice,
           tierTpPrice: prelimSetupSd?.tpPrice,
           beTriggerPrice: prelimSetupSd?.beTriggerPrice,
-          slPct: prelimSetupSd?.slPct
+          slPct: prelimSetupSd?.slPct,
+          signalMetrics: sig.signalMetrics || null
         });
         return;
       }
@@ -1481,7 +1485,7 @@ async function startAutoTrade(coins) {
       let klinesH1 = null;
       try {
         klinesM15 = await fetchBinanceKlines(sym, '15m', null, 21);
-        klinesH1 = await fetchBinanceKlines(sym, '1h', null, 5);
+        klinesH1 = await fetchBinanceKlines(sym, '1h', null, 25);
         const currM15 = klinesM15 && klinesM15.length > 0 ? klinesM15[klinesM15.length - 1] : null;
         const lastClosedM15 = klinesM15 && klinesM15.length > 1 ? klinesM15[klinesM15.length - 2] : null;
         const currH1 = klinesH1 && klinesH1.length > 0 ? klinesH1[klinesH1.length - 1] : null;
@@ -1503,6 +1507,14 @@ async function startAutoTrade(coins) {
           m15VolRatio = avgVol20 > 0 ? (currM15.volume / avgVol20) : 1.0;
           m15RangePct = ((currM15.high - currM15.low) / (currM15.low || 1)) * 100;
         }
+
+        let h1VolRatio = 1.0;
+        if (klinesH1 && klinesH1.length >= 24 && currH1) {
+          const past24 = klinesH1.slice(0, klinesH1.length - 1);
+          const avgVol24 = past24.reduce((sum, c) => sum + c.volume, 0) / past24.length;
+          h1VolRatio = avgVol24 > 0 ? (currH1.volume / avgVol24) : 1.0;
+        }
+
         rawMarketData = {
           lastM15: currM15,
           currM15,
@@ -1513,6 +1525,7 @@ async function startAutoTrade(coins) {
           step: sig.step,
           m15VolRatio,
           m15RangePct,
+          h1VolRatio,
           touchCount: (typeof sig.touchCount === 'number' ? sig.touchCount + 1 : 1),
           btcFlashPump: btcFlashState.isShortLocked,
           btcFlashDump: btcFlashState.isLongLocked,
@@ -1552,6 +1565,22 @@ async function startAutoTrade(coins) {
       }
       sig.actualSlPct = prelimSetup.slPct;
 
+      const marketMetrics = {
+        m15RangePct: rawMarketData?.m15RangePct != null ? Number(rawMarketData.m15RangePct.toFixed(2)) : null,
+        m15VolRatio: rawMarketData?.m15VolRatio != null ? Number(rawMarketData.m15VolRatio.toFixed(2)) : null,
+        h1RangePct: rawMarketData?.currH1 ? Number((((rawMarketData.currH1.high - rawMarketData.currH1.low) / (rawMarketData.currH1.low || 1)) * 100).toFixed(2)) : null,
+        h1VolRatio: rawMarketData?.h1VolRatio != null ? Number(rawMarketData.h1VolRatio.toFixed(2)) : null,
+        lastClosedM15RangePct: rawMarketData?.lastClosedM15 ? Number((((rawMarketData.lastClosedM15.high - rawMarketData.lastClosedM15.low) / (rawMarketData.lastClosedM15.low || 1)) * 100).toFixed(2)) : null,
+        lastClosedH1RangePct: rawMarketData?.lastClosedH1 ? Number((((rawMarketData.lastClosedH1.high - rawMarketData.lastClosedH1.low) / (rawMarketData.lastClosedH1.low || 1)) * 100).toFixed(2)) : null,
+        m15IsGreen: rawMarketData?.currM15 ? rawMarketData.currM15.close >= rawMarketData.currM15.open : null,
+        m15BodyPct: rawMarketData?.currM15 ? Number(((Math.abs(rawMarketData.currM15.close - rawMarketData.currM15.open) / (rawMarketData.currM15.low || 1)) * 100).toFixed(2)) : null
+      };
+      sig.marketMetrics = marketMetrics;
+      if (rawMarketData) {
+        rawMarketData.marketMetrics = marketMetrics;
+        rawMarketData.signalMetrics = sig.signalMetrics || null;
+      }
+
       const aiEval = evaluateSignalWithAI(sig, rawMarketData);
       recordAIEvaluation(sig, aiEval);
 
@@ -1570,7 +1599,9 @@ async function startAutoTrade(coins) {
           tierSlPrice: prelimSetup.slPrice,
           tierTpPrice: prelimSetup.tpPrice,
           beTriggerPrice: prelimSetup.beTriggerPrice,
-          slPct: prelimSetup.slPct
+          slPct: prelimSetup.slPct,
+          marketMetrics,
+          signalMetrics: sig.signalMetrics || null
         });
 
         if (_shouldLogSignal(sym, sig.signal, sig.targetLevel, 'ai_veto_skipped')) {
@@ -1604,6 +1635,7 @@ async function startAutoTrade(coins) {
             gridWidthPct: sig.gridWidthPct || gridStepPct,
             marketCapRank: rank,
             margin: tradeAmount,
+            signalMetrics: sig.signalMetrics || null,
             timestamp: Date.now()
           };
           log.system(`[AutoTrade] 📋 Đưa ${sym} (${sig.signal} @ $${sig.targetLevel}) vào Watchlist chờ xác nhận Retest nến H1.`);
@@ -1713,6 +1745,8 @@ async function startAutoTrade(coins) {
           marketCapRank: rank,
           gridWidthPct: gridStepPct,
           maxRecentBouncePct: maxRecentBouncePct ?? null,
+          marketMetrics,
+          signalMetrics: sig.signalMetrics || null,
           leverage: effectiveLeverage,
           margin: tradeAmount,
         });
@@ -2297,6 +2331,7 @@ async function checkH1RetestSignals(client, activeSymbols, leverageInfo = {}) {
         marketCapRank: rank,
         gridWidthPct: gridStepPct,
         margin: watchData.margin || tradeAmountRetest || 30,
+        signalMetrics: watchData.signalMetrics || null,
       };
 
       let rawMarketDataRetest = null;
@@ -2305,7 +2340,7 @@ async function checkH1RetestSignals(client, activeSymbols, leverageInfo = {}) {
       let m15RangePctRetest = 0.0;
       try {
         klinesM15Retest = await fetchBinanceKlines(sym, '15m', null, 21);
-        const klinesH1Retest = await fetchBinanceKlines(sym, '1h', null, 5);
+        const klinesH1Retest = await fetchBinanceKlines(sym, '1h', null, 25);
         const currM15 = klinesM15Retest && klinesM15Retest.length > 0 ? klinesM15Retest[klinesM15Retest.length - 1] : null;
         const lastClosedM15 = klinesM15Retest && klinesM15Retest.length > 1 ? klinesM15Retest[klinesM15Retest.length - 2] : null;
         const currH1 = klinesH1Retest && klinesH1Retest.length > 0 ? klinesH1Retest[klinesH1Retest.length - 1] : null;
@@ -2327,6 +2362,14 @@ async function checkH1RetestSignals(client, activeSymbols, leverageInfo = {}) {
           m15VolRatioRetest = avgVol20 > 0 ? (currM15.volume / avgVol20) : 1.0;
           m15RangePctRetest = ((currM15.high - currM15.low) / (currM15.low || 1)) * 100;
         }
+
+        let h1VolRatioRetest = 1.0;
+        if (klinesH1Retest && klinesH1Retest.length >= 24 && currH1) {
+          const past24 = klinesH1Retest.slice(0, klinesH1Retest.length - 1);
+          const avgVol24 = past24.reduce((sum, c) => sum + c.volume, 0) / past24.length;
+          h1VolRatioRetest = avgVol24 > 0 ? (currH1.volume / avgVol24) : 1.0;
+        }
+
         rawMarketDataRetest = {
           lastM15: currM15,
           currM15,
@@ -2337,6 +2380,7 @@ async function checkH1RetestSignals(client, activeSymbols, leverageInfo = {}) {
           step,
           m15VolRatio: m15VolRatioRetest,
           m15RangePct: m15RangePctRetest,
+          h1VolRatio: h1VolRatioRetest,
           touchCount: 2,
           btcFlashPump: btcFlashPumpRetest,
           btcFlashDump: btcFlashDumpRetest,
@@ -2368,6 +2412,22 @@ async function checkH1RetestSignals(client, activeSymbols, leverageInfo = {}) {
       }
       sigForAI.actualSlPct = prelimRetest.slPct;
 
+      const marketMetricsRetest = {
+        m15RangePct: rawMarketDataRetest?.m15RangePct != null ? Number(rawMarketDataRetest.m15RangePct.toFixed(2)) : null,
+        m15VolRatio: rawMarketDataRetest?.m15VolRatio != null ? Number(rawMarketDataRetest.m15VolRatio.toFixed(2)) : null,
+        h1RangePct: rawMarketDataRetest?.currH1 ? Number((((rawMarketDataRetest.currH1.high - rawMarketDataRetest.currH1.low) / (rawMarketDataRetest.currH1.low || 1)) * 100).toFixed(2)) : null,
+        h1VolRatio: rawMarketDataRetest?.h1VolRatio != null ? Number(rawMarketDataRetest.h1VolRatio.toFixed(2)) : null,
+        lastClosedM15RangePct: rawMarketDataRetest?.lastClosedM15 ? Number((((rawMarketDataRetest.lastClosedM15.high - rawMarketDataRetest.lastClosedM15.low) / (rawMarketDataRetest.lastClosedM15.low || 1)) * 100).toFixed(2)) : null,
+        lastClosedH1RangePct: rawMarketDataRetest?.lastClosedH1 ? Number((((rawMarketDataRetest.lastClosedH1.high - rawMarketDataRetest.lastClosedH1.low) / (rawMarketDataRetest.lastClosedH1.low || 1)) * 100).toFixed(2)) : null,
+        m15IsGreen: rawMarketDataRetest?.currM15 ? rawMarketDataRetest.currM15.close >= rawMarketDataRetest.currM15.open : null,
+        m15BodyPct: rawMarketDataRetest?.currM15 ? Number(((Math.abs(rawMarketDataRetest.currM15.close - rawMarketDataRetest.currM15.open) / (rawMarketDataRetest.currM15.low || 1)) * 100).toFixed(2)) : null
+      };
+      sigForAI.marketMetrics = marketMetricsRetest;
+      if (rawMarketDataRetest) {
+        rawMarketDataRetest.marketMetrics = marketMetricsRetest;
+        rawMarketDataRetest.signalMetrics = sigForAI.signalMetrics || null;
+      }
+
       const aiEval = evaluateSignalWithAI(sigForAI, rawMarketDataRetest);
       recordAIEvaluation(sigForAI, aiEval);
 
@@ -2386,7 +2446,9 @@ async function checkH1RetestSignals(client, activeSymbols, leverageInfo = {}) {
           tierSlPrice: prelimRetest.slPrice,
           tierTpPrice: prelimRetest.tpPrice,
           beTriggerPrice: prelimRetest.beTriggerPrice,
-          slPct: prelimRetest.slPct
+          slPct: prelimRetest.slPct,
+          marketMetrics: marketMetricsRetest,
+          signalMetrics: sigForAI.signalMetrics || null
         });
 
         delete lowScoreWatchlist[sym];

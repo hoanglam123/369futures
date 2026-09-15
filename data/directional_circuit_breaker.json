@@ -1,6 +1,14 @@
 {
   "LONG": {
-    "losses": [],
+    "losses": [
+      {
+        "symbol": "ARB",
+        "exitTime": 1789423268520,
+        "pnlUsd": -0.8711929307805517,
+        "pnlPercent": -29.03976435935172,
+        "exitType": "SL"
+      }
+    ],
     "lockedUntil": 0,
     "lockReason": ""
   },

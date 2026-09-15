@@ -1196,6 +1196,7 @@ async function get369SignalsForCoins(symbols, taMap = {}, notifyTelegram = false
       const res = await score369Method(sig, sig.signal);
       sig.score = res.score;
       sig.scoreReasons = res.reasons;
+      sig.signalMetrics = res.signalMetrics || null;
     }
     if (notifyTelegram) {
       notifySignals(activeSignals).catch(() => {}); // fire-and-forget, không chặn luồng chính
@@ -1769,6 +1770,32 @@ async function score369Method(sig369, direction) {
   let m15Klines = [];
   const reasons = [];
 
+  const signalMetrics = {
+    trend: 'TREND_NEUTRAL',
+    adx: null,
+    adxStrength: 'ADX_NORMAL',
+    h1CandleGeometry: 'H1_HOLD_OR_HOVER',
+    m15CandleGeometry: 'M15_HOLD_OR_HOVER',
+    rsi: null,
+    rsiCondition: 'RSI_NEUTRAL',
+    whaleLongRatio: null,
+    retailLongRatio: null,
+    lsFlow: 'LS_NEUTRAL',
+    h4SrCount: 0,
+    d1SrCount: 0,
+    priceAction: 'PA_0_LEVEL',
+    srQuality: 'SR_NONE',
+    oiChangePct: null,
+    oiState: 'OI_STABLE',
+    volumeRatio: 1.0,
+    volumeState: 'VOL_DRY',
+    h1VolumeBurst: 'H1_VOL_BURST_NORMAL',
+    fundingRate: null,
+    fundingState: 'FUNDING_NORMAL',
+    btcWave: 'BTC_NEUTRAL',
+    btcStorm: 'BTC_STORM_NORMAL'
+  };
+
   try {
     const h1Candles = await fetchH1Historical(sig369.symbol);
     
@@ -1957,6 +1984,23 @@ async function score369Method(sig369, direction) {
           trendReasons.push(`Ngược/Mâu thuẫn cấu trúc Dow H1 3 ngày & EMA (${adxText}) (+0đ)`);
         }
       }
+
+      // Ghi nhận signalMetrics cho Tiêu chí 1: Trend & ADX
+      signalMetrics.adx = adx14H1 !== null ? Number(adx14H1.toFixed(1)) : null;
+      signalMetrics.adxStrength = (adx14H1 !== null && adx14H1 >= 25) ? 'ADX_STRONG_TREND' : (adx14H1 !== null ? 'ADX_WEAK_TREND' : 'ADX_NORMAL');
+
+      const trendText = trendReasons.join(' ');
+      if (trendText.includes('Dow & Trendline')) {
+        signalMetrics.trend = 'TREND_PERFECT';
+      } else if (trendText.includes('H1 Sideway nhưng M15 có cấu trúc')) {
+        signalMetrics.trend = 'TREND_M15_ALIGNED';
+      } else if (trendText.includes('EMA20<EMA50') || trendText.includes('EMA20>EMA50')) {
+        signalMetrics.trend = 'TREND_EMA';
+      } else if (trendText.includes('Ngược/Mâu thuẫn')) {
+        signalMetrics.trend = 'TREND_CONFLICT';
+      } else {
+        signalMetrics.trend = 'TREND_NEUTRAL';
+      }
     } else {
       trendReasons.push(`H1: thiếu dữ liệu nến (+0đ)`);
     }
@@ -2125,6 +2169,23 @@ async function score369Method(sig369, direction) {
         } else {
           candleReasons.push(`M15 giữ cấu trúc mốc Entry`);
         }
+
+        signalMetrics.m15CandleGeometry = m15Geom;
+      }
+
+      if (h1Candles && h1Candles.length >= 2) {
+        const prevH1 = h1Candles[h1Candles.length - 2];
+        const currH1 = h1Candles[h1Candles.length - 1];
+        const h1GeomPrev = classifyCandleGeometry(prevH1, targetLevel, isLong, step);
+        const h1GeomCurr = classifyCandleGeometry(currH1, targetLevel, isLong, step);
+        const h1Geom = (h1GeomCurr === 'PUNCTURED_DEEP' || h1GeomPrev === 'PUNCTURED_DEEP')
+          ? 'H1_PUNCTURED_DEEP'
+          : (h1GeomCurr === 'PUNCTURED_LIGHT' || h1GeomPrev === 'PUNCTURED_LIGHT')
+            ? 'H1_PUNCTURED_LIGHT'
+            : (h1GeomCurr === 'REJECT_PINBAR' || h1GeomPrev === 'REJECT_PINBAR')
+              ? 'H1_REJECT_PINBAR'
+              : 'H1_HOLD_OR_HOVER';
+        signalMetrics.h1CandleGeometry = h1Geom;
       }
     }
     if (candleReasons.length > 0) {
@@ -2133,25 +2194,30 @@ async function score369Method(sig369, direction) {
 
     // 3. Tiêu chí 3: Quá mua / Quá bán RSI H1 (Tối đa +1đ: cực đại +1đ, cận cản +0.5đ)
     const rsi14 = calculateRSI(h1Candles, 14);
+    signalMetrics.rsi = rsi14 !== null ? Number(rsi14.toFixed(2)) : null;
+    let rsiCondition = 'RSI_NEUTRAL';
     if (rsi14 !== null) {
       const isLong = direction === 'LONG';
       if (isLong) {
         if (rsi14 <= 30) {
           score += 1.0;
+          rsiCondition = 'RSI_EXTREME';
           reasons.push(`[RSI H1] Quá bán cực đại: RSI H1 ${rsi14.toFixed(2)} <= 30 (+1.0)`);
         } else if (rsi14 <= 38) {
           score += 0.5;
+          rsiCondition = 'RSI_NEAR';
           reasons.push(`[RSI H1] Cận quá bán: RSI H1 ${rsi14.toFixed(2)} <= 38 (+0.5)`);
         } else {
           reasons.push(`[RSI H1] Trung tính: RSI H1 ${rsi14.toFixed(2)} > 38 (+0)`);
         }
       } else {
-        const isShort = direction === 'SHORT';
         if (rsi14 >= 70) {
           score += 1.0;
+          rsiCondition = 'RSI_EXTREME';
           reasons.push(`[RSI H1] Quá mua cực đại: RSI H1 ${rsi14.toFixed(2)} >= 70 (+1.0)`);
         } else if (rsi14 >= 62) {
           score += 0.5;
+          rsiCondition = 'RSI_NEAR';
           reasons.push(`[RSI H1] Cận quá mua: RSI H1 ${rsi14.toFixed(2)} >= 62 (+0.5)`);
         } else {
           reasons.push(`[RSI H1] Trung tính: RSI H1 ${rsi14.toFixed(2)} < 62 (+0)`);
@@ -2160,6 +2226,7 @@ async function score369Method(sig369, direction) {
     } else {
       reasons.push(`[RSI H1] Chưa đủ 15 nến H1 để tính RSI (+0)`);
     }
+    signalMetrics.rsiCondition = rsiCondition;
 
     // 4. Tiêu chí 4: Tương quan dòng tiền L/S (Whales vs Retail) (Tối đa +1.5đ)
     let flowScore = 0;
@@ -2191,18 +2258,24 @@ async function score369Method(sig369, direction) {
       if (ratioData !== null && whaleData !== null) {
         if (whaleOk && retailOk) {
           flowScore = 1.5;
+          signalMetrics.lsFlow = 'LS_GOLD';
           flowReasons.push(`Đồng thuận tuyệt đối (Gold Setup): Cá voi ${isLong ? 'Long' : 'Short'} ${whalePct.toFixed(1)}% >= 53% & Retail ${isLong ? 'Short' : 'Long'} ${retailPct.toFixed(1)}% >= 55% (+1.5đ)`);
         } else if (whaleOk || retailOk) {
           flowScore = 0.5;
+          signalMetrics.lsFlow = 'LS_PARTIAL';
           flowReasons.push(`Đồng thuận một phần: Cá voi ${whaleOk ? 'đạt' : 'không đạt'} (${whalePct.toFixed(1)}%), Retail ${retailOk ? 'đạt' : 'không đạt'} (${retailPct.toFixed(1)}%) (+0.5đ)`);
         } else {
+          signalMetrics.lsFlow = 'LS_DIVERGENCE';
           flowReasons.push(`Không đồng thuận hoặc phân kỳ: Cá voi ${whalePct.toFixed(1)}%, Retail ${retailPct.toFixed(1)}% (+0đ)`);
         }
       } else {
+        signalMetrics.lsFlow = 'LS_NEUTRAL';
         if (ratioData === null) flowReasons.push(`Lỗi tải dữ liệu Retail`);
         if (whaleData === null) flowReasons.push(`Lỗi tải dữ liệu Cá voi`);
         flowReasons.push(`(+0đ)`);
       }
+      signalMetrics.whaleLongRatio = whalePct ? Number(whalePct.toFixed(1)) : null;
+      signalMetrics.retailLongRatio = retailPct ? Number(retailPct.toFixed(1)) : null;
     } catch (e) {
       flowReasons.push(`Lỗi hệ thống khi check dòng tiền (${e.message}) (+0đ)`);
     }
@@ -2267,10 +2340,11 @@ async function score369Method(sig369, direction) {
       }
 
       // 6.2 Phân tích cản D1
+      let matchesD1 = [];
       if (d1Candles.length > 0) {
         const { highs: d1Highs, lows: d1Lows } = findSwingPoints(d1Candles, 3, 3);
         const searchListD1 = isLong ? d1Lows : d1Highs;
-        const matchesD1 = searchListD1.filter(price => Math.abs(price - targetLevel) <= maxDev);
+        matchesD1 = searchListD1.filter(price => Math.abs(price - targetLevel) <= maxDev);
         if (matchesD1.length >= 1) {
           paScore += 0.6;
           paReasons.push(`D1: ${matchesD1.length} cản cũ (+0.6đ)`);
@@ -2280,6 +2354,23 @@ async function score369Method(sig369, direction) {
       } else {
         paReasons.push(`D1: thiếu nến (+0đ)`);
       }
+
+      // Ghi nhận signalMetrics cho Tiêu chí 6: Price Action S/R
+      const h4MatchesCount = typeof matchesH4 !== 'undefined' ? matchesH4.length : 0;
+      const d1MatchesCount = matchesD1.length;
+      signalMetrics.h4SrCount = h4MatchesCount;
+      signalMetrics.d1SrCount = d1MatchesCount;
+
+      const totalSr = h4MatchesCount + d1MatchesCount;
+      if (totalSr >= 4) signalMetrics.priceAction = 'PA_4_LEVELS';
+      else if (totalSr === 3) signalMetrics.priceAction = 'PA_3_LEVELS';
+      else if (totalSr === 2) signalMetrics.priceAction = 'PA_2_LEVELS';
+      else if (totalSr === 1) signalMetrics.priceAction = 'PA_1_LEVEL';
+      else signalMetrics.priceAction = 'PA_0_LEVEL';
+
+      if (d1MatchesCount >= 1) signalMetrics.srQuality = 'SR_DAILY_D1_INCLUDED';
+      else if (h4MatchesCount >= 1) signalMetrics.srQuality = 'SR_H4_ONLY';
+      else signalMetrics.srQuality = 'SR_NONE';
     } else {
       paReasons.push(`Thiếu dữ liệu Step hoặc TargetLevel (+0đ)`);
     }
@@ -2298,13 +2389,17 @@ async function score369Method(sig369, direction) {
 
       if (prevOI > 0) {
         const oiChangePct = ((latestOI - prevOI) / prevOI) * 100;
+        signalMetrics.oiChangePct = Number(oiChangePct.toFixed(2));
         if (oiChangePct <= -2.0) {
           score += 0.5;
+          signalMetrics.oiState = 'OI_COOLING';
           reasons.push(`[OI H1] Hạ nhiệt vị thế: Lượng OI giảm ${oiChangePct.toFixed(2)}% <= -2% (+0.5)`);
         } else if (oiChangePct <= 3.0) {
           score += 0.3;
+          signalMetrics.oiState = 'OI_STABLE';
           reasons.push(`[OI H1] Dòng tiền ổn định: Lượng OI thay đổi ${oiChangePct.toFixed(2)}% (+0.3)`);
         } else {
+          signalMetrics.oiState = 'OI_SURGE';
           reasons.push(`[OI H1] Đòn bẩy tăng mạnh (Nóng): Lượng OI tăng ${oiChangePct.toFixed(2)}% >= +3% (+0)`);
         }
       } else {
@@ -2324,14 +2419,18 @@ async function score369Method(sig369, direction) {
 
       if (avgVol > 0) {
         const ratio = lastH1.volume / avgVol;
+        signalMetrics.volumeRatio = Number(ratio.toFixed(2));
         if (ratio >= 1.5) {
           volSurgeScore = 1.0;
+          signalMetrics.volumeState = 'VOL_SURGE';
           volSurgeReasons.push(`Volume bùng nổ (Dòng tiền dội vào): ${lastH1.volume.toFixed(0)} >= ${(avgVol * 1.5).toFixed(0)} (${ratio.toFixed(2)}x) (+1.0đ)`);
         } else if (ratio >= 1.0) {
           volSurgeScore = 0.5;
+          signalMetrics.volumeState = 'VOL_STABLE';
           volSurgeReasons.push(`Volume ổn định: ${lastH1.volume.toFixed(0)} >= ${avgVol.toFixed(0)} (${ratio.toFixed(2)}x) (+0.5đ)`);
         } else {
           volSurgeScore = 0.3;
+          signalMetrics.volumeState = 'VOL_DRY';
           volSurgeReasons.push(`Volume cạn kiệt: ${lastH1.volume.toFixed(0)} < ${avgVol.toFixed(0)} (${ratio.toFixed(2)}x) (+0.3đ)`);
         }
       } else {
@@ -2354,6 +2453,7 @@ async function score369Method(sig369, direction) {
         const avgRatio = recentAvgVol / avgBaseVol;
         if (maxRatio >= 2.5 || avgRatio >= 2.0) {
           isH1VolSurge = true;
+          signalMetrics.h1VolumeBurst = 'H1_VOL_BURST_DANGER';
           volSurgeReasons.push(`🚨 Đột biến Volume 3 H1 gần nhất (${recentMaxVol.toFixed(0)} gấp ${maxRatio.toFixed(2)}x TB 24 nến): Nguy cơ bão xả/bơm mạnh → Chuyển Watchlist Retest`);
         }
       }
@@ -2369,27 +2469,34 @@ async function score369Method(sig369, direction) {
       const fundingRate = await fetchFundingRate(sig369.symbol);
       if (fundingRate !== null) {
         const fundingPct = fundingRate * 100;
+        signalMetrics.fundingRate = Number(fundingPct.toFixed(4));
         const isLong = direction === 'LONG';
 
         if (isLong) {
           if (fundingPct <= -0.02) {
             fundingScore = 1.0;
+            signalMetrics.fundingState = 'FUNDING_SQUEEZE';
             fundingReasons.push(`Short Crowded (Squeeze): Funding Rate ${fundingPct.toFixed(4)}% <= -0.02% (+1.0đ)`);
           } else if (fundingPct <= 0.03) {
             fundingScore = 0.5;
+            signalMetrics.fundingState = 'FUNDING_NORMAL';
             fundingReasons.push(`Bình thường: Funding Rate ${fundingPct.toFixed(4)}% (+0.5đ)`);
           } else {
+            signalMetrics.fundingState = 'FUNDING_DANGER';
             fundingReasons.push(`Long đu bám (Nóng): Funding Rate ${fundingPct.toFixed(4)}% > 0.03% (+0đ)`);
           }
         } else {
           // SHORT
           if (fundingPct >= 0.05) {
             fundingScore = 1.0;
+            signalMetrics.fundingState = 'FUNDING_SQUEEZE';
             fundingReasons.push(`Long Crowded (Squeeze): Funding Rate ${fundingPct.toFixed(4)}% >= 0.05% (+1.0đ)`);
           } else if (fundingPct >= -0.01) {
             fundingScore = 0.5;
+            signalMetrics.fundingState = 'FUNDING_NORMAL';
             fundingReasons.push(`Bình thường: Funding Rate ${fundingPct.toFixed(4)}% (+0.5đ)`);
           } else {
+            signalMetrics.fundingState = 'FUNDING_DANGER';
             fundingReasons.push(`Short đu bám (Nóng): Funding Rate ${fundingPct.toFixed(4)}% < -0.01% (+0đ)`);
           }
         }
@@ -2407,6 +2514,8 @@ async function score369Method(sig369, direction) {
     const btcReasons = [];
     if (sig369.symbol.toUpperCase() === 'BTC') {
       btcScore = 1.0;
+      signalMetrics.btcWave = 'BTC_ALIGNED';
+      signalMetrics.btcStorm = 'BTC_STORM_NORMAL';
       btcReasons.push(`Chính là BTC (+1.0đ)`);
     } else {
       try {
@@ -2414,34 +2523,42 @@ async function score369Method(sig369, direction) {
         if (!btcState) {
           btcReasons.push(`BTC: lỗi check (+0đ)`);
         } else if (btcState.isStorm) {
+          signalMetrics.btcStorm = 'BTC_STORM_VOLATILE';
           btcReasons.push(`BTC bão giá: M15 biến động ${btcState.btcM15Pct.toFixed(2)}% > 1.0% (+0đ)`);
         } else if (!btcState.hasData) {
           btcReasons.push(`BTC: thiếu dữ liệu nến (+0đ)`);
         } else {
+          signalMetrics.btcStorm = 'BTC_STORM_NORMAL';
           const { isBtcStrong, btcAdxText, bLow1, bLow2, bHigh1, bHigh2, isBtcHigherLow, isBtcLowerHigh, isBtcEmaBull, isBtcEmaBear } = btcState;
 
           if (isLong) {
             if ((isBtcHigherLow || isBtcEmaBull) && !isBtcEmaBear) {
               btcScore = isBtcStrong ? 1.0 : 0.5;
+              signalMetrics.btcWave = 'BTC_ALIGNED';
               btcReasons.push(
                 `BTC thuận Dow/EMA LONG (${btcAdxText}): HL ($${bLow2.toFixed(1)} > $${bLow1.toFixed(1)}) (+${btcScore.toFixed(1)}đ)`
               );
             } else if (!isBtcStrong) {
               btcScore = 0.5;
+              signalMetrics.btcWave = 'BTC_NEUTRAL';
               btcReasons.push(`BTC đi ngang/trung tính (${btcAdxText}): Giao dịch tự do (+0.5đ)`);
             } else {
+              signalMetrics.btcWave = 'BTC_COUNTER';
               btcReasons.push(`BTC ngược xu hướng Dow/EMA (${btcAdxText}) (+0đ)`);
             }
           } else { // SHORT
             if ((isBtcLowerHigh || isBtcEmaBear) && !isBtcEmaBull) {
               btcScore = isBtcStrong ? 1.0 : 0.5;
+              signalMetrics.btcWave = 'BTC_ALIGNED';
               btcReasons.push(
                 `BTC thuận Dow/EMA SHORT (${btcAdxText}): LH ($${bHigh2.toFixed(1)} < $${bHigh1.toFixed(1)}) (+${btcScore.toFixed(1)}đ)`
               );
             } else if (!isBtcStrong) {
               btcScore = 0.5;
+              signalMetrics.btcWave = 'BTC_NEUTRAL';
               btcReasons.push(`BTC đi ngang/trung tính (${btcAdxText}): Giao dịch tự do (+0.5đ)`);
             } else {
+              signalMetrics.btcWave = 'BTC_COUNTER';
               btcReasons.push(`BTC ngược xu hướng Dow/EMA (${btcAdxText}) (+0đ)`);
             }
           }
@@ -2467,7 +2584,8 @@ async function score369Method(sig369, direction) {
     isM15Volatile: isM15Volatile === true,
     isStagnant: isStagnant === true,
     isH1VolSurge: isH1VolSurge === true,
-    otherScore
+    otherScore,
+    signalMetrics
   };
 }
 
