@@ -1,6 +1,6 @@
 {
   "version": "1.4.0-auto",
-  "trainedAt": "2026-09-15 15:44:33",
+  "trainedAt": "2026-09-15 16:22:52",
   "totalSamples": 3483,
   "priorWinProb": 0.6256,
   "priorOdds": 1.6712,
@@ -9,7 +9,7 @@
     "lowcap": 54.0,
     "minExpectedEvRoi": 0.0,
     "autoCalibrated": true,
-    "calibratedAt": "2026-09-15 15:44:33",
+    "calibratedAt": "2026-09-15 16:22:51",
     "calibrationStats": {
       "testedSamples": 1871,
       "approvedTrades": 12,
@@ -23,15 +23,34 @@
   "minExpectedEvRoi": 0.0,
   "mfeMaeProfile": {
     "optimalTpGridRatio": 0.45,
-    "recommendedBeTriggerPct": 0.6,
-    "sampleCount": 1871,
-    "calculatedAt": "2026-09-15 15:44:33"
+    "tpRatioStats": {
+      "learnedRatio": 0.45,
+      "p40": 0.45,
+      "p55": 0.45,
+      "sampleCount": 1125,
+      "medianRatio": 0.45
+    },
+    "recommendedBeTriggerPct": 0.95,
+    "beCalibrationStats": {
+      "threshold": 0.95,
+      "precision": 0.97,
+      "recall": 1.0,
+      "fBeta": 0.98,
+      "truePositives": 2095,
+      "falsePositives": 64,
+      "falseNegatives": 0
+    },
+    "sampleCount": 3887,
+    "shadowCount": 1871,
+    "realCount": 2185,
+    "autoCalibrated": true,
+    "calculatedAt": "2026-09-15 16:22:52"
   },
   "adaptiveSlProfile": {
     "top150MinSlPct": 0.9,
     "lowcapMinSlPct": 1.6,
     "autoCalibrated": true,
-    "calculatedAt": "2026-09-15 15:44:33",
+    "calculatedAt": "2026-09-15 16:22:52",
     "sampleCount": 1933
   },
   "featureWeights": {
