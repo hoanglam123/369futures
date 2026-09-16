@@ -63,8 +63,10 @@ const DEBOUNCE_MS = 5 * 60_000; // 5 phút / tín hiệu
 const COIN_REFRESH_INTERVAL_MS = 4 * 60 * 60_000; // Tái kiểm tra danh sách coin mỗi 4 giờ
 const LEVERAGE_REFRESH_INTERVAL_MS = 6 * 60 * 60_000; // Tự động cập nhật trần đòn bẩy mỗi 6 giờ
 const MIN_CONFLUENCE_SCORE = parseFloat(process.env.MIN_CONFLUENCE_SCORE || '5.0'); // Ngưỡng Confluence Score tối thiểu (mặc định 5.0đ)
-// Cấu hình Dời SL về Breakeven (Mặc định: false - Không dời BE để chống rũ non, vị thế chạy thuần túy đến TP/SL)
-const ENABLE_TRAILING_BE = process.env.ENABLE_TRAILING_BE === 'true';
+// Cấu hình Dời SL về Breakeven (Mặc định: true)
+const ENABLE_TRAILING_BE = process.env.ENABLE_TRAILING_BE !== 'false';
+// Cấu hình Chốt Lời Từng Phần (Mặc định: true - Chốt 50% vị thế khi chạm mốc Trailing Trigger để bỏ túi lãi tươi)
+const ENABLE_PARTIAL_TP = process.env.ENABLE_PARTIAL_TP !== 'false';
 
 // Debounce map: key → timestamp lần đặt lệnh gần nhất
 const _fired = new Map();
@@ -510,30 +512,30 @@ function calculateTierSLTP(symbol, side, entryPrice, h4Ref, tickSize, maxExchang
     : (((step * 10) / entryPrice) * 100);
   const actualTpRatio = tpRatio || 1.5;
   const rawTpDist = slDist * actualTpRatio;
-  // 🧠 Tỷ lệ TP/Grid tối ưu — học từ phân phối MFE thực tế (percentile 55 lệnh thắng)
+  // 🧠 Tỷ lệ TP/Grid tối ưu — học từ phân phối MFE thực tế (AI tự hiệu chuẩn)
   const rawTpGridRatio = typeof mfeMaeCfg?.optimalTpGridRatio === 'number'
     ? mfeMaeCfg.optimalTpGridRatio
-    : 0.45;
-  // Guardrail: [0.30, 0.60] — không đặt TP quá gần hoặc quá xa biên Grid
-  const tpGridRatio = Math.max(0.30, Math.min(rawTpGridRatio, 0.60));
-  const tpGridLimit = entryPrice * (Math.min(Math.max(effGridWidth * tpGridRatio, 1.2), 3.0) / 100.0);
-  const finalTpDist = Math.min(rawTpDist, tpGridLimit);
+    : 0.55;
+  // Guardrail: [0.35, 0.85] — cho phép TP mở rộng linh hoạt để bảo đảm R:R >= 1.3:1
+  const tpGridRatio = Math.max(0.35, Math.min(rawTpGridRatio, 0.85));
+  // Nới trần TP tối đa từ 3.0% lên 4.5% để không bóp nghẹt R:R
+  const tpGridLimit = entryPrice * (Math.min(Math.max(effGridWidth * tpGridRatio, 1.5), 4.5) / 100.0);
+  // Đảm bảo TP luôn đạt tối thiểu 1.25x SL (bảo vệ R:R)
+  const minTpDist = slDist * 1.25;
+  const finalTpDist = Math.max(minTpDist, Math.min(rawTpDist, tpGridLimit));
 
   const tpPrice = (side === 'LONG' || side === 'BUY') ? (entryPrice + finalTpDist) : (entryPrice - finalTpDist);
 
   // 🧠 DỜI SL VỀ HÒA VỐN SỚM (Adaptive Trailing Breakeven Trigger — tự học từ data)
-  // Ngưỡng kích BE được hiệu chuẩn động mỗi lần training dựa trên F-beta optimization
-  // (precision > recall: ưu tiên tránh false trigger hơn bỏ lỡ lần dời BE)
-  // mfeMaeCfg đã được khai báo ở đoạn TP bên trên, dùng lại trực tiếp
+  // Ngưỡng kích BE được hiệu chuẩn động mỗi lần training dựa trên F-beta và phân phối Retest
   const rawBeTriggerPct = typeof mfeMaeCfg?.recommendedBeTriggerPct === 'number'
     ? mfeMaeCfg.recommendedBeTriggerPct
-    : 0.60;
-  // Guardrail: không để BE trigger < 0.35% (quá sớm) hoặc > 1.5% (quá muộn)
-  const beTriggerPct = Math.max(0.35, Math.min(rawBeTriggerPct, 1.5));
-  // Dùng trực tiếp % AI đã học — KHÔNG cap theo slDist (đã triệt tiêu giá trị AI học được).
-  // Chỉ giới hạn trên: không được vượt 70% khoảng cách TP (tránh trigger gần sát TP vô nghĩa)
+    : 1.10;
+  // Guardrail: không để BE trigger < 0.60% (quá sớm gây rũ non) hoặc > 2.0% (quá muộn)
+  const beTriggerPct = Math.max(0.60, Math.min(rawBeTriggerPct, 2.0));
   const beDistRaw = entryPrice * (beTriggerPct / 100);
-  const beDist = Math.min(beDistRaw, finalTpDist * 0.70);
+  // Kích hoạt khi đạt khoảng 55% - 65% quãng đường đến TP (thời điểm lý tưởng để chốt 50% vị thế)
+  const beDist = Math.min(beDistRaw, finalTpDist * 0.65);
   const beTriggerPrice = (side === 'LONG' || side === 'BUY') ? (entryPrice + beDist) : (entryPrice - beDist);
 
   // 🛡️ BẮT BUỘC TỶ LỆ R:R TỐI THIỂU 1.0:1 (Loại bỏ triệt để các lệnh R:R < 1.0 như 0.5:1)
@@ -3132,6 +3134,36 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
         ? (peakPrice >= trailTriggerPriceExact - triggerBuffer)
         : (peakPrice <= trailTriggerPriceExact + triggerBuffer);
 
+      // 🎯 0. HỖ TRỢ PARTIAL TP (Chốt lời 50% khi chạm mốc Trailing Trigger)
+      if (ENABLE_PARTIAL_TP && isTrailTriggerReached && !partialClosedSymbols.has(sym)) {
+        const halfAmt = absAmt * 0.5;
+        const closeQty = formatQuantity(sym, halfAmt);
+        if (closeQty > 0) {
+          partialClosedSymbols.add(sym);
+          const estRealizedPnl = (roi / 100) * ((meta?.margin || 0) * 0.5);
+          log.system(`[AutoTrade] 🎯 [Partial TP] ${sym} chạm mốc kích hoạt ($${trailTriggerPriceExact} / ROI +${roi.toFixed(2)}%): Chốt 50% vị thế (qty = ${closeQty}, lãi ước tính +$${estRealizedPnl.toFixed(2)} USDT)`);
+          try {
+            await client.placeMarket(sym, oppositeSide, closeQty);
+            // Cập nhật số lượng vị thế còn lại
+            absAmt = formatQuantity(sym, Math.max(0, absAmt - closeQty));
+            if (lastActivePositions.has(sym)) {
+              const prevData = lastActivePositions.get(sym);
+              lastActivePositions.set(sym, { ...prevData, amt: isLong ? absAmt : -absAmt });
+            }
+            sendTelegram(
+              `🎯 <b>[AutoTrade] Chốt Lời 50% Vị Thế (Partial TP)</b>\n` +
+              `• Coin: <b>#${sym} (${isLong ? 'LONG' : 'SHORT'})</b>\n` +
+              `• Đã chốt: <b>${closeQty}</b> (50% vị thế)\n` +
+              `• Giá chốt: <b>$${markPrice}</b> | ROI: <b>+${roi.toFixed(2)}%</b>\n` +
+              `• Tiền lãi bỏ túi: <b>+$${estRealizedPnl.toFixed(2)} USDT</b>\n` +
+              `• Vị thế còn lại: <b>${absAmt}</b> (SL đang dời về Hòa Vốn để tiếp tục gồng lãi Full TP!)`
+            ).catch(() => {});
+          } catch (e) {
+            log.error(`[AutoTrade] [Partial TP] Đóng 50% vị thế ${sym} thất bại: ${e.message}`);
+          }
+        }
+      }
+
       // 🛡️ SANITY GUARD: Chỉ dời SL lên mốc hòa vốn/khóa lãi nếu mốc dời hợp lệ so với giá thị trường hiện tại
       // - LONG: Giá hiện tại (markPrice) phải CAO HƠN mốc dời (trailedSlPriceExact).
       //   Nếu markPrice <= trailedSlPriceExact, đặt Stop Sell sẽ bị Binance từ chối (-2021) và kích hoạt Virtual SL oan!
@@ -3220,14 +3252,17 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
               const stopPriceStr = newSl.stopPrice || newSl.triggerPrice || roundedTargetSl;
               log.system(`[AutoTrade] ✓ Đã dịch SL mới cho ${sym} @ $${stopPriceStr} (orderId=${orderIdStr})`);
 
-              // Gửi thông báo Telegram (Dời SL Hòa Vốn bảo toàn 100% vị thế)
+              // Gửi thông báo Telegram (Dời SL Hòa Vốn bảo toàn vị thế)
               const ticksLabel = (trailMultiplier * 100).toFixed(0);
+              const partialNotice = partialClosedSymbols.has(sym)
+                ? `• Đã chốt trước 50% lợi nhuận, giữ 50% vị thế còn lại tiếp tục gồng về Full TP!`
+                : `• Giữ nguyên 100% vị thế tiếp tục gồng về Full TP!`;
               sendTelegram(
                 `🛡️ <b>[AutoTrade] Khóa Lãi Hòa Vốn (+${ticksLabel} ticks)</b>\n` +
                 `• Coin: <b>#${sym} (${isLong ? 'LONG' : 'SHORT'})</b>\n` +
                 `• ROI hiện tại: <b>+${roi.toFixed(2)}%</b>\n` +
                 `• Đã dời SL trên sàn về: <b>$${targetSlStr}</b> (Hòa vốn + đệm phí)\n` +
-                `• Giữ nguyên 100% vị thế tiếp tục gồng về Full TP!`
+                `${partialNotice}`
               ).catch(() => { });
             } catch (e) {
               const errStr = _binanceErr(e);
@@ -3291,9 +3326,10 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
               });
             }
 
-            // 🛡️ Kích hoạt Cooldown nếu lệnh đóng do Stop Loss hoặc bị lỗ âm
+            // 🛡️ Kích hoạt Cooldown nếu lệnh đóng do Stop Loss thực sự hoặc bị lỗ âm
             const estPnlUsd = (roi / 100) * (meta?.margin || 0);
-            if (typeLabel === 'Stop Loss' || roi < 0 || estPnlUsd < -0.2) {
+            const isActualLoss = (typeLabel === 'Stop Loss' && !partialClosedSymbols.has(sym)) && (roi < -1.0 || estPnlUsd < -0.5);
+            if (isActualLoss) {
               addSymbolToCooldown(sym, 8.0, 'VIRTUAL_SL_LOSS');
               log.system(`[CooldownManager] ⏳ Đưa ${sym} vào Cooldown 8 giờ do Virtual SL / Lỗ âm (${roi.toFixed(2)}%)`);
             }
@@ -3438,7 +3474,8 @@ async function notifyRealClose(client, sym, prevPos, meta) {
       });
     }
 
-    if (exitType === 'SL' || realizedProfit < -0.2 || roi < -0.5) {
+    const isActualRealLoss = (exitType === 'SL' && !partialClosedSymbols.has(sym)) && (realizedProfit < -0.5 || roi < -1.0);
+    if (isActualRealLoss) {
       addSymbolToCooldown(sym, 8.0, 'SL_LOSS');
       log.system(`[CooldownManager] ⏳ Đưa ${sym} vào Cooldown 8 giờ do khớp SL sàn / Lỗ âm (PnL: $${realizedProfit.toFixed(2)}, ROI: ${roi.toFixed(2)}%)`);
     }

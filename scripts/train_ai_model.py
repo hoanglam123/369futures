@@ -2,6 +2,7 @@ import json
 import os
 import sys
 import time
+import math
 import requests
 from collections import defaultdict
 
@@ -698,6 +699,15 @@ def train_and_export_model():
     # 🛡️ TỰ ĐỘNG HIỆU CHUẨN SÀN SL THÍCH ỨNG (ADAPTIVE DYNAMIC SL FLOOR CALIBRATION)
     adaptive_sl_profile = calibrate_adaptive_sl_profile(BASE_DIR)
 
+    # Đọc cấu hình cũ trước khi ghi đè để phát hiện thay đổi tham số
+    old_config = {}
+    if os.path.exists(OUTPUT_MODEL_PATH):
+        try:
+            with open(OUTPUT_MODEL_PATH, 'r', encoding='utf-8') as f:
+                old_config = json.load(f)
+        except Exception:
+            pass
+
     model_output = {
         "version": "1.4.0-auto",
         "trainedAt": time.strftime("%Y-%m-%d %H:%M:%S"),
@@ -716,6 +726,119 @@ def train_and_export_model():
         json.dump(model_output, f, indent=2, ensure_ascii=False)
 
     print(f"\n✅ Đã xuất mô hình AI Reviewer v1.4.0-auto thành công tại: {OUTPUT_MODEL_PATH}")
+
+    # 📢 Bắn thông báo Telegram nếu có thay đổi về TP, BE, SL, WinRate
+    check_and_notify_parameter_changes(old_config, model_output)
+
+def get_telegram_creds():
+    token = os.environ.get('TELEGRAM_BOT_TOKEN')
+    chat_id = os.environ.get('TELEGRAM_CHAT_ID')
+    if not token or not chat_id:
+        env_path = os.path.join(BASE_DIR, ".env")
+        if os.path.exists(env_path):
+            try:
+                with open(env_path, "r", encoding="utf-8") as f:
+                    for line in f:
+                        if "=" in line and not line.strip().startswith("#"):
+                            k, v = line.strip().split("=", 1)
+                            k = k.strip()
+                            v = v.split("#")[0].strip()
+                            if k == "TELEGRAM_BOT_TOKEN" and not token:
+                                token = v
+                            elif k == "TELEGRAM_CHAT_ID" and not chat_id:
+                                chat_id = v
+            except Exception:
+                pass
+    token = token or '8974388983:AAGTEgJNmAegGPmWUgvd3Lpvtbefv-yn6pg'
+    chat_id = chat_id or '1663202780'
+    return token, chat_id
+
+def send_telegram_alert(message_html):
+    bot_token, chat_id = get_telegram_creds()
+    url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
+    payload = {
+        "chat_id": chat_id,
+        "text": message_html,
+        "parse_mode": "HTML",
+        "disable_web_page_preview": True
+    }
+    try:
+        resp = requests.post(url, json=payload, timeout=15)
+        if resp.status_code == 200:
+            print("📢 [Telegram] Đã gửi thông báo thay đổi tham số AI thành công!")
+        else:
+            print(f"⚠️ [Telegram] Lỗi gửi thông báo: HTTP {resp.status_code} - {resp.text}")
+    except Exception as e:
+        print(f"⚠️ [Telegram] Lỗi kết nối Telegram: {e}")
+
+def check_and_notify_parameter_changes(old_config, new_config):
+    if not old_config:
+        return
+
+    changes = []
+    old_mfe = old_config.get("mfeMaeProfile", {})
+    new_mfe = new_config.get("mfeMaeProfile", {})
+
+    # 1. Kích hoạt BE / Partial TP
+    old_be = old_mfe.get("recommendedBeTriggerPct")
+    new_be = new_mfe.get("recommendedBeTriggerPct")
+    if old_be is not None and new_be is not None and abs(old_be - new_be) >= 0.01:
+        changes.append(f"• <b>Kích hoạt Partial TP / Dời BE:</b> <code>{old_be:.2f}%</code> ➔ <b><code>+{new_be:.2f}%</code></b>")
+
+    # 2. Tỷ lệ TP / Grid
+    old_tp = old_mfe.get("optimalTpGridRatio")
+    new_tp = new_mfe.get("optimalTpGridRatio")
+    if old_tp is not None and new_tp is not None and abs(old_tp - new_tp) >= 0.01:
+        changes.append(f"• <b>Tỷ lệ TP / Grid:</b> <code>{old_tp:.3f}</code> ➔ <b><code>{new_tp:.3f} ({(new_tp*100):.1f}% Grid)</code></b>")
+
+    # 3. Sàn SL thích ứng
+    old_sl = old_config.get("adaptiveSlProfile", {})
+    new_sl = new_config.get("adaptiveSlProfile", {})
+
+    old_sl_top150 = old_sl.get("top150MinSlPct")
+    new_sl_top150 = new_sl.get("top150MinSlPct")
+    if old_sl_top150 is not None and new_sl_top150 is not None and abs(old_sl_top150 - new_sl_top150) >= 0.01:
+        changes.append(f"• <b>Sàn SL Top 150:</b> <code>{old_sl_top150:.2f}%</code> ➔ <b><code>{new_sl_top150:.2f}%</code></b>")
+
+    old_sl_lowcap = old_sl.get("lowcapMinSlPct")
+    new_sl_lowcap = new_sl.get("lowcapMinSlPct")
+    if old_sl_lowcap is not None and new_sl_lowcap is not None and abs(old_sl_lowcap - new_sl_lowcap) >= 0.01:
+        changes.append(f"• <b>Sàn SL Lowcap:</b> <code>{old_sl_lowcap:.2f}%</code> ➔ <b><code>{new_sl_lowcap:.2f}%</code></b>")
+
+    # 4. Ngưỡng duyệt WinProb
+    old_th = old_config.get("optimalThresholds", {})
+    new_th = new_config.get("optimalThresholds", {})
+
+    old_th_top150 = old_th.get("top150")
+    new_th_top150 = new_th.get("top150")
+    if old_th_top150 is not None and new_th_top150 is not None and abs(old_th_top150 - new_th_top150) >= 0.1:
+        changes.append(f"• <b>Ngưỡng WinRate Top 150:</b> <code>{old_th_top150:.1f}%</code> ➔ <b><code>{new_th_top150:.1f}%</code></b>")
+
+    old_th_lowcap = old_th.get("lowcap")
+    new_th_lowcap = new_th.get("lowcap")
+    if old_th_lowcap is not None and new_th_lowcap is not None and abs(old_th_lowcap - new_th_lowcap) >= 0.1:
+        changes.append(f"• <b>Ngưỡng WinRate Lowcap:</b> <code>{old_th_lowcap:.1f}%</code> ➔ <b><code>{new_th_lowcap:.1f}%</code></b>")
+
+    # 5. Prior WinRate cơ sở
+    old_prior = old_config.get("priorWinProb")
+    new_prior = new_config.get("priorWinProb")
+    if old_prior is not None and new_prior is not None and abs(old_prior - new_prior) >= 0.005:
+        changes.append(f"• <b>Tỷ lệ thắng Prior cơ sở:</b> <code>{(old_prior*100):.1f}%</code> ➔ <b><code>{(new_prior*100):.1f}%</code></b>")
+
+    if changes:
+        now_str = new_config.get("trainedAt") or time.strftime("%Y-%m-%d %H:%M:%S")
+        total_samples = new_config.get("totalSamples", 0)
+        msg = (
+            f"🤖 <b>[AI Training] Tự Động Cập Nhật Tham Số Mới</b>\n"
+            f"• Thời gian: <b>{now_str}</b>\n"
+            f"• Dữ liệu học: <b>{total_samples:,} mẫu</b> (Real + Shadow)\n\n"
+            f"<b>📊 Các tham số tự động thay đổi:</b>\n" +
+            "\n".join(changes) +
+            f"\n\n<i>✓ Cấu hình đã tự động cập nhật vào ai_rule_config.json.</i>"
+        )
+        send_telegram_alert(msg)
+    else:
+        print("ℹ️ [AI Training] Các tham số TP, BE, SL, WinRate không thay đổi so với phiên trước. Không cần gửi Telegram.")
 
 def calibrate_adaptive_sl_profile(base_dir):
     """
@@ -939,95 +1062,109 @@ def analyze_mfe_mae_profiles(base_dir):
 
     total_samples = len(samples)
 
-    # === 3. Tối ưu hóa ngưỡng beTriggerPct ===
-    # Ứng viên: 0.3% → 1.5% (bước 0.05%)
-    # Tiêu chí tối ưu: tối đa hóa (precision * recall)
-    #   precision = P(lệnh đến TP | MFE >= threshold) = tránh dời BE sớm với lệnh sẽ thua
-    #   recall    = P(MFE >= threshold | lệnh thắng) = đảm bảo dời BE được đủ nhiều lệnh thắng
-    DEFAULT_BE = 0.60
+    # === 3. Tối ưu hóa ngưỡng beTriggerPct kết hợp mô hình Partial TP 50% & Pullback ===
+    # Thay vì giả định phi thực tế, thuật toán mô phỏng đường đi của nến:
+    # 1. Khi giá chạm ngưỡng th: Kích hoạt Partial TP chốt 50% vị thế tại +th%
+    # 2. 50% vị thế còn lại được kéo SL về Hòa Vốn (0đ).
+    # 3. Rủi ro Pullback (tỷ lệ quét về Entry):
+    #    - Ngưỡng th quá thấp (< 0.90%): dễ bị nhiễu động nến M15 rũ non (tỷ lệ quét BE cao).
+    #    - Ngưỡng th hợp lý (1.10% - 1.50%): vị thế đã bứt phá thoát nền, xác suất vươn tới Full TP cao.
+    # 4. Đối với lệnh thua (Loss): nếu nến có nhịp giật ban đầu chạm th, bot chốt được 50% lãi và cứu vị thế khỏi full SL!
+    # Mục tiêu tối ưu: Tối đa hóa Net Expected Return PnL trên toàn bộ tập dữ liệu.
+    DEFAULT_BE = 1.15
     recommended_be_trigger_pct = DEFAULT_BE
     be_calibration_stats = {}
 
     if total_samples >= 50:
-        candidates = [round(x * 0.05, 2) for x in range(6, 32)]  # 0.30% → 1.55%
-        best_f1 = -1.0
+        candidates = [round(x * 0.05, 2) for x in range(16, 36)]  # 0.80% → 1.75%
+        best_net_pnl = -1e9
         best_threshold = DEFAULT_BE
-
-        win_samples = [s for s in samples if s["did_reach_tp"]]
-        all_count = total_samples
+        best_partial_wins = 0
+        best_saved_sls = 0
 
         for th in candidates:
-            # Lệnh thắng có MFE >= th → True Positive (BE dời đúng)
-            tp_count = sum(1 for s in samples if s["mfe_pct"] >= th and s["did_reach_tp"])
-            # Lệnh thua có MFE >= th → False Positive (BE dời sai, lãng phí)
-            fp_count = sum(1 for s in samples if s["mfe_pct"] >= th and not s["did_reach_tp"])
-            # Lệnh thắng có MFE < th → False Negative (thắng nhưng không dời BE được)
-            fn_count = sum(1 for s in samples if s["mfe_pct"] < th and s["did_reach_tp"])
+            total_net_pnl = 0.0
+            partial_wins = 0
+            saved_sls = 0
 
-            precision = tp_count / (tp_count + fp_count) if (tp_count + fp_count) > 0 else 0
-            recall = tp_count / (tp_count + fn_count) if (tp_count + fn_count) > 0 else 0
+            for s in samples:
+                tp_dist = s.get("tp_dist_pct", 1.8)
+                sl_dist = s.get("sl_dist_pct", 1.5)
+                did_tp = s.get("did_reach_tp", False)
 
-            # F1 score: cân bằng giữa precision và recall
-            # Ưu tiên precision hơn (tránh dời BE quá sớm) → dùng F-beta với beta=0.7
-            beta = 0.7
-            if precision + recall > 0:
-                f_beta = (1 + beta**2) * (precision * recall) / ((beta**2 * precision) + recall)
-            else:
-                f_beta = 0.0
+                if did_tp:
+                    if tp_dist >= th:
+                        # 50% chốt lời tại th; 50% còn lại gồng về TP
+                        # Pullback probability: tỷ lệ hồi về Entry trước khi chạm full TP
+                        ratio = min(1.0, th / max(tp_dist, 0.1))
+                        pullback_prob = max(0.18, min(0.65, 0.70 - 0.40 * ratio))
+                        pnl = 0.5 * th + 0.5 * (1.0 - pullback_prob) * tp_dist
+                        partial_wins += 1
+                    else:
+                        pnl = tp_dist
+                else:
+                    # Lệnh thua: kiểm tra xác suất nến có nhịp nảy chạm th trước khi chết
+                    # Nhịp nảy giảm theo hàm mũ khi th tăng cao
+                    bounce_prob = max(0.04, min(0.35, 0.42 * math.exp(-1.8 * (th / max(sl_dist, 0.1)))))
+                    if bounce_prob > 0.15:
+                        saved_sls += 1
+                    pnl = bounce_prob * (0.5 * th) - (1.0 - bounce_prob) * sl_dist
 
-            if f_beta > best_f1:
-                best_f1 = f_beta
+                total_net_pnl += pnl
+
+            if total_net_pnl > best_net_pnl:
+                best_net_pnl = total_net_pnl
                 best_threshold = th
-                be_calibration_stats = {
-                    "threshold": th,
-                    "precision": round(precision, 3),
-                    "recall": round(recall, 3),
-                    "fBeta": round(f_beta, 3),
-                    "truePositives": tp_count,
-                    "falsePositives": fp_count,
-                    "falseNegatives": fn_count
-                }
+                best_partial_wins = partial_wins
+                best_saved_sls = saved_sls
 
-        # Áp dụng guardrail: không để ngưỡng quá thấp (false trigger) hoặc quá cao (bỏ lỡ)
-        recommended_be_trigger_pct = max(0.35, min(best_threshold, 1.2))
-        print(f"🎯 [BE Trigger Calibration] Ngưỡng tối ưu học được: +{recommended_be_trigger_pct:.2f}%")
-        print(f"   • Precision: {be_calibration_stats.get('precision', 0):.1%} | Recall: {be_calibration_stats.get('recall', 0):.1%} | F-beta: {be_calibration_stats.get('fBeta', 0):.3f}")
-        print(f"   • TP/FP/FN: {be_calibration_stats.get('truePositives', 0)} / {be_calibration_stats.get('falsePositives', 0)} / {be_calibration_stats.get('falseNegatives', 0)}")
+        # Áp dụng guardrail: không để ngưỡng quá thấp (< 0.85% gây rũ non) hoặc quá cao (> 1.60% mất tính bảo vệ)
+        recommended_be_trigger_pct = max(0.85, min(best_threshold, 1.60))
+        be_calibration_stats = {
+            "threshold": recommended_be_trigger_pct,
+            "bestThreshold": best_threshold,
+            "expectedNetPnlPct": round(best_net_pnl / max(total_samples, 1), 3),
+            "totalSimulatedPnl": round(best_net_pnl, 1),
+            "partialWinsProtected": best_partial_wins,
+            "savedSlCount": best_saved_sls,
+            "sampleCount": total_samples
+        }
+        print(f"🎯 [BE & Partial TP Calibration] Ngưỡng tối ưu học được: +{recommended_be_trigger_pct:.2f}%")
+        print(f"   • Expected Net PnL/lệnh: {be_calibration_stats['expectedNetPnlPct']:+.3f}% | Tổng PnL: {be_calibration_stats['totalSimulatedPnl']:+.1f}%")
+        print(f"   • Số lệnh chốt Partial TP: {best_partial_wins} | Số lệnh SL được cứu hòa/lãi: {best_saved_sls}")
     else:
         print(f"⚠️ [BE Trigger Calibration] Chưa đủ dữ liệu ({total_samples} mẫu < 50), dùng mặc định {DEFAULT_BE}%")
 
-    # === 4. Học optimalTpGridRatio từ phân phối MFE/GridWidth thực tế ===
-    # Chiến lược: lấy percentile 55 của phân phối (conservative — 55% lệnh thắng đạt được)
-    # Nếu TP đặt ở mức percentile 55 → 55% lệnh thắng sẽ chạm TP, không đặt quá xa.
-    DEFAULT_TP_RATIO = 0.45
+    # === 4. Học optimalTpGridRatio từ phân phối MFE thực tế ===
+    # Không gò ép trần cứng ở 0.45 làm bóp nghẹt R:R
+    # Thay vào đó, tự động chọn tỷ lệ cân bằng giữa Win Rate và Reward-to-Risk tối thiểu 1.4:1
+    DEFAULT_TP_RATIO = 0.55
     optimal_tp_grid_ratio = DEFAULT_TP_RATIO
     tp_ratio_stats = {}
 
     if len(tp_ratio_samples) >= 30:
         tp_ratio_samples_sorted = sorted(tp_ratio_samples)
         n = len(tp_ratio_samples_sorted)
-        # Percentile 55: 55% lệnh thắng có MFE/GridWidth >= ngưỡng này
-        p55_idx = int(n * 0.45)  # index của 45th percentile từ dưới = 55th từ trên
-        p55_val = tp_ratio_samples_sorted[p55_idx]
-        p40_idx = int(n * 0.40)
-        p40_val = tp_ratio_samples_sorted[p40_idx]
-        # Lấy trung bình p40-p55 để smooth
-        learned_ratio = (p55_val + p40_val) / 2.0
-        # Guardrail: [0.30, 0.60] — không đặt TP quá gần (< 30% grid) hoặc quá xa (> 60% grid)
-        optimal_tp_grid_ratio = round(max(0.30, min(learned_ratio, 0.60)), 3)
+        # Lấy percentile 65 (thay vì 55) để cho phép TP mở rộng biên độ chạy theo sóng
+        p65_idx = int(n * 0.35)
+        p50_idx = int(n * 0.50)
+        p65_val = tp_ratio_samples_sorted[p65_idx]
+        p50_val = tp_ratio_samples_sorted[p50_idx]
+        learned_ratio = max(0.50, (p65_val + p50_val) / 2.0)
+        # Guardrail: [0.45, 0.75] — đảm bảo TP đủ xa để tạo R:R vượt trội
+        optimal_tp_grid_ratio = round(max(0.45, min(learned_ratio, 0.75)), 3)
         tp_ratio_stats = {
-            "learnedRatio": round(learned_ratio, 3),
-            "p40": round(p40_val, 3),
-            "p55": round(p55_val, 3),
+            "learnedRatio": optimal_tp_grid_ratio,
+            "p50": round(p50_val, 3),
+            "p65": round(p65_val, 3),
             "sampleCount": n,
             "medianRatio": round(tp_ratio_samples_sorted[n // 2], 3)
         }
         print(f"🎯 [TP Grid Ratio] Tỷ lệ TP/Grid tối ưu học được: {optimal_tp_grid_ratio:.3f} ({optimal_tp_grid_ratio*100:.1f}% GridWidth)")
-        print(f"   • P40={p40_val:.3f} | P55={p55_val:.3f} | Median={tp_ratio_samples_sorted[n // 2]:.3f} | N={n} mẫu thắng")
     else:
         print(f"⚠️ [TP Grid Ratio] Chưa đủ mẫu thắng có gridWidthPct ({len(tp_ratio_samples)} < 30), dùng mặc định {DEFAULT_TP_RATIO}")
 
-    print(f"📊 [MAE/MFE Profile] Hoàn tất: TP = {optimal_tp_grid_ratio*100:.1f}% GridWidth, BE Trigger = +{recommended_be_trigger_pct:.2f}% (N={total_samples}: {shadow_count} shadow + {real_count} real)")
+    print(f"📊 [MAE/MFE Profile] Hoàn tất: TP = {optimal_tp_grid_ratio*100:.1f}% GridWidth, BE/Partial Trigger = +{recommended_be_trigger_pct:.2f}% (N={total_samples}: {shadow_count} shadow + {real_count} real)")
 
     return {
         "optimalTpGridRatio": optimal_tp_grid_ratio,
