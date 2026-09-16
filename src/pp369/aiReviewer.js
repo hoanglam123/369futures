@@ -5,6 +5,7 @@ const path = require('path');
 const { log } = require('./_logger');
 const { isTurnoverBlocked } = require('./turnoverGuard');
 const { classifyCandleGeometry, getStep } = require('./core');
+const { checkEconomicBlackout } = require('../trader/economicCalendar');
 
 const { exec } = require('child_process');
 
@@ -496,6 +497,35 @@ function extractSignalFeatures(reasons, score, rank, gridWidthPct, rawMarketData
     features['risk_interaction'] = 'INTERACTION_BALANCED';
   }
 
+  // ── [MỚI] 20. Lịch Kinh Tế Đỏ (CPI, FOMC, NFP Blackout Window) ──
+  let isBlackout = false;
+  if (rawMarketData?.isEconomicBlackout !== undefined) {
+    isBlackout = Boolean(rawMarketData.isEconomicBlackout);
+  } else {
+    const checkTime = timestamp || rawMarketData?.timestamp || Date.now();
+    const eco = checkEconomicBlackout(checkTime, 30);
+    isBlackout = eco.isBlackout;
+  }
+  features['economic_calendar'] = isBlackout ? 'CALENDAR_RED_DANGER' : 'CALENDAR_SAFE';
+
+  // ── [MỚI] 21. Bid-Ask Spread Guard (Độ dãn Spread & Trượt giá Scalping) ──
+  let spreadCat = rawMarketData?.microstructure?.spread || rawMarketData?.spreadCategory;
+  if (!spreadCat) {
+    const spreadPct = parseFloat(rawMarketData?.spreadPct || 0);
+    if (spreadPct > 0.06) spreadCat = 'SPREAD_WIDE_DANGER';
+    else if (spreadPct > 0.035) spreadCat = 'SPREAD_MEDIUM_CAUTION';
+    else spreadCat = 'SPREAD_TIGHT_SAFE';
+  }
+  features['spread_slippage'] = spreadCat;
+
+  // ── [MỚI] 22. CVD Momentum (Cumulative Volume Delta M1/M5) ──
+  let cvdCat = rawMarketData?.microstructure?.cvd || rawMarketData?.cvdCategory || 'CVD_NEUTRAL';
+  features['cvd_momentum'] = cvdCat;
+
+  // ── [MỚI] 23. Orderbook Wall Distance (Tường cản L2 trước mắt) ──
+  let wallCat = rawMarketData?.microstructure?.wall || rawMarketData?.wallCategory || 'WALL_CLEAR_PATH';
+  features['orderbook_wall'] = wallCat;
+
   return features;
 }
 
@@ -570,6 +600,17 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
     'risk_interaction:INTERACTION_NO_SR_WEAK_SETUP': 0.65,      // Fallback nếu chưa có trong weights
     'risk_interaction:INTERACTION_DRY_VOL_COOLING_OI': 0.80,     // Fallback nếu chưa có trong weights
     'risk_interaction:INTERACTION_BALANCED': 1.00,
+    'economic_calendar:CALENDAR_RED_DANGER': 0.10, // Bão giá CPI/FOMC/NFP -> Phạt 90% WinProb -> Veto ngay
+    'economic_calendar:CALENDAR_SAFE': 1.00,
+    'spread_slippage:SPREAD_WIDE_DANGER': 0.20,    // Spread dãn > 0.06% -> Phạt 80% WinProb -> Veto trượt giá
+    'spread_slippage:SPREAD_MEDIUM_CAUTION': 0.85,
+    'spread_slippage:SPREAD_TIGHT_SAFE': 1.10,     // Spread hẹp (< 0.035%) -> Thưởng +10% cho Scalping
+    'cvd_momentum:CVD_SURGE_ALIGNED': 1.25,        // Taker Buy/Sell đẩy mạnh thuận hướng -> Thưởng +25%
+    'cvd_momentum:CVD_DIVERGENCE_OPPOSING': 0.65,  // Taker đang xả/hấp thụ ngược hướng -> Phạt -35%
+    'cvd_momentum:CVD_NEUTRAL': 1.00,
+    'orderbook_wall:WALL_CLEAR_PATH': 1.15,        // Đường tới TP thông thoáng -> Thưởng +15%
+    'orderbook_wall:WALL_SUPPORT_SHIELD': 1.12,    // Có tường dày bảo vệ sau Entry -> Thưởng +12%
+    'orderbook_wall:WALL_OPPOSING_BLOCK': 0.35,    // Tường dày chắn trước TP -> Phạt 65% WinProb
     'trading_session:SESSION_ASIA': 1.02,        // Phiên Á nén chuẩn, sóng êm -> Thưởng nhẹ +2%
     'trading_session:SESSION_EUROPE': 1.01,      // Phiên Âu sóng đều -> Thưởng nhẹ +1%
     'trading_session:SESSION_US_OPEN': 0.98,     // Phiên Mỹ mở cửa -> Thận trọng nhẹ -2%
@@ -699,7 +740,10 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
   // ── AI LÀ NGƯỜI RA QUYẾT ĐỊNH 100% ──
   const isExtremeStorm = features['h1_volatility'] === 'H1_EXTREME_STORM_PUMP_DUMP' || features['m15_volatility'] === 'M15_EXTREME_STORM';
   const isWeakNoSr = features['risk_interaction'] === 'INTERACTION_NO_SR_WEAK_SCORE';
-  const isApproved = !isExtremeStorm && !isWeakNoSr && winProb >= threshold && evRoi >= minEvRoiThreshold && isRrAcceptable;
+  const isEconomicRed = features['economic_calendar'] === 'CALENDAR_RED_DANGER';
+  const isSpreadDanger = features['spread_slippage'] === 'SPREAD_WIDE_DANGER';
+  const isWallBlocked = features['orderbook_wall'] === 'WALL_OPPOSING_BLOCK' && score < 4.5;
+  const isApproved = !isExtremeStorm && !isWeakNoSr && !isEconomicRed && !isSpreadDanger && !isWallBlocked && winProb >= threshold && evRoi >= minEvRoiThreshold && isRrAcceptable;
   const factorSummary = keyFactors.length > 0 ? keyFactors.join(', ') : 'Điều kiện trung tính';
 
   let vetoCategory = null;
@@ -709,6 +753,15 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
     if (isExtremeStorm) {
       vetoCategory = features['h1_volatility'] === 'H1_EXTREME_STORM_PUMP_DUMP' ? 'H1_EXTREME_STORM' : 'M15_EXTREME_STORM';
       reasonText = `[AI VETO BÃO NẾN CỰC ĐẠI] ${vetoCategory} (Biên độ nến vượt ngưỡng an toàn, rủi ro Pump & Dump càn quét mốc) [Rank #${rank}] (${factorSummary})`;
+    } else if (isEconomicRed) {
+      vetoCategory = 'ECONOMIC_BLACKOUT_DANGER';
+      reasonText = `[AI VETO LỊCH KINH TẾ ĐỎ] Đang trong cửa sổ bão giá CPI / FOMC / NFP (±30 phút), nghiêm cấm Scalping đòn bẩy lớn! [Rank #${rank}] (${factorSummary})`;
+    } else if (isSpreadDanger) {
+      vetoCategory = 'SPREAD_WIDE_DANGER';
+      reasonText = `[AI VETO ĐỘ DÃN SPREAD] Chênh lệch Bid-Ask quá lớn (> 0.06%), trượt giá sẽ ăn sạch lợi nhuận Scalping! [Rank #${rank}] (${factorSummary})`;
+    } else if (isWallBlocked) {
+      vetoCategory = 'ORDERBOOK_WALL_BLOCK';
+      reasonText = `[AI VETO TƯỜNG CẢN SỔ LỆNH] Phát hiện bức tường thanh khoản khổng lồ chắn trước TP trong khi Score yếu (${score.toFixed(1)}đ)! [Rank #${rank}] (${factorSummary})`;
     } else if (isWeakNoSr) {
       vetoCategory = 'NO_SR_WEAK_SCORE';
       reasonText = `[AI VETO RỖNG CẢN S/R & SCORE YẾU] Score ${score.toFixed(1)}đ < 3.5đ kết hợp không có cản S/R H4/D1 đỡ giá [Rank #${rank}] (${factorSummary})`;

@@ -55,6 +55,7 @@ const { log } = require('../pp369/_logger');
 const { isSymbolInCooldown, getRemainingCooldownHours, addSymbolToCooldown } = require('./cooldownManager');
 const { isDirectionLocked, recordDirectionalTradeExit, tryEarlyDirectionalRecovery } = require('./directionalCircuitBreaker');
 const { isRealTradingSuspended, recordRealTradeOutcome } = require('./rollingPerformanceGuard');
+const { scanMicrostructure } = require('./microstructureScanner');
 
 const SCAN_INTERVAL_MS = 30_000;   // scan mỗi 30 giây
 const TRAILING_SL_INTERVAL_MS = 6_000; // kiểm tra vị thế để dịch SL mỗi 6 giây
@@ -1606,6 +1607,9 @@ async function startAutoTrade(coins) {
       if (rawMarketData) {
         rawMarketData.marketMetrics = marketMetrics;
         rawMarketData.signalMetrics = sig.signalMetrics || null;
+        try {
+          rawMarketData.microstructure = await scanMicrostructure(sym, targetLevel, prelimSetup?.tpPrice || 0, sig.signal);
+        } catch (_) {}
       }
 
       const aiEval = evaluateSignalWithAI(sig, rawMarketData);
@@ -2456,6 +2460,9 @@ async function checkH1RetestSignals(client, activeSymbols, leverageInfo = {}) {
       if (rawMarketDataRetest) {
         rawMarketDataRetest.marketMetrics = marketMetricsRetest;
         rawMarketDataRetest.signalMetrics = sigForAI.signalMetrics || null;
+        try {
+          rawMarketDataRetest.microstructure = await scanMicrostructure(sym, targetLevel, prelimRetest?.tpPrice || 0, signal);
+        } catch (_) {}
       }
 
       const aiEval = evaluateSignalWithAI(sigForAI, rawMarketDataRetest);

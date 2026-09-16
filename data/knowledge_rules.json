@@ -52,8 +52,19 @@
     "trading_session:SESSION_WEEKEND": 0.98,
     "grid_width:GRID_WIDE": 1.05,
     "grid_width:GRID_NORMAL": 1.00,
-    "grid_width:GRID_NARROW": 0.90
+    "grid_width:GRID_NARROW": 0.90,
+    "economic_calendar:CALENDAR_RED_DANGER": 0.10,
+    "economic_calendar:CALENDAR_SAFE": 1.00,
+    "spread_slippage:SPREAD_WIDE_DANGER": 0.20,
+    "spread_slippage:SPREAD_MEDIUM_CAUTION": 0.85,
+    "spread_slippage:SPREAD_TIGHT_SAFE": 1.10,
+    "cvd_momentum:CVD_SURGE_ALIGNED": 1.25,
+    "cvd_momentum:CVD_DIVERGENCE_OPPOSING": 0.65,
+    "cvd_momentum:CVD_NEUTRAL": 1.00,
+    "orderbook_wall:WALL_CLEAR_PATH": 1.15,
+    "orderbook_wall:WALL_SUPPORT_SHIELD": 1.12,
+    "orderbook_wall:WALL_OPPOSING_BLOCK": 0.35
   },
-  "rules_count": 40,
-  "extracted_at": "2026-09-11 11:30:00"
+  "rules_count": 51,
+  "extracted_at": "2026-09-16 11:30:00"
 }

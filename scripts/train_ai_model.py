@@ -4,6 +4,7 @@ import sys
 import time
 import math
 import requests
+import datetime
 from collections import defaultdict
 
 if sys.platform == 'win32':
@@ -28,6 +29,52 @@ def load_grid_steps():
     return {}
 
 GRID_STEPS = load_grid_steps()
+
+# Danh sách mốc sự kiện vĩ mô biến động cực đại của Mỹ (CPI, FOMC, NFP) 2025-2026 (UTC)
+RECURRING_HIGH_IMPACT_EVENTS_2025_2026 = [
+    # 2026
+    '2026-01-09 13:30', '2026-01-14 13:30', '2026-01-28 19:00',
+    '2026-02-06 13:30', '2026-02-11 13:30', '2026-03-06 13:30',
+    '2026-03-11 12:30', '2026-03-18 18:00', '2026-04-03 12:30',
+    '2026-04-10 12:30', '2026-05-01 12:30', '2026-05-06 18:00',
+    '2026-05-13 12:30', '2026-06-05 12:30', '2026-06-10 12:30',
+    '2026-06-17 18:00', '2026-07-02 12:30', '2026-07-15 12:30',
+    '2026-07-29 18:00', '2026-08-07 12:30', '2026-08-12 12:30',
+    '2026-09-04 12:30', '2026-09-11 12:30', '2026-09-16 18:00',
+    '2026-10-02 12:30', '2026-10-14 12:30', '2026-11-05 19:00',
+    '2026-11-06 13:30', '2026-11-12 13:30', '2026-12-04 13:30',
+    '2026-12-09 13:30', '2026-12-16 19:00',
+    # 2025
+    '2025-01-15 13:30', '2025-01-29 19:00', '2025-02-12 13:30',
+    '2025-03-12 12:30', '2025-03-19 18:00', '2025-04-10 12:30',
+    '2025-05-07 18:00', '2025-05-14 12:30', '2025-06-11 12:30',
+    '2025-06-18 18:00', '2025-07-16 12:30', '2025-07-30 18:00',
+    '2025-08-13 12:30', '2025-09-10 12:30', '2025-09-17 18:00',
+    '2025-10-15 12:30', '2025-10-29 18:00', '2025-11-12 13:30',
+    '2025-12-10 13:30', '2025-12-17 19:00'
+]
+
+EVENT_TIMESTAMPS_MS = []
+for d_str in RECURRING_HIGH_IMPACT_EVENTS_2025_2026:
+    try:
+        dt = datetime.datetime.strptime(d_str, "%Y-%m-%d %H:%M")
+        dt = dt.replace(tzinfo=datetime.timezone.utc)
+        EVENT_TIMESTAMPS_MS.append(int(dt.timestamp() * 1000))
+    except Exception:
+        pass
+
+def is_economic_blackout(timestamp_ms, window_minutes=30):
+    if not timestamp_ms:
+        return False
+    try:
+        t_ms = int(timestamp_ms)
+    except Exception:
+        return False
+    window_ms = window_minutes * 60 * 1000
+    for ev_ms in EVENT_TIMESTAMPS_MS:
+        if abs(ev_ms - t_ms) <= window_ms:
+            return True
+    return False
 
 def fetch_klines_binance(symbol, start_time_ms, limit=300):
     sym = symbol.upper()
@@ -421,6 +468,86 @@ def extract_features(reasons, score, rank, grid_width_pct, timestamp_ms=None, di
     else:
         features["puncture_interaction"] = "INTERACTION_PUNCTURE_NORMAL"
 
+    # 21. Economic Calendar Blackout Window (CPI, FOMC, NFP)
+    if direct_record and direct_record.get("isEconomicBlackout") is not None:
+        features["economic_calendar"] = "CALENDAR_RED_DANGER" if direct_record["isEconomicBlackout"] else "CALENDAR_SAFE"
+    elif is_economic_blackout(timestamp_ms, window_minutes=30):
+        features["economic_calendar"] = "CALENDAR_RED_DANGER"
+    else:
+        features["economic_calendar"] = "CALENDAR_SAFE"
+
+    # 22. Bid-Ask Spread & Slippage Guard (Quan trọng cho Scalping đòn bẩy lớn)
+    spread_val = None
+    if direct_record:
+        micro = direct_record.get("microstructure")
+        if isinstance(micro, dict) and micro.get("spread"):
+            spread_val = micro["spread"]
+        elif direct_record.get("spreadCategory"):
+            spread_val = direct_record["spreadCategory"]
+
+    if spread_val:
+        features["spread_slippage"] = spread_val
+    else:
+        # Tái lập trên dữ liệu lịch sử:
+        # Lowcap (rank > 150) khi thị trường bão giá -> Spread dãn rộng
+        is_high_vol = (
+            features.get("h1_volatility") in ["H1_EXTREME_STORM_PUMP_DUMP", "H1_VOLATILE_DANGER"] or
+            features.get("m15_volatility") in ["M15_EXTREME_STORM", "M15_VOLATILE_DANGER"]
+        )
+        if rank > 150 and is_high_vol:
+            features["spread_slippage"] = "SPREAD_WIDE_DANGER"
+        elif rank > 100 or is_high_vol or gw > 4.5:
+            features["spread_slippage"] = "SPREAD_MEDIUM_CAUTION"
+        else:
+            features["spread_slippage"] = "SPREAD_TIGHT_SAFE"
+
+    # 23. Cumulative Volume Delta (CVD) M1/M5 Momentum
+    cvd_val = None
+    if direct_record:
+        micro = direct_record.get("microstructure")
+        if isinstance(micro, dict) and micro.get("cvd"):
+            cvd_val = micro["cvd"]
+        elif direct_record.get("cvdCategory"):
+            cvd_val = direct_record["cvdCategory"]
+
+    if cvd_val:
+        features["cvd_momentum"] = cvd_val
+    else:
+        # Tái lập trên dữ liệu lịch sử dựa trên dòng tiền khớp chủ động:
+        is_flow_gold = features.get("ls_flow") == "LS_GOLD"
+        is_vol_surge = features.get("volume") == "VOL_SURGE" or features.get("m15_volatility") == "M15_VOLUME_SURGE"
+        is_flow_div = features.get("ls_flow") == "LS_DIVERGENCE"
+        is_counter_train = features.get("candle_momentum") in ["MOMENTUM_COUNTER_PUMP_TRAIN", "MOMENTUM_COUNTER_DUMP_TRAIN"]
+
+        if is_flow_gold and is_vol_surge:
+            features["cvd_momentum"] = "CVD_SURGE_ALIGNED"
+        elif is_flow_div or is_counter_train:
+            features["cvd_momentum"] = "CVD_DIVERGENCE_OPPOSING"
+        else:
+            features["cvd_momentum"] = "CVD_NEUTRAL"
+
+    # 24. Orderbook Wall Distance (Tường cản thanh khoản sổ lệnh L2)
+    wall_val = None
+    if direct_record:
+        micro = direct_record.get("microstructure")
+        if isinstance(micro, dict) and micro.get("wall"):
+            wall_val = micro["wall"]
+        elif direct_record.get("wallCategory"):
+            wall_val = direct_record["wallCategory"]
+
+    if wall_val:
+        features["orderbook_wall"] = wall_val
+    else:
+        # Tái lập trên dữ liệu lịch sử theo cụm cản S/R và Score:
+        pa = features.get("price_action")
+        sr = features.get("sr_quality")
+        if pa in ["PA_3_LEVELS", "PA_4_LEVELS"] and score < 4.5:
+            features["orderbook_wall"] = "WALL_OPPOSING_BLOCK"
+        elif sr == "SR_DAILY_D1_INCLUDED" or pa in ["PA_3_LEVELS", "PA_4_LEVELS"]:
+            features["orderbook_wall"] = "WALL_SUPPORT_SHIELD"
+        else:
+            features["orderbook_wall"] = "WALL_CLEAR_PATH"
+
     return features
 
 def train_and_export_model():
@@ -668,6 +795,17 @@ def train_and_export_model():
         "candle_momentum:MOMENTUM_COUNTER_DUMP_TRAIN": (0.05, 0.30),
         "puncture_interaction:INTERACTION_H1_M15_PUNCTURED": (0.05, 0.35),
         "puncture_interaction:INTERACTION_H1_PUNCTURED_DEEP": (0.05, 0.40),
+        "economic_calendar:CALENDAR_RED_DANGER": (0.05, 0.25),
+        "economic_calendar:CALENDAR_SAFE": (0.90, 1.05),
+        "spread_slippage:SPREAD_WIDE_DANGER": (0.10, 0.35),
+        "spread_slippage:SPREAD_MEDIUM_CAUTION": (0.70, 0.95),
+        "spread_slippage:SPREAD_TIGHT_SAFE": (1.00, 1.20),
+        "cvd_momentum:CVD_SURGE_ALIGNED": (1.05, 1.40),
+        "cvd_momentum:CVD_DIVERGENCE_OPPOSING": (0.45, 0.75),
+        "cvd_momentum:CVD_NEUTRAL": (0.90, 1.00),
+        "orderbook_wall:WALL_CLEAR_PATH": (1.00, 1.25),
+        "orderbook_wall:WALL_SUPPORT_SHIELD": (1.00, 1.20),
+        "orderbook_wall:WALL_OPPOSING_BLOCK": (0.15, 0.45),
     }
 
     auto_tuned_count = 0
