@@ -481,8 +481,11 @@ function extractSignalFeatures(reasons, score, rank, gridWidthPct, rawMarketData
   const isCounterTrain = features['candle_momentum'] === 'MOMENTUM_COUNTER_PUMP_TRAIN' ||
     features['candle_momentum'] === 'MOMENTUM_COUNTER_DUMP_TRAIN';
 
+  const isWeakScore = score < 3.5;
   if (isVolDanger && (isTrendConflict || isLsDiv || isCounterTrain)) {
     features['risk_interaction'] = 'INTERACTION_HIGH_VOLATILITY_WEAK_SETUP';
+  } else if (isNoSR && isWeakScore) {
+    features['risk_interaction'] = 'INTERACTION_NO_SR_WEAK_SCORE';
   } else if (isTrendConflict && isLsDiv) {
     features['risk_interaction'] = 'INTERACTION_TREND_FLOW_CONFLICT';
   } else if (isNoSR && (isTrendConflict || isLsDiv || features['trend'] === 'TREND_NEUTRAL')) {
@@ -562,6 +565,7 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
     'price_action:PA_0_LEVEL': 0.85,              // [LÕI AI] Rỗng cản S/R là rủi ro rất cao, phạt 15% (x0.85) thay vì chỉ trừ 5%
     'ls_flow:LS_DIVERGENCE': 0.80,                // [CÂN BẰNG] Phạt vừa phải 20% khi dòng tiền Cá voi và Retail phân kỳ ngược nhau
     'risk_interaction:INTERACTION_HIGH_VOLATILITY_WEAK_SETUP': 0.50, // Biến động mạnh kết hợp thế nến/cản yếu -> Veto
+    'risk_interaction:INTERACTION_NO_SR_WEAK_SCORE': 0.15,           // Score < 3.5đ và rỗng cản S/R -> Phạt 85% WinProb -> Veto
     'risk_interaction:INTERACTION_TREND_FLOW_CONFLICT': 1.00, // Tự động thích ứng hoàn toàn theo weights học được (fallback trung tính 1.00)
     'risk_interaction:INTERACTION_NO_SR_WEAK_SETUP': 0.65,      // Fallback nếu chưa có trong weights
     'risk_interaction:INTERACTION_DRY_VOL_COOLING_OI': 0.80,     // Fallback nếu chưa có trong weights
@@ -602,8 +606,8 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
     // Trend conflict + LS_DIVERGENCE đã capture bởi interaction → bỏ qua riêng lẽ
     skipForInteraction.add('trend');
     skipForInteraction.add('ls_flow');
-  } else if (riskInteraction === 'INTERACTION_NO_SR_WEAK_SETUP') {
-    // PA_0_LEVEL đã capture bời interaction → bỏ qua riêng lẽ
+  } else if (riskInteraction === 'INTERACTION_NO_SR_WEAK_SETUP' || riskInteraction === 'INTERACTION_NO_SR_WEAK_SCORE') {
+    // PA_0_LEVEL đã capture bởi interaction → bỏ qua riêng lẻ
     skipForInteraction.add('price_action');
   } else if (riskInteraction === 'INTERACTION_DRY_VOL_COOLING_OI') {
     // VOL_DRY + OI_COOLING đã capture bởi interaction → bỏ qua riêng lẽ
@@ -694,7 +698,8 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
 
   // ── AI LÀ NGƯỜI RA QUYẾT ĐỊNH 100% ──
   const isExtremeStorm = features['h1_volatility'] === 'H1_EXTREME_STORM_PUMP_DUMP' || features['m15_volatility'] === 'M15_EXTREME_STORM';
-  const isApproved = !isExtremeStorm && winProb >= threshold && evRoi >= minEvRoiThreshold && isRrAcceptable;
+  const isWeakNoSr = features['risk_interaction'] === 'INTERACTION_NO_SR_WEAK_SCORE';
+  const isApproved = !isExtremeStorm && !isWeakNoSr && winProb >= threshold && evRoi >= minEvRoiThreshold && isRrAcceptable;
   const factorSummary = keyFactors.length > 0 ? keyFactors.join(', ') : 'Điều kiện trung tính';
 
   let vetoCategory = null;
@@ -704,6 +709,9 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
     if (isExtremeStorm) {
       vetoCategory = features['h1_volatility'] === 'H1_EXTREME_STORM_PUMP_DUMP' ? 'H1_EXTREME_STORM' : 'M15_EXTREME_STORM';
       reasonText = `[AI VETO BÃO NẾN CỰC ĐẠI] ${vetoCategory} (Biên độ nến vượt ngưỡng an toàn, rủi ro Pump & Dump càn quét mốc) [Rank #${rank}] (${factorSummary})`;
+    } else if (isWeakNoSr) {
+      vetoCategory = 'NO_SR_WEAK_SCORE';
+      reasonText = `[AI VETO RỖNG CẢN S/R & SCORE YẾU] Score ${score.toFixed(1)}đ < 3.5đ kết hợp không có cản S/R H4/D1 đỡ giá [Rank #${rank}] (${factorSummary})`;
     } else if (!isRrAcceptable) {
       vetoCategory = 'BAD_RR_LESS_THAN_1';
       reasonText = `[RỦI RO R:R < 1.0] Tỷ lệ R:R không đạt chuẩn (TP ${tpGridPct.toFixed(2)}% / SL ${effSlPct.toFixed(2)}% = ${rrRatio.toFixed(2)}:1 < 1.0:1) [Rank #${rank}] (${factorSummary})`;

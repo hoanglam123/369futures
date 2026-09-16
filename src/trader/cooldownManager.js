@@ -122,9 +122,17 @@ function clearCooldown(sym) {
   saveCooldowns();
 }
 
+function getTimeInCooldownHours(sym) {
+  const cleanSym = sym.replace('USDT', '');
+  const entry = _cooldownMap[cleanSym];
+  if (!entry || !entry.updatedAt) return 0;
+  return (Date.now() - entry.updatedAt) / (3600 * 1000);
+}
+
 module.exports = {
   isSymbolInCooldown,
   getRemainingCooldownHours,
+  getTimeInCooldownHours,
   addSymbolToCooldown,
   clearCooldown,
   loadCooldowns,

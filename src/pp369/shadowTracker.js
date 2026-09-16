@@ -362,15 +362,22 @@ function updateShadowPrices(priceMap) {
     }
 
     // 🚀 AI DYNAMIC RECOVERY: Nếu coin đang trong Cooldown do dính SL trước đó,
-    // hoặc chiều giao dịch (LONG/SHORT) đang bị Circuit Breaker khóa nhưng vị thế Shadow
-    // cho thấy chiều này đã hồi phục ổn định (ROI >= +10% hoặc chạm TP)
-    // -> AI nhận diện sóng ngược đã kết thúc -> Tự động giải phóng Cooldown & Mở khóa chiều sớm!
-    if (currentRoi >= 10.0 || resolvedOutcome === 'MISSED_TP') {
+    // hoặc chiều giao dịch (LONG/SHORT) đang bị Circuit Breaker khóa:
+    // CHỈ mở khóa sớm khi:
+    // 1. Đã trải qua tối thiểu 3 giờ Cooldown để xu hướng xấu được hấp thụ hết.
+    // 2. Vị thế Shadow đạt kết quả hồi phục vững chắc (đã chạm TP thực sự 'MISSED_TP' hoặc ROI thực chất >= +25% với favorableRoi >= +35%).
+    // Tuyệt đối không mở khóa theo nhiễu râu 1m (0.2% - 0.3% giá).
+    const isSolidRecovery = resolvedOutcome === 'MISSED_TP' || (favorableRoi >= 35.0 && currentRoi >= 25.0);
+    if (isSolidRecovery) {
       try {
-        const { isSymbolInCooldown, clearCooldown } = require('../trader/cooldownManager');
+        const { isSymbolInCooldown, clearCooldown, getTimeInCooldownHours } = require('../trader/cooldownManager');
         if (isSymbolInCooldown(p.symbol)) {
-          _logger.system(`[CooldownManager] 🚀 [AI Dynamic Recovery] ${p.symbol} đã hồi phục ổn định (Shadow ROI: +${currentRoi.toFixed(2)}%) -> Tự động giải phóng Cooldown sớm!`);
-          clearCooldown(p.symbol);
+          const elapsedCooldownHours = typeof getTimeInCooldownHours === 'function' ? getTimeInCooldownHours(p.symbol) : 0;
+          if (elapsedCooldownHours >= 3.0) {
+            const pnlStr = currentRoi >= 0 ? `+${currentRoi.toFixed(2)}%` : `${currentRoi.toFixed(2)}%`;
+            _logger.system(`[CooldownManager] 🚀 [AI Dynamic Recovery] ${p.symbol} đã hấp thụ sóng xấu (${elapsedCooldownHours.toFixed(1)}h trôi qua) và hồi phục vững chắc (Shadow ROI: ${pnlStr}) -> Tự động giải phóng Cooldown!`);
+            clearCooldown(p.symbol);
+          }
         }
       } catch (err) {}
 

@@ -360,8 +360,11 @@ def extract_features(reasons, score, rank, grid_width_pct, timestamp_ms=None, di
     )
     is_counter_train = features.get("candle_momentum") in ["MOMENTUM_COUNTER_PUMP_TRAIN", "MOMENTUM_COUNTER_DUMP_TRAIN"]
 
+    is_weak_score = score < 3.5
     if is_vol_danger and (is_trend_conflict or is_ls_div or is_counter_train):
         features["risk_interaction"] = "INTERACTION_HIGH_VOLATILITY_WEAK_SETUP"
+    elif is_no_sr and is_weak_score:
+        features["risk_interaction"] = "INTERACTION_NO_SR_WEAK_SCORE"
     elif is_trend_conflict and is_ls_div:
         features["risk_interaction"] = "INTERACTION_TREND_FLOW_CONFLICT"
     elif is_no_sr and (is_trend_conflict or is_ls_div or features.get("trend") == "TREND_NEUTRAL"):
@@ -658,6 +661,7 @@ def train_and_export_model():
         "price_action:PA_0_LEVEL": (0.50, 0.85),
         "sr_quality:SR_NONE": (0.50, 0.90),
         "risk_interaction:INTERACTION_NO_SR_WEAK_SETUP": (0.30, 0.85),
+        "risk_interaction:INTERACTION_NO_SR_WEAK_SCORE": (0.05, 0.20),
         "risk_interaction:INTERACTION_HIGH_VOLATILITY_WEAK_SETUP": (0.10, 0.50),
         "candle_momentum:MOMENTUM_COUNTER_PUMP_TRAIN": (0.05, 0.30),
         "candle_momentum:MOMENTUM_COUNTER_DUMP_TRAIN": (0.05, 0.30),
@@ -762,30 +766,39 @@ def calibrate_adaptive_sl_profile(base_dir):
         except Exception as e:
             print(f"⚠️ Lỗi nạp dataset cho Adaptive SL: {e}")
 
-    # Tối ưu hóa mốc SL theo kỳ vọng lợi nhuận và biên độ an toàn chống nhiễu M15
+    # Tối ưu hóa mốc SL theo kỳ vọng lợi nhuận và biên độ an toàn chống nhiễu M15/H1
     def optimize_sl_floor(samples, candidates, default_floor, min_noise_guard):
         if not samples or len(samples) < 30:
             return default_floor
-        best_ev = -999999
+        best_utility = -999999
         best_floor = default_floor
         for floor in candidates:
-            ev = 0.0
+            utility = 0.0
             for s in samples:
                 tp_dist = min(max(s["grid_w"] * 0.45, 1.2), 3.0)
-                eff_floor = max(floor, min_noise_guard)
+                # Đo lường độ thò râu ngược (adverse excursion) thông thường:
+                # Retest lành mạnh thường thò râu khoảng 25% - 32% grid_w (tối thiểu min_noise_guard * 0.85)
+                expected_wick = max(min_noise_guard * 0.85, s["grid_w"] * 0.28)
                 if s["is_win"]:
-                    ev += (tp_dist / eff_floor) * 1.5
+                    if floor < expected_wick:
+                        # SL quá sát bị quét râu thành thua oan
+                        utility -= 1.5
+                    else:
+                        # Sống sót qua nhịp rung lắc, ăn trọn TP
+                        utility += (tp_dist / floor) * 1.5
                 else:
-                    ev -= 1.5
+                    utility -= 1.5
+
             if floor < min_noise_guard:
-                ev -= len(samples) * 0.05
-            if ev > best_ev:
-                best_ev = ev
+                utility -= len(samples) * 0.35 * ((min_noise_guard - floor) / min_noise_guard)
+
+            if utility > best_utility:
+                best_utility = utility
                 best_floor = floor
         return best_floor
 
-    opt_top150 = optimize_sl_floor(top150_samples, [0.9, 1.0, 1.1, 1.2, 1.3], 1.0, 0.9)
-    opt_lowcap = optimize_sl_floor(lowcap_samples, [1.5, 1.6, 1.7, 1.8, 1.9, 2.0, 2.1], 1.8, 1.6)
+    opt_top150 = optimize_sl_floor(top150_samples, [1.10, 1.20, 1.25, 1.30, 1.40, 1.50], 1.30, 1.20)
+    opt_lowcap = optimize_sl_floor(lowcap_samples, [1.80, 2.00, 2.20, 2.40, 2.60], 2.00, 1.80)
 
     total_samples = len(top150_samples) + len(lowcap_samples)
     print(f"🛡️ [Adaptive SL Profile] Đã hiệu chuẩn: Top150 Min SL = {opt_top150:.2f}%, Lowcap Min SL = {opt_lowcap:.2f}% (Dựa trên {total_samples} mẫu)")
@@ -1063,6 +1076,15 @@ def calibrate_optimal_thresholds(base_dir, feature_weights=None, prior_odds=1.3,
             "sampleCount": len(trades)
         }
 
+    rank_map = {}
+    mc_path = os.path.join(base_dir, "data", "market_cap_top.json")
+    if os.path.exists(mc_path):
+        try:
+            with open(mc_path, "r", encoding="utf-8") as f:
+                rank_map = json.load(f).get("rankMap", {})
+        except Exception:
+            pass
+
     # Tính toán lại WinProb của từng lệnh shadow dựa trên feature_weights mới
     recalculated_trades = []
     for t in trades:
@@ -1083,7 +1105,7 @@ def calibrate_optimal_thresholds(base_dir, feature_weights=None, prior_odds=1.3,
             if risk_int == "INTERACTION_TREND_FLOW_CONFLICT":
                 skip_cats.add("trend")
                 skip_cats.add("ls_flow")
-            elif risk_int == "INTERACTION_NO_SR_WEAK_SETUP":
+            elif risk_int in ["INTERACTION_NO_SR_WEAK_SETUP", "INTERACTION_NO_SR_WEAK_SCORE"]:
                 skip_cats.add("price_action")
             elif risk_int == "INTERACTION_DRY_VOL_COOLING_OI":
                 skip_cats.add("volume")
@@ -1099,9 +1121,19 @@ def calibrate_optimal_thresholds(base_dir, feature_weights=None, prior_odds=1.3,
             p = (post_odds / (1.0 + post_odds)) * 100.0
             p = max(5.0, min(95.0, p))
 
+        raw_rk = t.get("marketCapRank")
+        sym = t.get("symbol", "").replace("USDT", "")
+        if raw_rk is None or raw_rk == 999:
+            effective_rank = rank_map.get(sym, 999)
+        else:
+            try:
+                effective_rank = int(raw_rk)
+            except Exception:
+                effective_rank = rank_map.get(sym, 999)
+
         p_final = float(p) if p is not None else 50.0
         recalculated_trades.append({
-            "marketCapRank": t.get("marketCapRank", 999),
+            "marketCapRank": effective_rank,
             "winProb": p_final,
             "outcome": t.get("outcome"),
             "isMissedTP": t.get("outcome") == "MISSED_TP" or t.get("isMissedTP", False),
@@ -1113,11 +1145,11 @@ def calibrate_optimal_thresholds(base_dir, feature_weights=None, prior_odds=1.3,
     # Grid search across candidate thresholds thực tế chuẩn xác theo Payoff Ratio R:R 1.5:1
     best_utility = -999999.0
     best_th_top = 50.0
-    best_th_low = 58.0
+    best_th_low = 65.0
     best_stats = {}
 
-    candidate_top = [48.0, 50.0, 52.0, 55.0, 58.0]
-    candidate_low = [54.0, 56.0, 58.0, 60.0, 62.0, 65.0]
+    candidate_top = [48.0, 50.0, 52.0, 54.0, 55.0]
+    candidate_low = [60.0, 62.0, 65.0, 68.0, 70.0]
 
     for th_top in candidate_top:
         for th_low in candidate_low:
@@ -1139,7 +1171,10 @@ def calibrate_optimal_thresholds(base_dir, feature_weights=None, prior_odds=1.3,
                         pnl += t["missedProfitUSD"]
                     elif t["isSavedSL"]:
                         n_loss += 1
-                        pnl -= t["savedLossUSD"]
+                        loss_val = t["savedLossUSD"]
+                        if rank > 150:
+                            loss_val *= 1.8  # Tail Risk Penalty cho Lowcap
+                        pnl -= loss_val
 
             total = n_win + n_loss
             wr = (n_win / total * 100.0) if total > 0 else 0.0
@@ -1147,6 +1182,9 @@ def calibrate_optimal_thresholds(base_dir, feature_weights=None, prior_odds=1.3,
             # Tiêu chuẩn an toàn: Tỷ lệ thắng >= 60.0% và Lợi nhuận kỳ vọng dương
             if total >= 10 and wr >= 60.0 and pnl > 0:
                 utility = pnl * (wr / 100.0)
+                # Phạt utility nếu để ngưỡng Lowcap quá lỏng lẻo (< 62%)
+                if th_low < 62.0:
+                    utility *= 0.75
                 if utility > best_utility:
                     best_utility = utility
                     best_th_top = th_top
