@@ -1,18 +1,25 @@
 {
   "version": "1.4.0-auto",
-  "trainedAt": "2026-09-16 11:36:00",
+  "trainedAt": "2026-09-16 13:33:02",
   "totalSamples": 3483,
   "priorWinProb": 0.6256,
   "priorOdds": 1.6712,
   "optimalThresholds": {
-    "top150": 50.0,
-    "lowcap": 65.0,
+    "top150": 48.0,
+    "lowcap": 60.0,
     "minExpectedEvRoi": 0.0,
     "autoCalibrated": true,
-    "calibratedAt": "2026-09-16 11:36:00",
-    "calibrationStats": {}
+    "calibratedAt": "2026-09-16 13:33:01",
+    "calibrationStats": {
+      "testedSamples": 1871,
+      "approvedTrades": 11,
+      "expectedWins": 8,
+      "expectedLosses": 3,
+      "expectedWinRate": 72.7,
+      "expectedNetPnlUsd": 110.31
+    }
   },
-  "thresholdApprovalPct": 65.0,
+  "thresholdApprovalPct": 60.0,
   "minExpectedEvRoi": 0.0,
   "mfeMaeProfile": {
     "optimalTpGridRatio": 0.5,
@@ -37,13 +44,13 @@
     "shadowCount": 1871,
     "realCount": 2185,
     "autoCalibrated": true,
-    "calculatedAt": "2026-09-16 11:36:00"
+    "calculatedAt": "2026-09-16 13:33:02"
   },
   "adaptiveSlProfile": {
     "top150MinSlPct": 1.5,
     "lowcapMinSlPct": 1.8,
     "autoCalibrated": true,
-    "calculatedAt": "2026-09-16 11:36:00",
+    "calculatedAt": "2026-09-16 13:33:02",
     "sampleCount": 1933
   },
   "featureWeights": {
@@ -294,12 +301,12 @@
       "isAutonomous": true
     },
     "spread_slippage:SPREAD_TIGHT_SAFE": {
-      "winCount": 188.0,
-      "lossCount": 132.0,
-      "winProb": 0.5892,
+      "winCount": 1384.5,
+      "lossCount": 837.5,
+      "winProb": 0.6231,
       "multiplier": 1.0,
       "knowledgeBoost": 1.1,
-      "blendRatio": 0.86,
+      "blendRatio": 0.98,
       "sanityCapped": true,
       "isAutonomous": true
     },
@@ -466,12 +473,12 @@
       "isAutonomous": true
     },
     "spread_slippage:SPREAD_MEDIUM_CAUTION": {
-      "winCount": 2436.5,
-      "lossCount": 1481.5,
-      "winProb": 0.6219,
+      "winCount": 1807.2,
+      "lossCount": 1107.2,
+      "winProb": 0.6201,
       "multiplier": 0.95,
       "knowledgeBoost": 0.85,
-      "blendRatio": 0.99,
+      "blendRatio": 0.98,
       "sanityCapped": true,
       "isAutonomous": true
     },
@@ -841,16 +848,6 @@
       "sanityCapped": true,
       "isAutonomous": true
     },
-    "spread_slippage:SPREAD_WIDE_DANGER": {
-      "winCount": 2246.8,
-      "lossCount": 1301.2,
-      "winProb": 0.6332,
-      "multiplier": 0.35,
-      "knowledgeBoost": 0.2,
-      "blendRatio": 0.99,
-      "sanityCapped": true,
-      "isAutonomous": true
-    },
     "m15_volatility:M15_VOLATILE_DANGER": {
       "winCount": 1218.0,
       "lossCount": 636.0,
@@ -867,6 +864,16 @@
       "winProb": 0.6256,
       "multiplier": 0.5,
       "knowledgeBoost": 0.5,
+      "blendRatio": 0.98,
+      "sanityCapped": true,
+      "isAutonomous": true
+    },
+    "spread_slippage:SPREAD_WIDE_DANGER": {
+      "winCount": 1679.5,
+      "lossCount": 970.0,
+      "winProb": 0.6338,
+      "multiplier": 0.35,
+      "knowledgeBoost": 0.2,
       "blendRatio": 0.98,
       "sanityCapped": true,
       "isAutonomous": true

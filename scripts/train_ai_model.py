@@ -488,18 +488,36 @@ def extract_features(reasons, score, rank, grid_width_pct, timestamp_ms=None, di
     if spread_val:
         features["spread_slippage"] = spread_val
     else:
-        # Tái lập trên dữ liệu lịch sử:
-        # Lowcap (rank > 150) khi thị trường bão giá -> Spread dãn rộng
+        # Tái lập trên dữ liệu lịch sử theo phân tầng Rank động (Adaptive Spread):
+        is_extreme_vol = (
+            features.get("h1_volatility") == "H1_EXTREME_STORM_PUMP_DUMP" or
+            features.get("m15_volatility") == "M15_EXTREME_STORM"
+        )
         is_high_vol = (
             features.get("h1_volatility") in ["H1_EXTREME_STORM_PUMP_DUMP", "H1_VOLATILE_DANGER"] or
             features.get("m15_volatility") in ["M15_EXTREME_STORM", "M15_VOLATILE_DANGER"]
         )
-        if rank > 150 and is_high_vol:
-            features["spread_slippage"] = "SPREAD_WIDE_DANGER"
-        elif rank > 100 or is_high_vol or gw > 4.5:
-            features["spread_slippage"] = "SPREAD_MEDIUM_CAUTION"
-        else:
-            features["spread_slippage"] = "SPREAD_TIGHT_SAFE"
+        if rank <= 50:
+            if is_high_vol:
+                features["spread_slippage"] = "SPREAD_WIDE_DANGER"
+            elif gw > 3.8:
+                features["spread_slippage"] = "SPREAD_MEDIUM_CAUTION"
+            else:
+                features["spread_slippage"] = "SPREAD_TIGHT_SAFE"
+        elif rank <= 150:
+            if is_high_vol:
+                features["spread_slippage"] = "SPREAD_WIDE_DANGER"
+            elif gw > 4.2:
+                features["spread_slippage"] = "SPREAD_MEDIUM_CAUTION"
+            else:
+                features["spread_slippage"] = "SPREAD_TIGHT_SAFE"
+        else: # Lowcap (> 150)
+            if is_extreme_vol or (is_high_vol and gw > 5.0):
+                features["spread_slippage"] = "SPREAD_WIDE_DANGER"
+            elif is_high_vol or gw > 4.0:
+                features["spread_slippage"] = "SPREAD_MEDIUM_CAUTION"
+            else:
+                features["spread_slippage"] = "SPREAD_TIGHT_SAFE"
 
     # 23. Cumulative Volume Delta (CVD) M1/M5 Momentum
     cvd_val = None

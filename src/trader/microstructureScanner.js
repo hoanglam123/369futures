@@ -29,11 +29,12 @@ function setCache(key, data) {
 }
 
 /**
- * Đo độ dãn Spread giữa giá Bid và Ask tốt nhất
+ * Đo độ dãn Spread giữa giá Bid và Ask tốt nhất (Phân tầng ngưỡng an toàn theo Rank coin)
  * @param {string} sym - Symbol không có hậu tố (e.g. BTC, ETH)
+ * @param {number} [rank=999] - Thứ hạng vốn hóa thị trường
  * @returns {Promise<{ spreadPct: number, bidPrice: number, askPrice: number, category: string }>}
  */
-async function getSpreadMetrics(sym) {
+async function getSpreadMetrics(sym, rank = 999) {
   const cacheKey = `spread_${sym}`;
   const cached = getCached(cacheKey);
   if (cached) return cached;
@@ -49,19 +50,37 @@ async function getSpreadMetrics(sym) {
     }
 
     const spreadPct = ((askPrice - bidPrice) / bidPrice) * 100;
+    
+    // 🛡️ PHÂN TẦNG ĐỘNG THEO RANK COIN (Adaptive Spread Guard):
+    // - Top 50: Cực kỳ khắt khe (> 0.04% là VETO) vì top coin thanh khoản luôn dày
+    // - Rank 51-150: Tiêu chuẩn (> 0.06% là VETO)
+    // - Lowcap (> 150): Nới lỏng nhẹ (> 0.08% mới VETO) vì biên độ nến rộng hơn
+    let dangerTh = 0.060;
+    let cautionTh = 0.035;
+    if (rank <= 50) {
+      dangerTh = 0.040;
+      cautionTh = 0.025;
+    } else if (rank <= 150) {
+      dangerTh = 0.060;
+      cautionTh = 0.035;
+    } else {
+      dangerTh = 0.080;
+      cautionTh = 0.045;
+    }
+
     let category = 'SPREAD_TIGHT_SAFE';
-    if (spreadPct > 0.06) {
+    if (spreadPct > dangerTh) {
       category = 'SPREAD_WIDE_DANGER'; // Độ dãn spread nguy hiểm, trượt giá lớn
-    } else if (spreadPct > 0.035) {
+    } else if (spreadPct > cautionTh) {
       category = 'SPREAD_MEDIUM_CAUTION'; // Độ dãn vừa phải
     }
 
-    const result = { spreadPct: parseFloat(spreadPct.toFixed(4)), bidPrice, askPrice, category };
+    const result = { spreadPct: parseFloat(spreadPct.toFixed(4)), bidPrice, askPrice, category, dangerTh, cautionTh };
     setCache(cacheKey, result);
     return result;
   } catch (err) {
     // Fallback an toàn nếu API lỗi
-    return { spreadPct: 0.02, bidPrice: 0, askPrice: 0, category: 'SPREAD_TIGHT_SAFE' };
+    return { spreadPct: 0.02, bidPrice: 0, askPrice: 0, category: 'SPREAD_TIGHT_SAFE', dangerTh: 0.06, cautionTh: 0.035 };
   }
 }
 
@@ -198,12 +217,13 @@ async function getOrderbookWall(sym, entryPrice, tpPrice, side = 'LONG') {
  * @param {number} entryPrice
  * @param {number} tpPrice
  * @param {string} side
+ * @param {number} [rank=999]
  * @returns {Promise<{ spreadMetrics: object, cvdMetrics: object, wallMetrics: object }>}
  */
-async function scanMicrostructure(sym, entryPrice = 0, tpPrice = 0, side = 'LONG') {
+async function scanMicrostructure(sym, entryPrice = 0, tpPrice = 0, side = 'LONG', rank = 999) {
   try {
     const [spreadMetrics, cvdMetrics, wallMetrics] = await Promise.all([
-      getSpreadMetrics(sym),
+      getSpreadMetrics(sym, rank),
       getCvdMomentum(sym, side),
       getOrderbookWall(sym, entryPrice, tpPrice, side)
     ]);

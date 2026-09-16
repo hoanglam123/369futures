@@ -512,8 +512,22 @@ function extractSignalFeatures(reasons, score, rank, gridWidthPct, rawMarketData
   let spreadCat = rawMarketData?.microstructure?.spread || rawMarketData?.spreadCategory;
   if (!spreadCat) {
     const spreadPct = parseFloat(rawMarketData?.spreadPct || 0);
-    if (spreadPct > 0.06) spreadCat = 'SPREAD_WIDE_DANGER';
-    else if (spreadPct > 0.035) spreadCat = 'SPREAD_MEDIUM_CAUTION';
+    const rk = parseInt(rank || 999, 10);
+    let dangerTh = 0.060;
+    let cautionTh = 0.035;
+    if (rk <= 50) {
+      dangerTh = 0.040;
+      cautionTh = 0.025;
+    } else if (rk <= 150) {
+      dangerTh = 0.060;
+      cautionTh = 0.035;
+    } else {
+      dangerTh = 0.080;
+      cautionTh = 0.045;
+    }
+
+    if (spreadPct > dangerTh) spreadCat = 'SPREAD_WIDE_DANGER';
+    else if (spreadPct > cautionTh) spreadCat = 'SPREAD_MEDIUM_CAUTION';
     else spreadCat = 'SPREAD_TIGHT_SAFE';
   }
   features['spread_slippage'] = spreadCat;
@@ -758,7 +772,8 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
       reasonText = `[AI VETO LỊCH KINH TẾ ĐỎ] Đang trong cửa sổ bão giá CPI / FOMC / NFP (±30 phút), nghiêm cấm Scalping đòn bẩy lớn! [Rank #${rank}] (${factorSummary})`;
     } else if (isSpreadDanger) {
       vetoCategory = 'SPREAD_WIDE_DANGER';
-      reasonText = `[AI VETO ĐỘ DÃN SPREAD] Chênh lệch Bid-Ask quá lớn (> 0.06%), trượt giá sẽ ăn sạch lợi nhuận Scalping! [Rank #${rank}] (${factorSummary})`;
+      const maxTh = rank <= 50 ? '0.04%' : (rank <= 150 ? '0.06%' : '0.08%');
+      reasonText = `[AI VETO ĐỘ DÃN SPREAD] Chênh lệch Bid-Ask vượt ngưỡng an toàn (>${maxTh} cho Rank #${rank}), trượt giá sẽ ăn sạch lợi nhuận Scalping! (${factorSummary})`;
     } else if (isWallBlocked) {
       vetoCategory = 'ORDERBOOK_WALL_BLOCK';
       reasonText = `[AI VETO TƯỜNG CẢN SỔ LỆNH] Phát hiện bức tường thanh khoản khổng lồ chắn trước TP trong khi Score yếu (${score.toFixed(1)}đ)! [Rank #${rank}] (${factorSummary})`;
