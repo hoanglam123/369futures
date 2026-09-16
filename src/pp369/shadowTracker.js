@@ -176,6 +176,8 @@ function registerShadowTrade(sig, evalResult, options = {}) {
     keyFactors: evalResult ? (evalResult.keyFactors || []) : [],
     marketMetrics: options.marketMetrics || sig.marketMetrics || null,
     signalMetrics: options.signalMetrics || sig.signalMetrics || null,
+    microstructure: options.microstructure || sig.microstructure || null,
+    isEconomicBlackout: options.isEconomicBlackout !== undefined ? options.isEconomicBlackout : (sig.isEconomicBlackout || false),
     entryTimestamp: Date.now(),
     maxFavorablePrice: entryPrice,
     maxAdversePrice: entryPrice,
@@ -207,6 +209,8 @@ function registerShadowTrade(sig, evalResult, options = {}) {
     gridWidthPct: shadowTrade.gridWidthPct,
     marketMetrics: shadowTrade.marketMetrics,
     signalMetrics: shadowTrade.signalMetrics,
+    microstructure: shadowTrade.microstructure,
+    isEconomicBlackout: shadowTrade.isEconomicBlackout,
     leverage: shadowTrade.leverage,
     margin: shadowTrade.margin,
     aiWinProbability: shadowTrade.winProbability,
@@ -452,7 +456,9 @@ function _resolveShadowTrade(p, outcome, exitPrice, exitRoi, exitTimestamp) {
     vetoCategory: p.vetoCategory,
     vetoReason: p.vetoReason,
     marketMetrics: p.marketMetrics || null,
-    signalMetrics: p.signalMetrics || null
+    signalMetrics: p.signalMetrics || null,
+    microstructure: p.microstructure || null,
+    isEconomicBlackout: p.isEconomicBlackout || false
   };
 
   // Ghi nhận vào Rolling Performance Guard để AI đánh giá khôi phục nếu đang trong chế độ Stand-Down

@@ -1632,7 +1632,9 @@ async function startAutoTrade(coins) {
           beTriggerPrice: prelimSetup.beTriggerPrice,
           slPct: prelimSetup.slPct,
           marketMetrics,
-          signalMetrics: sig.signalMetrics || null
+          signalMetrics: sig.signalMetrics || null,
+          microstructure: rawMarketData?.microstructure || null,
+          isEconomicBlackout: rawMarketData?.isEconomicBlackout
         });
 
         if (_shouldLogSignal(sym, sig.signal, sig.targetLevel, 'ai_veto_skipped')) {
@@ -2485,7 +2487,9 @@ async function checkH1RetestSignals(client, activeSymbols, leverageInfo = {}) {
           beTriggerPrice: prelimRetest.beTriggerPrice,
           slPct: prelimRetest.slPct,
           marketMetrics: marketMetricsRetest,
-          signalMetrics: sigForAI.signalMetrics || null
+          signalMetrics: sigForAI.signalMetrics || null,
+          microstructure: rawMarketDataRetest?.microstructure || null,
+          isEconomicBlackout: rawMarketDataRetest?.isEconomicBlackout
         });
 
         delete lowScoreWatchlist[sym];
