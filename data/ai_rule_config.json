@@ -1,25 +1,18 @@
 {
   "version": "1.4.0-auto",
-  "trainedAt": "2026-09-16 13:33:02",
+  "trainedAt": "2026-09-17 15:32:17",
   "totalSamples": 3483,
   "priorWinProb": 0.6256,
   "priorOdds": 1.6712,
   "optimalThresholds": {
-    "top150": 48.0,
-    "lowcap": 60.0,
+    "top150": 50.0,
+    "lowcap": 65.0,
     "minExpectedEvRoi": 0.0,
     "autoCalibrated": true,
-    "calibratedAt": "2026-09-16 13:33:01",
-    "calibrationStats": {
-      "testedSamples": 1871,
-      "approvedTrades": 11,
-      "expectedWins": 8,
-      "expectedLosses": 3,
-      "expectedWinRate": 72.7,
-      "expectedNetPnlUsd": 110.31
-    }
+    "calibratedAt": "2026-09-17 15:32:17",
+    "calibrationStats": {}
   },
-  "thresholdApprovalPct": 60.0,
+  "thresholdApprovalPct": 65.0,
   "minExpectedEvRoi": 0.0,
   "mfeMaeProfile": {
     "optimalTpGridRatio": 0.5,
@@ -44,13 +37,13 @@
     "shadowCount": 1871,
     "realCount": 2185,
     "autoCalibrated": true,
-    "calculatedAt": "2026-09-16 13:33:02"
+    "calculatedAt": "2026-09-17 15:32:17"
   },
   "adaptiveSlProfile": {
     "top150MinSlPct": 1.5,
     "lowcapMinSlPct": 1.8,
     "autoCalibrated": true,
-    "calculatedAt": "2026-09-16 13:33:02",
+    "calculatedAt": "2026-09-17 15:32:17",
     "sampleCount": 1933
   },
   "featureWeights": {
@@ -186,7 +179,7 @@
       "winCount": 1337.0,
       "lossCount": 650.0,
       "winProb": 0.6725,
-      "multiplier": 0.75,
+      "multiplier": 0.85,
       "sanityCapped": true,
       "isAutonomous": true
     },
