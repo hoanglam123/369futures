@@ -820,16 +820,6 @@
       "sanityCapped": true,
       "isAutonomous": true
     },
-    "score_group:SCORE_DANGER_LT4": {
-      "winCount": 2426.5,
-      "lossCount": 1085.0,
-      "winProb": 0.6907,
-      "multiplier": 0.4,
-      "knowledgeBoost": 0.6,
-      "blendRatio": 0.99,
-      "sanityCapped": true,
-      "isAutonomous": true
-    },
     "h1_volatility:H1_VOLATILE_DANGER": {
       "winCount": 1052.0,
       "lossCount": 627.5,

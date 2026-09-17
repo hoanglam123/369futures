@@ -100,12 +100,11 @@ function extractSignalFeatures(reasons, score, rank, gridWidthPct, rawMarketData
 
   const sm = rawMarketData?.signalMetrics || null;
 
-  // 1. Score Group
+  // 1. Score Group (Đã bỏ SCORE_DANGER_LT4 vì các tiêu chí cấu thành điểm số đều đã được AI học và đánh giá riêng)
   if (score >= 7.0) features['score_group'] = 'SCORE_HIGH_GE7';
   else if (score >= 6.0) features['score_group'] = 'SCORE_MID_6_TO_7';
   else if (score >= 5.0) features['score_group'] = 'SCORE_LOW_5_TO_6';
   else if (score >= 4.0) features['score_group'] = 'SCORE_WEAK_4_TO_5';
-  else features['score_group'] = 'SCORE_DANGER_LT4';
 
   // 2. MarketCap Rank
   if (rank <= 10) features['rank_group'] = 'RANK_TOP10';
@@ -567,7 +566,6 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
     'm15_volatility:M15_EXTREME_STORM': 0.15,     // Bão M15 >= 6% -> Phạt 85% WinProb -> Veto ngay
     'm15_volatility:M15_VOLATILE_DANGER': 0.60,   // M15 biến động mạnh rủi ro đâm thủng Tier
     'm15_volatility:M15_VOLUME_SURGE': 0.55,      // Đột biến volume M15
-    'score_group:SCORE_DANGER_LT4': 0.50,         // Phạt trừ 50% WinProb cho Score < 4đ -> Veto ngay
     'score_group:SCORE_WEAK_4_TO_5': 0.85,
     'h1_stagnant:H1_STAGNANT_TRAP': 0.65,         // Nén bế tắc bẫy thanh khoản
     'h1_candle_geometry:H1_PUNCTURED_DEEP': 0.22, // Tỷ lệ thắng thực nghiệm 19.8% (x0.22) -> Veto dứt khoát

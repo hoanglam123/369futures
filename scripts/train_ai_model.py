@@ -142,12 +142,11 @@ def extract_features(reasons, score, rank, grid_width_pct, timestamp_ms=None, di
     reasons_str = " ".join(reasons)
     features = {}
 
-    # 1. Score Group
+    # 1. Score Group (Đã bỏ SCORE_DANGER_LT4 vì các tiêu chí cấu thành điểm số đều đã được AI học riêng)
     if score >= 7.0: features["score_group"] = "SCORE_HIGH_GE7"
     elif score >= 6.0: features["score_group"] = "SCORE_MID_6_TO_7"
     elif score >= 5.0: features["score_group"] = "SCORE_LOW_5_TO_6"
     elif score >= 4.0: features["score_group"] = "SCORE_WEAK_4_TO_5"
-    else: features["score_group"] = "SCORE_DANGER_LT4"
 
     # 2. MarketCap Rank
     if rank <= 10: features["rank_group"] = "RANK_TOP10"
@@ -801,7 +800,6 @@ def train_and_export_model():
         "m15_volatility:M15_VOL_NORMAL": (0.85, 1.00),
         "trend:TREND_NEUTRAL": (0.85, 1.00),
         "ls_flow:LS_NEUTRAL": (0.85, 1.00),
-        "score_group:SCORE_DANGER_LT4": (0.10, 0.40),
         "score_group:SCORE_WEAK_4_TO_5": (0.40, 0.80),
         "adx_strength:ADX_NORMAL": (0.85, 1.00),
         "price_action:PA_0_LEVEL": (0.50, 0.85),
