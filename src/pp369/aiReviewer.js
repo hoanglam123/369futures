@@ -770,11 +770,10 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
 
   // ── AI LÀ NGƯỜI RA QUYẾT ĐỊNH 100% ──
   const isExtremeStorm = features['h1_volatility'] === 'H1_EXTREME_STORM_PUMP_DUMP' || features['m15_volatility'] === 'M15_EXTREME_STORM';
-  const isWeakNoSr = features['risk_interaction'] === 'INTERACTION_NO_SR_WEAK_SCORE';
   const isEconomicRed = features['economic_calendar'] === 'CALENDAR_RED_DANGER';
   const isSpreadDanger = features['spread_slippage'] === 'SPREAD_WIDE_DANGER';
   const isWallBlocked = features['orderbook_wall'] === 'WALL_OPPOSING_BLOCK' && score < 4.5;
-  const isApproved = !isExtremeStorm && !isWeakNoSr && !isEconomicRed && !isSpreadDanger && !isWallBlocked && winProb >= threshold && evRoi >= minEvRoiThreshold && isRrAcceptable;
+  const isApproved = !isExtremeStorm && !isEconomicRed && !isSpreadDanger && !isWallBlocked && winProb >= threshold && evRoi >= minEvRoiThreshold && isRrAcceptable;
   const factorSummary = keyFactors.length > 0 ? keyFactors.join(', ') : 'Điều kiện trung tính';
 
   let vetoCategory = null;
@@ -794,9 +793,6 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
     } else if (isWallBlocked) {
       vetoCategory = 'ORDERBOOK_WALL_BLOCK';
       reasonText = `[AI VETO TƯỜNG CẢN SỔ LỆNH] Phát hiện bức tường thanh khoản khổng lồ chắn trước TP trong khi Score yếu (${score.toFixed(1)}đ)! [Rank #${rank}] (${factorSummary})`;
-    } else if (isWeakNoSr) {
-      vetoCategory = 'NO_SR_WEAK_SCORE';
-      reasonText = `[AI VETO RỖNG CẢN S/R & SCORE YẾU] Score ${score.toFixed(1)}đ < 3.5đ kết hợp không có cản S/R H4/D1 đỡ giá [Rank #${rank}] (${factorSummary})`;
     } else if (!isRrAcceptable) {
       vetoCategory = 'BAD_RR_LESS_THAN_1';
       reasonText = `[RỦI RO R:R < 1.0] Tỷ lệ R:R không đạt chuẩn (TP ${tpGridPct.toFixed(2)}% / SL ${effSlPct.toFixed(2)}% = ${rrRatio.toFixed(2)}:1 < 1.0:1) [Rank #${rank}] (${factorSummary})`;
