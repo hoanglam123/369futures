@@ -692,6 +692,23 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
       mult = 1.00;
     }
 
+    // 🛡️ SANITY GUARD: Khắc chế hệ số Ngược Sóng BTC (BTC_COUNTER)
+    // Khi Altcoin đi ngược xu hướng chính của BTC (BTC đang có trend/đà ngược chiều):
+    // - Tuyệt đối KHÔNG ĐƯỢC nhân hệ số thưởng (> 1.0)
+    // - Nếu Altcoin không có cản S/R mạnh (SR_NONE hoặc PA_0_LEVEL) hoặc Score yếu (< 5.0):
+    //   BẮT BUỘC bị PHẠT trừ nặng (x0.75) để loại bỏ các lệnh đu đỉnh / bắt dao rơi
+    // - Nếu Altcoin có cản S/R mạnh (SR_DAILY_D1_INCLUDED) và Score >= 5.0:
+    //   Hệ số tối đa chỉ là 0.85 (thận trọng -15%)
+    if (cat === 'btc_wave' && val === 'BTC_COUNTER') {
+      const hasStrongSr = features['sr_quality'] === 'SR_DAILY_D1_INCLUDED' && features['price_action'] !== 'PA_0_LEVEL';
+      const isStrongScore = score >= 5.0 && features['score_group'] !== 'SCORE_WEAK_4_TO_5';
+      if (!hasStrongSr || !isStrongScore) {
+        mult = 0.75;
+      } else {
+        mult = Math.min(mult, 0.85);
+      }
+    }
+
     combinedMultiplier *= mult;
 
     if (mult >= 1.03) {

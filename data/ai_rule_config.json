@@ -186,8 +186,8 @@
       "winCount": 1337.0,
       "lossCount": 650.0,
       "winProb": 0.6725,
-      "multiplier": 1.2288,
-      "sanityCapped": false,
+      "multiplier": 0.75,
+      "sanityCapped": true,
       "isAutonomous": true
     },
     "btc_storm:BTC_STORM_NORMAL": {

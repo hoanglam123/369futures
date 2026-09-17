@@ -806,6 +806,7 @@ def train_and_export_model():
         "adx_strength:ADX_NORMAL": (0.85, 1.00),
         "price_action:PA_0_LEVEL": (0.50, 0.85),
         "sr_quality:SR_NONE": (0.50, 0.90),
+        "btc_wave:BTC_COUNTER": (0.65, 0.85),
         "risk_interaction:INTERACTION_NO_SR_WEAK_SETUP": (0.30, 0.85),
         "risk_interaction:INTERACTION_NO_SR_WEAK_SCORE": (0.05, 0.20),
         "risk_interaction:INTERACTION_HIGH_VOLATILITY_WEAK_SETUP": (0.10, 0.50),

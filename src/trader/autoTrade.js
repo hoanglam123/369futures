@@ -2646,27 +2646,15 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
     const openSymbols = positions.map(p => p.symbol.replace('USDT', ''));
 
     // Lấy danh sách lệnh thường và lệnh algo:
-    // Khi số lượng vị thế ít (<= 5), gọi theo từng symbol để chỉ tốn 1 Weight/request thay vì 40 Weight!
-    let allOpenOrders = [];
-    let allAlgoOrders = [];
-
-    if (openSymbols.length <= 5) {
-      const ordersPromises = openSymbols.map(sym => client.getOpenOrders(sym).catch(() => []));
-      const algoPromises = openSymbols.map(sym => client.getOpenAlgoOrders(sym).catch(() => []));
-      const [ordersArr, algosArr] = await Promise.all([
-        Promise.all(ordersPromises),
-        Promise.all(algoPromises)
-      ]);
-      allOpenOrders = ordersArr.flat();
-      allAlgoOrders = algosArr.flatMap(a => Array.isArray(a) ? a : (a?.orders ?? []));
-    } else {
-      const [openOrdersRes, algoOrdersRes] = await Promise.all([
-        client.getOpenOrders().catch(() => []),
-        client.getOpenAlgoOrders().catch(() => [])
-      ]);
-      allOpenOrders = openOrdersRes || [];
-      allAlgoOrders = Array.isArray(algoOrdersRes) ? algoOrdersRes : (algoOrdersRes?.orders ?? []);
-    }
+    // Trên Binance Futures, gọi theo từng symbol chỉ tốn 1 Weight/request thay vì 40 Weight khi không truyền symbol!
+    const ordersPromises = openSymbols.map(sym => client.getOpenOrders(sym).catch(() => []));
+    const algoPromises = openSymbols.map(sym => client.getOpenAlgoOrders(sym).catch(() => []));
+    const [ordersArr, algosArr] = await Promise.all([
+      Promise.all(ordersPromises),
+      Promise.all(algoPromises)
+    ]);
+    const allOpenOrders = ordersArr.flat();
+    const allAlgoOrders = algosArr.flatMap(a => Array.isArray(a) ? a : (a?.orders ?? []));
 
     const symbolOrdersResults = openSymbols.map((sym) => {
       const symUsdt = `${sym}USDT`;
@@ -2684,7 +2672,7 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
       if (amt === 0 || entryPrice === 0) continue;
 
       const isLong = amt > 0;
-      const absAmt = Math.abs(amt);
+      let absAmt = Math.abs(amt);
       const oppositeSide = isLong ? 'SELL' : 'BUY';
 
       // Ưu tiên dùng markPrice từ WebSocket cache (real-time, cập nhật liên tục)
@@ -2810,7 +2798,7 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
       const invalidationDistance = meta?.slDistance ? (meta.slDistance * 0.60) : (unit * 0.60);
       if (meta && !meta.isH1Failed && !meta.isPanicEscape) {
         const nowMs = Date.now();
-        if (!meta._lastH1Check || (nowMs - meta._lastH1Check >= 15000)) {
+        if (!meta._lastH1Check || (nowMs - meta._lastH1Check >= 60000)) {
           meta._lastH1Check = nowMs;
           try {
             const h1s = await fetchBinanceKlines(sym, '1h', null, 5);
@@ -2855,7 +2843,7 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
       //     - LONG & SHORT: Dời TP về Entry hòa vốn để thoát hàng khi có nhịp giật râu hồi
       if (meta && !meta.isH1Failed && !meta.isPanicEscape) {
         const nowMs = Date.now();
-        if (!meta._lastM15VolCheck || (nowMs - meta._lastM15VolCheck >= 15000)) {
+        if (!meta._lastM15VolCheck || (nowMs - meta._lastM15VolCheck >= 45000)) {
           meta._lastM15VolCheck = nowMs;
           try {
             const m15s = await fetchBinanceKlines(sym, '15m', null, 25);
@@ -3150,11 +3138,11 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
         const halfAmt = absAmt * 0.5;
         const closeQty = formatQuantity(sym, halfAmt);
         if (closeQty > 0) {
-          partialClosedSymbols.add(sym);
           const estRealizedPnl = (roi / 100) * ((meta?.margin || 0) * 0.5);
           log.system(`[AutoTrade] 🎯 [Partial TP] ${sym} chạm mốc kích hoạt ($${trailTriggerPriceExact} / ROI +${roi.toFixed(2)}%): Chốt 50% vị thế (qty = ${closeQty}, lãi ước tính +$${estRealizedPnl.toFixed(2)} USDT)`);
           try {
             await client.placeMarket(sym, oppositeSide, closeQty);
+            partialClosedSymbols.add(sym);
             // Cập nhật số lượng vị thế còn lại
             absAmt = formatQuantity(sym, Math.max(0, absAmt - closeQty));
             if (lastActivePositions.has(sym)) {
@@ -3170,6 +3158,7 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
               `• Vị thế còn lại: <b>${absAmt}</b> (SL đang dời về Hòa Vốn để tiếp tục gồng lãi Full TP!)`
             ).catch(() => {});
           } catch (e) {
+            partialClosedSymbols.delete(sym);
             log.error(`[AutoTrade] [Partial TP] Đóng 50% vị thế ${sym} thất bại: ${e.message}`);
           }
         }
