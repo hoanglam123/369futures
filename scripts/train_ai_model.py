@@ -407,11 +407,8 @@ def extract_features(reasons, score, rank, grid_width_pct, timestamp_ms=None, di
     )
     is_counter_train = features.get("candle_momentum") in ["MOMENTUM_COUNTER_PUMP_TRAIN", "MOMENTUM_COUNTER_DUMP_TRAIN"]
 
-    is_weak_score = score < 3.5
     if is_vol_danger and (is_trend_conflict or is_ls_div or is_counter_train):
         features["risk_interaction"] = "INTERACTION_HIGH_VOLATILITY_WEAK_SETUP"
-    elif is_no_sr and is_weak_score:
-        features["risk_interaction"] = "INTERACTION_NO_SR_WEAK_SCORE"
     elif is_trend_conflict and is_ls_div:
         features["risk_interaction"] = "INTERACTION_TREND_FLOW_CONFLICT"
     elif is_no_sr and (is_trend_conflict or is_ls_div or features.get("trend") == "TREND_NEUTRAL"):
@@ -806,7 +803,6 @@ def train_and_export_model():
         "sr_quality:SR_NONE": (0.50, 0.90),
         "btc_wave:BTC_COUNTER": (0.65, 0.85),
         "risk_interaction:INTERACTION_NO_SR_WEAK_SETUP": (0.30, 0.85),
-        "risk_interaction:INTERACTION_NO_SR_WEAK_SCORE": (0.05, 0.20),
         "risk_interaction:INTERACTION_HIGH_VOLATILITY_WEAK_SETUP": (0.10, 0.50),
         "candle_momentum:MOMENTUM_COUNTER_PUMP_TRAIN": (0.05, 0.30),
         "candle_momentum:MOMENTUM_COUNTER_DUMP_TRAIN": (0.05, 0.30),
@@ -1397,7 +1393,7 @@ def calibrate_optimal_thresholds(base_dir, feature_weights=None, prior_odds=1.3,
             if risk_int == "INTERACTION_TREND_FLOW_CONFLICT":
                 skip_cats.add("trend")
                 skip_cats.add("ls_flow")
-            elif risk_int in ["INTERACTION_NO_SR_WEAK_SETUP", "INTERACTION_NO_SR_WEAK_SCORE"]:
+            elif risk_int == "INTERACTION_NO_SR_WEAK_SETUP":
                 skip_cats.add("price_action")
             elif risk_int == "INTERACTION_DRY_VOL_COOLING_OI":
                 skip_cats.add("volume")

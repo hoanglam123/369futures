@@ -481,11 +481,8 @@ function extractSignalFeatures(reasons, score, rank, gridWidthPct, rawMarketData
   const isCounterTrain = features['candle_momentum'] === 'MOMENTUM_COUNTER_PUMP_TRAIN' ||
     features['candle_momentum'] === 'MOMENTUM_COUNTER_DUMP_TRAIN';
 
-  const isWeakScore = score < 3.5;
   if (isVolDanger && (isTrendConflict || isLsDiv || isCounterTrain)) {
     features['risk_interaction'] = 'INTERACTION_HIGH_VOLATILITY_WEAK_SETUP';
-  } else if (isNoSR && isWeakScore) {
-    features['risk_interaction'] = 'INTERACTION_NO_SR_WEAK_SCORE';
   } else if (isTrendConflict && isLsDiv) {
     features['risk_interaction'] = 'INTERACTION_TREND_FLOW_CONFLICT';
   } else if (isNoSR && (isTrendConflict || isLsDiv || features['trend'] === 'TREND_NEUTRAL')) {
@@ -607,7 +604,6 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
     'price_action:PA_0_LEVEL': 0.85,              // [LÕI AI] Rỗng cản S/R là rủi ro rất cao, phạt 15% (x0.85) thay vì chỉ trừ 5%
     'ls_flow:LS_DIVERGENCE': 0.80,                // [CÂN BẰNG] Phạt vừa phải 20% khi dòng tiền Cá voi và Retail phân kỳ ngược nhau
     'risk_interaction:INTERACTION_HIGH_VOLATILITY_WEAK_SETUP': 0.50, // Biến động mạnh kết hợp thế nến/cản yếu -> Veto
-    'risk_interaction:INTERACTION_NO_SR_WEAK_SCORE': 0.15,           // Score < 3.5đ và rỗng cản S/R -> Phạt 85% WinProb -> Veto
     'risk_interaction:INTERACTION_TREND_FLOW_CONFLICT': 1.00, // Tự động thích ứng hoàn toàn theo weights học được (fallback trung tính 1.00)
     'risk_interaction:INTERACTION_NO_SR_WEAK_SETUP': 0.65,      // Fallback nếu chưa có trong weights
     'risk_interaction:INTERACTION_DRY_VOL_COOLING_OI': 0.80,     // Fallback nếu chưa có trong weights
@@ -659,7 +655,7 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
     // Trend conflict + LS_DIVERGENCE đã capture bởi interaction → bỏ qua riêng lẽ
     skipForInteraction.add('trend');
     skipForInteraction.add('ls_flow');
-  } else if (riskInteraction === 'INTERACTION_NO_SR_WEAK_SETUP' || riskInteraction === 'INTERACTION_NO_SR_WEAK_SCORE') {
+  } else if (riskInteraction === 'INTERACTION_NO_SR_WEAK_SETUP') {
     // PA_0_LEVEL đã capture bởi interaction → bỏ qua riêng lẻ
     skipForInteraction.add('price_action');
   } else if (riskInteraction === 'INTERACTION_DRY_VOL_COOLING_OI') {

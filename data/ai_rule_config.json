@@ -1,6 +1,6 @@
 {
   "version": "1.4.0-auto",
-  "trainedAt": "2026-09-17 15:32:17",
+  "trainedAt": "2026-09-18 08:39:18",
   "totalSamples": 3483,
   "priorWinProb": 0.6256,
   "priorOdds": 1.6712,
@@ -9,7 +9,7 @@
     "lowcap": 65.0,
     "minExpectedEvRoi": 0.0,
     "autoCalibrated": true,
-    "calibratedAt": "2026-09-17 15:32:17",
+    "calibratedAt": "2026-09-18 08:39:18",
     "calibrationStats": {}
   },
   "thresholdApprovalPct": 65.0,
@@ -37,13 +37,13 @@
     "shadowCount": 1871,
     "realCount": 2185,
     "autoCalibrated": true,
-    "calculatedAt": "2026-09-17 15:32:17"
+    "calculatedAt": "2026-09-18 08:39:18"
   },
   "adaptiveSlProfile": {
     "top150MinSlPct": 1.5,
     "lowcapMinSlPct": 1.8,
     "autoCalibrated": true,
-    "calculatedAt": "2026-09-17 15:32:17",
+    "calculatedAt": "2026-09-18 08:39:18",
     "sampleCount": 1933
   },
   "featureWeights": {
@@ -230,12 +230,12 @@
       "isAutonomous": true
     },
     "risk_interaction:INTERACTION_NO_SR_WEAK_SETUP": {
-      "winCount": 1040.2,
-      "lossCount": 529.2,
-      "winProb": 0.6624,
+      "winCount": 1544.0,
+      "lossCount": 704.0,
+      "winProb": 0.6864,
       "multiplier": 0.85,
       "knowledgeBoost": 0.65,
-      "blendRatio": 0.97,
+      "blendRatio": 0.98,
       "sanityCapped": true,
       "isAutonomous": true
     },
@@ -440,10 +440,10 @@
       "isAutonomous": true
     },
     "risk_interaction:INTERACTION_BALANCED": {
-      "winCount": 1441.0,
-      "lossCount": 1148.0,
-      "winProb": 0.557,
-      "multiplier": 0.7579,
+      "winCount": 1541.5,
+      "lossCount": 1214.0,
+      "winProb": 0.5598,
+      "multiplier": 0.7661,
       "knowledgeBoost": 1.05,
       "blendRatio": 0.98,
       "sanityCapped": false,
@@ -736,12 +736,12 @@
       "isAutonomous": true
     },
     "risk_interaction:INTERACTION_TREND_FLOW_CONFLICT": {
-      "winCount": 75.0,
-      "lossCount": 38.5,
-      "winProb": 0.6567,
-      "multiplier": 1.1003,
+      "winCount": 245.0,
+      "lossCount": 88.0,
+      "winProb": 0.731,
+      "multiplier": 1.5442,
       "knowledgeBoost": 1.0,
-      "blendRatio": 0.69,
+      "blendRatio": 0.87,
       "sanityCapped": false,
       "isAutonomous": true
     },
@@ -794,12 +794,12 @@
       "isAutonomous": true
     },
     "risk_interaction:INTERACTION_DRY_VOL_COOLING_OI": {
-      "winCount": 112.0,
-      "lossCount": 64.5,
-      "winProb": 0.6339,
-      "multiplier": 0.9728,
+      "winCount": 137.5,
+      "lossCount": 69.0,
+      "winProb": 0.6631,
+      "multiplier": 1.0945,
       "knowledgeBoost": 0.75,
-      "blendRatio": 0.78,
+      "blendRatio": 0.81,
       "sanityCapped": false,
       "isAutonomous": true
     },
@@ -820,14 +820,6 @@
       "multiplier": 0.7,
       "knowledgeBoost": 0.65,
       "blendRatio": 0.97,
-      "sanityCapped": true,
-      "isAutonomous": true
-    },
-    "risk_interaction:INTERACTION_NO_SR_WEAK_SCORE": {
-      "winCount": 799.8,
-      "lossCount": 294.8,
-      "winProb": 0.7293,
-      "multiplier": 0.2,
       "sanityCapped": true,
       "isAutonomous": true
     },
