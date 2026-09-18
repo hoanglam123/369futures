@@ -340,6 +340,7 @@ async function fetchBinanceKlines(symbol, interval, startTimeMs, limit = 1500) {
         low: parseFloat(c[3]),
         close: parseFloat(c[4]),
         volume: parseFloat(c[5]),
+        takerBuyBaseVolume: parseFloat(c[9] || 0)
       }));
 
       // Cơ chế LRU Eviction: Giải phóng keys cũ nhất khi bộ nhớ vượt ngưỡng
@@ -1325,6 +1326,130 @@ function calculateADX(candles, period = 14) {
   return adx;
 }
 
+function calculateATR(candles, period = 14) {
+  if (!candles || candles.length < period + 1) return null;
+  const tr = [];
+  for (let i = 1; i < candles.length; i++) {
+    const c = candles[i];
+    const p = candles[i - 1];
+    const trVal = Math.max(
+      c.high - c.low,
+      Math.abs(c.high - p.close),
+      Math.abs(c.low - p.close)
+    );
+    tr.push(trVal);
+  }
+  if (tr.length < period) return null;
+  let atr = tr.slice(0, period).reduce((a, b) => a + b, 0) / period;
+  for (let i = period; i < tr.length; i++) {
+    atr = (atr * (period - 1) + tr[i]) / period;
+  }
+  return atr;
+}
+
+function calculateBollingerBands(candles, period = 20, stdDev = 2) {
+  if (!candles || candles.length < period) return null;
+  const slice = candles.slice(-period);
+  const closes = slice.map(c => c.close);
+  const sma = closes.reduce((a, b) => a + b, 0) / period;
+  if (sma <= 0) return null;
+  const variance = closes.reduce((sum, val) => sum + Math.pow(val - sma, 2), 0) / period;
+  const sd = Math.sqrt(variance);
+  const upper = sma + stdDev * sd;
+  const lower = sma - stdDev * sd;
+  const bandwidth = (upper - lower) / sma;
+  return { sma, upper, lower, bandwidth };
+}
+
+function calculateWickMetrics(candle, direction) {
+  if (!candle) return { rejectionState: 'WICK_NORMAL', wickRatio: 0 };
+  const totalRange = candle.high - candle.low;
+  if (totalRange <= 0) return { rejectionState: 'WICK_NORMAL', wickRatio: 0 };
+
+  const bodyTop = Math.max(candle.open, candle.close);
+  const bodyBottom = Math.min(candle.open, candle.close);
+  const upperWick = candle.high - bodyTop;
+  const lowerWick = bodyBottom - candle.low;
+
+  const isLong = direction === 'LONG' || direction === 'BUY';
+  const lowerWickRatio = lowerWick / totalRange;
+  const upperWickRatio = upperWick / totalRange;
+
+  if (isLong) {
+    if (lowerWickRatio >= 0.50) {
+      return { rejectionState: 'BULLISH_PINBAR_REJECTION', wickRatio: Number(lowerWickRatio.toFixed(2)) };
+    }
+    if (upperWickRatio >= 0.50) {
+      return { rejectionState: 'OPPOSING_WICK_TRAP', wickRatio: Number(upperWickRatio.toFixed(2)) };
+    }
+    return { rejectionState: 'WICK_NORMAL', wickRatio: Number(lowerWickRatio.toFixed(2)) };
+  } else {
+    // SHORT
+    if (upperWickRatio >= 0.50) {
+      return { rejectionState: 'BEARISH_PINBAR_REJECTION', wickRatio: Number(upperWickRatio.toFixed(2)) };
+    }
+    if (lowerWickRatio >= 0.50) {
+      return { rejectionState: 'OPPOSING_WICK_TRAP', wickRatio: Number(lowerWickRatio.toFixed(2)) };
+    }
+    return { rejectionState: 'WICK_NORMAL', wickRatio: Number(upperWickRatio.toFixed(2)) };
+  }
+}
+
+function calculateCVDDelta(m15Candles, numCandles = 4, direction) {
+  if (!m15Candles || m15Candles.length < numCandles) {
+    return { cvdFlow: 'CVD_NEUTRAL', deltaPct: 0 };
+  }
+  const sample = m15Candles.slice(-numCandles);
+  let totalVolume = 0;
+  let totalDelta = 0;
+
+  for (const c of sample) {
+    const vol = c.volume || 0;
+    const takerBuy = c.takerBuyBaseVolume != null ? c.takerBuyBaseVolume : (vol * 0.5);
+    const takerSell = vol - takerBuy;
+    const delta = takerBuy - takerSell;
+    totalVolume += vol;
+    totalDelta += delta;
+  }
+
+  if (totalVolume <= 0) return { cvdFlow: 'CVD_NEUTRAL', deltaPct: 0 };
+
+  const deltaPct = (totalDelta / totalVolume) * 100;
+  const isLong = direction === 'LONG' || direction === 'BUY';
+  const priceChange = sample[sample.length - 1].close - sample[0].open;
+
+  if (isLong) {
+    if (deltaPct >= 10.0) {
+      return { cvdFlow: 'CVD_BULLISH_FLOW', deltaPct: Number(deltaPct.toFixed(1)) };
+    }
+    if (priceChange <= 0 && deltaPct >= 5.0) {
+      return { cvdFlow: 'CVD_ABSORPTION_BULLISH', deltaPct: Number(deltaPct.toFixed(1)) };
+    }
+    if (priceChange > 0 && deltaPct <= -10.0) {
+      return { cvdFlow: 'CVD_EXHAUSTION_BEARISH', deltaPct: Number(deltaPct.toFixed(1)) };
+    }
+    if (deltaPct <= -15.0) {
+      return { cvdFlow: 'CVD_BEARISH_FLOW', deltaPct: Number(deltaPct.toFixed(1)) };
+    }
+  } else {
+    // SHORT
+    if (deltaPct <= -10.0) {
+      return { cvdFlow: 'CVD_BEARISH_FLOW', deltaPct: Number(deltaPct.toFixed(1)) };
+    }
+    if (priceChange >= 0 && deltaPct <= -5.0) {
+      return { cvdFlow: 'CVD_ABSORPTION_BEARISH', deltaPct: Number(deltaPct.toFixed(1)) };
+    }
+    if (priceChange < 0 && deltaPct >= 10.0) {
+      return { cvdFlow: 'CVD_EXHAUSTION_BULLISH', deltaPct: Number(deltaPct.toFixed(1)) };
+    }
+    if (deltaPct >= 15.0) {
+      return { cvdFlow: 'CVD_BULLISH_FLOW', deltaPct: Number(deltaPct.toFixed(1)) };
+    }
+  }
+
+  return { cvdFlow: 'CVD_NEUTRAL', deltaPct: Number(deltaPct.toFixed(1)) };
+}
+
 const _globalLSCache = new Map(); // key: sym_period -> { data, timestamp }
 const _topLSCache = new Map();    // key: sym_period -> { data, timestamp }
 const _oiHistCache = new Map();   // key: sym_period_limit -> { data, timestamp }
@@ -1794,7 +1919,15 @@ async function score369Method(sig369, direction) {
     fundingState: 'FUNDING_NORMAL',
     btcWave: 'BTC_NEUTRAL',
     btcStorm: 'BTC_STORM_NORMAL',
-    h1Stagnant: 'H1_NOT_STAGNANT'
+    h1Stagnant: 'H1_NOT_STAGNANT',
+    emaDistanceAtr: null,
+    emaDistanceZone: 'PRICE_NEAR_EMA',
+    m15WickRejection: 'WICK_NORMAL',
+    m15WickRatio: null,
+    h1BbBandwidth: null,
+    h1BbState: 'BB_NORMAL',
+    m15CvdFlow: 'CVD_NEUTRAL',
+    m15CvdDeltaPct: null
   };
 
   try {
@@ -1836,6 +1969,17 @@ async function score369Method(sig369, direction) {
       log.warn(`[Confluence Scorer] Không thể lấy klines M15 cho ${sig369.symbol}: ${err.message}`);
     }
     m15Klines = m15Data;
+
+    if (m15Data && m15Data.length >= 2) {
+      const prevM15 = m15Data[m15Data.length - 2];
+      const wickRes = calculateWickMetrics(prevM15, direction);
+      signalMetrics.m15WickRejection = wickRes.rejectionState;
+      signalMetrics.m15WickRatio = wickRes.wickRatio;
+
+      const cvdRes = calculateCVDDelta(m15Data, 4, direction);
+      signalMetrics.m15CvdFlow = cvdRes.cvdFlow;
+      signalMetrics.m15CvdDeltaPct = cvdRes.deltaPct;
+    }
 
     let isM15HigherLow = false;
     let isM15HigherHigh = false;
@@ -2001,6 +2145,35 @@ async function score369Method(sig369, direction) {
         signalMetrics.trend = 'TREND_CONFLICT';
       } else {
         signalMetrics.trend = 'TREND_NEUTRAL';
+      }
+
+      // 1b. Tính toán Price-to-EMA Distance H1 & Bollinger Bands H1
+      const atrH1 = calculateATR(h1Data, 14);
+      if (ema20H1 && atrH1 && atrH1 > 0) {
+        const distFromEma = price - ema20H1;
+        const distAtr = distFromEma / atrH1;
+        signalMetrics.emaDistanceAtr = Number(distAtr.toFixed(2));
+        if (isLong) {
+          if (distAtr > 2.0) signalMetrics.emaDistanceZone = 'PRICE_OVEREXTENDED';
+          else if (distAtr >= 1.2) signalMetrics.emaDistanceZone = 'PRICE_EXTENDED';
+          else if (distAtr >= -0.5) signalMetrics.emaDistanceZone = 'PRICE_NEAR_EMA';
+          else signalMetrics.emaDistanceZone = 'PRICE_COUNTER_EMA';
+        } else {
+          const shortDistAtr = -distAtr;
+          if (shortDistAtr > 2.0) signalMetrics.emaDistanceZone = 'PRICE_OVEREXTENDED';
+          else if (shortDistAtr >= 1.2) signalMetrics.emaDistanceZone = 'PRICE_EXTENDED';
+          else if (shortDistAtr >= -0.5) signalMetrics.emaDistanceZone = 'PRICE_NEAR_EMA';
+          else signalMetrics.emaDistanceZone = 'PRICE_COUNTER_EMA';
+        }
+      }
+
+      const bbH1 = calculateBollingerBands(h1Data, 20, 2);
+      if (bbH1) {
+        signalMetrics.h1BbBandwidth = Number((bbH1.bandwidth * 100).toFixed(2));
+        if (bbH1.bandwidth <= 0.030) signalMetrics.h1BbState = 'BB_ULTRA_SQUEEZE';
+        else if (bbH1.bandwidth <= 0.050) signalMetrics.h1BbState = 'BB_MODERATE_SQUEEZE';
+        else if (bbH1.bandwidth >= 0.12) signalMetrics.h1BbState = 'BB_EXPANSION';
+        else signalMetrics.h1BbState = 'BB_NORMAL';
       }
     } else {
       trendReasons.push(`H1: thiếu dữ liệu nến (+0đ)`);

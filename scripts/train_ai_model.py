@@ -609,6 +609,12 @@ def extract_features(reasons, score, rank, grid_width_pct, timestamp_ms=None, di
         else:
             features["orderbook_wall"] = "WALL_CLEAR_PATH"
 
+    # 25. 4 Chỉ báo Kỹ thuật Nâng cao (EMA Distance H1, Wick Rejection M15, BB Squeeze H1, CVD Delta M15)
+    features["ema_distance"] = sm.get("emaDistanceZone", "PRICE_NEAR_EMA") if sm else "PRICE_NEAR_EMA"
+    features["wick_rejection"] = sm.get("m15WickRejection", "WICK_NORMAL") if sm else "WICK_NORMAL"
+    features["bb_squeeze"] = sm.get("h1BbState", "BB_NORMAL") if sm else "BB_NORMAL"
+    features["cvd_flow"] = sm.get("m15CvdFlow", "CVD_NEUTRAL") if sm else "CVD_NEUTRAL"
+
     return features
 
 def train_and_export_model():
@@ -865,6 +871,25 @@ def train_and_export_model():
         "orderbook_wall:WALL_CLEAR_PATH": (1.00, 1.25),
         "orderbook_wall:WALL_SUPPORT_SHIELD": (1.00, 1.20),
         "orderbook_wall:WALL_OPPOSING_BLOCK": (0.15, 0.45),
+        "ema_distance:PRICE_OVEREXTENDED": (0.20, 0.70),
+        "ema_distance:PRICE_EXTENDED": (0.60, 0.90),
+        "ema_distance:PRICE_NEAR_EMA": (1.00, 1.30),
+        "ema_distance:PRICE_COUNTER_EMA": (0.30, 0.80),
+        "wick_rejection:BULLISH_PINBAR_REJECTION": (1.00, 1.40),
+        "wick_rejection:BEARISH_PINBAR_REJECTION": (1.00, 1.40),
+        "wick_rejection:OPPOSING_WICK_TRAP": (0.20, 0.75),
+        "wick_rejection:WICK_NORMAL": (0.85, 1.00),
+        "bb_squeeze:BB_ULTRA_SQUEEZE": (1.00, 1.35),
+        "bb_squeeze:BB_MODERATE_SQUEEZE": (1.00, 1.20),
+        "bb_squeeze:BB_EXPANSION": (0.75, 1.05),
+        "bb_squeeze:BB_NORMAL": (0.85, 1.00),
+        "cvd_flow:CVD_BULLISH_FLOW": (1.00, 1.35),
+        "cvd_flow:CVD_BEARISH_FLOW": (1.00, 1.35),
+        "cvd_flow:CVD_ABSORPTION_BULLISH": (1.00, 1.40),
+        "cvd_flow:CVD_ABSORPTION_BEARISH": (1.00, 1.40),
+        "cvd_flow:CVD_EXHAUSTION_BEARISH": (0.20, 0.75),
+        "cvd_flow:CVD_EXHAUSTION_BULLISH": (0.20, 0.75),
+        "cvd_flow:CVD_NEUTRAL": (0.85, 1.00),
     }
 
     auto_tuned_count = 0

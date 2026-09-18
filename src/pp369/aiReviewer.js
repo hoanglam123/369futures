@@ -647,6 +647,12 @@ function extractSignalFeatures(reasons, score, rank, gridWidthPct, rawMarketData
   let wallCat = rawMarketData?.microstructure?.wall || rawMarketData?.wallCategory || 'WALL_CLEAR_PATH';
   features['orderbook_wall'] = wallCat;
 
+  // ── [MỚI] 24. 4 Chỉ báo Kỹ thuật Nâng cao (EMA Distance H1, Wick Rejection M15, BB Squeeze H1, CVD Delta M15) ──
+  features['ema_distance'] = sm?.emaDistanceZone || 'PRICE_NEAR_EMA';
+  features['wick_rejection'] = sm?.m15WickRejection || 'WICK_NORMAL';
+  features['bb_squeeze'] = sm?.h1BbState || 'BB_NORMAL';
+  features['cvd_flow'] = sm?.m15CvdFlow || 'CVD_NEUTRAL';
+
   return features;
 }
 
@@ -733,7 +739,26 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
     'trading_session:SESSION_EUROPE': 1.01,      // Phiên Âu sóng đều -> Thưởng nhẹ +1%
     'trading_session:SESSION_US_OPEN': 0.98,     // Phiên Mỹ mở cửa -> Thận trọng nhẹ -2%
     'trading_session:SESSION_US_LATE': 1.00,     // Bình thường
-    'trading_session:SESSION_WEEKEND': 0.98      // Cuối tuần vol mỏng -> Thận trọng nhẹ -2%
+    'trading_session:SESSION_WEEKEND': 0.98,     // Cuối tuần vol mỏng -> Thận trọng nhẹ -2%
+    'ema_distance:PRICE_OVEREXTENDED': 0.65,     // Đu đỉnh/đáy quá 2.0 ATR -> Phạt -35% WinProb
+    'ema_distance:PRICE_EXTENDED': 0.85,         // Bắt đầu căng 1.2 - 2.0 ATR -> Phạt nhẹ -15%
+    'ema_distance:PRICE_NEAR_EMA': 1.15,         // Gần EMA < 1.2 ATR -> Vùng hồi vàng, Thưởng +15%
+    'ema_distance:PRICE_COUNTER_EMA': 0.75,      // Sai phía EMA -> Phạt -25%
+    'wick_rejection:BULLISH_PINBAR_REJECTION': 1.25, // Nến M15 rút chân dưới >= 50% -> Thưởng +25%
+    'wick_rejection:BEARISH_PINBAR_REJECTION': 1.25, // Nến M15 rút râu trên >= 50% -> Thưởng +25%
+    'wick_rejection:OPPOSING_WICK_TRAP': 0.68,   // Nến M15 bị đè râu ngược chiều >= 50% -> Phạt -32%
+    'wick_rejection:WICK_NORMAL': 1.00,
+    'bb_squeeze:BB_ULTRA_SQUEEZE': 1.22,         // Bollinger Bandwidth H1 <= 3% -> Sắp nổ biến động, Thưởng +22%
+    'bb_squeeze:BB_MODERATE_SQUEEZE': 1.10,      // Bollinger Bandwidth H1 <= 5% -> Thưởng +10%
+    'bb_squeeze:BB_EXPANSION': 0.95,             // Đang bung dải quá rộng
+    'bb_squeeze:BB_NORMAL': 1.00,
+    'cvd_flow:CVD_BULLISH_FLOW': 1.20,           // Taker Buy M15 áp đảo -> Thưởng +20%
+    'cvd_flow:CVD_BEARISH_FLOW': 1.20,           // Taker Sell M15 áp đảo (Short) -> Thưởng +20%
+    'cvd_flow:CVD_ABSORPTION_BULLISH': 1.25,     // Cá voi hấp thụ lệnh bán -> Thưởng +25%
+    'cvd_flow:CVD_ABSORPTION_BEARISH': 1.25,     // Cá voi gom Short -> Thưởng +25%
+    'cvd_flow:CVD_EXHAUSTION_BEARISH': 0.70,     // Giá lên nhưng hết lực mua -> Phạt -30%
+    'cvd_flow:CVD_EXHAUSTION_BULLISH': 0.70,     // Giá xuống nhưng hết lực bán -> Phạt -30%
+    'cvd_flow:CVD_NEUTRAL': 1.00
   };
 
   const score = parseFloat(sig.score) || 0;

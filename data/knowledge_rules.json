@@ -60,8 +60,27 @@
     "cvd_momentum:CVD_NEUTRAL": 1.00,
     "orderbook_wall:WALL_CLEAR_PATH": 1.15,
     "orderbook_wall:WALL_SUPPORT_SHIELD": 1.12,
-    "orderbook_wall:WALL_OPPOSING_BLOCK": 0.35
+    "orderbook_wall:WALL_OPPOSING_BLOCK": 0.35,
+    "ema_distance:PRICE_OVEREXTENDED": 0.65,
+    "ema_distance:PRICE_EXTENDED": 0.85,
+    "ema_distance:PRICE_NEAR_EMA": 1.15,
+    "ema_distance:PRICE_COUNTER_EMA": 0.75,
+    "wick_rejection:BULLISH_PINBAR_REJECTION": 1.25,
+    "wick_rejection:BEARISH_PINBAR_REJECTION": 1.25,
+    "wick_rejection:OPPOSING_WICK_TRAP": 0.68,
+    "wick_rejection:WICK_NORMAL": 1.00,
+    "bb_squeeze:BB_ULTRA_SQUEEZE": 1.22,
+    "bb_squeeze:BB_MODERATE_SQUEEZE": 1.10,
+    "bb_squeeze:BB_EXPANSION": 0.95,
+    "bb_squeeze:BB_NORMAL": 1.00,
+    "cvd_flow:CVD_BULLISH_FLOW": 1.20,
+    "cvd_flow:CVD_BEARISH_FLOW": 1.20,
+    "cvd_flow:CVD_ABSORPTION_BULLISH": 1.25,
+    "cvd_flow:CVD_ABSORPTION_BEARISH": 1.25,
+    "cvd_flow:CVD_EXHAUSTION_BEARISH": 0.70,
+    "cvd_flow:CVD_EXHAUSTION_BULLISH": 0.70,
+    "cvd_flow:CVD_NEUTRAL": 1.00
   },
-  "rules_count": 51,
-  "extracted_at": "2026-09-16 11:30:00"
+  "rules_count": 71,
+  "extracted_at": "2026-09-18 10:00:00"
 }

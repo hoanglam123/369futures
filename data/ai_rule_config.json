@@ -1,6 +1,6 @@
 {
   "version": "1.4.0-auto",
-  "trainedAt": "2026-09-18 09:09:12",
+  "trainedAt": "2026-09-18 09:43:39",
   "totalSamples": 3483,
   "priorWinProb": 0.6256,
   "priorOdds": 1.6712,
@@ -9,7 +9,7 @@
     "lowcap": 65.0,
     "minExpectedEvRoi": 0.0,
     "autoCalibrated": true,
-    "calibratedAt": "2026-09-18 09:09:12",
+    "calibratedAt": "2026-09-18 09:43:39",
     "calibrationStats": {}
   },
   "thresholdApprovalPct": 65.0,
@@ -37,13 +37,13 @@
     "shadowCount": 1871,
     "realCount": 2185,
     "autoCalibrated": true,
-    "calculatedAt": "2026-09-18 09:09:12"
+    "calculatedAt": "2026-09-18 09:43:39"
   },
   "adaptiveSlProfile": {
     "top150MinSlPct": 1.5,
     "lowcapMinSlPct": 1.8,
     "autoCalibrated": true,
-    "calculatedAt": "2026-09-18 09:09:12",
+    "calculatedAt": "2026-09-18 09:43:39",
     "sampleCount": 1933
   },
   "featureWeights": {
@@ -309,6 +309,46 @@
       "winProb": 0.6372,
       "multiplier": 1.0518,
       "knowledgeBoost": 1.15,
+      "blendRatio": 0.99,
+      "sanityCapped": false,
+      "isAutonomous": true
+    },
+    "ema_distance:PRICE_NEAR_EMA": {
+      "winCount": 4871.2,
+      "lossCount": 2914.8,
+      "winProb": 0.6256,
+      "multiplier": 1.001,
+      "knowledgeBoost": 1.15,
+      "blendRatio": 0.99,
+      "sanityCapped": false,
+      "isAutonomous": true
+    },
+    "wick_rejection:WICK_NORMAL": {
+      "winCount": 4871.2,
+      "lossCount": 2914.8,
+      "winProb": 0.6256,
+      "multiplier": 1.0,
+      "knowledgeBoost": 1.0,
+      "blendRatio": 0.99,
+      "sanityCapped": false,
+      "isAutonomous": true
+    },
+    "bb_squeeze:BB_NORMAL": {
+      "winCount": 4871.2,
+      "lossCount": 2914.8,
+      "winProb": 0.6256,
+      "multiplier": 1.0,
+      "knowledgeBoost": 1.0,
+      "blendRatio": 0.99,
+      "sanityCapped": false,
+      "isAutonomous": true
+    },
+    "cvd_flow:CVD_NEUTRAL": {
+      "winCount": 4871.2,
+      "lossCount": 2914.8,
+      "winProb": 0.6256,
+      "multiplier": 1.0,
+      "knowledgeBoost": 1.0,
       "blendRatio": 0.99,
       "sanityCapped": false,
       "isAutonomous": true
@@ -1048,6 +1088,156 @@
       "isAutonomous": true
     },
     "level_freshness:EXHAUSTED_LEVEL_TOUCH3": {
+      "winCount": 0,
+      "lossCount": 0,
+      "winProb": 0.6256,
+      "multiplier": 0.7,
+      "knowledgeBoost": 0.7,
+      "blendRatio": 0.0,
+      "sanityCapped": false,
+      "isAutonomous": true
+    },
+    "ema_distance:PRICE_OVEREXTENDED": {
+      "winCount": 0,
+      "lossCount": 0,
+      "winProb": 0.6256,
+      "multiplier": 0.65,
+      "knowledgeBoost": 0.65,
+      "blendRatio": 0.0,
+      "sanityCapped": false,
+      "isAutonomous": true
+    },
+    "ema_distance:PRICE_EXTENDED": {
+      "winCount": 0,
+      "lossCount": 0,
+      "winProb": 0.6256,
+      "multiplier": 0.85,
+      "knowledgeBoost": 0.85,
+      "blendRatio": 0.0,
+      "sanityCapped": false,
+      "isAutonomous": true
+    },
+    "ema_distance:PRICE_COUNTER_EMA": {
+      "winCount": 0,
+      "lossCount": 0,
+      "winProb": 0.6256,
+      "multiplier": 0.75,
+      "knowledgeBoost": 0.75,
+      "blendRatio": 0.0,
+      "sanityCapped": false,
+      "isAutonomous": true
+    },
+    "wick_rejection:BULLISH_PINBAR_REJECTION": {
+      "winCount": 0,
+      "lossCount": 0,
+      "winProb": 0.6256,
+      "multiplier": 1.25,
+      "knowledgeBoost": 1.25,
+      "blendRatio": 0.0,
+      "sanityCapped": false,
+      "isAutonomous": true
+    },
+    "wick_rejection:BEARISH_PINBAR_REJECTION": {
+      "winCount": 0,
+      "lossCount": 0,
+      "winProb": 0.6256,
+      "multiplier": 1.25,
+      "knowledgeBoost": 1.25,
+      "blendRatio": 0.0,
+      "sanityCapped": false,
+      "isAutonomous": true
+    },
+    "wick_rejection:OPPOSING_WICK_TRAP": {
+      "winCount": 0,
+      "lossCount": 0,
+      "winProb": 0.6256,
+      "multiplier": 0.68,
+      "knowledgeBoost": 0.68,
+      "blendRatio": 0.0,
+      "sanityCapped": false,
+      "isAutonomous": true
+    },
+    "bb_squeeze:BB_ULTRA_SQUEEZE": {
+      "winCount": 0,
+      "lossCount": 0,
+      "winProb": 0.6256,
+      "multiplier": 1.22,
+      "knowledgeBoost": 1.22,
+      "blendRatio": 0.0,
+      "sanityCapped": false,
+      "isAutonomous": true
+    },
+    "bb_squeeze:BB_MODERATE_SQUEEZE": {
+      "winCount": 0,
+      "lossCount": 0,
+      "winProb": 0.6256,
+      "multiplier": 1.1,
+      "knowledgeBoost": 1.1,
+      "blendRatio": 0.0,
+      "sanityCapped": false,
+      "isAutonomous": true
+    },
+    "bb_squeeze:BB_EXPANSION": {
+      "winCount": 0,
+      "lossCount": 0,
+      "winProb": 0.6256,
+      "multiplier": 0.95,
+      "knowledgeBoost": 0.95,
+      "blendRatio": 0.0,
+      "sanityCapped": false,
+      "isAutonomous": true
+    },
+    "cvd_flow:CVD_BULLISH_FLOW": {
+      "winCount": 0,
+      "lossCount": 0,
+      "winProb": 0.6256,
+      "multiplier": 1.2,
+      "knowledgeBoost": 1.2,
+      "blendRatio": 0.0,
+      "sanityCapped": false,
+      "isAutonomous": true
+    },
+    "cvd_flow:CVD_BEARISH_FLOW": {
+      "winCount": 0,
+      "lossCount": 0,
+      "winProb": 0.6256,
+      "multiplier": 1.2,
+      "knowledgeBoost": 1.2,
+      "blendRatio": 0.0,
+      "sanityCapped": false,
+      "isAutonomous": true
+    },
+    "cvd_flow:CVD_ABSORPTION_BULLISH": {
+      "winCount": 0,
+      "lossCount": 0,
+      "winProb": 0.6256,
+      "multiplier": 1.25,
+      "knowledgeBoost": 1.25,
+      "blendRatio": 0.0,
+      "sanityCapped": false,
+      "isAutonomous": true
+    },
+    "cvd_flow:CVD_ABSORPTION_BEARISH": {
+      "winCount": 0,
+      "lossCount": 0,
+      "winProb": 0.6256,
+      "multiplier": 1.25,
+      "knowledgeBoost": 1.25,
+      "blendRatio": 0.0,
+      "sanityCapped": false,
+      "isAutonomous": true
+    },
+    "cvd_flow:CVD_EXHAUSTION_BEARISH": {
+      "winCount": 0,
+      "lossCount": 0,
+      "winProb": 0.6256,
+      "multiplier": 0.7,
+      "knowledgeBoost": 0.7,
+      "blendRatio": 0.0,
+      "sanityCapped": false,
+      "isAutonomous": true
+    },
+    "cvd_flow:CVD_EXHAUSTION_BULLISH": {
       "winCount": 0,
       "lossCount": 0,
       "winProb": 0.6256,
