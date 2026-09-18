@@ -1,6 +1,6 @@
 {
   "version": "1.4.0-auto",
-  "trainedAt": "2026-09-18 08:39:18",
+  "trainedAt": "2026-09-18 08:47:48",
   "totalSamples": 3483,
   "priorWinProb": 0.6256,
   "priorOdds": 1.6712,
@@ -9,7 +9,7 @@
     "lowcap": 65.0,
     "minExpectedEvRoi": 0.0,
     "autoCalibrated": true,
-    "calibratedAt": "2026-09-18 08:39:18",
+    "calibratedAt": "2026-09-18 08:47:47",
     "calibrationStats": {}
   },
   "thresholdApprovalPct": 65.0,
@@ -37,26 +37,16 @@
     "shadowCount": 1871,
     "realCount": 2185,
     "autoCalibrated": true,
-    "calculatedAt": "2026-09-18 08:39:18"
+    "calculatedAt": "2026-09-18 08:47:48"
   },
   "adaptiveSlProfile": {
     "top150MinSlPct": 1.5,
     "lowcapMinSlPct": 1.8,
     "autoCalibrated": true,
-    "calculatedAt": "2026-09-18 08:39:18",
+    "calculatedAt": "2026-09-18 08:47:48",
     "sampleCount": 1933
   },
   "featureWeights": {
-    "score_group:SCORE_HIGH_GE7": {
-      "winCount": 32.0,
-      "lossCount": 8.0,
-      "winProb": 0.7524,
-      "multiplier": 1.4305,
-      "knowledgeBoost": 1.12,
-      "blendRatio": 0.44,
-      "sanityCapped": false,
-      "isAutonomous": true
-    },
     "rank_group:RANK_TOP10": {
       "winCount": 68.0,
       "lossCount": 12.0,
@@ -323,14 +313,6 @@
       "sanityCapped": false,
       "isAutonomous": true
     },
-    "score_group:SCORE_LOW_5_TO_6": {
-      "winCount": 679.2,
-      "lossCount": 642.8,
-      "winProb": 0.5151,
-      "multiplier": 0.6355,
-      "sanityCapped": false,
-      "isAutonomous": true
-    },
     "rank_group:RANK_LOWCAP_OUT150": {
       "winCount": 4055.2,
       "lossCount": 2466.8,
@@ -476,9 +458,9 @@
       "isAutonomous": true
     },
     "orderbook_wall:WALL_SUPPORT_SHIELD": {
-      "winCount": 612.5,
-      "lossCount": 476.5,
-      "winProb": 0.5633,
+      "winCount": 637.2,
+      "lossCount": 500.8,
+      "winProb": 0.5608,
       "multiplier": 1.0,
       "knowledgeBoost": 1.12,
       "blendRatio": 0.96,
@@ -645,14 +627,6 @@
       "sanityCapped": false,
       "isAutonomous": true
     },
-    "score_group:SCORE_MID_6_TO_7": {
-      "winCount": 112.0,
-      "lossCount": 98.5,
-      "winProb": 0.5383,
-      "multiplier": 0.6976,
-      "sanityCapped": false,
-      "isAutonomous": true
-    },
     "ls_flow:LS_DIVERGENCE": {
       "winCount": 1100.0,
       "lossCount": 542.0,
@@ -696,6 +670,16 @@
       "multiplier": 0.75,
       "knowledgeBoost": 0.65,
       "blendRatio": 0.98,
+      "sanityCapped": true,
+      "isAutonomous": true
+    },
+    "orderbook_wall:WALL_OPPOSING_BLOCK": {
+      "winCount": 36.0,
+      "lossCount": 24.5,
+      "winProb": 0.6011,
+      "multiplier": 0.45,
+      "knowledgeBoost": 0.35,
+      "blendRatio": 0.55,
       "sanityCapped": true,
       "isAutonomous": true
     },
@@ -773,16 +757,6 @@
       "sanityCapped": false,
       "isAutonomous": true
     },
-    "score_group:SCORE_WEAK_4_TO_5": {
-      "winCount": 1621.5,
-      "lossCount": 1080.5,
-      "winProb": 0.6003,
-      "multiplier": 0.8,
-      "knowledgeBoost": 0.85,
-      "blendRatio": 0.98,
-      "sanityCapped": true,
-      "isAutonomous": true
-    },
     "trend:TREND_EMA": {
       "winCount": 295.8,
       "lossCount": 209.2,
@@ -801,16 +775,6 @@
       "knowledgeBoost": 0.75,
       "blendRatio": 0.81,
       "sanityCapped": false,
-      "isAutonomous": true
-    },
-    "orderbook_wall:WALL_OPPOSING_BLOCK": {
-      "winCount": 60.8,
-      "lossCount": 48.8,
-      "winProb": 0.5633,
-      "multiplier": 0.45,
-      "knowledgeBoost": 0.35,
-      "blendRatio": 0.69,
-      "sanityCapped": true,
       "isAutonomous": true
     },
     "h1_volatility:H1_VOLATILE_DANGER": {

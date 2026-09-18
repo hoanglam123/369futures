@@ -100,13 +100,7 @@ function extractSignalFeatures(reasons, score, rank, gridWidthPct, rawMarketData
 
   const sm = rawMarketData?.signalMetrics || null;
 
-  // 1. Score Group (Đã bỏ SCORE_DANGER_LT4 vì các tiêu chí cấu thành điểm số đều đã được AI học và đánh giá riêng)
-  if (score >= 7.0) features['score_group'] = 'SCORE_HIGH_GE7';
-  else if (score >= 6.0) features['score_group'] = 'SCORE_MID_6_TO_7';
-  else if (score >= 5.0) features['score_group'] = 'SCORE_LOW_5_TO_6';
-  else if (score >= 4.0) features['score_group'] = 'SCORE_WEAK_4_TO_5';
-
-  // 2. MarketCap Rank
+  // 1. MarketCap Rank
   if (rank <= 10) features['rank_group'] = 'RANK_TOP10';
   else if (rank <= 30) features['rank_group'] = 'RANK_TOP30';
   else if (rank <= 150) features['rank_group'] = 'RANK_MIDCAP_150';
@@ -563,7 +557,6 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
     'm15_volatility:M15_EXTREME_STORM': 0.15,     // Bão M15 >= 6% -> Phạt 85% WinProb -> Veto ngay
     'm15_volatility:M15_VOLATILE_DANGER': 0.60,   // M15 biến động mạnh rủi ro đâm thủng Tier
     'm15_volatility:M15_VOLUME_SURGE': 0.55,      // Đột biến volume M15
-    'score_group:SCORE_WEAK_4_TO_5': 0.85,
     'h1_stagnant:H1_STAGNANT_TRAP': 0.65,         // Nén bế tắc bẫy thanh khoản
     'h1_candle_geometry:H1_PUNCTURED_DEEP': 0.22, // Tỷ lệ thắng thực nghiệm 19.8% (x0.22) -> Veto dứt khoát
     'h1_candle_geometry:H1_PUNCTURED_LIGHT': 0.60,
@@ -689,14 +682,14 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
     // 🛡️ SANITY GUARD: Khắc chế hệ số Ngược Sóng BTC (BTC_COUNTER)
     // Khi Altcoin đi ngược xu hướng chính của BTC (BTC đang có trend/đà ngược chiều):
     // - Tuyệt đối KHÔNG ĐƯỢC nhân hệ số thưởng (> 1.0)
-    // - Nếu Altcoin không có cản S/R mạnh (SR_NONE hoặc PA_0_LEVEL) hoặc Score yếu (< 5.0):
+    // - Nếu Altcoin không có cản S/R mạnh (SR_NONE hoặc PA_0_LEVEL) hoặc ngược trend:
     //   BẮT BUỘC bị PHẠT trừ nặng (x0.75) để loại bỏ các lệnh đu đỉnh / bắt dao rơi
-    // - Nếu Altcoin có cản S/R mạnh (SR_DAILY_D1_INCLUDED) và Score >= 5.0:
+    // - Nếu Altcoin có cản S/R mạnh (SR_DAILY_D1_INCLUDED) và trend đồng thuận:
     //   Hệ số tối đa chỉ là 0.85 (thận trọng -15%)
     if (cat === 'btc_wave' && val === 'BTC_COUNTER') {
       const hasStrongSr = features['sr_quality'] === 'SR_DAILY_D1_INCLUDED' && features['price_action'] !== 'PA_0_LEVEL';
-      const isStrongScore = score >= 5.0 && features['score_group'] !== 'SCORE_WEAK_4_TO_5';
-      if (!hasStrongSr || !isStrongScore) {
+      const isAlignedTrend = features['trend'] === 'TREND_PERFECT' || features['trend'] === 'TREND_M15_ALIGNED';
+      if (!hasStrongSr || !isAlignedTrend) {
         mult = 0.75;
       } else {
         mult = Math.min(mult, 0.85);
@@ -766,7 +759,7 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
   const isExtremeStorm = features['h1_volatility'] === 'H1_EXTREME_STORM_PUMP_DUMP' || features['m15_volatility'] === 'M15_EXTREME_STORM';
   const isEconomicRed = features['economic_calendar'] === 'CALENDAR_RED_DANGER';
   const isSpreadDanger = features['spread_slippage'] === 'SPREAD_WIDE_DANGER';
-  const isWallBlocked = features['orderbook_wall'] === 'WALL_OPPOSING_BLOCK' && score < 4.5;
+  const isWallBlocked = features['orderbook_wall'] === 'WALL_OPPOSING_BLOCK' && features['cvd_momentum'] !== 'CVD_SURGE_ALIGNED';
   const isApproved = !isExtremeStorm && !isEconomicRed && !isSpreadDanger && !isWallBlocked && winProb >= threshold && evRoi >= minEvRoiThreshold && isRrAcceptable;
   const factorSummary = keyFactors.length > 0 ? keyFactors.join(', ') : 'Điều kiện trung tính';
 
@@ -786,7 +779,7 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
       reasonText = `[AI VETO ĐỘ DÃN SPREAD] Chênh lệch Bid-Ask vượt ngưỡng an toàn (>${maxTh} cho Rank #${rank}), trượt giá sẽ ăn sạch lợi nhuận Scalping! (${factorSummary})`;
     } else if (isWallBlocked) {
       vetoCategory = 'ORDERBOOK_WALL_BLOCK';
-      reasonText = `[AI VETO TƯỜNG CẢN SỔ LỆNH] Phát hiện bức tường thanh khoản khổng lồ chắn trước TP trong khi Score yếu (${score.toFixed(1)}đ)! [Rank #${rank}] (${factorSummary})`;
+      reasonText = `[AI VETO TƯỜNG CẢN SỔ LỆNH] Phát hiện bức tường thanh khoản khổng lồ chắn trước TP và thiếu lực đẩy CVD! [Rank #${rank}] (${factorSummary})`;
     } else if (!isRrAcceptable) {
       vetoCategory = 'BAD_RR_LESS_THAN_1';
       reasonText = `[RỦI RO R:R < 1.0] Tỷ lệ R:R không đạt chuẩn (TP ${tpGridPct.toFixed(2)}% / SL ${effSlPct.toFixed(2)}% = ${rrRatio.toFixed(2)}:1 < 1.0:1) [Rank #${rank}] (${factorSummary})`;

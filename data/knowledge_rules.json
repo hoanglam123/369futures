@@ -4,8 +4,6 @@
     "trend:TREND_EMA": 1.08,
     "trend:TREND_CONFLICT": 0.75,
     "btc_wave:BTC_ALIGNED": 1.15,
-    "score_group:SCORE_HIGH_GE7": 1.12,
-    "score_group:SCORE_WEAK_4_TO_5": 0.85,
     "funding:FUNDING_NORMAL": 1.05,
     "funding:FUNDING_SQUEEZE": 1.12,
     "price_action:PA_4_LEVELS": 1.10,
