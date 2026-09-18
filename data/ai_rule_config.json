@@ -1,18 +1,25 @@
 {
   "version": "1.4.0-auto",
-  "trainedAt": "2026-09-18 11:08:14",
+  "trainedAt": "2026-09-18 13:55:22",
   "totalSamples": 3483,
   "priorWinProb": 0.6256,
   "priorOdds": 1.6712,
   "optimalThresholds": {
-    "top150": 50.0,
-    "lowcap": 65.0,
+    "top150": 32,
+    "lowcap": 44,
     "minExpectedEvRoi": 0.0,
     "autoCalibrated": true,
-    "calibratedAt": "2026-09-18 11:08:14",
-    "calibrationStats": {}
+    "calibratedAt": "2026-09-18 13:55:21",
+    "calibrationStats": {
+      "testedSamples": 3146,
+      "approvedTrades": 971,
+      "expectedWins": 559,
+      "expectedLosses": 412,
+      "expectedWinRate": 57.6,
+      "expectedNetPnlUsd": 3681.71
+    }
   },
-  "thresholdApprovalPct": 65.0,
+  "thresholdApprovalPct": 44,
   "minExpectedEvRoi": 0.0,
   "mfeMaeProfile": {
     "optimalTpGridRatio": 0.5,
@@ -37,13 +44,13 @@
     "shadowCount": 1871,
     "realCount": 2185,
     "autoCalibrated": true,
-    "calculatedAt": "2026-09-18 11:08:14"
+    "calculatedAt": "2026-09-18 13:55:22"
   },
   "adaptiveSlProfile": {
     "top150MinSlPct": 1.5,
     "lowcapMinSlPct": 1.8,
     "autoCalibrated": true,
-    "calculatedAt": "2026-09-18 11:08:14",
+    "calculatedAt": "2026-09-18 13:55:22",
     "sampleCount": 1933
   },
   "featureWeights": {
@@ -125,8 +132,8 @@
       "winCount": 3770.5,
       "lossCount": 2016.5,
       "winProb": 0.6515,
-      "multiplier": 0.9,
-      "sanityCapped": true,
+      "multiplier": 1.0,
+      "sanityCapped": false,
       "isAutonomous": true
     },
     "oi_change:OI_STABLE": {
@@ -185,10 +192,10 @@
       "winCount": 2217.2,
       "lossCount": 1620.8,
       "winProb": 0.5779,
-      "multiplier": 0.8215,
+      "multiplier": 0.95,
       "knowledgeBoost": 1.0,
       "blendRatio": 0.99,
-      "sanityCapped": false,
+      "sanityCapped": true,
       "isAutonomous": true
     },
     "pre_entry_bounce:BOUNCE_MODERATE": {
@@ -383,20 +390,20 @@
       "winCount": 1065.0,
       "lossCount": 792.0,
       "winProb": 0.5739,
-      "multiplier": 0.815,
+      "multiplier": 1.0,
       "knowledgeBoost": 1.15,
       "blendRatio": 0.97,
-      "sanityCapped": false,
+      "sanityCapped": true,
       "isAutonomous": true
     },
     "m15_volatility:M15_ULTRA_COMPRESSED": {
       "winCount": 1065.8,
       "lossCount": 867.2,
       "winProb": 0.5519,
-      "multiplier": 0.7474,
+      "multiplier": 1.0,
       "knowledgeBoost": 1.15,
       "blendRatio": 0.97,
-      "sanityCapped": false,
+      "sanityCapped": true,
       "isAutonomous": true
     },
     "rsi:RSI_EXTREME": {
@@ -553,10 +560,10 @@
       "winCount": 1708.2,
       "lossCount": 1054.8,
       "winProb": 0.6183,
-      "multiplier": 0.972,
+      "multiplier": 1.0,
       "knowledgeBoost": 1.12,
       "blendRatio": 0.98,
-      "sanityCapped": false,
+      "sanityCapped": true,
       "isAutonomous": true
     },
     "grid_width:GRID_WIDE": {
@@ -601,20 +608,20 @@
       "winCount": 998.8,
       "lossCount": 485.2,
       "winProb": 0.6725,
-      "multiplier": 1.2231,
+      "multiplier": 1.2,
       "knowledgeBoost": 1.05,
       "blendRatio": 0.97,
-      "sanityCapped": false,
+      "sanityCapped": true,
       "isAutonomous": true
     },
     "btc_wave:BTC_ALIGNED": {
       "winCount": 1745.0,
       "lossCount": 1206.0,
       "winProb": 0.5915,
-      "multiplier": 0.8711,
+      "multiplier": 1.0,
       "knowledgeBoost": 1.15,
       "blendRatio": 0.98,
-      "sanityCapped": false,
+      "sanityCapped": true,
       "isAutonomous": true
     },
     "h1_candle_geometry:H1_PUNCTURED_LIGHT": {
@@ -629,10 +636,10 @@
       "winCount": 675.8,
       "lossCount": 332.8,
       "winProb": 0.6694,
-      "multiplier": 1.204,
+      "multiplier": 1.2,
       "knowledgeBoost": 1.05,
       "blendRatio": 0.95,
-      "sanityCapped": false,
+      "sanityCapped": true,
       "isAutonomous": true
     },
     "price_action:PA_2_LEVELS": {
@@ -647,8 +654,8 @@
       "winCount": 629.0,
       "lossCount": 434.0,
       "winProb": 0.5922,
-      "multiplier": 0.8689,
-      "sanityCapped": false,
+      "multiplier": 1.0,
+      "sanityCapped": true,
       "isAutonomous": true
     },
     "rank_group:RANK_MIDCAP_150": {

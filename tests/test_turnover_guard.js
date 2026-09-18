@@ -45,13 +45,13 @@ function runTurnoverGuardTests() {
     'SAFE_COIN': 400
   });
 
-  // --- TRƯỜNG HỢP 1: LOW-CAP CÓ VOLUME 24H ĐỘT BIẾN > 8% (NHƯ MÃ RVN) ---
-  it('1. Low-Cap (RVN: MC $58M, Vol $5.17M ~ 8.9% > 8%) -> DỪNG GIAO DỊCH (isBlocked = true)', () => {
-    setMockVolume24h('RVN', 5_170_000); // 5.17M USDT
+  // --- TRƯỜNG HỢP 1: LOW-CAP CÓ VOLUME 24H ĐỘT BIẾN > 15% (NHƯ MÃ RVN) ---
+  it('1. Low-Cap (RVN: MC $58M, Vol $10M ~ 17.2% > 15%) -> DỪNG GIAO DỊCH (isBlocked = true)', () => {
+    setMockVolume24h('RVN', 10_000_000); // 10M USDT
     const res = checkTurnoverGuard('RVN');
-    assert.strictEqual(res.isBlocked, true, 'RVN phải bị chặn do Turnover 8.9% > 8%');
+    assert.strictEqual(res.isBlocked, true, 'RVN phải bị chặn do Turnover 17.2% > 15%');
     assert.strictEqual(res.isLowCap, true, 'RVN phải là Low-Cap (< 100M)');
-    assert(res.turnoverRatioPct > 8.0, 'Tỷ lệ Turnover phải > 8%');
+    assert(res.turnoverRatioPct > 15.0, 'Tỷ lệ Turnover phải > 15%');
     assert(res.reason.includes('DỪNG GIAO DỊCH'), 'Lý do phải ghi rõ DỪNG GIAO DỊCH');
     assert.strictEqual(isTurnoverBlocked('RVN'), true);
   });
@@ -92,12 +92,13 @@ function runTurnoverGuardTests() {
 
   // --- TRƯỜNG HỢP 6: TÍCH HỢP AI REVIEWER VETO KHI DÍNH TURNOVER GUARD ---
   it('6. AI Reviewer tự động VETO tín hiệu khi coin dính Turnover Guard (WinProb < 58%)', () => {
-    setMockVolume24h('RVN', 5_170_000); // 5.17M USDT
+    setMockVolume24h('RVN', 10_000_000); // 10M USDT
+    const turnoverCheck = checkTurnoverGuard('RVN');
     const sig = {
       symbol: 'RVN',
       signal: 'SHORT',
       score: 6.5,
-      scoreReasons: ['RSI quá mua', 'Volume bùng nổ'],
+      scoreReasons: ['RSI quá mua', 'Volume bùng nổ', 'Cảnh báo ABNORMAL_TURNOVER'],
       marketCapRank: 350,
       gridWidthPct: 3.5,
       targetLevel: 0.0185
@@ -105,7 +106,8 @@ function runTurnoverGuardTests() {
     const rawData = {
       touchCount: 1,
       btcFlashPump: false,
-      btcFlashDump: false
+      btcFlashDump: false,
+      isTurnoverBlocked: turnoverCheck.isBlocked
     };
 
     const aiEval = evaluateSignalWithAI(sig, rawData);

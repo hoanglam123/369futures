@@ -855,8 +855,15 @@ def train_and_export_model():
         "ls_flow:LS_DIVERGENCE": (0.50, 0.85),
         "adx_strength:ADX_NORMAL": (0.85, 1.00),
         "price_action:PA_0_LEVEL": (0.50, 0.85),
-        "sr_quality:SR_NONE": (0.50, 0.90),
+        "btc_wave:BTC_ALIGNED": (1.00, 1.30),
         "btc_wave:BTC_COUNTER": (0.65, 0.85),
+        "h1_volatility:H1_ULTRA_COMPRESSED": (1.00, 1.30),
+        "h1_volatility:H1_MID_COMPRESSED": (1.00, 1.20),
+        "m15_volatility:M15_ULTRA_COMPRESSED": (1.00, 1.30),
+        "m15_volatility:M15_MID_COMPRESSED": (1.00, 1.20),
+        "volume:VOL_STABLE": (1.00, 1.25),
+        "volume:VOL_SURGE": (1.00, 1.35),
+        "grid_width:GRID_NORMAL": (0.95, 1.15),
         "risk_interaction:INTERACTION_TREND_FLOW_CONFLICT": (0.35, 0.75),
         "risk_interaction:INTERACTION_NO_SR_WEAK_SETUP": (0.30, 0.85),
         "risk_interaction:INTERACTION_DRY_VOL_COOLING_OI": (0.50, 0.85),
@@ -1408,37 +1415,92 @@ def analyze_mfe_mae_profiles(base_dir):
 def calibrate_optimal_thresholds(base_dir, feature_weights=None, prior_odds=1.3, prior_win=0.565):
     """
     Tự động quét và hiệu chuẩn ngưỡng duyệt tối ưu (Dynamic Threshold Calibration)
-    dựa trên kết quả thực tế của shadow trades và real trades.
+    dựa trên kết quả thực tế của toàn bộ real trades và shadow trades.
     Tự động tính lại WinProb với trọng số mới và tìm (threshold_top150, threshold_lowcap) tối đa hóa Net PnL.
     """
     shadow_path = os.path.join(base_dir, "data", "shadow_trades_history.jsonl")
-    if not os.path.exists(shadow_path):
-        return {
-            "top150": 45.0,
-            "lowcap": 47.0,
-            "minExpectedEvRoi": 0.0,
-            "autoCalibrated": False,
-            "reason": "Chưa có file shadow_trades_history"
-        }
+    real_path = os.path.join(base_dir, "data", "ai_trade_dataset.jsonl")
 
     trades = []
-    try:
-        with open(shadow_path, "r", encoding="utf-8") as f:
-            for line in f:
-                if line.strip():
-                    trades.append(json.loads(line))
-    except Exception as e:
-        print(f"⚠️ Lỗi đọc shadow trades khi hiệu chuẩn ngưỡng: {e}")
-        return {"top150": 45.0, "lowcap": 47.0, "minExpectedEvRoi": 0.0, "autoCalibrated": False}
 
-    if len(trades) < 15:
-        return {
-            "top150": 45.0,
-            "lowcap": 47.0,
-            "minExpectedEvRoi": 0.0,
-            "autoCalibrated": False,
-            "sampleCount": len(trades)
-        }
+    # 1. Nạp Real Trades hoàn tất (ghép cặp ENTRY - EXIT)
+    if os.path.exists(real_path):
+        entries = {}
+        try:
+            with open(real_path, "r", encoding="utf-8") as f:
+                for line in f:
+                    line = line.strip()
+                    if not line or line.startswith("<") or line.startswith("="): continue
+                    try:
+                        rec = json.loads(line)
+                        if rec.get("type") == "ENTRY":
+                            tid = rec.get("tradeId") or rec.get("orderId")
+                            if tid: entries[tid] = rec
+                        elif rec.get("type") == "EXIT":
+                            tid = rec.get("tradeId") or rec.get("orderId")
+                            if tid in entries:
+                                en = entries[tid]
+                                is_win = bool(rec.get("isWin"))
+                                is_be = rec.get("exitType") in ["BE_EXIT", "BE"]
+                                pnl = float(rec.get("pnlUsd", 0) or rec.get("pnlPercent", 0))
+                                trades.append({
+                                    "symbol": en.get("symbol"),
+                                    "marketCapRank": en.get("marketCapRank", 999),
+                                    "score": en.get("score", 0),
+                                    "scoreReasons": en.get("scoreReasons", []),
+                                    "gridWidthPct": en.get("gridWidthPct", 3.5),
+                                    "entryTimestamp": en.get("timestamp"),
+                                    "outcome": "TP" if is_win else ("BE" if is_be else "SL"),
+                                    "isMissedTP": is_win,
+                                    "isSavedSL": not is_win and not is_be,
+                                    "missedProfitUSD": abs(pnl) if is_win else 0,
+                                    "savedLossUSD": abs(pnl) if not is_win and not is_be else 0,
+                                    "pnlUsd": pnl,
+                                    "isReal": True
+                                })
+                    except Exception: pass
+        except Exception as e:
+            print(f"⚠️ Lỗi đọc real trades khi hiệu chuẩn ngưỡng: {e}")
+
+    # 2. Nạp Shadow Trades
+    if os.path.exists(shadow_path):
+        try:
+            with open(shadow_path, "r", encoding="utf-8") as f:
+                for line in f:
+                    line = line.strip()
+                    if not line: continue
+                    try:
+                        rec = json.loads(line)
+                        outcome = rec.get("outcome")
+                        if outcome not in ["MISSED_TP", "SAVED_SL", "SAVED_BE", "TP", "SL", "BE"]:
+                            continue
+                        holding_mins = float(rec.get("holdingDurationMinutes") or 0)
+                        if holding_mins > 240: continue
+                        is_win = outcome in ["MISSED_TP", "TP"]
+                        is_be = outcome in ["SAVED_BE", "BE"]
+                        pnl = float(rec.get("pnlUsd") or 0)
+                        trades.append({
+                            "symbol": rec.get("symbol"),
+                            "marketCapRank": rec.get("marketCapRank", 999),
+                            "score": rec.get("score", 0),
+                            "scoreReasons": rec.get("scoreReasons", []),
+                            "gridWidthPct": rec.get("gridWidthPct", 3.5),
+                            "entryTimestamp": rec.get("entryTimestamp"),
+                            "outcome": outcome,
+                            "isMissedTP": is_win,
+                            "isSavedSL": not is_win and not is_be,
+                            "missedProfitUSD": abs(pnl) if is_win else 0,
+                            "savedLossUSD": abs(pnl) if not is_win and not is_be else 0,
+                            "pnlUsd": pnl,
+                            "isReal": False
+                        })
+                    except Exception: pass
+        except Exception as e:
+            print(f"⚠️ Lỗi đọc shadow trades khi hiệu chuẩn ngưỡng: {e}")
+
+    if len(trades) < 20:
+        print(f"⚠️ Mẫu dữ liệu để hiệu chuẩn ngưỡng quá ít ({len(trades)} mẫu). Sử dụng ngưỡng an toàn mặc định.")
+        return {"top150": 35.0, "lowcap": 42.0, "minExpectedEvRoi": 0.0, "autoCalibrated": False}
 
     rank_map = {}
     mc_path = os.path.join(base_dir, "data", "market_cap_top.json")
@@ -1449,7 +1511,7 @@ def calibrate_optimal_thresholds(base_dir, feature_weights=None, prior_odds=1.3,
         except Exception:
             pass
 
-    # Tính toán lại WinProb của từng lệnh shadow dựa trên feature_weights mới
+    # 3. Tính toán lại WinProb của từng lệnh dựa trên feature_weights mới và Sanity Guards
     recalculated_trades = []
     for t in trades:
         raw_p = t.get("winProbability")
@@ -1463,6 +1525,15 @@ def calibrate_optimal_thresholds(base_dir, feature_weights=None, prior_odds=1.3,
                 t.get("entryTimestamp"),
                 direct_record=t
             )
+
+            # Loại bỏ các lệnh bị VETO bởi chốt chặn nguy hiểm tuyệt đối
+            is_extreme_storm = feats.get("h1_volatility") == "H1_EXTREME_STORM_PUMP_DUMP" or feats.get("m15_volatility") == "M15_EXTREME_STORM"
+            is_eco_red = feats.get("economic_calendar") == "CALENDAR_RED_DANGER"
+            is_spread_danger = feats.get("spread_slippage") == "SPREAD_WIDE_DANGER"
+            is_wall_block = feats.get("orderbook_wall") == "WALL_OPPOSING_BLOCK" and feats.get("cvd_momentum") != "CVD_SURGE_ALIGNED"
+            if is_extreme_storm or is_eco_red or is_spread_danger or is_wall_block:
+                continue
+
             comb_mult = 1.0
             risk_int = feats.get("risk_interaction")
             skip_cats = set()
@@ -1478,8 +1549,21 @@ def calibrate_optimal_thresholds(base_dir, feature_weights=None, prior_odds=1.3,
             for cat, val in feats.items():
                 if cat in skip_cats: continue
                 k = f"{cat}:{val}"
+                mult = 1.0
                 if k in feature_weights:
-                    comb_mult *= feature_weights[k]["multiplier"]
+                    mult = feature_weights[k]["multiplier"]
+
+                # Đồng bộ Sanity Guards như runtime aiReviewer.js
+                if cat == "risk_interaction" and val == "INTERACTION_TREND_FLOW_CONFLICT":
+                    mult = min(mult, 0.70)
+                if cat == "trend" and val == "TREND_CONFLICT":
+                    mult = min(mult, 0.78)
+                if cat == "ls_flow" and val == "LS_DIVERGENCE":
+                    mult = min(mult, 0.82)
+                if feats.get("trend") == "TREND_CONFLICT" and cat == "adx_strength" and val == "ADX_STRONG_TREND":
+                    mult = min(mult, 0.60)
+
+                comb_mult *= mult
 
             post_odds = prior_odds * comb_mult
             p = (post_odds / (1.0 + post_odds)) * 100.0
@@ -1500,20 +1584,21 @@ def calibrate_optimal_thresholds(base_dir, feature_weights=None, prior_odds=1.3,
             "marketCapRank": effective_rank,
             "winProb": p_final,
             "outcome": t.get("outcome"),
-            "isMissedTP": t.get("outcome") == "MISSED_TP" or t.get("isMissedTP", False),
-            "isSavedSL": t.get("outcome") == "SAVED_SL" or t.get("isSavedSL", False),
+            "isMissedTP": t.get("isMissedTP", False),
+            "isSavedSL": t.get("isSavedSL", False),
             "missedProfitUSD": t.get("missedProfitUSD", 0) or abs(t.get("pnlUsd", 0)),
-            "savedLossUSD": t.get("savedLossUSD", 0) or abs(t.get("pnlUsd", 0))
+            "savedLossUSD": t.get("savedLossUSD", 0) or abs(t.get("pnlUsd", 0)),
+            "pnlUsd": t.get("pnlUsd", 0)
         })
 
-    # Grid search across candidate thresholds thực tế chuẩn xác theo Payoff Ratio R:R 1.5:1
+    # 4. Mở rộng Grid search tự do trên dải xác suất thực nghiệm
     best_utility = -999999.0
-    best_th_top = 50.0
-    best_th_low = 65.0
+    best_th_top = 35.0
+    best_th_low = 42.0
     best_stats = {}
 
-    candidate_top = [48.0, 50.0, 52.0, 54.0, 55.0]
-    candidate_low = [60.0, 62.0, 65.0, 68.0, 70.0]
+    candidate_top = [round(x, 1) for x in range(28, 54, 2)] # [28.0, 30.0, ..., 52.0]
+    candidate_low = [round(x, 1) for x in range(32, 62, 2)] # [32.0, 34.0, ..., 60.0]
 
     for th_top in candidate_top:
         for th_low in candidate_low:
@@ -1537,18 +1622,15 @@ def calibrate_optimal_thresholds(base_dir, feature_weights=None, prior_odds=1.3,
                         n_loss += 1
                         loss_val = t["savedLossUSD"]
                         if rank > 150:
-                            loss_val *= 1.8  # Tail Risk Penalty cho Lowcap
+                            loss_val *= 1.2  # Tail Risk Penalty cho Lowcap
                         pnl -= loss_val
 
             total = n_win + n_loss
             wr = (n_win / total * 100.0) if total > 0 else 0.0
 
-            # Tiêu chuẩn an toàn: Tỷ lệ thắng >= 60.0% và Lợi nhuận kỳ vọng dương
-            if total >= 10 and wr >= 60.0 and pnl > 0:
+            # Tiêu chuẩn an toàn tự thích ứng: Ưu tiên tối đa Net PnL với WinRate >= 50%
+            if total >= 30 and wr >= 50.0 and pnl > 0:
                 utility = pnl * (wr / 100.0)
-                # Phạt utility nếu để ngưỡng Lowcap quá lỏng lẻo (< 62%)
-                if th_low < 62.0:
-                    utility *= 0.75
                 if utility > best_utility:
                     best_utility = utility
                     best_th_top = th_top
@@ -1562,13 +1644,42 @@ def calibrate_optimal_thresholds(base_dir, feature_weights=None, prior_odds=1.3,
                         "expectedNetPnlUsd": round(pnl, 2)
                     }
 
-    print(f"\n🧠 [AI Auto-Calibration] Đã tự động hiệu chuẩn ngưỡng duyệt tối ưu:")
+    # Fallback nếu không có cấu hình nào đạt wr >= 50%
+    if not best_stats:
+        for th_top in candidate_top:
+            for th_low in candidate_low:
+                if th_low < th_top: continue
+                n_win = 0
+                n_loss = 0
+                pnl = 0.0
+                for t in recalculated_trades:
+                    rank = t["marketCapRank"]
+                    th = th_top if rank <= 150 else th_low
+                    if t["winProb"] >= th:
+                        if t["isMissedTP"]: n_win += 1; pnl += t["missedProfitUSD"]
+                        elif t["isSavedSL"]: n_loss += 1; pnl -= t["savedLossUSD"]
+                total = n_win + n_loss
+                wr = (n_win / total * 100.0) if total > 0 else 0.0
+                if total >= 20 and pnl > best_utility:
+                    best_utility = pnl
+                    best_th_top = th_top
+                    best_th_low = th_low
+                    best_stats = {
+                        "testedSamples": len(recalculated_trades),
+                        "approvedTrades": total,
+                        "expectedWins": n_win,
+                        "expectedLosses": n_loss,
+                        "expectedWinRate": round(wr, 1),
+                        "expectedNetPnlUsd": round(pnl, 2)
+                    }
+
+    print(f"\n🧠 [AI Auto-Calibration] Đã tự động hiệu chuẩn ngưỡng duyệt tối ưu thực nghiệm:")
     print(f"   • Top 150 Threshold: {best_th_top}%")
     print(f"   • Lowcap Threshold:  {best_th_low}%")
     if best_stats:
         print(f"   • Thống kê kỳ vọng:  {best_stats.get('expectedWins', 0)}W / {best_stats.get('expectedLosses', 0)}L (WinRate: {best_stats.get('expectedWinRate', 0)}%, Lãi ròng: +${best_stats.get('expectedNetPnlUsd', 0)} USD)")
     else:
-        print("   • Dữ liệu chưa đủ để tối ưu hóa utility, áp dụng ngưỡng an toàn mặc định (Top150: 50%, Lowcap: 60%)")
+        print("   • Dữ liệu chưa đủ để tối ưu hóa utility, áp dụng ngưỡng an toàn (Top150: 35%, Lowcap: 42%)")
 
     return {
         "top150": best_th_top,

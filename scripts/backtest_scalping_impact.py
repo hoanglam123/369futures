@@ -15,8 +15,8 @@ with open(config_path, 'r', encoding='utf-8') as f:
 
 weights = config.get('featureWeights', {})
 prior_odds = config.get('priorOdds', 1.6712)
-threshold_top = config.get('optimalThresholds', {}).get('top150', 50.0)
-threshold_low = config.get('optimalThresholds', {}).get('lowcap', 65.0)
+threshold_top = config.get('optimalThresholds', {}).get('top150', 32.0)
+threshold_low = config.get('optimalThresholds', {}).get('lowcap', 44.0)
 
 sys.path.append(os.path.join(BASE_DIR, 'scripts'))
 from train_ai_model import extract_features

@@ -821,6 +821,11 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
       mult = 1.00;
     }
 
+    // 🛡️ SANITY GUARD: Không thưởng Top-Cap nếu BTC đang có bão Flash ngược chiều
+    if (features['btc_flash'] !== 'BTC_FLASH_NORMAL' && cat === 'rank_group') {
+      mult = Math.min(1.00, mult);
+    }
+
     // 🛡️ SANITY GUARD: Khắc chế các yếu tố rủi ro ngược xu hướng và phân kỳ dòng tiền
     if (cat === 'risk_interaction' && val === 'INTERACTION_TREND_FLOW_CONFLICT') {
       mult = Math.min(mult, 0.70); // Bắt buộc phạt >= 30% khi vừa ngược trend vừa lệch dòng tiền
@@ -879,15 +884,15 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
   // ── [MỚI] TỰ ĐỘNG NẠP NGƯỠNG TỐI ƯU DO AI TỰ HỌC (AUTONOMOUS THRESHOLD CALIBRATION) ──
   // Ngưỡng hoàn toàn do AI tự động tối ưu hóa (Grid Search Utility & Net PnL) sau mỗi chu kỳ huấn luyện hàng ngày
   const optimalTh = _modelConfig?.optimalThresholds || {};
-  const baseTop150 = typeof optimalTh.top150 === 'number' ? optimalTh.top150 : 50.0;
-  const baseLowcap = typeof optimalTh.lowcap === 'number' ? optimalTh.lowcap : 60.0;
+  const baseTop150 = typeof optimalTh.top150 === 'number' ? optimalTh.top150 : 35.0;
+  const baseLowcap = typeof optimalTh.lowcap === 'number' ? optimalTh.lowcap : 45.0;
   let threshold = (rank <= 150) ? baseTop150 : baseLowcap;
 
-  // 🌊 MARKET REGIME FLEXIBILITY (Co giãn theo nhịp thở thị trường)
+  // 🌊 MARKET REGIME FLEXIBILITY (Co giãn linh hoạt theo nhịp thở thị trường)
   // Thuận sóng BTC: Tự tin nới nhẹ -0.5% để đón sóng
   // Ngược sóng BTC hoặc bão Flash: Tự động siết thêm +2.0% để bảo vệ vốn
   if (features['btc_wave'] === 'BTC_ALIGNED') {
-    threshold = Math.max(45.0, threshold - 0.5);
+    threshold = Math.max(15.0, threshold - 0.5);
   } else if (features['btc_wave'] === 'BTC_COUNTER' || features['btc_flash'] !== 'BTC_FLASH_NORMAL') {
     threshold += 2.0;
   }
@@ -904,8 +909,10 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
   const defaultLowcapMin = typeof slCfg?.lowcapMinSlPct === 'number' ? slCfg.lowcapMinSlPct : 1.8;
   const defaultTop150Min = typeof slCfg?.top150MinSlPct === 'number' ? slCfg.top150MinSlPct : 1.0;
   const defaultSlPct = isLowcap ? defaultLowcapMin : defaultTop150Min;
-  // Lấy khoảng cách SL thực tế từ mốc cản của tín hiệu nếu có, fallback về defaultSlPct:
-  const effSlPct = (typeof sig.actualSlPct === 'number' && sig.actualSlPct > 0) ? sig.actualSlPct : defaultSlPct;
+  // Lấy khoảng cách SL thực tế từ mốc cản của tín hiệu nếu có, fallback linh hoạt theo Grid:
+  const effSlPct = (typeof sig.actualSlPct === 'number' && sig.actualSlPct > 0)
+    ? sig.actualSlPct
+    : (isLowcap ? Math.min(defaultSlPct, Math.max(1.2, gridWidthPct * 0.5)) : defaultSlPct);
   const tpGridPct = Math.min(Math.max(gridWidthPct * 0.45, 1.2), 3.0);
   const estTpRoi = Math.max(10.0, Math.min(100.0, (tpGridPct / effSlPct) * 50.0));
 
@@ -914,16 +921,19 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
   const tradeMargin = parseFloat(sig.margin) || 75;
   const evUsd = (evRoi / 100.0) * tradeMargin;
 
-  // 🛡️ BẮT BUỘC R:R TỐI THIỂU 1.0:1 — Triệt tiêu các lệnh rủi ro cao bất cân xứng (R:R < 1.0)
+  // 🛡️ TỶ LỆ R:R SCALPING HỢP LÝ — Khi EV dương và WinProb cao (>=55%), cho phép R:R tối thiểu 0.80:1
   const rrRatio = effSlPct > 0 ? (tpGridPct / effSlPct) : 1.0;
-  const isRrAcceptable = rrRatio >= 1.0;
+  const minRequiredRr = (winProb >= 55.0) ? 0.75 : 0.85;
+  const isRrAcceptable = rrRatio >= minRequiredRr;
 
   // ── AI LÀ NGƯỜI RA QUYẾT ĐỊNH 100% ──
   const isExtremeStorm = features['h1_volatility'] === 'H1_EXTREME_STORM_PUMP_DUMP' || features['m15_volatility'] === 'M15_EXTREME_STORM';
   const isEconomicRed = features['economic_calendar'] === 'CALENDAR_RED_DANGER';
   const isSpreadDanger = features['spread_slippage'] === 'SPREAD_WIDE_DANGER';
   const isWallBlocked = features['orderbook_wall'] === 'WALL_OPPOSING_BLOCK' && features['cvd_momentum'] !== 'CVD_SURGE_ALIGNED';
-  const isApproved = !isExtremeStorm && !isEconomicRed && !isSpreadDanger && !isWallBlocked && winProb >= threshold && evRoi >= minEvRoiThreshold && isRrAcceptable;
+  const isBtcFlashVeto = (features['btc_flash'] === 'BTC_FLASH_DUMP_ACTIVE' && (sig.signal === 'LONG' || sig.signal === 'BUY')) ||
+                         (features['btc_flash'] === 'BTC_FLASH_PUMP_ACTIVE' && (sig.signal === 'SHORT' || sig.signal === 'SELL'));
+  const isApproved = !isExtremeStorm && !isEconomicRed && !isSpreadDanger && !isWallBlocked && !isBtcFlashVeto && winProb >= threshold && evRoi >= minEvRoiThreshold && isRrAcceptable;
   const factorSummary = keyFactors.length > 0 ? keyFactors.join(', ') : 'Điều kiện trung tính';
 
   let vetoCategory = null;
@@ -940,6 +950,9 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
       vetoCategory = 'SPREAD_WIDE_DANGER';
       const maxTh = rank <= 50 ? '0.04%' : (rank <= 150 ? '0.06%' : '0.08%');
       reasonText = `[AI VETO ĐỘ DÃN SPREAD] Chênh lệch Bid-Ask vượt ngưỡng an toàn (>${maxTh} cho Rank #${rank}), trượt giá sẽ ăn sạch lợi nhuận Scalping! (${factorSummary})`;
+    } else if (isBtcFlashVeto) {
+      vetoCategory = features['btc_flash'];
+      reasonText = `[AI VETO BÃO BTC FLASH] Phát hiện ${features['btc_flash']} ngược chiều lệnh, nghiêm cấm bắt dao rơi! [Rank #${rank}] (${factorSummary})`;
     } else if (isWallBlocked) {
       vetoCategory = 'ORDERBOOK_WALL_BLOCK';
       reasonText = `[AI VETO TƯỜNG CẢN SỔ LỆNH] Phát hiện bức tường thanh khoản khổng lồ chắn trước TP và thiếu lực đẩy CVD! [Rank #${rank}] (${factorSummary})`;
