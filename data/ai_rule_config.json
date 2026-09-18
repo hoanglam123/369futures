@@ -1,6 +1,6 @@
 {
   "version": "1.4.0-auto",
-  "trainedAt": "2026-09-18 09:43:39",
+  "trainedAt": "2026-09-18 11:08:14",
   "totalSamples": 3483,
   "priorWinProb": 0.6256,
   "priorOdds": 1.6712,
@@ -9,7 +9,7 @@
     "lowcap": 65.0,
     "minExpectedEvRoi": 0.0,
     "autoCalibrated": true,
-    "calibratedAt": "2026-09-18 09:43:39",
+    "calibratedAt": "2026-09-18 11:08:14",
     "calibrationStats": {}
   },
   "thresholdApprovalPct": 65.0,
@@ -37,13 +37,13 @@
     "shadowCount": 1871,
     "realCount": 2185,
     "autoCalibrated": true,
-    "calculatedAt": "2026-09-18 09:43:39"
+    "calculatedAt": "2026-09-18 11:08:14"
   },
   "adaptiveSlProfile": {
     "top150MinSlPct": 1.5,
     "lowcapMinSlPct": 1.8,
     "autoCalibrated": true,
-    "calculatedAt": "2026-09-18 09:43:39",
+    "calculatedAt": "2026-09-18 11:08:14",
     "sampleCount": 1933
   },
   "featureWeights": {
@@ -365,10 +365,10 @@
       "winCount": 2301.2,
       "lossCount": 1341.8,
       "winProb": 0.6317,
-      "multiplier": 1.0224,
+      "multiplier": 0.8,
       "knowledgeBoost": 0.75,
       "blendRatio": 0.99,
-      "sanityCapped": false,
+      "sanityCapped": true,
       "isAutonomous": true
     },
     "adx_strength:ADX_STRONG_TREND": {
@@ -671,10 +671,10 @@
       "winCount": 1100.0,
       "lossCount": 542.0,
       "winProb": 0.6695,
-      "multiplier": 1.2,
+      "multiplier": 0.85,
       "knowledgeBoost": 0.8,
       "blendRatio": 0.97,
-      "sanityCapped": false,
+      "sanityCapped": true,
       "isAutonomous": true
     },
     "price_action:PA_3_LEVELS": {
@@ -763,10 +763,10 @@
       "winCount": 245.0,
       "lossCount": 88.0,
       "winProb": 0.731,
-      "multiplier": 1.5442,
+      "multiplier": 0.75,
       "knowledgeBoost": 1.0,
       "blendRatio": 0.87,
-      "sanityCapped": false,
+      "sanityCapped": true,
       "isAutonomous": true
     },
     "trading_session:SESSION_US_OPEN": {
@@ -793,8 +793,8 @@
       "winCount": 655.0,
       "lossCount": 417.5,
       "winProb": 0.6109,
-      "multiplier": 0.9396,
-      "sanityCapped": false,
+      "multiplier": 1.05,
+      "sanityCapped": true,
       "isAutonomous": true
     },
     "trend:TREND_EMA": {
@@ -811,10 +811,10 @@
       "winCount": 137.5,
       "lossCount": 69.0,
       "winProb": 0.6631,
-      "multiplier": 1.0945,
+      "multiplier": 0.85,
       "knowledgeBoost": 0.75,
       "blendRatio": 0.81,
-      "sanityCapped": false,
+      "sanityCapped": true,
       "isAutonomous": true
     },
     "h1_volatility:H1_VOLATILE_DANGER": {

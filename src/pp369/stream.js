@@ -24,6 +24,7 @@ const RECONNECT_DELAY = 5000;
 let _ws = null;
 let _symbols = [];
 let _prices = {};   // { BTC: 95000, ETH: 3200, ... }
+let _priceTimestamps = {}; // { BTC: 172663..., ... }
 let _stopped = false;
 
 const _subscribed = new Set();
@@ -37,10 +38,12 @@ async function updatePricesRest() {
     try {
       const res = await axios.get(url, { timeout: 10000 });
       if (Array.isArray(res.data)) {
+        const now = Date.now();
         for (const item of res.data) {
           if (item.symbol && item.symbol.endsWith('USDT')) {
             const sym = item.symbol.replace('USDT', '');
             _prices[sym] = parseFloat(item.price);
+            _priceTimestamps[sym] = now;
           }
         }
       }
@@ -118,6 +121,9 @@ async function syncWebSocketSubscriptions(nearbySymbols) {
     for (const stream of toUnsubscribe) {
       const sym = stream.replace('usdt@markPrice', '').toUpperCase();
       _subscribed.delete(sym);
+      // Xóa giá và timestamp cũ để tránh dùng dữ liệu stale khi coin không còn theo dõi
+      delete _prices[sym];
+      delete _priceTimestamps[sym];
       newlyUnsubscribed.push(sym);
     }
   }
@@ -178,6 +184,7 @@ function _connect() {
         const sym = data.s.replace('USDT', '');
         const price = parseFloat(data.p);
         _prices[sym] = price;
+        _priceTimestamps[sym] = Date.now();
 
         if (_priceUpdateCallbacks.size > 0) {
           for (const cb of _priceUpdateCallbacks) {
@@ -241,9 +248,22 @@ function stop369Stream() {
   }
 }
 
-/** Giá markPrice hiện tại của 1 symbol (null nếu chưa có data) */
-function getMarkPrice(symbol) {
-  return _prices[symbol] ?? null;
+/** 
+ * Giá markPrice hiện tại của 1 symbol (null nếu chưa có data hoặc dữ liệu cũ quá maxAgeMs) 
+ * @param {string} symbol
+ * @param {number} [maxAgeMs=30000] - Thời gian tối đa chấp nhận tính theo ms (mặc định 30s, 0 để bỏ qua check tuổi)
+ */
+function getMarkPrice(symbol, maxAgeMs = 30000) {
+  if (!symbol) return null;
+  const p = _prices[symbol];
+  if (p === undefined || p === null) return null;
+  if (maxAgeMs > 0) {
+    const ts = _priceTimestamps[symbol];
+    if (!ts || (Date.now() - ts > maxAgeMs)) {
+      return null; // Dữ liệu đã quá hạn (stale)
+    }
+  }
+  return p;
 }
 
 /**

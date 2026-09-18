@@ -720,7 +720,7 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
     'price_action:PA_0_LEVEL': 0.85,              // [LÕI AI] Rỗng cản S/R là rủi ro rất cao, phạt 15% (x0.85) thay vì chỉ trừ 5%
     'ls_flow:LS_DIVERGENCE': 0.80,                // [CÂN BẰNG] Phạt vừa phải 20% khi dòng tiền Cá voi và Retail phân kỳ ngược nhau
     'risk_interaction:INTERACTION_HIGH_VOLATILITY_WEAK_SETUP': 0.50, // Biến động mạnh kết hợp thế nến/cản yếu -> Veto
-    'risk_interaction:INTERACTION_TREND_FLOW_CONFLICT': 1.00, // Tự động thích ứng hoàn toàn theo weights học được (fallback trung tính 1.00)
+    'risk_interaction:INTERACTION_TREND_FLOW_CONFLICT': 0.65, // Phạt 35% khi vừa ngược trend vừa phân kỳ dòng tiền
     'risk_interaction:INTERACTION_NO_SR_WEAK_SETUP': 0.65,      // Fallback nếu chưa có trong weights
     'risk_interaction:INTERACTION_DRY_VOL_COOLING_OI': 0.80,     // Fallback nếu chưa có trong weights
     'risk_interaction:INTERACTION_BALANCED': 1.00,
@@ -819,6 +819,27 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
     // 🛡️ SANITY GUARD: Không thưởng Pinbar M15 nếu đang ngược Trend Dow H1 & EMA
     if (features['trend'] === 'TREND_CONFLICT' && (val === 'CANDLE_PINBAR_HAMMER' || val === 'CANDLE_PINBAR_SHOOTING')) {
       mult = 1.00;
+    }
+
+    // 🛡️ SANITY GUARD: Khắc chế các yếu tố rủi ro ngược xu hướng và phân kỳ dòng tiền
+    if (cat === 'risk_interaction' && val === 'INTERACTION_TREND_FLOW_CONFLICT') {
+      mult = Math.min(mult, 0.70); // Bắt buộc phạt >= 30% khi vừa ngược trend vừa lệch dòng tiền
+    }
+    if (cat === 'trend' && val === 'TREND_CONFLICT') {
+      mult = Math.min(mult, 0.78); // Ngược xu hướng Dow/EMA không bao giờ được phép > 0.78
+    }
+    if (cat === 'ls_flow' && val === 'LS_DIVERGENCE') {
+      mult = Math.min(mult, 0.82); // Dòng tiền phân kỳ không bao giờ được phép > 0.82
+    }
+    if (cat === 'trend' && val === 'TREND_M15_ALIGNED') {
+      mult = Math.max(mult, 1.20); // M15 cấu trúc hoàn chỉnh khi H1 sideway đảm bảo được cộng thưởng
+    }
+
+    // 🛡️ SANITY GUARD: Bắt đỉnh/đáy ngược xu hướng mạnh (Counter-Trend vs Strong ADX)
+    // Khi đang ngược Trend Dow/EMA H1 (TREND_CONFLICT) mà ADX >= 25 (Trend mạnh đang chạy cuồn cuộn):
+    // Phạt mạnh dứt khoát x0.60 (-40% WinOdds) để loại trừ rủi ro bị xuyên thủng mốc SL
+    if (features['trend'] === 'TREND_CONFLICT' && cat === 'adx_strength' && val === 'ADX_STRONG_TREND') {
+      mult = Math.min(mult, 0.60);
     }
 
     // 🛡️ SANITY GUARD: Khắc chế hệ số Ngược Sóng BTC (BTC_COUNTER)

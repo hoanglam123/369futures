@@ -118,12 +118,34 @@ test('Autonomous Features: BTC Storm penalizes, M15 Sideway structure boosts Win
 
   const m15AlignedSig = {
     ...baseSig,
-    scoreReasons: ['H1 Sideway nhưng M15 có cấu trúc SHORT hoàn chỉnh (LH + LL M15)', 'H1 nén vừa', '2 cản cũ']
+    scoreReasons: ['H1 Sideway nhưng M15 có cấu trúc SHORT hoàn chỉnh (LH + LL M15)', 'H1 nén vừa', '2 cản cũ', 'BTC đi ngang/trung tính (ADX=18.0)']
   };
   const m15AlignedEval = evaluateSignalWithAI(m15AlignedSig);
 
   assert(stormEval.winProbability < baseEval.winProbability, `Storm WinProb (${stormEval.winProbability}) must be lower than base (${baseEval.winProbability})`);
   assert(m15AlignedEval.winProbability > baseEval.winProbability, `M15 Aligned WinProb (${m15AlignedEval.winProbability}) must be higher than base (${baseEval.winProbability})`);
+});
+
+// Test 5: Counter-Trend Guard — Trend Conflict with Strong ADX is heavily penalized and Vetoed
+test('Counter-Trend Guard: Trend Conflict with Strong ADX is heavily penalized and Vetoed', () => {
+  const wldSig = {
+    symbol: 'WLDUSDT',
+    signal: 'SHORT',
+    score: 4.1,
+    marketCapRank: 51,
+    gridWidthPct: 3.5,
+    scoreReasons: [
+      '[Xu hướng H4/H1] Ngược/Mâu thuẫn cấu trúc Dow H1 3 ngày & EMA (ADX=26.7) (+0đ)',
+      '[Biến động H1/M15] H1 nén vừa: max <= 7.18% (+0.3đ) | M15 siêu nén: max <= 2.48% (+0.5đ)',
+      '[RSI H1] Quá mua cực đại: RSI H1 74.14 >= 70 (+1.0)',
+      '[Tương quan dòng tiền L/S] Đồng thuận một phần: Cá voi không đạt (30.3%), Retail đạt (57.0%) (+0.5đ)',
+      '[Vốn hóa] Top 31-150 Mid Cap (Rank 51): Thanh khoản ổn định (+0.5)',
+      '[Price Action S/R] H4: 3 cản cũ (+0.4đ) | D1: 1 cản cũ (+0.6đ)'
+    ]
+  };
+  const evalResult = evaluateSignalWithAI(wldSig);
+  assert(evalResult.winProbability < 50.0, `Counter-trend strong ADX WinProb must be < 50%, got ${evalResult.winProbability}`);
+  assert.strictEqual(evalResult.isApproved, false, 'Counter-trend strong ADX should NOT be approved');
 });
 
 console.log('=' .repeat(80));

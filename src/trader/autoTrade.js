@@ -2675,10 +2675,22 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
       let absAmt = Math.abs(amt);
       const oppositeSide = isLong ? 'SELL' : 'BUY';
 
-      // Ưu tiên dùng markPrice từ WebSocket cache (real-time, cập nhật liên tục)
-      // thay vì p.markPrice từ REST API (có độ trễ 200-500ms, có thể bỏ lỡ bounce ngắn)
-      const wsMark = getMarkPrice(sym);
-      const markPrice = (wsMark && wsMark > 0) ? wsMark : parseFloat(p.markPrice);
+      // 🛡️ Price Guard: Ưu tiên wsMark nếu còn tươi (<10s) và không lệch quá 2% so với restMark (p.markPrice)
+      const restMark = parseFloat(p.markPrice);
+      const wsMark = (typeof getMarkPrice === 'function') ? getMarkPrice(sym, 10000) : null;
+      let markPrice = restMark;
+
+      if (wsMark && wsMark > 0 && restMark > 0) {
+        // Kiểm tra độ lệch giữa wsMark và restMark (từ positionRisk của sàn)
+        const devPct = Math.abs(wsMark - restMark) / restMark;
+        if (devPct <= 0.02) {
+          // Lệch <= 2%: wsMark hợp lệ và cập nhật real-time
+          markPrice = wsMark;
+        } else {
+          // Lệch > 2%: wsMark bất thường (dữ liệu rác/socket lag/stale) -> Loại bỏ wsMark, dùng restMark an toàn
+          log.warn(`[AutoTrade] [PriceGuard] Giá wsMark ($${wsMark}) lệch ${(devPct * 100).toFixed(2)}% so với restMark sàn ($${restMark}) của ${sym} -> Bỏ qua wsMark, dùng restMark.`);
+        }
+      }
 
       // ── Theo dõi maxFavorablePrice: Giá đỉnh/đáy tốt nhất từ khi vào lệnh ──
       // Cập nhật mỗi 3 giây để tránh bỏ lỡ spike ngắn dưới 3 giây giữa hai lần poll.
@@ -2976,6 +2988,16 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
       const baseLossEnv = parseFloat(process.env.MAX_LOSS_PER_TRADE_USD || '5.0');
       const hardLossCapUSD = (meta?.targetLossUSD ? meta.targetLossUSD : baseLossEnv) * 1.10; // Đệm 10% trượt giá
       if (unrealizedPnlUsd <= -hardLossCapUSD) {
+        // 🛡️ Xác nhận với restMark sàn trước khi cắt lỗ khẩn cấp
+        const restRoi = isLong
+          ? ((restMark - entryPrice) / entryPrice) * leverageVal * 100
+          : ((entryPrice - restMark) / entryPrice) * leverageVal * 100;
+        const restLossUsd = (restRoi / 100) * (meta?.margin || (posNotional / leverageVal));
+        if (restLossUsd > -hardLossCapUSD * 0.85) {
+          log.warn(`[AutoTrade] 🛡️ [Hard Loss - Blocked] Chặn cắt lỗ ảo cho ${sym}: markPrice=$${markPrice} (Lỗ $${unrealizedPnlUsd.toFixed(2)}) nhưng restMark sàn=$${restMark} (Lỗ $${restLossUsd.toFixed(2)}). Chờ xác nhận.`);
+          continue;
+        }
+
         log.system(`[AutoTrade] 🚨 [Hard Max Loss Guard] Kích hoạt cho ${sym}: Lỗ thả nổi $${unrealizedPnlUsd.toFixed(2)} (${roi.toFixed(2)}%) chạm ngưỡng trần -$${hardLossCapUSD.toFixed(2)} USDT. Cắt lỗ MARKET ngay lập tức!`);
         try {
           justClosedByBot.add(sym);
@@ -3032,6 +3054,16 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
       // 1a. Virtual TP — đóng vị thế ngay khi giá chạm mốc TP mục tiêu
       const isTpReached = isLong ? (markPrice >= targetTpPriceExact - 1e-9) : (markPrice <= targetTpPriceExact + 1e-9);
       if (isTpReached) {
+        // 🛡️ Virtual TP Sanity Guard:
+        // Đảm bảo giá restMark từ sàn Binance cũng xác nhận tiệm cận mốc TP (tránh lỗi giật giá ảo / lệch feed)
+        const isRestTpConfirmed = isLong
+          ? (restMark >= targetTpPriceExact * 0.995)
+          : (restMark <= targetTpPriceExact * 1.005);
+        if (!isRestTpConfirmed) {
+          log.warn(`[AutoTrade] 🛡️ [Virtual TP - Blocked] Chặn chốt lời ảo cho ${sym}: markPrice=$${markPrice} chạm target ($${targetTpPriceExact.toFixed(5)}) nhưng restMark sàn=$${restMark} chưa tiệm cận TP. Bỏ qua.`);
+          continue;
+        }
+
         const exitLabel = meta?.isPanicEscape ? 'Thoát Hiểm Entry' : (meta?.isH1Failed ? 'Hòa Vốn Entry' : 'Take Profit');
         log.system(`[AutoTrade] [Virtual TP - ${exitLabel}] Kích hoạt cho ${sym}: Giá $${markPrice} chạm mốc $${targetTpPriceExact.toFixed(5)} (ROI ~${roi.toFixed(2)}%). Đóng vị thế MARKET.`);
         try {
