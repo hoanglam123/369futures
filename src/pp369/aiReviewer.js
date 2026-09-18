@@ -649,7 +649,29 @@ function extractSignalFeatures(reasons, score, rank, gridWidthPct, rawMarketData
 
   // ── [MỚI] 24. 4 Chỉ báo Kỹ thuật Nâng cao (EMA Distance H1, Wick Rejection M15, BB Squeeze H1, CVD Delta M15) ──
   features['ema_distance'] = sm?.emaDistanceZone || 'PRICE_NEAR_EMA';
-  features['wick_rejection'] = sm?.m15WickRejection || 'WICK_NORMAL';
+  if (sm?.m15WickRejection) {
+    features['wick_rejection'] = sm.m15WickRejection;
+  } else if (rawMarketData?.lastM15 || rawMarketData?.currM15) {
+    const c = rawMarketData.lastM15 || rawMarketData.currM15;
+    const totalRange = Math.max(1e-9, c.high - c.low);
+    const bodyTop = Math.max(c.open, c.close);
+    const bodyBottom = Math.min(c.open, c.close);
+    const upperWick = c.high - bodyTop;
+    const lowerWick = bodyBottom - c.low;
+    const lowerWickRatio = lowerWick / totalRange;
+    const upperWickRatio = upperWick / totalRange;
+    if (isLong) {
+      if (lowerWickRatio >= 0.50) features['wick_rejection'] = 'BULLISH_PINBAR_REJECTION';
+      else if (upperWickRatio >= 0.50) features['wick_rejection'] = 'OPPOSING_WICK_TRAP';
+      else features['wick_rejection'] = 'WICK_NORMAL';
+    } else {
+      if (upperWickRatio >= 0.50) features['wick_rejection'] = 'BEARISH_PINBAR_REJECTION';
+      else if (lowerWickRatio >= 0.50) features['wick_rejection'] = 'OPPOSING_WICK_TRAP';
+      else features['wick_rejection'] = 'WICK_NORMAL';
+    }
+  } else {
+    features['wick_rejection'] = 'WICK_NORMAL';
+  }
   features['bb_squeeze'] = sm?.h1BbState || 'BB_NORMAL';
   features['cvd_flow'] = sm?.m15CvdFlow || 'CVD_NEUTRAL';
 
@@ -882,17 +904,18 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
   winProb = Math.max(5.0, Math.min(95.0, winProb));
 
   // ── [MỚI] TỰ ĐỘNG NẠP NGƯỠNG TỐI ƯU DO AI TỰ HỌC (AUTONOMOUS THRESHOLD CALIBRATION) ──
-  // Ngưỡng hoàn toàn do AI tự động tối ưu hóa (Grid Search Utility & Net PnL) sau mỗi chu kỳ huấn luyện hàng ngày
+  // Ngưỡng hoàn toàn do AI tự động tối ưu hóa (Grid Search Quant Utility & Net PnL) sau mỗi chu kỳ huấn luyện hàng ngày
+  // Không hardcode sàn an toàn ở runtime — Bộ não học của AI tự quyết định ngưỡng tối ưu dựa trên Profit Factor & Mathematical EV
   const optimalTh = _modelConfig?.optimalThresholds || {};
-  const baseTop150 = typeof optimalTh.top150 === 'number' ? optimalTh.top150 : 35.0;
-  const baseLowcap = typeof optimalTh.lowcap === 'number' ? optimalTh.lowcap : 45.0;
+  const baseTop150 = typeof optimalTh.top150 === 'number' ? optimalTh.top150 : 50.0;
+  const baseLowcap = typeof optimalTh.lowcap === 'number' ? optimalTh.lowcap : 50.0;
   let threshold = (rank <= 150) ? baseTop150 : baseLowcap;
 
   // 🌊 MARKET REGIME FLEXIBILITY (Co giãn linh hoạt theo nhịp thở thị trường)
   // Thuận sóng BTC: Tự tin nới nhẹ -0.5% để đón sóng
   // Ngược sóng BTC hoặc bão Flash: Tự động siết thêm +2.0% để bảo vệ vốn
   if (features['btc_wave'] === 'BTC_ALIGNED') {
-    threshold = Math.max(15.0, threshold - 0.5);
+    threshold -= 0.5;
   } else if (features['btc_wave'] === 'BTC_COUNTER' || features['btc_flash'] !== 'BTC_FLASH_NORMAL') {
     threshold += 2.0;
   }
@@ -933,7 +956,15 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
   const isWallBlocked = features['orderbook_wall'] === 'WALL_OPPOSING_BLOCK' && features['cvd_momentum'] !== 'CVD_SURGE_ALIGNED';
   const isBtcFlashVeto = (features['btc_flash'] === 'BTC_FLASH_DUMP_ACTIVE' && (sig.signal === 'LONG' || sig.signal === 'BUY')) ||
                          (features['btc_flash'] === 'BTC_FLASH_PUMP_ACTIVE' && (sig.signal === 'SHORT' || sig.signal === 'SELL'));
-  const isApproved = !isExtremeStorm && !isEconomicRed && !isSpreadDanger && !isWallBlocked && !isBtcFlashVeto && winProb >= threshold && evRoi >= minEvRoiThreshold && isRrAcceptable;
+  // 🚫 CẤM CẢN TÀU XU HƯỚNG: Ngược xu hướng trong khi xu hướng đối lập có xung lực cực mạnh (ADX >= 25)
+  const isStrongCounterTrendVeto = (features['trend'] === 'TREND_CONFLICT' || features['trend'] === 'TREND_COUNTER') &&
+                                   features['adx_strength'] === 'ADX_STRONG_TREND';
+  // 🚫 BẪY RÚT RÂU NGƯỢC CHIỀU: Nến M15 bị rút râu ngược chiều >= 50% (phe đối lập vừa đẩy mạnh)
+  const isOpposingWickTrap = features['wick_rejection'] === 'OPPOSING_WICK_TRAP';
+
+  const isApproved = !isExtremeStorm && !isEconomicRed && !isSpreadDanger && !isWallBlocked &&
+                     !isBtcFlashVeto && !isStrongCounterTrendVeto && !isOpposingWickTrap &&
+                     winProb >= threshold && evRoi >= minEvRoiThreshold && isRrAcceptable;
   const factorSummary = keyFactors.length > 0 ? keyFactors.join(', ') : 'Điều kiện trung tính';
 
   let vetoCategory = null;
@@ -943,6 +974,12 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
     if (isExtremeStorm) {
       vetoCategory = features['h1_volatility'] === 'H1_EXTREME_STORM_PUMP_DUMP' ? 'H1_EXTREME_STORM' : 'M15_EXTREME_STORM';
       reasonText = `[AI VETO BÃO NẾN CỰC ĐẠI] ${vetoCategory} (Biên độ nến vượt ngưỡng an toàn, rủi ro Pump & Dump càn quét mốc) [Rank #${rank}] (${factorSummary})`;
+    } else if (isStrongCounterTrendVeto) {
+      vetoCategory = 'COUNTER_STRONG_TREND_DANGER';
+      reasonText = `[AI VETO CẢN TÀU XU HƯỚNG] Tín hiệu ngược xu hướng trong khi xung lực xu hướng đối lập quá mạnh (TREND_CONFLICT + ADX_STRONG_TREND)! [Rank #${rank}] (${factorSummary})`;
+    } else if (isOpposingWickTrap) {
+      vetoCategory = 'OPPOSING_WICK_TRAP';
+      reasonText = `[AI VETO BẪY RÚT RÂU] Nến M15 bị rút râu ngược chiều >= 50% (OPPOSING_WICK_TRAP), phe đối lập vừa đẩy giá cực mạnh! [Rank #${rank}] (${factorSummary})`;
     } else if (isEconomicRed) {
       vetoCategory = 'ECONOMIC_BLACKOUT_DANGER';
       reasonText = `[AI VETO LỊCH KINH TẾ ĐỎ] Đang trong cửa sổ bão giá CPI / FOMC / NFP (±30 phút), nghiêm cấm Scalping đòn bẩy lớn! [Rank #${rank}] (${factorSummary})`;

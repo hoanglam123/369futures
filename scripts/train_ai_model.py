@@ -1531,7 +1531,9 @@ def calibrate_optimal_thresholds(base_dir, feature_weights=None, prior_odds=1.3,
             is_eco_red = feats.get("economic_calendar") == "CALENDAR_RED_DANGER"
             is_spread_danger = feats.get("spread_slippage") == "SPREAD_WIDE_DANGER"
             is_wall_block = feats.get("orderbook_wall") == "WALL_OPPOSING_BLOCK" and feats.get("cvd_momentum") != "CVD_SURGE_ALIGNED"
-            if is_extreme_storm or is_eco_red or is_spread_danger or is_wall_block:
+            is_counter_trend_adx = (feats.get("trend") in ["TREND_CONFLICT", "TREND_COUNTER"]) and (feats.get("adx_strength") == "ADX_STRONG_TREND")
+            is_opposing_wick = feats.get("wick_rejection") == "OPPOSING_WICK_TRAP"
+            if is_extreme_storm or is_eco_red or is_spread_danger or is_wall_block or is_counter_trend_adx or is_opposing_wick:
                 continue
 
             comb_mult = 1.0
@@ -1591,95 +1593,117 @@ def calibrate_optimal_thresholds(base_dir, feature_weights=None, prior_odds=1.3,
             "pnlUsd": t.get("pnlUsd", 0)
         })
 
-    # 4. Mở rộng Grid search tự do trên dải xác suất thực nghiệm
-    best_utility = -999999.0
-    best_th_top = 35.0
-    best_th_low = 42.0
-    best_stats = {}
+    # 4. TỐI ƯU HÓA ĐỘC LẬP THEO CHUẨN ĐỊNH LƯỢNG QUANT (DECOUPLED QUANT RISK-ADJUSTED OPTIMIZATION)
+    # Tách riêng tập mẫu Top 150 và Lowcap để từng phân khúc tự quyết định ngưỡng tối ưu toán học:
+    # - WinRate tối thiểu phải vượt ngưỡng hòa vốn toán học của R:R scalping (>= 50.0%)
+    # - Profit Factor (Gross Win / Gross Loss) >= 1.15
+    # - Utility = (Profit_Factor - 1.0) * sqrt(total) * (WinRate - 45.0)
+    top150_trades = [t for t in recalculated_trades if t["marketCapRank"] <= 150]
+    lowcap_trades = [t for t in recalculated_trades if t["marketCapRank"] > 150]
 
-    candidate_top = [round(x, 1) for x in range(28, 54, 2)] # [28.0, 30.0, ..., 52.0]
-    candidate_low = [round(x, 1) for x in range(32, 62, 2)] # [32.0, 34.0, ..., 60.0]
+    def optimize_segment(segment_name, segment_trades, candidates):
+        best_u = -999999.0
+        best_th = 50.0
+        best_st = {}
 
-    for th_top in candidate_top:
-        for th_low in candidate_low:
-            if th_low < th_top:
-                continue
-
+        for th in candidates:
             n_win = 0
             n_loss = 0
-            pnl = 0.0
+            gross_win = 0.0
+            gross_loss = 0.0
 
-            for t in recalculated_trades:
-                rank = t["marketCapRank"]
-                th = th_top if rank <= 150 else th_low
+            for t in segment_trades:
                 p = t["winProb"]
-
                 if p >= th:
                     if t["isMissedTP"]:
                         n_win += 1
-                        pnl += t["missedProfitUSD"]
+                        gross_win += t["missedProfitUSD"]
                     elif t["isSavedSL"]:
                         n_loss += 1
-                        loss_val = t["savedLossUSD"]
-                        if rank > 150:
-                            loss_val *= 1.2  # Tail Risk Penalty cho Lowcap
-                        pnl -= loss_val
+                        loss_v = t["savedLossUSD"]
+                        if t["marketCapRank"] > 150:
+                            loss_v *= 1.2  # Tail risk penalty cho Lowcap
+                        gross_loss += loss_v
 
             total = n_win + n_loss
-            wr = (n_win / total * 100.0) if total > 0 else 0.0
+            if total < 15:
+                continue
 
-            # Tiêu chuẩn an toàn tự thích ứng: Ưu tiên tối đa Net PnL với WinRate >= 50%
-            if total >= 30 and wr >= 50.0 and pnl > 0:
-                utility = pnl * (wr / 100.0)
-                if utility > best_utility:
-                    best_utility = utility
-                    best_th_top = th_top
-                    best_th_low = th_low
-                    best_stats = {
-                        "testedSamples": len(recalculated_trades),
+            wr = (n_win / total) * 100.0
+            pf = (gross_win / gross_loss) if gross_loss > 0 else (2.5 if gross_win > 0 else 1.0)
+            net_pnl = gross_win - gross_loss
+
+            # Tiêu chuẩn toán học: WinRate >= 50.0%, Profit Factor >= 1.15 và Lãi ròng > 0
+            if wr >= 50.0 and pf >= 1.15 and net_pnl > 0:
+                # Hàm mục tiêu Quant: Tối đa hóa tỷ lệ Lãi/Lỗ, biên thắng so với hòa vốn (45%) và quy mô mẫu
+                utility = (pf - 1.0) * math.sqrt(total) * (wr - 45.0)
+                if utility > best_u:
+                    best_u = utility
+                    best_th = th
+                    best_st = {
+                        "testedSamples": len(segment_trades),
                         "approvedTrades": total,
                         "expectedWins": n_win,
                         "expectedLosses": n_loss,
                         "expectedWinRate": round(wr, 1),
-                        "expectedNetPnlUsd": round(pnl, 2)
+                        "profitFactor": round(pf, 2),
+                        "expectedNetPnlUsd": round(net_pnl, 2)
                     }
 
-    # Fallback nếu không có cấu hình nào đạt wr >= 50%
-    if not best_stats:
-        for th_top in candidate_top:
-            for th_low in candidate_low:
-                if th_low < th_top: continue
+        # Fallback tự động nếu phân khúc chưa có cấu hình đạt chuẩn khắt khe: chọn ngưỡng có Net PnL tốt nhất
+        if not best_st:
+            for th in candidates:
                 n_win = 0
                 n_loss = 0
-                pnl = 0.0
-                for t in recalculated_trades:
-                    rank = t["marketCapRank"]
-                    th = th_top if rank <= 150 else th_low
+                gross_win = 0.0
+                gross_loss = 0.0
+                for t in segment_trades:
                     if t["winProb"] >= th:
-                        if t["isMissedTP"]: n_win += 1; pnl += t["missedProfitUSD"]
-                        elif t["isSavedSL"]: n_loss += 1; pnl -= t["savedLossUSD"]
+                        if t["isMissedTP"]: n_win += 1; gross_win += t["missedProfitUSD"]
+                        elif t["isSavedSL"]: n_loss += 1; gross_loss += t["savedLossUSD"]
                 total = n_win + n_loss
-                wr = (n_win / total * 100.0) if total > 0 else 0.0
-                if total >= 20 and pnl > best_utility:
-                    best_utility = pnl
-                    best_th_top = th_top
-                    best_th_low = th_low
-                    best_stats = {
-                        "testedSamples": len(recalculated_trades),
-                        "approvedTrades": total,
-                        "expectedWins": n_win,
-                        "expectedLosses": n_loss,
-                        "expectedWinRate": round(wr, 1),
-                        "expectedNetPnlUsd": round(pnl, 2)
-                    }
+                if total >= 10:
+                    wr = (n_win / total) * 100.0
+                    net_pnl = gross_win - gross_loss
+                    if net_pnl > best_u and wr >= 48.0:
+                        best_u = net_pnl
+                        best_th = th
+                        pf = (gross_win / gross_loss) if gross_loss > 0 else 1.0
+                        best_st = {
+                            "testedSamples": len(segment_trades),
+                            "approvedTrades": total,
+                            "expectedWins": n_win,
+                            "expectedLosses": n_loss,
+                            "expectedWinRate": round(wr, 1),
+                            "profitFactor": round(pf, 2),
+                            "expectedNetPnlUsd": round(net_pnl, 2)
+                        }
 
-    print(f"\n🧠 [AI Auto-Calibration] Đã tự động hiệu chuẩn ngưỡng duyệt tối ưu thực nghiệm:")
-    print(f"   • Top 150 Threshold: {best_th_top}%")
-    print(f"   • Lowcap Threshold:  {best_th_low}%")
-    if best_stats:
-        print(f"   • Thống kê kỳ vọng:  {best_stats.get('expectedWins', 0)}W / {best_stats.get('expectedLosses', 0)}L (WinRate: {best_stats.get('expectedWinRate', 0)}%, Lãi ròng: +${best_stats.get('expectedNetPnlUsd', 0)} USD)")
-    else:
-        print("   • Dữ liệu chưa đủ để tối ưu hóa utility, áp dụng ngưỡng an toàn (Top150: 35%, Lowcap: 42%)")
+        return best_th, best_st
+
+    candidates = [round(x, 1) for x in range(40, 68, 2)] # Dải xác suất toán học 40.0% -> 66.0%
+    best_th_top, top_stats = optimize_segment("Top 150", top150_trades, candidates)
+    best_th_low, low_stats = optimize_segment("Lowcap", lowcap_trades, candidates)
+
+    combined_wins = top_stats.get("expectedWins", 0) + low_stats.get("expectedWins", 0)
+    combined_losses = top_stats.get("expectedLosses", 0) + low_stats.get("expectedLosses", 0)
+    combined_total = combined_wins + combined_losses
+    combined_wr = round((combined_wins / combined_total * 100.0), 1) if combined_total > 0 else 0.0
+    combined_pnl = round(top_stats.get("expectedNetPnlUsd", 0.0) + low_stats.get("expectedNetPnlUsd", 0.0), 2)
+
+    best_stats = {
+        "testedSamples": len(recalculated_trades),
+        "approvedTrades": combined_total,
+        "expectedWins": combined_wins,
+        "expectedLosses": combined_losses,
+        "expectedWinRate": combined_wr,
+        "expectedNetPnlUsd": combined_pnl
+    }
+
+    print(f"\n🧠 [AI Auto-Calibration] Đã tự động hiệu chuẩn ngưỡng duyệt tối ưu thực nghiệm (Decoupled Quant Utility):")
+    print(f"   • Top 150 Threshold: {best_th_top}% (Mẫu N={top_stats.get('approvedTrades', 0)} | WR: {top_stats.get('expectedWinRate', 0)}% | PF: {top_stats.get('profitFactor', 0)} | PnL: +${top_stats.get('expectedNetPnlUsd', 0)} USD)")
+    print(f"   • Lowcap Threshold:  {best_th_low}% (Mẫu N={low_stats.get('approvedTrades', 0)} | WR: {low_stats.get('expectedWinRate', 0)}% | PF: {low_stats.get('profitFactor', 0)} | PnL: +${low_stats.get('expectedNetPnlUsd', 0)} USD)")
+    print(f"   • Thống kê kỳ vọng tổng: {combined_wins}W / {combined_losses}L (WinRate: {combined_wr}%, Lãi ròng: +${combined_pnl} USD)")
 
     return {
         "top150": best_th_top,

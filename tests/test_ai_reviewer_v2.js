@@ -146,6 +146,57 @@ test('Counter-Trend Guard: Trend Conflict with Strong ADX is heavily penalized a
   const evalResult = evaluateSignalWithAI(wldSig);
   assert(evalResult.winProbability < 50.0, `Counter-trend strong ADX WinProb must be < 50%, got ${evalResult.winProbability}`);
   assert.strictEqual(evalResult.isApproved, false, 'Counter-trend strong ADX should NOT be approved');
+  assert.strictEqual(evalResult.vetoCategory, 'COUNTER_STRONG_TREND_DANGER', 'Must trigger COUNTER_STRONG_TREND_DANGER veto');
+});
+
+// Test 6: AR Pattern Reproduction — Trend Conflict + ADX Strong Trend triggers Hard Veto
+test('AR Pattern: Trend Conflict + Strong ADX must trigger COUNTER_STRONG_TREND_DANGER Veto', () => {
+  const arSig = {
+    symbol: 'ARUSDT',
+    signal: 'SHORT',
+    score: 5.0,
+    marketCapRank: 138,
+    gridWidthPct: 3.5,
+    scoreReasons: [
+      '[Xu hướng H4/H1] Ngược/Mâu thuẫn cấu trúc Dow H1 3 ngày & EMA (ADX=28.5) (+0đ)',
+      '[Biến động H1/M15] H1 nén vừa: max <= 6.5% (+0.3đ)',
+      '[RSI H1] Quá mua cực đại: RSI H1 72 >= 70 (+1.0)',
+      '[Vốn hóa] Top 31-150 Mid Cap (Rank 138): Thanh khoản ổn định (+0.5)'
+    ]
+  };
+  const evalResult = evaluateSignalWithAI(arSig);
+  assert.strictEqual(evalResult.isApproved, false, 'AR setup phải bị từ chối');
+  assert.strictEqual(evalResult.vetoCategory, 'COUNTER_STRONG_TREND_DANGER', 'AR phải dính VETO CẢN TÀU XU HƯỚNG');
+  assert(evalResult.reason.includes('AI VETO CẢN TÀU XU HƯỚNG'), 'Thông điệp phải chứa AI VETO CẢN TÀU XU HƯỚNG');
+});
+
+// Test 7: PIEVERSE Pattern Reproduction — Opposing Wick Trap triggers Hard Veto
+test('PIEVERSE Pattern: Opposing Wick Trap >= 50% must trigger OPPOSING_WICK_TRAP Veto', () => {
+  const pieverseSig = {
+    symbol: 'PIEVERSEUSDT',
+    signal: 'SHORT',
+    score: 6.5,
+    marketCapRank: 99,
+    gridWidthPct: 3.2,
+    scoreReasons: [
+      'Dow & Trendline',
+      'H1 nén vừa',
+      'M15 siêu nén'
+    ]
+  };
+  const rawMarketData = {
+    lastM15: {
+      open: 1.205,
+      high: 1.208,
+      low: 1.190,  // Râu dưới dài: (1.205 - 1.190) = 0.015 / range 0.018 = 83%
+      close: 1.206,
+      volume: 25000
+    }
+  };
+  const evalResult = evaluateSignalWithAI(pieverseSig, rawMarketData);
+  assert.strictEqual(evalResult.isApproved, false, 'PIEVERSE setup có bẫy rút râu phải bị từ chối');
+  assert.strictEqual(evalResult.vetoCategory, 'OPPOSING_WICK_TRAP', 'PIEVERSE phải dính VETO BẪY RÚT RÂU');
+  assert(evalResult.reason.includes('AI VETO BẪY RÚT RÂU'), 'Thông điệp phải chứa AI VETO BẪY RÚT RÂU');
 });
 
 console.log('=' .repeat(80));
@@ -153,3 +204,4 @@ console.log(`📊 TEST RESULTS: ${passed}/${total} TESTS PASSED (${((passed/tota
 console.log('=' .repeat(80));
 
 if (passed !== total) process.exit(1);
+

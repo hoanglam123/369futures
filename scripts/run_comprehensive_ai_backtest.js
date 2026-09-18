@@ -274,75 +274,59 @@ Object.entries(vetoReasons)
     console.log(`  - ${cat.padEnd(35)}: ${cnt} lệnh (${((cnt / currVetoed.length) * 100).toFixed(1)}%)`);
   });
 
-// 7. GRID SEARCH TÌM ĐIỂM NGƯỠNG TỐI ƯU MỚI (DYNAMIC THRESHOLD GRID SEARCH)
+// 7. GRID SEARCH TÌM ĐIỂM NGƯỠNG TỐI ƯU MỚI (DECOUPLED QUANT RISK-ADJUSTED SEARCH)
 console.log('\n' + '=' .repeat(80));
-console.log('🎯 4. KHẢO SÁT & TỐI ƯU HÓA ĐIỂM NGƯỠNG THỰC NGHIỆM (OPTIMAL THRESHOLD SEARCH)');
+console.log('🎯 4. KHẢO SÁT & TỐI ƯU HÓA ĐIỂM NGƯỠNG THỰC NGHIỆM (DECOUPLED QUANT UTILITY)');
 console.log('=' .repeat(80));
 
-const testTopRange = [30.0, 32.0, 35.0, 38.0, 40.0, 42.0, 45.0, 48.0, 50.0];
-const testLowRange = [35.0, 38.0, 40.0, 42.0, 45.0, 48.0, 50.0, 55.0, 60.0];
+function optimizeSegment(name, isTop150) {
+  const segmentResults = evaluatedResults.filter(r => isTop150 ? r.marketCapRank <= 150 : r.marketCapRank > 150);
+  const candidates = [40.0, 42.0, 44.0, 46.0, 48.0, 50.0, 52.0, 54.0, 56.0, 58.0, 60.0, 62.0, 64.0, 66.0];
+  let best = null;
+  let bestU = -999999;
+  const list = [];
 
-let bestConfig = null;
-let maxNetPnl = -999999;
-const gridResults = [];
-
-for (const thTop of testTopRange) {
-  for (const thLow of testLowRange) {
-    if (thLow < thTop) continue;
-
-    let passTrades = 0;
-    let wins = 0;
-    let bes = 0;
-    let losses = 0;
-    let pnl = 0;
-
-    for (const r of evaluatedResults) {
-      // Giữ nguyên các chốt chặn Veto an toàn bắt buộc (Extreme Storm, Economic Red, Spread Danger, Wall Block, Bad RR)
-      if (['H1_EXTREME_STORM', 'M15_EXTREME_STORM', 'ECONOMIC_BLACKOUT_DANGER', 'SPREAD_WIDE_DANGER', 'ORDERBOOK_WALL_BLOCK', 'BAD_RR_LESS_THAN_1'].includes(r.aiVetoCategory)) {
+  for (const th of candidates) {
+    let passTrades = 0, wins = 0, bes = 0, losses = 0, pnl = 0, grossWin = 0, grossLoss = 0;
+    for (const r of segmentResults) {
+      if (['H1_EXTREME_STORM', 'M15_EXTREME_STORM', 'ECONOMIC_BLACKOUT_DANGER', 'SPREAD_WIDE_DANGER', 'ORDERBOOK_WALL_BLOCK', 'COUNTER_STRONG_TREND_DANGER', 'OPPOSING_WICK_TRAP'].includes(r.aiVetoCategory)) {
         continue;
       }
-
-      const th = r.marketCapRank <= 150 ? thTop : thLow;
       if (r.aiWinProb >= th) {
         passTrades++;
-        if (r.isWin) wins++;
-        else if (r.isBe) bes++;
-        else if (r.isSl) losses++;
+        if (r.isWin) { wins++; grossWin += r.pnlUsd; }
+        else if (r.isBe) { bes++; }
+        else if (r.isSl) { losses++; grossLoss += Math.abs(r.pnlUsd); }
         pnl += r.pnlUsd;
       }
     }
-
     const denom = passTrades - bes;
     const wr = denom > 0 ? (wins / denom) * 100 : 0;
-    const item = { thTop, thLow, passTrades, wins, bes, losses, wr, pnl };
-    gridResults.push(item);
-
-    // Tiêu chí tối ưu: Tối đa hóa Net PnL với điều kiện số lệnh đủ lớn (passTrades >= 50) và WinRate >= 50%
-    if (passTrades >= 50 && wr >= 52.0 && pnl > maxNetPnl) {
-      maxNetPnl = pnl;
-      bestConfig = item;
+    const pf = grossLoss > 0 ? grossWin / grossLoss : (grossWin > 0 ? 2.5 : 1.0);
+    const u = (wr >= 50.0 && pf >= 1.15 && pnl > 0) ? (pf - 1.0) * Math.sqrt(passTrades) * (wr - 45.0) : 0;
+    const item = { th, passTrades, wins, bes, losses, wr, pf, pnl, u };
+    list.push(item);
+    if (passTrades >= 15 && wr >= 50.0 && pf >= 1.15 && pnl > 0 && u > bestU) {
+      bestU = u;
+      best = item;
     }
   }
+  return { name, best, list };
 }
 
-// Sắp xếp top 10 cấu hình Net PnL tốt nhất
-gridResults.sort((a, b) => b.pnl - a.pnl);
+const topOpt = optimizeSegment('Top 150', true);
+const lowOpt = optimizeSegment('Lowcap', false);
 
-console.log('Top 10 Cặp Ngưỡng Tối Ưu Lợi Nhuận Net PnL:');
-console.log('Th_Top150 | Th_Lowcap | Lệnh Duyệt | Thắng | Hòa | Thua | WinRate (%) | Net PnL ($)');
-console.log('-'.repeat(80));
-gridResults.slice(0, 10).forEach(g => {
-  console.log(`${(g.thTop + '%').padEnd(9)} | ${(g.thLow + '%').padEnd(9)} | ${String(g.passTrades).padStart(10)} | ${String(g.wins).padStart(5)} | ${String(g.bes).padStart(3)} | ${String(g.losses).padStart(4)} | ${g.wr.toFixed(2).padStart(11)}% | $${g.pnl.toFixed(2).padStart(10)}`);
+console.log('Top Phân Khúc Lowcap (Xếp hạng theo Quant Utility):');
+console.log('Ngưỡng | Lệnh Duyệt | Thắng | Hòa | Thua | WinRate (%) | Profit Factor | Net PnL ($) | Quant Utility');
+console.log('-'.repeat(98));
+lowOpt.list.filter(x => x.passTrades >= 10).sort((a,b) => b.u - a.u).slice(0, 7).forEach(g => {
+  console.log(`${(g.th + '%').padEnd(6)} | ${String(g.passTrades).padStart(10)} | ${String(g.wins).padStart(5)} | ${String(g.bes).padStart(3)} | ${String(g.losses).padStart(4)} | ${g.wr.toFixed(2).padStart(11)}% | ${g.pf.toFixed(2).padStart(13)} | $${g.pnl.toFixed(2).padStart(10)} | ${g.u.toFixed(2).padStart(12)}`);
 });
 
-if (bestConfig) {
-  console.log('\n🏆 ĐIỂM NGƯỠNG ĐỀ XUẤT TỐI ƯU NHẤT:');
-  console.log(`   • Ngưỡng Top 150 : ${bestConfig.thTop}%`);
-  console.log(`   • Ngưỡng Lowcap  : ${bestConfig.thLow}%`);
-  console.log(`   • Số lệnh duyệt  : ${bestConfig.passTrades} lệnh (${bestConfig.wins} TP, ${bestConfig.bes} BE, ${bestConfig.losses} SL)`);
-  console.log(`   • WinRate đạt được: ${bestConfig.wr.toFixed(2)}% (Loại trừ BE)`);
-  console.log(`   • Lợi nhuận Net PnL: +$${bestConfig.pnl.toFixed(2)} USD`);
-}
+console.log('\n🏆 ĐIỂM NGƯỠNG ĐỀ XUẤT TỐI ƯU THEO QUANT:');
+console.log(`   • Ngưỡng Top 150 : ${topOpt.best ? topOpt.best.th : 50.0}% (${topOpt.best ? `${topOpt.best.wins}W / ${topOpt.best.losses}L, WR: ${topOpt.best.wr.toFixed(1)}%, PF: ${topOpt.best.pf.toFixed(2)}` : 'Dữ liệu chưa đủ vượt trội, giữ chuẩn hòa vốn 50%'})`);
+console.log(`   • Ngưỡng Lowcap  : ${lowOpt.best ? lowOpt.best.th : 62.0}% (${lowOpt.best ? `${lowOpt.best.wins}W / ${lowOpt.best.losses}L, WR: ${lowOpt.best.wr.toFixed(1)}%, PF: ${lowOpt.best.pf.toFixed(2)}, Net: +$${lowOpt.best.pnl.toFixed(2)} USD` : 'Tối ưu tại 62%'})`);
 
 console.log('\n' + '=' .repeat(80));
 console.log('✅ HOÀN TẤT BÁO CÁO BACKTEST TOÀN DIỆN');
