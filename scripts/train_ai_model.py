@@ -163,6 +163,8 @@ def extract_features(reasons, score, rank, grid_width_pct, timestamp_ms=None, di
     # 3b. ADX Momentum Strength
     if sm and sm.get("adxStrength"):
         features["adx_strength"] = sm["adxStrength"]
+    elif sm and isinstance(sm.get("adx"), (int, float)):
+        features["adx_strength"] = "ADX_STRONG_TREND" if sm["adx"] >= 25.0 else "ADX_WEAK_TREND"
     else:
         import re
         adx_match = re.search(r"ADX=(\d+\.?\d*)", reasons_str)
@@ -237,28 +239,53 @@ def extract_features(reasons, score, rank, grid_width_pct, timestamp_ms=None, di
         else:
             features["m15_volatility"] = "M15_VOL_NORMAL"
 
-    # 4c. H1 Stagnant Liquidity Trap
-    if "Nén bế tắc H1" in reasons_str: features["h1_stagnant"] = "H1_STAGNANT_TRAP"
-    else: features["h1_stagnant"] = "H1_NOT_STAGNANT"
+    # 4c. H1 Stagnant Liquidity Trap (Số học hoặc có cấu trúc)
+    if sm and sm.get("h1Stagnant"):
+        features["h1_stagnant"] = sm["h1Stagnant"]
+    elif "Nén bế tắc H1" in reasons_str:
+        features["h1_stagnant"] = "H1_STAGNANT_TRAP"
+    else:
+        features["h1_stagnant"] = "H1_NOT_STAGNANT"
 
-    # 5. RSI Condition
+    # 5. RSI Condition (Số học thuần túy từ giá trị RSI)
     if sm and sm.get("rsiCondition"):
         features["rsi"] = sm["rsiCondition"]
+    elif sm and isinstance(sm.get("rsi"), (int, float)):
+        rsi_val = float(sm["rsi"])
+        if rsi_val >= 75 or rsi_val <= 25: features["rsi"] = "RSI_EXTREME"
+        elif rsi_val >= 65 or rsi_val <= 35: features["rsi"] = "RSI_NEAR"
+        else: features["rsi"] = "RSI_NEUTRAL"
     elif "Quá bán cực đại" in reasons_str or "Quá mua cực đại" in reasons_str: features["rsi"] = "RSI_EXTREME"
     elif "Cận quá bán" in reasons_str or "Cận quá mua" in reasons_str: features["rsi"] = "RSI_NEAR"
     else: features["rsi"] = "RSI_NEUTRAL"
 
-    # 6. Whales vs Retail Flow
+    # 6. Whales vs Retail Flow (Số học từ tỷ lệ cá voi & retail)
     if sm and sm.get("lsFlow"):
         features["ls_flow"] = sm["lsFlow"]
+    elif sm and isinstance(sm.get("whaleLongRatio"), (int, float)) and isinstance(sm.get("retailLongRatio"), (int, float)):
+        w = float(sm["whaleLongRatio"])
+        r = float(sm["retailLongRatio"])
+        whale_aligned = (w >= 60.0) or (w <= 40.0)
+        retail_aligned = (r <= 45.0) or (r >= 55.0)
+        if whale_aligned and retail_aligned: features["ls_flow"] = "LS_GOLD"
+        elif whale_aligned: features["ls_flow"] = "LS_PARTIAL"
+        elif not whale_aligned and not retail_aligned: features["ls_flow"] = "LS_DIVERGENCE"
+        else: features["ls_flow"] = "LS_NEUTRAL"
     elif "Gold Setup" in reasons_str or "Đồng thuận tuyệt đối" in reasons_str: features["ls_flow"] = "LS_GOLD"
     elif "Đồng thuận một phần" in reasons_str: features["ls_flow"] = "LS_PARTIAL"
     elif "Không đồng thuận" in reasons_str or "phân kỳ" in reasons_str: features["ls_flow"] = "LS_DIVERGENCE"
     else: features["ls_flow"] = "LS_NEUTRAL"
 
-    # 7. Price Action S/R Levels
+    # 7. Price Action S/R Levels (Số học từ tổng cản H4 + D1)
     if sm and sm.get("priceAction"):
         features["price_action"] = sm["priceAction"]
+    elif sm and (isinstance(sm.get("h4SrCount"), (int, float)) or isinstance(sm.get("d1SrCount"), (int, float))):
+        total_sr = int(sm.get("h4SrCount") or 0) + int(sm.get("d1SrCount") or 0)
+        if total_sr >= 4: features["price_action"] = "PA_4_LEVELS"
+        elif total_sr == 3: features["price_action"] = "PA_3_LEVELS"
+        elif total_sr == 2: features["price_action"] = "PA_2_LEVELS"
+        elif total_sr == 1: features["price_action"] = "PA_1_LEVEL"
+        else: features["price_action"] = "PA_0_LEVEL"
     elif "4 cản cũ" in reasons_str: features["price_action"] = "PA_4_LEVELS"
     elif "3 cản cũ" in reasons_str: features["price_action"] = "PA_3_LEVELS"
     elif "2 cản cũ" in reasons_str: features["price_action"] = "PA_2_LEVELS"
@@ -268,6 +295,10 @@ def extract_features(reasons, score, rank, grid_width_pct, timestamp_ms=None, di
     # 7b. Price Action S/R Quality (Phân cấp cản D1 bảo trợ vs H4 ngắn hạn vs Không cản)
     if sm and sm.get("srQuality"):
         features["sr_quality"] = sm["srQuality"]
+    elif sm and (isinstance(sm.get("h4SrCount"), (int, float)) or isinstance(sm.get("d1SrCount"), (int, float))):
+        if int(sm.get("d1SrCount") or 0) >= 1: features["sr_quality"] = "SR_DAILY_D1_INCLUDED"
+        elif int(sm.get("h4SrCount") or 0) >= 1: features["sr_quality"] = "SR_H4_ONLY"
+        else: features["sr_quality"] = "SR_NONE"
     else:
         d1_part = reasons_str.split("D1:")[1] if "D1:" in reasons_str else ""
         has_d1 = bool(d1_part and "không cản" not in d1_part and "thiếu nến" not in d1_part)
@@ -281,16 +312,26 @@ def extract_features(reasons, score, rank, grid_width_pct, timestamp_ms=None, di
         else:
             features["sr_quality"] = "SR_NONE"
 
-    # 8. Open Interest (OI) Change
+    # 8. Open Interest (OI) Change (Số học từ % thay đổi OI)
     if sm and sm.get("oiState"):
         features["oi_change"] = sm["oiState"]
+    elif sm and isinstance(sm.get("oiChangePct"), (int, float)):
+        oi_pct = float(sm["oiChangePct"])
+        if oi_pct <= -1.0: features["oi_change"] = "OI_COOLING"
+        elif oi_pct >= 2.0: features["oi_change"] = "OI_SURGE"
+        else: features["oi_change"] = "OI_STABLE"
     elif "Hạ nhiệt vị thế" in reasons_str or "giảm -" in reasons_str: features["oi_change"] = "OI_COOLING"
     elif "Tăng mạnh" in reasons_str or "bùng nổ" in reasons_str: features["oi_change"] = "OI_SURGE"
     else: features["oi_change"] = "OI_STABLE"
 
-    # 9. Volume Momentum
+    # 9. Volume Momentum (Số học từ volumeRatio)
     if sm and sm.get("volumeState"):
         features["volume"] = sm["volumeState"]
+    elif sm and isinstance(sm.get("volumeRatio"), (int, float)):
+        v_rat = float(sm["volumeRatio"])
+        if v_rat >= 2.0: features["volume"] = "VOL_SURGE"
+        elif v_rat >= 0.8: features["volume"] = "VOL_STABLE"
+        else: features["volume"] = "VOL_DRY"
     elif "Volume bùng nổ" in reasons_str: features["volume"] = "VOL_SURGE"
     elif "Volume ổn định" in reasons_str: features["volume"] = "VOL_STABLE"
     else: features["volume"] = "VOL_DRY"
@@ -303,9 +344,14 @@ def extract_features(reasons, score, rank, grid_width_pct, timestamp_ms=None, di
     else:
         features["h1_volume_burst"] = "H1_VOL_BURST_NORMAL"
 
-    # 10. Funding Rate
+    # 10. Funding Rate (Số học từ tỷ lệ fundingRate)
     if sm and sm.get("fundingState"):
         features["funding"] = sm["fundingState"]
+    elif sm and isinstance(sm.get("fundingRate"), (int, float)):
+        fr = float(sm["fundingRate"])
+        if abs(fr) >= 0.05: features["funding"] = "FUNDING_DANGER"
+        elif abs(fr) >= 0.02: features["funding"] = "FUNDING_SQUEEZE"
+        else: features["funding"] = "FUNDING_NORMAL"
     elif "Short Crowded" in reasons_str or "Long Crowded" in reasons_str: features["funding"] = "FUNDING_SQUEEZE"
     elif "Short đu bám" in reasons_str or "Long đu bám" in reasons_str or "Nóng" in reasons_str: features["funding"] = "FUNDING_DANGER"
     else: features["funding"] = "FUNDING_NORMAL"
@@ -331,14 +377,21 @@ def extract_features(reasons, score, rank, grid_width_pct, timestamp_ms=None, di
     elif gw >= 2.5: features["grid_width"] = "GRID_NORMAL"
     else: features["grid_width"] = "GRID_NARROW"
 
-    # 12b. Pre-Entry Bounce (Độ nảy trước khi khớp lệnh)
+    # 12b. Pre-Entry Bounce (Độ nảy trước khi khớp lệnh số học)
     bounce_val = None
     if direct_record and isinstance(direct_record.get("maxRecentBouncePct"), (int, float)):
         bounce_val = float(direct_record["maxRecentBouncePct"])
 
-    if "Giá đã nảy xa mốc" in reasons_str or (bounce_val is not None and bounce_val >= 1.0):
+    if bounce_val is not None:
+        if bounce_val >= 1.25:
+            features["pre_entry_bounce"] = "BOUNCE_STALE_HIGH"
+        elif bounce_val >= 0.40:
+            features["pre_entry_bounce"] = "BOUNCE_MODERATE"
+        else:
+            features["pre_entry_bounce"] = "BOUNCE_FRESH"
+    elif "Giá đã nảy xa mốc" in reasons_str:
         features["pre_entry_bounce"] = "BOUNCE_STALE_HIGH"
-    elif "Giá chớm nảy" in reasons_str or (bounce_val is not None and bounce_val >= 0.40):
+    elif "Giá chớm nảy" in reasons_str:
         features["pre_entry_bounce"] = "BOUNCE_MODERATE"
     else:
         features["pre_entry_bounce"] = "BOUNCE_FRESH"

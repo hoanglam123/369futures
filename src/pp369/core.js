@@ -1793,7 +1793,8 @@ async function score369Method(sig369, direction) {
     fundingRate: null,
     fundingState: 'FUNDING_NORMAL',
     btcWave: 'BTC_NEUTRAL',
-    btcStorm: 'BTC_STORM_NORMAL'
+    btcStorm: 'BTC_STORM_NORMAL',
+    h1Stagnant: 'H1_NOT_STAGNANT'
   };
 
   try {
@@ -2108,8 +2109,11 @@ async function score369Method(sig369, direction) {
 
         if (sampleRangePct <= 1.5) {
           isStagnant = true;
+          signalMetrics.h1Stagnant = 'H1_STAGNANT_TRAP';
           volScore = 0; // Hủy điểm nén vì đây là nén bế tắc / bẫy thanh khoản (chờ Retest)
           volReasons.push(`Nén bế tắc H1 (${sampleCount} nến Range ${sampleRangePct.toFixed(2)}% <= 1.5%): Bẫy quét thanh khoản → Chuyển H1 Retest (+0đ)`);
+        } else {
+          signalMetrics.h1Stagnant = 'H1_NOT_STAGNANT';
         }
       }
     } else {

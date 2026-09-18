@@ -1,6 +1,6 @@
 {
   "version": "1.4.0-auto",
-  "trainedAt": "2026-09-18 08:47:48",
+  "trainedAt": "2026-09-18 09:09:12",
   "totalSamples": 3483,
   "priorWinProb": 0.6256,
   "priorOdds": 1.6712,
@@ -9,7 +9,7 @@
     "lowcap": 65.0,
     "minExpectedEvRoi": 0.0,
     "autoCalibrated": true,
-    "calibratedAt": "2026-09-18 08:47:47",
+    "calibratedAt": "2026-09-18 09:09:12",
     "calibrationStats": {}
   },
   "thresholdApprovalPct": 65.0,
@@ -37,13 +37,13 @@
     "shadowCount": 1871,
     "realCount": 2185,
     "autoCalibrated": true,
-    "calculatedAt": "2026-09-18 08:47:48"
+    "calculatedAt": "2026-09-18 09:09:12"
   },
   "adaptiveSlProfile": {
     "top150MinSlPct": 1.5,
     "lowcapMinSlPct": 1.8,
     "autoCalibrated": true,
-    "calculatedAt": "2026-09-18 08:47:48",
+    "calculatedAt": "2026-09-18 09:09:12",
     "sampleCount": 1933
   },
   "featureWeights": {
@@ -192,10 +192,10 @@
       "isAutonomous": true
     },
     "pre_entry_bounce:BOUNCE_MODERATE": {
-      "winCount": 549.0,
-      "lossCount": 286.5,
-      "winProb": 0.6565,
-      "multiplier": 1.1438,
+      "winCount": 613.0,
+      "lossCount": 310.5,
+      "winProb": 0.6632,
+      "multiplier": 1.1781,
       "sanityCapped": false,
       "isAutonomous": true
     },
@@ -817,19 +817,19 @@
       "sanityCapped": true,
       "isAutonomous": true
     },
-    "pre_entry_bounce:BOUNCE_STALE_HIGH": {
-      "winCount": 1491.2,
-      "lossCount": 849.8,
-      "winProb": 0.6369,
-      "multiplier": 1.0497,
-      "sanityCapped": false,
-      "isAutonomous": true
-    },
     "btc_storm:BTC_STORM_VOLATILE": {
       "winCount": 178.5,
       "lossCount": 111.5,
       "winProb": 0.616,
       "multiplier": 0.9599,
+      "sanityCapped": false,
+      "isAutonomous": true
+    },
+    "pre_entry_bounce:BOUNCE_STALE_HIGH": {
+      "winCount": 1427.2,
+      "lossCount": 825.8,
+      "winProb": 0.6334,
+      "multiplier": 1.034,
       "sanityCapped": false,
       "isAutonomous": true
     },
