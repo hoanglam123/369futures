@@ -864,6 +864,7 @@ def train_and_export_model():
         "volume:VOL_STABLE": (1.00, 1.25),
         "volume:VOL_SURGE": (1.00, 1.35),
         "grid_width:GRID_NORMAL": (0.95, 1.15),
+        "m15_candle_geometry:M15_REJECT_PINBAR": (1.00, 1.25),
         "risk_interaction:INTERACTION_TREND_FLOW_CONFLICT": (0.35, 0.75),
         "risk_interaction:INTERACTION_NO_SR_WEAK_SETUP": (0.30, 0.85),
         "risk_interaction:INTERACTION_DRY_VOL_COOLING_OI": (0.50, 0.85),

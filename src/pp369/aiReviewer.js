@@ -107,8 +107,8 @@ function extractSignalFeatures(reasons, score, rank, gridWidthPct, rawMarketData
   else features['rank_group'] = 'RANK_LOWCAP_OUT150';
 
   // 3. Trend Alignment
-  if (sm?.trend) {
-    features['trend'] = sm.trend;
+  if (sm?.trend || rawMarketData?.trend) {
+    features['trend'] = sm?.trend || rawMarketData?.trend;
   } else if (rawMarketData?.currH1 && rawMarketData?.currH1.ema20 && rawMarketData?.currH1.ema50) {
     const isEmaBull = rawMarketData.currH1.ema20 > rawMarketData.currH1.ema50;
     const isLong = signal === 'LONG' || signal === 'BUY';
@@ -839,8 +839,13 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
     }
 
     // 🛡️ SANITY GUARD: Không thưởng Pinbar M15 nếu đang ngược Trend Dow H1 & EMA
-    if (features['trend'] === 'TREND_CONFLICT' && (val === 'CANDLE_PINBAR_HAMMER' || val === 'CANDLE_PINBAR_SHOOTING')) {
+    if (features['trend'] === 'TREND_CONFLICT' && (val === 'CANDLE_PINBAR_HAMMER' || val === 'CANDLE_PINBAR_SHOOTING' || val === 'M15_REJECT_PINBAR')) {
       mult = 1.00;
+    }
+
+    // 🛡️ SANITY GUARD: Khống chế trần an toàn cho Pinbar M15 (khung ngắn tối đa x1.25, không thổi phồng xác suất)
+    if (cat === 'm15_candle_geometry' && val === 'M15_REJECT_PINBAR') {
+      mult = Math.min(mult, 1.25);
     }
 
     // 🛡️ SANITY GUARD: Không thưởng Top-Cap nếu BTC đang có bão Flash ngược chiều

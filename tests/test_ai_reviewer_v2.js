@@ -199,9 +199,51 @@ test('PIEVERSE Pattern: Opposing Wick Trap >= 50% must trigger OPPOSING_WICK_TRA
   assert(evalResult.reason.includes('AI VETO BẪY RÚT RÂU'), 'Thông điệp phải chứa AI VETO BẪY RÚT RÂU');
 });
 
+test('M15_REJECT_PINBAR Sanity Cap: Hệ số tối đa 1.25 và ép về 1.00 khi ngược Trend', () => {
+  const signal = {
+    symbol: 'TESTUSDT',
+    signal: 'LONG',
+    price: 1.0,
+    score: 4.5,
+    marketCapRank: 100,
+    gridWidthPct: 3.0,
+    scoreReasons: ['M15 rút chân mạnh tạo pinbar', 'M15 nảy mốc tốt']
+  };
+  const rawMarketData = {
+    m15CandleGeometry: 'REJECT_PINBAR',
+    adx: 18, // nén, weak trend
+    trend: 'TREND_M15_ALIGNED'
+  };
+
+  const res = evaluateSignalWithAI(signal, rawMarketData);
+  // Kiểm tra keyFactors có M15_REJECT_PINBAR và hệ số <= 1.25
+  const pinbarFactor = res.keyFactors.find(f => f.includes('M15_REJECT_PINBAR'));
+  assert(pinbarFactor, 'Phải có nhân tố M15_REJECT_PINBAR trong keyFactors');
+  const multMatch = pinbarFactor.match(/x([\d\.]+)/);
+  assert(multMatch, 'Phải parse được multiplier');
+  const multVal = parseFloat(multMatch[1]);
+  assert(multVal <= 1.25, `Hệ số M15_REJECT_PINBAR (${multVal}) không được vượt quá 1.25`);
+
+  // Test khi ngược Trend (TREND_CONFLICT)
+  const conflictData = {
+    m15CandleGeometry: 'REJECT_PINBAR',
+    trend: 'TREND_CONFLICT',
+    adx: 15
+  };
+  const resConflict = evaluateSignalWithAI(signal, conflictData);
+  const conflictPinbar = resConflict.keyFactors.find(f => f.includes('M15_REJECT_PINBAR'));
+  if (conflictPinbar) {
+    const mMatch = conflictPinbar.match(/x([\d\.]+)/);
+    if (mMatch) {
+      assert(parseFloat(mMatch[1]) <= 1.00, 'Khi TREND_CONFLICT, Pinbar M15 không được phép thưởng > 1.00');
+    }
+  }
+});
+
 console.log('=' .repeat(80));
 console.log(`📊 TEST RESULTS: ${passed}/${total} TESTS PASSED (${((passed/total)*100).toFixed(1)}%)`);
 console.log('=' .repeat(80));
 
 if (passed !== total) process.exit(1);
+
 
