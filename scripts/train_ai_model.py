@@ -868,6 +868,8 @@ def train_and_export_model():
         "pre_entry_bounce:BOUNCE_STALE_HIGH": (0.80, 1.20),
         "pre_entry_bounce:BOUNCE_MODERATE": (0.85, 1.25),
         "pre_entry_bounce:BOUNCE_FRESH": (0.85, 1.15),
+        "h1_volume_burst:H1_VOL_BURST_DANGER": (0.50, 0.85),
+        "h1_volume_burst:H1_VOL_BURST_NORMAL": (0.95, 1.10),
         "risk_interaction:INTERACTION_TREND_FLOW_CONFLICT": (0.35, 0.75),
         "risk_interaction:INTERACTION_NO_SR_WEAK_SETUP": (0.30, 0.85),
         "risk_interaction:INTERACTION_DRY_VOL_COOLING_OI": (0.50, 0.85),

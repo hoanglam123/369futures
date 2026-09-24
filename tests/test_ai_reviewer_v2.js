@@ -284,6 +284,30 @@ test('BOUNCE_STALE_HIGH Sanity Cap: Hệ số tối đa 1.20 và ép về 1.00 k
   }
 });
 
+test('H1_VOL_BURST_DANGER Model Guardrail: Hệ số từ mô hình bắt buộc là điểm phạt <= 0.85', () => {
+  const signal = {
+    symbol: 'TESTUSDT',
+    signal: 'LONG',
+    price: 1.0,
+    score: 4.5,
+    marketCapRank: 100,
+    gridWidthPct: 3.0,
+    scoreReasons: ['Đột biến Volume 3 H1 gần nhất']
+  };
+  const rawMarketData = {
+    adx: 25,
+    trend: 'TREND_M15_ALIGNED'
+  };
+
+  const res = evaluateSignalWithAI(signal, rawMarketData);
+  const burstFactor = res.keyFactors.find(f => f.includes('H1_VOL_BURST_DANGER'));
+  assert(burstFactor, 'Phải có nhân tố H1_VOL_BURST_DANGER trong keyFactors');
+  const multMatch = burstFactor.match(/x([\d\.]+)/);
+  assert(multMatch, 'Phải parse được multiplier');
+  const multVal = parseFloat(multMatch[1]);
+  assert(multVal <= 0.85, `Hệ số H1_VOL_BURST_DANGER (${multVal}) từ mô hình bắt buộc phải <= 0.85 (phạt, không được thưởng)`);
+});
+
 console.log('=' .repeat(80));
 console.log(`📊 TEST RESULTS: ${passed}/${total} TESTS PASSED (${((passed/total)*100).toFixed(1)}%)`);
 console.log('=' .repeat(80));

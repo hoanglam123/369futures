@@ -893,9 +893,9 @@
     "h1_volume_burst:H1_VOL_BURST_DANGER": {
       "winCount": 1279.8,
       "lossCount": 741.8,
-      "winProb": 0.633,
-      "multiplier": 1.0321,
-      "sanityCapped": false,
+      "winProb": 0.45,
+      "multiplier": 0.81,
+      "sanityCapped": true,
       "isAutonomous": true
     },
     "m15_candle_geometry:M15_REJECT_PINBAR": {
