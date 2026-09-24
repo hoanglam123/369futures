@@ -240,6 +240,50 @@ test('M15_REJECT_PINBAR Sanity Cap: Hệ số tối đa 1.25 và ép về 1.00 k
   }
 });
 
+test('BOUNCE_STALE_HIGH Sanity Cap: Hệ số tối đa 1.20 và ép về 1.00 khi ngược Trend', () => {
+  const signal = {
+    symbol: 'TESTUSDT',
+    signal: 'LONG',
+    price: 1.0,
+    score: 4.5,
+    marketCapRank: 100,
+    gridWidthPct: 3.0,
+    maxRecentBouncePct: 2.5,
+    preEntryBouncePct: 1.25,
+    scoreReasons: ['Giá đã nảy xa mốc']
+  };
+  const rawMarketData = {
+    maxRecentBouncePct: 2.5,
+    preEntryBouncePct: 1.25,
+    adx: 18,
+    trend: 'TREND_M15_ALIGNED'
+  };
+
+  const res = evaluateSignalWithAI(signal, rawMarketData);
+  const bounceFactor = res.keyFactors.find(f => f.includes('BOUNCE_STALE_HIGH'));
+  assert(bounceFactor, 'Phải có nhân tố BOUNCE_STALE_HIGH trong keyFactors');
+  const multMatch = bounceFactor.match(/x([\d\.]+)/);
+  assert(multMatch, 'Phải parse được multiplier');
+  const multVal = parseFloat(multMatch[1]);
+  assert(multVal <= 1.20, `Hệ số BOUNCE_STALE_HIGH (${multVal}) không được vượt quá 1.20`);
+
+  // Test khi ngược Trend (TREND_CONFLICT)
+  const conflictData = {
+    maxRecentBouncePct: 2.5,
+    preEntryBouncePct: 1.25,
+    trend: 'TREND_CONFLICT',
+    adx: 15
+  };
+  const resConflict = evaluateSignalWithAI(signal, conflictData);
+  const conflictBounce = resConflict.keyFactors.find(f => f.includes('BOUNCE_STALE_HIGH'));
+  if (conflictBounce) {
+    const mMatch = conflictBounce.match(/x([\d\.]+)/);
+    if (mMatch) {
+      assert(parseFloat(mMatch[1]) <= 1.00, 'Khi TREND_CONFLICT, BOUNCE_STALE_HIGH không được phép thưởng > 1.00');
+    }
+  }
+});
+
 console.log('=' .repeat(80));
 console.log(`📊 TEST RESULTS: ${passed}/${total} TESTS PASSED (${((passed/total)*100).toFixed(1)}%)`);
 console.log('=' .repeat(80));

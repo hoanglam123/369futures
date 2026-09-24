@@ -384,11 +384,6 @@ function updateShadowPrices(priceMap) {
           }
         }
       } catch (err) {}
-
-      try {
-        const { tryEarlyDirectionalRecovery } = require('../trader/directionalCircuitBreaker');
-        tryEarlyDirectionalRecovery(p.signal, p.symbol, currentRoi, resolvedOutcome === 'MISSED_TP' ? 'SHADOW_TP' : 'SHADOW_PROFIT');
-      } catch (err) {}
     }
 
     if (resolvedOutcome) {
@@ -465,6 +460,18 @@ function _resolveShadowTrade(p, outcome, exitPrice, exitRoi, exitTimestamp) {
   try {
     const { recordShadowTradeOutcome } = require('../trader/rollingPerformanceGuard');
     recordShadowTradeOutcome({
+      symbol: p.symbol,
+      signal: p.signal,
+      outcome,
+      pnlUsd,
+      roi: finalRoi
+    });
+  } catch (_) {}
+
+  // Ghi nhận vào Directional Circuit Breaker để đánh giá mở khóa sớm nếu chiều đó đang bị khóa
+  try {
+    const { recordDirectionalShadowOutcome } = require('../trader/directionalCircuitBreaker');
+    recordDirectionalShadowOutcome({
       symbol: p.symbol,
       signal: p.signal,
       outcome,

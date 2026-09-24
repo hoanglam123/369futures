@@ -848,6 +848,17 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
       mult = Math.min(mult, 1.25);
     }
 
+    // 🛡️ SANITY GUARD: Khống chế trần an toàn cho BOUNCE_STALE_HIGH (giá nảy xa mốc rồi quay lại test, tối đa x1.20 tránh thổi phồng xác suất)
+    if (cat === 'pre_entry_bounce' && val === 'BOUNCE_STALE_HIGH') {
+      mult = Math.min(mult, 1.20);
+    }
+    if (cat === 'pre_entry_bounce' && val === 'BOUNCE_MODERATE') {
+      mult = Math.min(mult, 1.25);
+    }
+    if (features['trend'] === 'TREND_CONFLICT' && val === 'BOUNCE_STALE_HIGH') {
+      mult = Math.min(mult, 1.00);
+    }
+
     // 🛡️ SANITY GUARD: Không thưởng Top-Cap nếu BTC đang có bão Flash ngược chiều
     if (features['btc_flash'] !== 'BTC_FLASH_NORMAL' && cat === 'rank_group') {
       mult = Math.min(1.00, mult);
