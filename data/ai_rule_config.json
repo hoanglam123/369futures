@@ -1,25 +1,25 @@
 {
   "version": "1.4.0-auto",
-  "trainedAt": "2026-09-21 11:26:57",
+  "trainedAt": "2026-09-24 09:07:07",
   "totalSamples": 3483,
   "priorWinProb": 0.6256,
   "priorOdds": 1.6712,
   "optimalThresholds": {
     "top150": 50.0,
-    "lowcap": 62,
+    "lowcap": 48,
     "minExpectedEvRoi": 0.0,
     "autoCalibrated": true,
-    "calibratedAt": "2026-09-21 11:26:57",
+    "calibratedAt": "2026-09-24 09:07:07",
     "calibrationStats": {
       "testedSamples": 2237,
-      "approvedTrades": 150,
-      "expectedWins": 109,
-      "expectedLosses": 41,
-      "expectedWinRate": 72.7,
-      "expectedNetPnlUsd": 659.06
+      "approvedTrades": 448,
+      "expectedWins": 316,
+      "expectedLosses": 132,
+      "expectedWinRate": 70.5,
+      "expectedNetPnlUsd": 2824.86
     }
   },
-  "thresholdApprovalPct": 62,
+  "thresholdApprovalPct": 48,
   "minExpectedEvRoi": 0.0,
   "mfeMaeProfile": {
     "optimalTpGridRatio": 0.5,
@@ -44,13 +44,13 @@
     "shadowCount": 1871,
     "realCount": 2185,
     "autoCalibrated": true,
-    "calculatedAt": "2026-09-21 11:26:57"
+    "calculatedAt": "2026-09-24 09:07:07"
   },
   "adaptiveSlProfile": {
     "top150MinSlPct": 1.5,
     "lowcapMinSlPct": 1.8,
     "autoCalibrated": true,
-    "calculatedAt": "2026-09-21 11:26:57",
+    "calculatedAt": "2026-09-24 09:07:07",
     "sampleCount": 1933
   },
   "featureWeights": {
@@ -260,8 +260,8 @@
       "winCount": 713.5,
       "lossCount": 619.0,
       "winProb": 0.5365,
-      "multiplier": 0.6925,
-      "sanityCapped": false,
+      "multiplier": 0.45,
+      "sanityCapped": true,
       "isAutonomous": true
     },
     "m15_candle_geometry:M15_HOLD_OR_HOVER": {
@@ -270,6 +270,16 @@
       "winProb": 0.6443,
       "multiplier": 1.0836,
       "sanityCapped": false,
+      "isAutonomous": true
+    },
+    "candle_shape:CANDLE_NORMAL": {
+      "winCount": 2055.8,
+      "lossCount": 1480.8,
+      "winProb": 0.5815,
+      "multiplier": 0.95,
+      "knowledgeBoost": 1.0,
+      "blendRatio": 0.99,
+      "sanityCapped": true,
       "isAutonomous": true
     },
     "puncture_interaction:INTERACTION_H1_PUNCTURED_DEEP": {
@@ -706,8 +716,8 @@
       "winCount": 891.5,
       "lossCount": 601.5,
       "winProb": 0.5974,
-      "multiplier": 0.8879,
-      "sanityCapped": false,
+      "multiplier": 0.85,
+      "sanityCapped": true,
       "isAutonomous": true
     },
     "cvd_momentum:CVD_DIVERGENCE_OPPOSING": {
@@ -868,8 +878,8 @@
       "winCount": 178.5,
       "lossCount": 111.5,
       "winProb": 0.616,
-      "multiplier": 0.9599,
-      "sanityCapped": false,
+      "multiplier": 0.75,
+      "sanityCapped": true,
       "isAutonomous": true
     },
     "pre_entry_bounce:BOUNCE_STALE_HIGH": {
@@ -893,8 +903,8 @@
     "h1_volume_burst:H1_VOL_BURST_DANGER": {
       "winCount": 1279.8,
       "lossCount": 741.8,
-      "winProb": 0.45,
-      "multiplier": 0.81,
+      "winProb": 0.633,
+      "multiplier": 0.85,
       "sanityCapped": true,
       "isAutonomous": true
     },
@@ -906,6 +916,16 @@
       "sanityCapped": false,
       "isAutonomous": true
     },
+    "candle_shape:CANDLE_PINBAR_SHOOTING": {
+      "winCount": 584.0,
+      "lossCount": 276.0,
+      "winProb": 0.6782,
+      "multiplier": 1.25,
+      "knowledgeBoost": 1.08,
+      "blendRatio": 0.95,
+      "sanityCapped": true,
+      "isAutonomous": true
+    },
     "m15_candle_geometry:M15_PUNCTURED_LIGHT": {
       "winCount": 361.0,
       "lossCount": 319.5,
@@ -914,12 +934,32 @@
       "sanityCapped": false,
       "isAutonomous": true
     },
+    "candle_shape:CANDLE_MARUBOZU_PUMP": {
+      "winCount": 656.0,
+      "lossCount": 456.0,
+      "winProb": 0.5904,
+      "multiplier": 0.45,
+      "knowledgeBoost": 0.5,
+      "blendRatio": 0.96,
+      "sanityCapped": true,
+      "isAutonomous": true
+    },
+    "candle_shape:CANDLE_MARUBOZU_DUMP": {
+      "winCount": 646.0,
+      "lossCount": 366.0,
+      "winProb": 0.6382,
+      "multiplier": 0.45,
+      "knowledgeBoost": 0.5,
+      "blendRatio": 0.95,
+      "sanityCapped": true,
+      "isAutonomous": true
+    },
     "m15_candle_geometry:M15_PUNCTURED_DEEP": {
       "winCount": 410.2,
       "lossCount": 347.2,
       "winProb": 0.5432,
-      "multiplier": 0.7116,
-      "sanityCapped": false,
+      "multiplier": 0.5,
+      "sanityCapped": true,
       "isAutonomous": true
     },
     "puncture_interaction:INTERACTION_H1_M15_PUNCTURED": {
@@ -930,12 +970,22 @@
       "sanityCapped": true,
       "isAutonomous": true
     },
+    "candle_shape:CANDLE_PINBAR_HAMMER": {
+      "winCount": 929.5,
+      "lossCount": 336.0,
+      "winProb": 0.7332,
+      "multiplier": 1.25,
+      "knowledgeBoost": 1.08,
+      "blendRatio": 0.96,
+      "sanityCapped": true,
+      "isAutonomous": true
+    },
     "puncture_interaction:INTERACTION_M15_PUNCTURED_DEEP": {
       "winCount": 192.2,
       "lossCount": 175.8,
       "winProb": 0.5265,
-      "multiplier": 0.6652,
-      "sanityCapped": false,
+      "multiplier": 0.65,
+      "sanityCapped": true,
       "isAutonomous": true
     },
     "candle_momentum:MOMENTUM_COUNTER_PUMP_TRAIN": {
@@ -1020,56 +1070,6 @@
       "winProb": 0.6256,
       "multiplier": 0.4,
       "knowledgeBoost": 0.4,
-      "blendRatio": 0.0,
-      "sanityCapped": false,
-      "isAutonomous": true
-    },
-    "candle_shape:CANDLE_MARUBOZU_DUMP": {
-      "winCount": 0,
-      "lossCount": 0,
-      "winProb": 0.6256,
-      "multiplier": 0.5,
-      "knowledgeBoost": 0.5,
-      "blendRatio": 0.0,
-      "sanityCapped": false,
-      "isAutonomous": true
-    },
-    "candle_shape:CANDLE_MARUBOZU_PUMP": {
-      "winCount": 0,
-      "lossCount": 0,
-      "winProb": 0.6256,
-      "multiplier": 0.5,
-      "knowledgeBoost": 0.5,
-      "blendRatio": 0.0,
-      "sanityCapped": false,
-      "isAutonomous": true
-    },
-    "candle_shape:CANDLE_PINBAR_HAMMER": {
-      "winCount": 0,
-      "lossCount": 0,
-      "winProb": 0.6256,
-      "multiplier": 1.08,
-      "knowledgeBoost": 1.08,
-      "blendRatio": 0.0,
-      "sanityCapped": false,
-      "isAutonomous": true
-    },
-    "candle_shape:CANDLE_PINBAR_SHOOTING": {
-      "winCount": 0,
-      "lossCount": 0,
-      "winProb": 0.6256,
-      "multiplier": 1.08,
-      "knowledgeBoost": 1.08,
-      "blendRatio": 0.0,
-      "sanityCapped": false,
-      "isAutonomous": true
-    },
-    "candle_shape:CANDLE_NORMAL": {
-      "winCount": 0,
-      "lossCount": 0,
-      "winProb": 0.6256,
-      "multiplier": 1.0,
-      "knowledgeBoost": 1.0,
       "blendRatio": 0.0,
       "sanityCapped": false,
       "isAutonomous": true

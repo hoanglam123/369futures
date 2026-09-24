@@ -500,6 +500,44 @@ def extract_features(reasons, score, rank, grid_width_pct, timestamp_ms=None, di
     else:
         features["m15_candle_geometry"] = "M15_HOLD_OR_HOVER"
 
+    # 19b. Candlestick Geometry Shape (Pinbar / Marubozu M15)
+    sig_dir = str(direct_record.get("signal") or "").upper() if direct_record else ""
+    is_long = sig_dir in ["LONG", "BUY"]
+    candle_shape = direct_record.get("candleShape") or direct_record.get("candle_shape") if direct_record else None
+    if candle_shape:
+        features["candle_shape"] = candle_shape
+    elif "CANDLE_PINBAR_HAMMER" in reasons_str or "Pinbar Hammer" in reasons_str:
+        features["candle_shape"] = "CANDLE_PINBAR_HAMMER"
+    elif "CANDLE_PINBAR_SHOOTING" in reasons_str or "Shooting Star" in reasons_str:
+        features["candle_shape"] = "CANDLE_PINBAR_SHOOTING"
+    elif "CANDLE_MARUBOZU_DUMP" in reasons_str:
+        features["candle_shape"] = "CANDLE_MARUBOZU_DUMP"
+    elif "CANDLE_MARUBOZU_PUMP" in reasons_str:
+        features["candle_shape"] = "CANDLE_MARUBOZU_PUMP"
+    elif mm:
+        m15_vol_ratio = float(mm.get("m15VolRatio") or 1.0)
+        m15_range_pct = float(mm.get("m15RangePct") or 0.0)
+        m15_body_pct = float(mm.get("m15BodyPct") or 0.0)
+        is_green = mm.get("m15IsGreen")
+        is_spike = m15_range_pct > 1.4 and m15_vol_ratio >= 2.5
+        rem_wick = max(0.0, m15_range_pct - m15_body_pct)
+        if is_long:
+            if not is_green and (is_spike or (m15_body_pct >= 0.70 * m15_range_pct and m15_range_pct > 1.0)):
+                features["candle_shape"] = "CANDLE_MARUBOZU_DUMP"
+            elif rem_wick >= 0.40 * m15_range_pct and not is_spike:
+                features["candle_shape"] = "CANDLE_PINBAR_HAMMER"
+            else:
+                features["candle_shape"] = "CANDLE_NORMAL"
+        else:
+            if is_green and (is_spike or (m15_body_pct >= 0.70 * m15_range_pct and m15_range_pct > 1.0)):
+                features["candle_shape"] = "CANDLE_MARUBOZU_PUMP"
+            elif rem_wick >= 0.40 * m15_range_pct and not is_spike:
+                features["candle_shape"] = "CANDLE_PINBAR_SHOOTING"
+            else:
+                features["candle_shape"] = "CANDLE_NORMAL"
+    else:
+        features["candle_shape"] = "CANDLE_NORMAL"
+
     # 20. Interaction: Cả H1 và M15 đều đóng nến lụt sâu qua Entry
     if (features["h1_candle_geometry"] == "H1_PUNCTURED_DEEP" and
         features["m15_candle_geometry"] in ["M15_PUNCTURED_DEEP", "M15_PUNCTURED_LIGHT"]):
@@ -878,6 +916,11 @@ def train_and_export_model():
         "candle_momentum:MOMENTUM_COUNTER_DUMP_TRAIN": (0.05, 0.30),
         "puncture_interaction:INTERACTION_H1_M15_PUNCTURED": (0.05, 0.35),
         "puncture_interaction:INTERACTION_H1_PUNCTURED_DEEP": (0.05, 0.40),
+        "puncture_interaction:INTERACTION_M15_PUNCTURED_DEEP": (0.20, 0.65),
+        "puncture_interaction:INTERACTION_PUNCTURE_NORMAL": (0.95, 1.30),
+        "rsi:RSI_EXTREME": (0.70, 1.20),
+        "rsi:RSI_NEAR": (0.80, 1.15),
+        "rsi:RSI_NEUTRAL": (0.90, 1.05),
         "economic_calendar:CALENDAR_RED_DANGER": (0.05, 0.25),
         "economic_calendar:CALENDAR_SAFE": (0.90, 1.05),
         "spread_slippage:SPREAD_WIDE_DANGER": (0.10, 0.35),
@@ -908,6 +951,30 @@ def train_and_export_model():
         "cvd_flow:CVD_EXHAUSTION_BEARISH": (0.20, 0.75),
         "cvd_flow:CVD_EXHAUSTION_BULLISH": (0.20, 0.75),
         "cvd_flow:CVD_NEUTRAL": (0.85, 1.00),
+        "funding:FUNDING_SQUEEZE": (0.80, 1.20),
+        "funding:FUNDING_DANGER": (0.40, 0.85),
+        "funding:FUNDING_NORMAL": (0.95, 1.05),
+        "btc_storm:BTC_STORM_VOLATILE": (0.40, 0.75),
+        "btc_storm:BTC_STORM_NORMAL": (0.95, 1.05),
+        "btc_flash:BTC_FLASH_PUMP_ACTIVE": (0.10, 0.40),
+        "btc_flash:BTC_FLASH_DUMP_ACTIVE": (0.10, 0.40),
+        "btc_flash:BTC_FLASH_NORMAL": (0.95, 1.05),
+        "turnover_guard:TURNOVER_RISK_BLOCKED": (0.15, 0.45),
+        "turnover_guard:TURNOVER_NORMAL": (0.95, 1.05),
+        "h1_stagnant:H1_STAGNANT_TRAP": (0.40, 0.75),
+        "h1_stagnant:H1_NOT_STAGNANT": (0.95, 1.05),
+        "h1_candle_geometry:H1_PUNCTURED_DEEP": (0.15, 0.45),
+        "h1_candle_geometry:H1_PUNCTURED_LIGHT": (0.40, 0.70),
+        "h1_candle_geometry:H1_REJECT_PINBAR": (1.00, 1.40),
+        "h1_candle_geometry:H1_HOLD_OR_HOVER": (0.95, 1.25),
+        "m15_candle_geometry:M15_PUNCTURED_DEEP": (0.20, 0.50),
+        "m15_candle_geometry:M15_PUNCTURED_LIGHT": (0.40, 0.70),
+        "m15_candle_geometry:M15_HOLD_OR_HOVER": (0.95, 1.20),
+        "candle_shape:CANDLE_MARUBOZU_DUMP": (0.15, 0.45),
+        "candle_shape:CANDLE_MARUBOZU_PUMP": (0.15, 0.45),
+        "candle_shape:CANDLE_PINBAR_HAMMER": (1.00, 1.25),
+        "candle_shape:CANDLE_PINBAR_SHOOTING": (1.00, 1.25),
+        "candle_shape:CANDLE_NORMAL": (0.95, 1.05),
     }
 
     auto_tuned_count = 0
