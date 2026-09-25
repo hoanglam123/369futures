@@ -864,6 +864,11 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
       mult = Math.min(1.00, mult);
     }
 
+    // 🛡️ SANITY GUARD: Giới hạn điểm thưởng RANK_MIDCAP_150 (tối đa x1.10, tránh thổi phồng xác suất cho coin Top 150)
+    if (cat === 'rank_group' && val === 'RANK_MIDCAP_150') {
+      mult = Math.min(1.10, mult);
+    }
+
     // 🛡️ SANITY GUARD: Khắc chế các yếu tố rủi ro ngược xu hướng và phân kỳ dòng tiền
     if (cat === 'risk_interaction' && val === 'INTERACTION_TREND_FLOW_CONFLICT') {
       mult = Math.min(mult, 0.70); // Bắt buộc phạt >= 30% khi vừa ngược trend vừa lệch dòng tiền
@@ -921,17 +926,18 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
 
   // ── [MỚI] TỰ ĐỘNG NẠP NGƯỠNG TỐI ƯU DO AI TỰ HỌC (AUTONOMOUS THRESHOLD CALIBRATION) ──
   // Ngưỡng hoàn toàn do AI tự động tối ưu hóa (Grid Search Quant Utility & Net PnL) sau mỗi chu kỳ huấn luyện hàng ngày
-  // Không hardcode sàn an toàn ở runtime — Bộ não học của AI tự quyết định ngưỡng tối ưu dựa trên Profit Factor & Mathematical EV
+  // Khống chế sàn an toàn: Top 150 tối thiểu 55.0%, Lowcap tối thiểu 53.0%
   const optimalTh = _modelConfig?.optimalThresholds || {};
-  const baseTop150 = typeof optimalTh.top150 === 'number' ? optimalTh.top150 : 50.0;
-  const baseLowcap = typeof optimalTh.lowcap === 'number' ? optimalTh.lowcap : 50.0;
+  const baseTop150 = typeof optimalTh.top150 === 'number' ? Math.max(55.0, optimalTh.top150) : 55.0;
+  const baseLowcap = typeof optimalTh.lowcap === 'number' ? Math.max(53.0, optimalTh.lowcap) : 53.0;
   let threshold = (rank <= 150) ? baseTop150 : baseLowcap;
 
   // 🌊 MARKET REGIME FLEXIBILITY (Co giãn linh hoạt theo nhịp thở thị trường)
-  // Thuận sóng BTC: Tự tin nới nhẹ -0.5% để đón sóng
+  // Thuận sóng BTC: Tự tin nới nhẹ -0.5% để đón sóng (nhưng không vượt sàn tuyệt đối 55% / 53%)
   // Ngược sóng BTC hoặc bão Flash: Tự động siết thêm +2.0% để bảo vệ vốn
+  const floorThreshold = (rank <= 150) ? 55.0 : 53.0;
   if (features['btc_wave'] === 'BTC_ALIGNED') {
-    threshold -= 0.5;
+    threshold = Math.max(floorThreshold, threshold - 0.5);
   } else if (features['btc_wave'] === 'BTC_COUNTER' || features['btc_flash'] !== 'BTC_FLASH_NORMAL') {
     threshold += 2.0;
   }

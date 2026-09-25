@@ -879,6 +879,8 @@ def train_and_export_model():
     # 1. Các trạng thái rủi ro/nguy hiểm KHÔNG BAO GIỜ được phép thành nhân tố thưởng (> 1.0)
     # 2. Các trạng thái trung tính/thiếu cản không được phép nhân phóng đại quá mức (> 1.2)
     GUARDRAIL_BOUNDS = {
+        "rank_group:RANK_MIDCAP_150": (0.85, 1.10),
+        "rank_group:RANK_LOWCAP_OUT150": (0.85, 1.05),
         "h1_volatility:H1_EXTREME_STORM_PUMP_DUMP": (0.05, 0.20),
         "h1_volatility:H1_VOLATILE_DANGER": (0.30, 0.70),
         "h1_volatility:H1_VOL_NORMAL": (0.85, 1.00),
@@ -1573,7 +1575,7 @@ def calibrate_optimal_thresholds(base_dir, feature_weights=None, prior_odds=1.3,
 
     if len(trades) < 20:
         print(f"⚠️ Mẫu dữ liệu để hiệu chuẩn ngưỡng quá ít ({len(trades)} mẫu). Sử dụng ngưỡng an toàn mặc định.")
-        return {"top150": 35.0, "lowcap": 42.0, "minExpectedEvRoi": 0.0, "autoCalibrated": False}
+        return {"top150": 55.0, "lowcap": 53.0, "minExpectedEvRoi": 0.0, "autoCalibrated": False}
 
     rank_map = {}
     mc_path = os.path.join(base_dir, "data", "market_cap_top.json")
@@ -1674,9 +1676,9 @@ def calibrate_optimal_thresholds(base_dir, feature_weights=None, prior_odds=1.3,
     top150_trades = [t for t in recalculated_trades if t["marketCapRank"] <= 150]
     lowcap_trades = [t for t in recalculated_trades if t["marketCapRank"] > 150]
 
-    def optimize_segment(segment_name, segment_trades, candidates):
+    def optimize_segment(segment_name, segment_trades, candidates, default_floor=55.0):
         best_u = -999999.0
-        best_th = 50.0
+        best_th = default_floor
         best_st = {}
 
         for th in candidates:
@@ -1723,7 +1725,7 @@ def calibrate_optimal_thresholds(base_dir, feature_weights=None, prior_odds=1.3,
                         "expectedNetPnlUsd": round(net_pnl, 2)
                     }
 
-        # Fallback tự động nếu phân khúc chưa có cấu hình đạt chuẩn khắt khe: chọn ngưỡng có Net PnL tốt nhất
+        # Fallback tự động nếu phân khúc chưa có cấu hình đạt chuẩn khắt khe: chọn ngưỡng có Net PnL tốt nhất trong dải hợp lệ
         if not best_st:
             for th in candidates:
                 n_win = 0
@@ -1752,11 +1754,13 @@ def calibrate_optimal_thresholds(base_dir, feature_weights=None, prior_odds=1.3,
                             "expectedNetPnlUsd": round(net_pnl, 2)
                         }
 
-        return best_th, best_st
+        return max(default_floor, best_th), best_st
 
-    candidates = [round(x, 1) for x in range(40, 68, 2)] # Dải xác suất toán học 40.0% -> 66.0%
-    best_th_top, top_stats = optimize_segment("Top 150", top150_trades, candidates)
-    best_th_low, low_stats = optimize_segment("Lowcap", lowcap_trades, candidates)
+    # Dải xác suất tối ưu hóa: Khống chế sàn tuyệt đối Top150 >= 55.0% và Lowcap >= 53.0%
+    candidates_top = [round(x, 1) for x in range(55, 71, 1)]
+    candidates_low = [round(x, 1) for x in range(53, 71, 1)]
+    best_th_top, top_stats = optimize_segment("Top 150", top150_trades, candidates_top, default_floor=55.0)
+    best_th_low, low_stats = optimize_segment("Lowcap", lowcap_trades, candidates_low, default_floor=53.0)
 
     combined_wins = top_stats.get("expectedWins", 0) + low_stats.get("expectedWins", 0)
     combined_losses = top_stats.get("expectedLosses", 0) + low_stats.get("expectedLosses", 0)
