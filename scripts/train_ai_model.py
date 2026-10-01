@@ -977,6 +977,39 @@ def train_and_export_model():
         "candle_shape:CANDLE_PINBAR_HAMMER": (1.00, 1.25),
         "candle_shape:CANDLE_PINBAR_SHOOTING": (1.00, 1.25),
         "candle_shape:CANDLE_NORMAL": (0.95, 1.05),
+        # ── 32 TIÊU CHÍ BỔ SUNG KHÉP KÍN TOÀN DIỆN (100% FEATURES AUDITED) ──
+        "rank_group:RANK_TOP10": (0.90, 1.25),
+        "rank_group:RANK_TOP30": (0.85, 1.15),
+        "oi_change:OI_SURGE": (0.90, 1.25),
+        "oi_change:OI_STABLE": (0.90, 1.05),
+        "oi_change:OI_COOLING": (0.80, 1.00),
+        "ls_flow:LS_GOLD": (0.90, 1.25),
+        "ls_flow:LS_PARTIAL": (0.90, 1.05),
+        "grid_width:GRID_NARROW": (0.85, 1.20),
+        "grid_width:GRID_WIDE": (0.85, 1.15),
+        "adx_strength:ADX_WEAK_TREND": (0.85, 1.10),
+        "adx_strength:ADX_STRONG_TREND": (0.85, 1.25),
+        "volume:VOL_DRY": (0.80, 1.05),
+        "trading_session:SESSION_US_OPEN": (0.90, 1.20),
+        "trading_session:SESSION_EUROPE": (0.90, 1.15),
+        "trading_session:SESSION_US_LATE": (0.85, 1.15),
+        "trading_session:SESSION_ASIA": (0.85, 1.05),
+        "trading_session:SESSION_WEEKEND": (0.80, 1.00),
+        "level_freshness:FRESH_LEVEL_TOUCH1": (0.95, 1.20),
+        "level_freshness:RETEST_LEVEL_TOUCH2": (0.85, 1.05),
+        "level_freshness:EXHAUSTED_LEVEL_TOUCH3": (0.50, 0.85),
+        "sr_quality:SR_NONE": (0.80, 1.00),
+        "sr_quality:SR_DAILY_D1_INCLUDED": (0.85, 1.25),
+        "sr_quality:SR_H4_ONLY": (0.85, 1.15),
+        "price_action:PA_1_LEVEL": (0.80, 1.05),
+        "price_action:PA_2_LEVELS": (0.85, 1.15),
+        "price_action:PA_3_LEVELS": (0.90, 1.20),
+        "price_action:PA_4_LEVELS": (0.75, 1.00),
+        "trend:TREND_EMA": (0.85, 1.15),
+        "trend:TREND_PERFECT": (0.95, 1.30),
+        "candle_momentum:MOMENTUM_NORMAL": (0.90, 1.05),
+        "btc_wave:BTC_NEUTRAL": (0.85, 1.05),
+        "risk_interaction:INTERACTION_BALANCED": (0.85, 1.05),
     }
 
     auto_tuned_count = 0
@@ -991,10 +1024,11 @@ def train_and_export_model():
             feat_data["isAutonomous"] = True
             if feat_data["sanityCapped"]: capped_count += 1
         else:
-            clamped_m = max(0.15, min(2.50, curr_m))
+            clamped_m = max(0.15, min(1.20, curr_m))
             feat_data["multiplier"] = round(clamped_m, 4)
-            feat_data["sanityCapped"] = False
+            feat_data["sanityCapped"] = (clamped_m != curr_m)
             feat_data["isAutonomous"] = True
+            if feat_data["sanityCapped"]: capped_count += 1
         auto_tuned_count += 1
 
     print(f"🛡️ [Guardrails & Auto-Adaptation] Đã chuẩn hóa {auto_tuned_count} trọng số (Áp dụng {capped_count} chốt chặn bảo vệ rủi ro).")

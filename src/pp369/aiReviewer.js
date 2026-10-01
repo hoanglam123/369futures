@@ -864,10 +864,37 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
       mult = Math.min(1.00, mult);
     }
 
-    // 🛡️ SANITY GUARD: Giới hạn điểm thưởng RANK_MIDCAP_150 (tối đa x1.10, tránh thổi phồng xác suất cho coin Top 150)
+    // 🛡️ SANITY GUARD: Giới hạn điểm thưởng RANK_TOP10 & RANK_MIDCAP_150 (tránh thổi phồng xác suất coin lớn)
+    if (cat === 'rank_group' && val === 'RANK_TOP10') {
+      mult = Math.min(1.20, mult);
+    }
     if (cat === 'rank_group' && val === 'RANK_MIDCAP_150') {
       mult = Math.min(1.10, mult);
     }
+
+    // 🛡️ SANITY GUARD: Khống chế trần an toàn cho OI_SURGE & LS_GOLD (tối đa x1.25, chống lạm phát xác suất)
+    if (cat === 'oi_change' && val === 'OI_SURGE') {
+      mult = Math.min(1.25, mult);
+    }
+    if (cat === 'ls_flow' && val === 'LS_GOLD') {
+      mult = Math.min(1.25, mult);
+    }
+
+    // 🛡️ SANITY GUARD: Triệt tiêu điểm thưởng OI & Dòng tiền khi có rủi ro cấu trúc nghiêm trọng
+    const hasCriticalRisk = features['turnover_guard'] === 'TURNOVER_RISK_BLOCKED' ||
+                            features['h1_volatility'] === 'H1_VOLATILE_DANGER' ||
+                            features['h1_volatility'] === 'H1_EXTREME_STORM_PUMP_DUMP' ||
+                            features['h1_volume_burst'] === 'H1_VOL_BURST_DANGER' ||
+                            features['risk_interaction'] === 'INTERACTION_TREND_FLOW_CONFLICT' ||
+                            features['risk_interaction'] === 'INTERACTION_HIGH_VOLATILITY_WEAK_SETUP';
+    if (hasCriticalRisk) {
+      if ((cat === 'oi_change' && val === 'OI_SURGE') ||
+          (cat === 'ls_flow' && val === 'LS_GOLD') ||
+          (cat === 'volume' && val === 'VOL_SURGE')) {
+        mult = Math.min(1.00, mult); // Không cho phép điểm thưởng OI / Dòng tiền lấp liếm rủi ro cấu trúc
+      }
+    }
+
 
     // 🛡️ SANITY GUARD: Khắc chế các yếu tố rủi ro ngược xu hướng và phân kỳ dòng tiền
     if (cat === 'risk_interaction' && val === 'INTERACTION_TREND_FLOW_CONFLICT') {

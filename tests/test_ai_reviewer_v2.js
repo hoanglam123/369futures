@@ -33,7 +33,7 @@ test('Base Signal Evaluation without Raw Data', () => {
     score: 7.5,
     marketCapRank: 2,
     gridWidthPct: 3.5,
-    timestamp: new Date('2026-09-07T09:00:00+07:00').getTime(),
+    timestamp: new Date('2026-09-07T21:00:00+07:00').getTime(),
     scoreReasons: ['Dow & Trendline', 'H1 siêu nén', 'Gold Setup', '4 cản cũ', 'BTC thuận Dow/EMA']
   };
   const evalResult = evaluateSignalWithAI(sig);
@@ -41,10 +41,11 @@ test('Base Signal Evaluation without Raw Data', () => {
   assert(evalResult.winProbability >= 5.0 && evalResult.winProbability <= 95.0,
     `WinProb ${evalResult.winProbability} ngoài range [5, 95]`);
   assert(typeof evalResult.isApproved === 'boolean', 'isApproved phải là boolean');
-  // ETHUSDT với setup tốt đạt ngưỡng phê duyệt Majors (>= 50.0%) và isApproved = true
-  assert(evalResult.winProbability >= 50.0, `WinProb ${evalResult.winProbability} quá thấp cho setup tốt`);
+  // ETHUSDT với setup tốt đạt ngưỡng phê duyệt Majors (>= 55.0%) và isApproved = true
+  assert(evalResult.winProbability >= 55.0, `WinProb ${evalResult.winProbability} quá thấp cho setup tốt`);
   assert.strictEqual(evalResult.isApproved, true, 'Setup ETH tốt phải được duyệt (isApproved = true)');
 });
+
 
 
 // Test 2: Candlestick Geometry — Pinbar Hammer Boost
