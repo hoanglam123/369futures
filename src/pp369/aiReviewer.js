@@ -993,9 +993,10 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
   const tradeMargin = parseFloat(sig.margin) || 75;
   const evUsd = (evRoi / 100.0) * tradeMargin;
 
-  // 🛡️ TỶ LỆ R:R SCALPING HỢP LÝ — Khi EV dương và WinProb cao (>=55%), cho phép R:R tối thiểu 0.80:1
+  // 🛡️ TỶ LỆ R:R SCALPING HỢP LÝ — Khi EV dương và WinProb cao, cho phép R:R linh hoạt
   const rrRatio = effSlPct > 0 ? (tpGridPct / effSlPct) : 1.0;
-  const minRequiredRr = (winProb >= 55.0) ? 0.75 : 0.85;
+  // Kèo WinProb >= 60% thì R:R chỉ cần >= 0.65:1 là EV đã dương đậm và an toàn
+  const minRequiredRr = (winProb >= 60.0) ? 0.65 : ((winProb >= 55.0) ? 0.75 : 0.85);
   const isRrAcceptable = rrRatio >= minRequiredRr;
 
   // ── AI LÀ NGƯỜI RA QUYẾT ĐỊNH 100% ──
@@ -1044,7 +1045,7 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
       reasonText = `[AI VETO TƯỜNG CẢN SỔ LỆNH] Phát hiện bức tường thanh khoản khổng lồ chắn trước TP và thiếu lực đẩy CVD! [Rank #${rank}] (${factorSummary})`;
     } else if (!isRrAcceptable) {
       vetoCategory = 'BAD_RR_LESS_THAN_1';
-      reasonText = `[RỦI RO R:R < 1.0] Tỷ lệ R:R không đạt chuẩn (TP ${tpGridPct.toFixed(2)}% / SL ${effSlPct.toFixed(2)}% = ${rrRatio.toFixed(2)}:1 < 1.0:1) [Rank #${rank}] (${factorSummary})`;
+      reasonText = `[RỦI RO R:R < 1.0] Tỷ lệ R:R không đạt chuẩn (TP ${tpGridPct.toFixed(2)}% / SL ${effSlPct.toFixed(2)}% = ${rrRatio.toFixed(2)}:1 < ${minRequiredRr.toFixed(2)}:1) [Rank #${rank}] (${factorSummary})`;
     } else if (features['puncture_interaction'] && (features['puncture_interaction'] === 'INTERACTION_H1_M15_PUNCTURED' || features['puncture_interaction'].startsWith('INTERACTION_H1_'))) {
       vetoCategory = features['puncture_interaction'];
       reasonText = `[ĐÁNH GIÁ RỦI RO AI: ${features['puncture_interaction']}] Nến đâm lụt qua Entry, xác suất thắng ${winProb.toFixed(1)}% < ${threshold}% [Rank #${rank}] (${factorSummary})`;

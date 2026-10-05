@@ -309,6 +309,35 @@ test('H1_VOL_BURST_DANGER Model Guardrail: Hệ số từ mô hình bắt buộc
   assert(multVal <= 0.85, `Hệ số H1_VOL_BURST_DANGER (${multVal}) từ mô hình bắt buộc phải <= 0.85 (phạt, không được thưởng)`);
 });
 
+test('R:R Scalping Flexibility: WinProb >= 60% chỉ yêu cầu R:R >= 0.65:1', () => {
+  // Setup có TP = 1.2%, SL = 1.75% -> R:R = 1.2 / 1.75 = 0.686:1 (trước đây bị veto < 0.75)
+  const signal = {
+    symbol: 'MINAUSDT',
+    signal: 'LONG',
+    price: 0.1594,
+    score: 5.5,
+    marketCapRank: 142,
+    gridWidthPct: 2.67, // tpGridPct = 2.67 * 0.45 = 1.20%
+    actualSlPct: 1.75,   // rrRatio = 1.20 / 1.75 = 0.686:1
+    scoreReasons: [
+      '[Vốn hóa] Top 31-150 Mid Cap (Rank 142): Thanh khoản ổn định (+0.5)',
+      '[Xu hướng H4/H1] M15 cấu trúc hoàn chỉnh',
+      '[Tương quan dòng tiền L/S] Cá voi đạt'
+    ]
+  };
+  const rawMarketData = {
+    adx: 28,
+    trend: 'TREND_M15_ALIGNED',
+    fundingRate: -0.0005,
+    btcWave: 'BTC_ALIGNED'
+  };
+
+  const res = evaluateSignalWithAI(signal, rawMarketData);
+  if (res.winProbability >= 60.0) {
+    assert(!res.reason.includes('BAD_RR_LESS_THAN_1'), `Kèo WinProb ${res.winProbability}% >= 60% với R:R ~0.69:1 không được bị Veto bởi R:R`);
+  }
+});
+
 console.log('=' .repeat(80));
 console.log(`📊 TEST RESULTS: ${passed}/${total} TESTS PASSED (${((passed/total)*100).toFixed(1)}%)`);
 console.log('=' .repeat(80));
