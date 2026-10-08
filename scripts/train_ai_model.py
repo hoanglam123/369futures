@@ -661,8 +661,9 @@ def train_and_export_model():
     print("=" * 80)
 
     dataset = []
+    seen_trade_ids = set()
 
-    # 1. Load real trades từ ai_trade_dataset.jsonl (Trọng số 2.0 vì là lệnh thực tế nạp rút tiền)
+    # 1. Load REAL TRADES từ ai_trade_dataset.jsonl (Chỉ lấy lệnh thật, bỏ qua isShadow)
     real_count = 0
     if os.path.exists(DATASET_PATH):
         entries = {}
@@ -673,6 +674,10 @@ def train_and_export_model():
                 try:
                     rec = json.loads(l_str)
                 except Exception:
+                    continue
+
+                # Chỉ lấy lệnh thật trên tài khoản (loại bỏ record shadow bị lưu lẫn vào dataset)
+                if rec.get("isShadow"):
                     continue
 
                 if rec.get("type") == "ENTRY":
@@ -690,9 +695,10 @@ def train_and_export_model():
                         else:
                             win_credit = 0.0
 
+                        seen_trade_ids.add(tid)
                         dataset.append({
                             "win_credit": win_credit,
-                            "weight": 4.0,
+                            "weight": 1.0,
                             "features": extract_features(
                                 entry.get("scoreReasons", []),
                                 entry.get("score", 0),
@@ -703,9 +709,11 @@ def train_and_export_model():
                             )
                         })
                         real_count += 1
-        print(f"💰 Đã nạp {real_count} mẫu từ tài khoản thực tế (ai_trade_dataset.jsonl, Trọng số 4.0x)")
+        print(f"💰 Đã nạp {real_count} mẫu LỆNH THẬT từ tài khoản Binance (Trọng số 1.0x chuẩn)")
 
-    # 2. Load shadow trades từ shadow_trades_history.jsonl (Trọng số 0.5, theo dõi nhịp nảy nhanh <= 4h)
+    # 2. Load SHADOW TRADES từ shadow_trades_history.jsonl
+    # CHỈ LẤY CÁC LỆNH KHÔNG KHỚP TIỀN THẬT (Tránh duplicate 100% với real trades)
+    # VÀ PHẢI LÀ LỆNH ĐÃ KHỚP LIMIT BÓNG TỐI (râu nến có chạm Entry, loại bỏ BOUNCE_CANCEL/LIMIT_TIMEOUT)
     shadow_count = 0
     if os.path.exists(SHADOW_PATH):
         with open(SHADOW_PATH, 'r', encoding='utf-8') as f:
@@ -713,15 +721,19 @@ def train_and_export_model():
                 if not l.strip(): continue
                 try:
                     rec = json.loads(l.strip())
+                    sid = rec.get("shadowId") or rec.get("tradeId")
+                    # Chống trùng lặp tuyệt đối: nếu đã có trong real trades thì bỏ qua
+                    if sid in seen_trade_ids:
+                        continue
+
                     outcome = rec.get("outcome")
+                    # Chỉ lấy lệnh đã khớp Limit bóng tối và kết thúc rõ ràng
                     if outcome in ["MISSED_TP", "SAVED_SL", "SAVED_BE", "TP", "SL", "BE"]:
                         holding_mins = rec.get("holdingDurationMinutes") or (
                             (rec.get("exitTimestamp", 0) - rec.get("entryTimestamp", 0)) / 60000
                             if rec.get("exitTimestamp") and rec.get("entryTimestamp") else 0
                         )
-                        # 🛡️ LOẠI BỎ ẢO TƯỞNG SHADOW TRADES:
-                        # Bản chất lưới 369 là nhịp nảy ngắn hạn (1-4h). Nếu shadow trade ngâm 10-48h mới chạm TP
-                        # thì đó là do thị trường trôi dạt tự do, KHÔNG PHẢI edge của chiến lược -> Không tính là Win!
+                        # Lọc trần nhịp nảy nhanh <= 4h của PP369
                         if outcome in ["MISSED_TP", "TP"]:
                             win_credit = 0.0 if holding_mins > 240 else 1.0
                         elif outcome in ["SAVED_BE", "BE"]:
@@ -729,9 +741,10 @@ def train_and_export_model():
                         else:
                             win_credit = 0.0
 
+                        seen_trade_ids.add(sid)
                         dataset.append({
                             "win_credit": win_credit,
-                            "weight": 0.5,
+                            "weight": 1.0, # COI SHADOW NHƯ THẬT: Trọng số 1.0x ngang hàng với lệnh thật
                             "features": extract_features(
                                 rec.get("scoreReasons", []),
                                 rec.get("score", 0),
@@ -744,7 +757,7 @@ def train_and_export_model():
                         shadow_count += 1
                 except Exception:
                     continue
-        print(f"👻 Đã nạp {shadow_count} mẫu từ shadow trading sàn Binance (shadow_trades_history.jsonl, Trọng số 0.5x, Lọc trần <= 4h)")
+        print(f"👻 Đã nạp {shadow_count} mẫu SHADOW TRADES ĐỘC BẢN (Không trùng lệnh thật, Trọng số 1.0x như thật)")
 
     # 3. Load mined dataset từ ai_mined_dataset.jsonl (Chỉ dùng làm dữ liệu mồi nếu chưa đủ 200 mẫu lệnh thật)
     real_sample_count = len(dataset)
