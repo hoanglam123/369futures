@@ -838,6 +838,26 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
       mult = dynamicModifiers[key];
     }
 
+    // 🎯 BASELINE ANCHORING: Các trạng thái chuẩn mực / bình thường / trung tính là mốc quy chiếu (baseline = 1.00)
+    // Triệt tiêu hoàn toàn hiện tượng 15-20 nhãn "bình thường" cùng nhân dồn hệ số 0.85-0.95 dìm xác suất ảo xuống 15-25%!
+    const isBaselineNormal = val.endsWith('_NORMAL') || 
+                             val.endsWith('_NEUTRAL') || 
+                             val.endsWith('_BALANCED') || 
+                             val.endsWith('_SAFE') ||
+                             val === 'HOLD_OR_HOVER' ||
+                             val === 'H1_HOLD_OR_HOVER' ||
+                             val === 'M15_HOLD_OR_HOVER' ||
+                             val === 'H1_NOT_STAGNANT' ||
+                             val === 'INTERACTION_PUNCTURE_NORMAL' ||
+                             val === 'OI_STABLE' ||
+                             val === 'BOUNCE_FRESH' ||
+                             val === 'SESSION_ASIA' ||
+                             val === 'SESSION_EUROPE' ||
+                             val === 'SESSION_US_LATE';
+    if (isBaselineNormal && mult < 1.00) {
+      mult = 1.00;
+    }
+
     // 🛡️ SANITY GUARD: Không thưởng Pinbar M15 nếu đang ngược Trend Dow H1 & EMA
     if (features['trend'] === 'TREND_CONFLICT' && (val === 'CANDLE_PINBAR_HAMMER' || val === 'CANDLE_PINBAR_SHOOTING' || val === 'M15_REJECT_PINBAR')) {
       mult = 1.00;
@@ -975,7 +995,8 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
   // Với hệ thống Tier Leverage: calcLeverage = 50 / slPct -> Lỗ khi dính SL luôn chuẩn ~50.0% ROI
   const estSlRoi = 50.0;
 
-  // TP neo theo tỷ lệ 45% độ rộng Grid (dao động 1.2% - 3.0%), quy đổi sang ROI % theo tỷ lệ đòn bẩy:
+  // 🎯 TP: Ưu tiên lấy TP thực tế từ prelimSetup nếu có (chính xác 100% theo sàn).
+  // Nếu không có, tính theo optimalTpGridRatio do AI học được từ phân phối MFE thực tế:
   const isLowcap = rank > 150;
   const slCfg = _modelConfig?.adaptiveSlProfile;
   const defaultLowcapMin = typeof slCfg?.lowcapMinSlPct === 'number' ? slCfg.lowcapMinSlPct : 1.8;
@@ -985,7 +1006,14 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
   const effSlPct = (typeof sig.actualSlPct === 'number' && sig.actualSlPct > 0)
     ? sig.actualSlPct
     : (isLowcap ? Math.min(defaultSlPct, Math.max(1.2, gridWidthPct * 0.5)) : defaultSlPct);
-  const tpGridPct = Math.min(Math.max(gridWidthPct * 0.45, 1.2), 3.0);
+
+  const mfeMaeCfg = _modelConfig?.mfeMaeProfile;
+  const learnedTpGridRatio = typeof mfeMaeCfg?.optimalTpGridRatio === 'number'
+    ? mfeMaeCfg.optimalTpGridRatio
+    : 0.50;
+  const tpGridPct = (typeof sig.actualTpPct === 'number' && sig.actualTpPct > 0)
+    ? sig.actualTpPct
+    : Math.max(effSlPct * 1.0, gridWidthPct * learnedTpGridRatio);
   const estTpRoi = Math.max(10.0, Math.min(100.0, (tpGridPct / effSlPct) * 50.0));
 
   const winProbDec = winProb / 100.0;
@@ -995,8 +1023,8 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
 
   // 🛡️ TỶ LỆ R:R SCALPING HỢP LÝ — Khi EV dương và WinProb cao, cho phép R:R linh hoạt
   const rrRatio = effSlPct > 0 ? (tpGridPct / effSlPct) : 1.0;
-  // Kèo WinProb >= 60% thì R:R chỉ cần >= 0.65:1 là EV đã dương đậm và an toàn
-  const minRequiredRr = (winProb >= 60.0) ? 0.65 : ((winProb >= 55.0) ? 0.75 : 0.85);
+  // Kèo WinProb >= 60% thì R:R chỉ cần >= 0.60:1 là EV đã dương và được phép vào lệnh
+  const minRequiredRr = (winProb >= 60.0) ? 0.60 : ((winProb >= 55.0) ? 0.70 : 0.80);
   const isRrAcceptable = rrRatio >= minRequiredRr;
 
   // ── AI LÀ NGƯỜI RA QUYẾT ĐỊNH 100% ──

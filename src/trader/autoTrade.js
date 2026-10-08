@@ -513,18 +513,16 @@ function calculateTierSLTP(symbol, side, entryPrice, h4Ref, tickSize, maxExchang
     : (((step * 10) / entryPrice) * 100);
   const actualTpRatio = tpRatio || 1.5;
   const rawTpDist = slDist * actualTpRatio;
-  // 🧠 Tỷ lệ TP/Grid tối ưu — học từ phân phối MFE thực tế (AI tự hiệu chuẩn)
+  // 🧠 TỶ LỆ TP/GRID TỐI ƯU — GIAO QUYỀN HOÀN TOÀN CHO AI (HỌC TỪ PHÂN PHỐI MFE THỰC TẾ)
+  // Không ép cứng minTpDist = slDist * 1.25, để TP neo chuẩn xác theo tiềm năng sóng nảy mà AI đã học
   const rawTpGridRatio = typeof mfeMaeCfg?.optimalTpGridRatio === 'number'
     ? mfeMaeCfg.optimalTpGridRatio
-    : 0.55;
-  // Guardrail: [0.35, 0.85] — cho phép TP mở rộng linh hoạt để bảo đảm R:R >= 1.3:1
-  const tpGridRatio = Math.max(0.35, Math.min(rawTpGridRatio, 0.85));
-  // Nới trần TP tối đa từ 3.0% lên 4.5% để không bóp nghẹt R:R
-  const tpGridLimit = entryPrice * (Math.min(Math.max(effGridWidth * tpGridRatio, 1.5), 4.5) / 100.0);
-  // Đảm bảo TP luôn đạt tối thiểu 1.25x SL (bảo vệ R:R)
-  const minTpDist = slDist * 1.25;
-  const finalTpDist = Math.max(minTpDist, Math.min(rawTpDist, tpGridLimit));
+    : 0.50;
+  // Guardrail: [0.30, 0.85] theo biên độ MFE học được
+  const tpGridRatio = Math.max(0.30, Math.min(rawTpGridRatio, 0.85));
 
+  // Khoảng cách TP chuẩn xác theo tỷ lệ MFE của AI (Ví dụ 50% độ rộng Grid)
+  const finalTpDist = entryPrice * ((effGridWidth * tpGridRatio) / 100.0);
   const tpPrice = (side === 'LONG' || side === 'BUY') ? (entryPrice + finalTpDist) : (entryPrice - finalTpDist);
 
   // 🧠 DỜI SL VỀ HÒA VỐN SỚM (Adaptive Trailing Breakeven Trigger — tự học từ data)
@@ -532,19 +530,19 @@ function calculateTierSLTP(symbol, side, entryPrice, h4Ref, tickSize, maxExchang
   const rawBeTriggerPct = typeof mfeMaeCfg?.recommendedBeTriggerPct === 'number'
     ? mfeMaeCfg.recommendedBeTriggerPct
     : 1.10;
-  // Guardrail: không để BE trigger < 0.60% (quá sớm gây rũ non) hoặc > 2.0% (quá muộn)
-  const beTriggerPct = Math.max(0.60, Math.min(rawBeTriggerPct, 2.0));
+  // Guardrail: không để BE trigger < 0.50% (quá sớm gây rũ non) hoặc > 2.0% (quá muộn)
+  const beTriggerPct = Math.max(0.50, Math.min(rawBeTriggerPct, 2.0));
   const beDistRaw = entryPrice * (beTriggerPct / 100);
-  // Kích hoạt khi đạt khoảng 55% - 65% quãng đường đến TP (thời điểm lý tưởng để chốt 50% vị thế)
+  // Kích hoạt khi đạt khoảng 55% - 65% quãng đường đến TP
   const beDist = Math.min(beDistRaw, finalTpDist * 0.65);
   const beTriggerPrice = (side === 'LONG' || side === 'BUY') ? (entryPrice + beDist) : (entryPrice - beDist);
 
-  // 🛡️ BẮT BUỘC TỶ LỆ R:R TỐI THIỂU 1.0:1 (Loại bỏ triệt để các lệnh R:R < 1.0 như 0.5:1)
+  // 🛡️ TỶ LỆ R:R THỰC TẾ: Không chặn cứng R:R < 1.0 ở đây, giao quyền toàn diện cho AI Reviewer thẩm định qua EV
   const rrRatio = slDist > 0 ? (finalTpDist / slDist) : 0;
-  if (rrRatio < 1.0) {
+  if (slDist <= 0 || isNaN(finalTpDist) || finalTpDist <= 0) {
     return {
       valid: false,
-      reason: `BAD_RR_LESS_THAN_1 (TP ${(finalTpDist / entryPrice * 100).toFixed(2)}% / SL ${slPct.toFixed(2)}% = ${rrRatio.toFixed(2)}:1 < 1.0:1)`,
+      reason: `INVALID_PRICE_DISTANCE (slDist=${slDist}, finalTpDist=${finalTpDist})`,
       rrRatio: parseFloat(rrRatio.toFixed(2)),
       slDistance: slDist,
       slPct: slPct,
@@ -552,6 +550,7 @@ function calculateTierSLTP(symbol, side, entryPrice, h4Ref, tickSize, maxExchang
     };
   }
 
+  const tpPct = (finalTpDist / entryPrice) * 100;
   return {
     valid: true,
     slPrice: parseFloat(rawSL.toFixed(decimals)),
@@ -559,6 +558,8 @@ function calculateTierSLTP(symbol, side, entryPrice, h4Ref, tickSize, maxExchang
     beTriggerPrice: parseFloat(beTriggerPrice.toFixed(decimals)),
     slDistance: slDist,
     slPct: slPct,
+    tpDistance: finalTpDist,
+    tpPct: tpPct,
     minSlPct: minSlPct,
     isLowcap: isLowcap,
     leverage: leverage,
@@ -1589,6 +1590,7 @@ async function startAutoTrade(coins) {
         return;
       }
       sig.actualSlPct = prelimSetup.slPct;
+      sig.actualTpPct = prelimSetup.tpPct;
 
       const marketMetrics = {
         m15RangePct: rawMarketData?.m15RangePct != null ? Number(rawMarketData.m15RangePct.toFixed(2)) : null,
@@ -2444,6 +2446,7 @@ async function checkH1RetestSignals(client, activeSymbols, leverageInfo = {}) {
         continue;
       }
       sigForAI.actualSlPct = prelimRetest.slPct;
+      sigForAI.actualTpPct = prelimRetest.tpPct;
 
       const marketMetricsRetest = {
         m15RangePct: rawMarketDataRetest?.m15RangePct != null ? Number(rawMarketDataRetest.m15RangePct.toFixed(2)) : null,

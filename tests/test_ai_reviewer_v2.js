@@ -309,7 +309,7 @@ test('H1_VOL_BURST_DANGER Model Guardrail: Hệ số từ mô hình bắt buộc
   assert(multVal <= 0.85, `Hệ số H1_VOL_BURST_DANGER (${multVal}) từ mô hình bắt buộc phải <= 0.85 (phạt, không được thưởng)`);
 });
 
-test('R:R Scalping Flexibility: WinProb >= 60% chỉ yêu cầu R:R >= 0.65:1', () => {
+test('R:R Scalping Flexibility: WinProb >= 60% chỉ yêu cầu R:R >= 0.60:1', () => {
   // Setup có TP = 1.2%, SL = 1.75% -> R:R = 1.2 / 1.75 = 0.686:1 (trước đây bị veto < 0.75)
   const signal = {
     symbol: 'MINAUSDT',

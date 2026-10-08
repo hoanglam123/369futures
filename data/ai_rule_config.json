@@ -1,25 +1,25 @@
 {
   "version": "1.4.0-auto",
-  "trainedAt": "2026-10-01 10:15:52",
+  "trainedAt": "2026-10-08 09:58:43",
   "totalSamples": 3483,
   "priorWinProb": 0.6256,
   "priorOdds": 1.6712,
   "optimalThresholds": {
     "top150": 55.0,
-    "lowcap": 56,
+    "lowcap": 61,
     "minExpectedEvRoi": 0.0,
     "autoCalibrated": true,
-    "calibratedAt": "2026-10-01 10:15:52",
+    "calibratedAt": "2026-10-08 09:58:43",
     "calibrationStats": {
       "testedSamples": 2237,
-      "approvedTrades": 249,
-      "expectedWins": 169,
+      "approvedTrades": 248,
+      "expectedWins": 168,
       "expectedLosses": 80,
-      "expectedWinRate": 67.9,
-      "expectedNetPnlUsd": 944.19
+      "expectedWinRate": 67.7,
+      "expectedNetPnlUsd": 2004.33
     }
   },
-  "thresholdApprovalPct": 56,
+  "thresholdApprovalPct": 61,
   "minExpectedEvRoi": 0.0,
   "mfeMaeProfile": {
     "optimalTpGridRatio": 0.5,
@@ -44,13 +44,13 @@
     "shadowCount": 1871,
     "realCount": 2185,
     "autoCalibrated": true,
-    "calculatedAt": "2026-10-01 10:15:52"
+    "calculatedAt": "2026-10-08 09:58:43"
   },
   "adaptiveSlProfile": {
     "top150MinSlPct": 1.5,
     "lowcapMinSlPct": 1.8,
     "autoCalibrated": true,
-    "calculatedAt": "2026-10-01 10:15:52",
+    "calculatedAt": "2026-10-08 09:58:43",
     "sampleCount": 1933
   },
   "featureWeights": {
@@ -133,14 +133,14 @@
       "lossCount": 2016.5,
       "winProb": 0.6515,
       "multiplier": 1.0,
-      "sanityCapped": false,
+      "sanityCapped": true,
       "isAutonomous": true
     },
     "oi_change:OI_STABLE": {
       "winCount": 2600.8,
       "lossCount": 1554.8,
       "winProb": 0.6259,
-      "multiplier": 1.0009,
+      "multiplier": 1.0,
       "sanityCapped": false,
       "isAutonomous": true
     },
@@ -158,7 +158,7 @@
       "winCount": 3591.5,
       "lossCount": 2173.0,
       "winProb": 0.623,
-      "multiplier": 0.989,
+      "multiplier": 1.0,
       "sanityCapped": false,
       "isAutonomous": true
     },
@@ -192,10 +192,10 @@
       "winCount": 2217.2,
       "lossCount": 1620.8,
       "winProb": 0.5779,
-      "multiplier": 0.95,
+      "multiplier": 1.0,
       "knowledgeBoost": 1.0,
       "blendRatio": 0.99,
-      "sanityCapped": true,
+      "sanityCapped": false,
       "isAutonomous": true
     },
     "pre_entry_bounce:BOUNCE_MODERATE": {
@@ -210,7 +210,7 @@
       "winCount": 530.8,
       "lossCount": 374.8,
       "winProb": 0.5868,
-      "multiplier": 0.8586,
+      "multiplier": 1.001,
       "knowledgeBoost": 1.02,
       "blendRatio": 0.95,
       "sanityCapped": false,
@@ -276,10 +276,10 @@
       "winCount": 2055.8,
       "lossCount": 1480.8,
       "winProb": 0.5815,
-      "multiplier": 0.95,
+      "multiplier": 1.0,
       "knowledgeBoost": 1.0,
       "blendRatio": 0.99,
-      "sanityCapped": true,
+      "sanityCapped": false,
       "isAutonomous": true
     },
     "puncture_interaction:INTERACTION_H1_PUNCTURED_DEEP": {
@@ -294,7 +294,7 @@
       "winCount": 4751.8,
       "lossCount": 2868.2,
       "winProb": 0.6236,
-      "multiplier": 0.9914,
+      "multiplier": 1.0,
       "knowledgeBoost": 1.0,
       "blendRatio": 0.99,
       "sanityCapped": false,
@@ -304,10 +304,10 @@
       "winCount": 1384.5,
       "lossCount": 837.5,
       "winProb": 0.6231,
-      "multiplier": 1.0,
+      "multiplier": 1.0022,
       "knowledgeBoost": 1.1,
       "blendRatio": 0.98,
-      "sanityCapped": true,
+      "sanityCapped": false,
       "isAutonomous": true
     },
     "cvd_momentum:CVD_NEUTRAL": {
@@ -464,7 +464,7 @@
       "winCount": 2831.0,
       "lossCount": 1778.5,
       "winProb": 0.6142,
-      "multiplier": 0.9526,
+      "multiplier": 1.0,
       "sanityCapped": false,
       "isAutonomous": true
     },
@@ -472,7 +472,7 @@
       "winCount": 775.8,
       "lossCount": 413.2,
       "winProb": 0.6521,
-      "multiplier": 1.1171,
+      "multiplier": 1.0004,
       "knowledgeBoost": 1.01,
       "blendRatio": 0.96,
       "sanityCapped": false,
@@ -482,10 +482,10 @@
       "winCount": 1541.5,
       "lossCount": 1214.0,
       "winProb": 0.5598,
-      "multiplier": 0.85,
+      "multiplier": 1.0009,
       "knowledgeBoost": 1.05,
       "blendRatio": 0.98,
-      "sanityCapped": true,
+      "sanityCapped": false,
       "isAutonomous": true
     },
     "h1_candle_geometry:H1_REJECT_PINBAR": {
@@ -590,7 +590,7 @@
       "winCount": 516.0,
       "lossCount": 307.5,
       "winProb": 0.6266,
-      "multiplier": 1.0038,
+      "multiplier": 1.0,
       "knowledgeBoost": 1.0,
       "blendRatio": 0.94,
       "sanityCapped": false,
