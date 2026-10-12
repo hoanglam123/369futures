@@ -1,25 +1,25 @@
 {
   "version": "1.4.0-auto",
-  "trainedAt": "2026-10-12 08:49:45",
+  "trainedAt": "2026-10-12 13:55:07",
   "totalSamples": 2483,
   "priorWinProb": 0.4883,
   "priorOdds": 0.9543,
   "optimalThresholds": {
-    "top150": 56,
-    "lowcap": 54,
+    "top150": 61,
+    "lowcap": 53.0,
     "minExpectedEvRoi": 0.0,
     "autoCalibrated": true,
-    "calibratedAt": "2026-10-12 08:49:45",
+    "calibratedAt": "2026-10-12 13:55:07",
     "calibrationStats": {
       "testedSamples": 3377,
-      "approvedTrades": 65,
-      "expectedWins": 35,
-      "expectedLosses": 30,
-      "expectedWinRate": 53.8,
-      "expectedNetPnlUsd": 193.99
+      "approvedTrades": 215,
+      "expectedWins": 131,
+      "expectedLosses": 84,
+      "expectedWinRate": 60.9,
+      "expectedNetPnlUsd": 1511.14
     }
   },
-  "thresholdApprovalPct": 54,
+  "thresholdApprovalPct": 53.0,
   "minExpectedEvRoi": 0.0,
   "mfeMaeProfile": {
     "optimalTpGridRatio": 0.5,
@@ -44,13 +44,13 @@
     "shadowCount": 1871,
     "realCount": 2185,
     "autoCalibrated": true,
-    "calculatedAt": "2026-10-12 08:49:45"
+    "calculatedAt": "2026-10-12 13:55:07"
   },
   "adaptiveSlProfile": {
     "top150MinSlPct": 1.5,
     "lowcapMinSlPct": 1.8,
     "autoCalibrated": true,
-    "calculatedAt": "2026-10-12 08:49:45",
+    "calculatedAt": "2026-10-12 13:55:07",
     "sampleCount": 1933
   },
   "adaptiveRrProfile": {
@@ -63,7 +63,7 @@
     },
     "minExpectedEvRoi": 0.0,
     "autoCalibrated": true,
-    "calculatedAt": "2026-10-12 08:49:45"
+    "calculatedAt": "2026-10-12 13:55:07"
   },
   "riskPenaltyProfile": {
     "h1ExtremeStormRejection": 0.55,
@@ -77,7 +77,7 @@
     "wallOpposingBlock": 0.35,
     "btcFlashOpposing": 0.35,
     "autoCalibrated": true,
-    "calculatedAt": "2026-10-12 08:49:45"
+    "calculatedAt": "2026-10-12 13:55:07"
   },
   "featureWeights": {
     "rank_group:RANK_TOP10": {
@@ -120,14 +120,6 @@
       "sanityCapped": false,
       "isAutonomous": true
     },
-    "h1_stagnant:H1_NOT_STAGNANT": {
-      "winCount": 1212.5,
-      "lossCount": 1270.5,
-      "winProb": 0.4883,
-      "multiplier": 1.0,
-      "sanityCapped": false,
-      "isAutonomous": true
-    },
     "rsi:RSI_NEUTRAL": {
       "winCount": 718.0,
       "lossCount": 840.0,
@@ -148,8 +140,8 @@
       "winCount": 946.5,
       "lossCount": 878.5,
       "winProb": 0.5184,
-      "multiplier": 0.85,
-      "knowledgeBoost": 0.75,
+      "multiplier": 1.05,
+      "knowledgeBoost": 1.0,
       "blendRatio": 0.97,
       "sanityCapped": true,
       "isAutonomous": true
@@ -256,10 +248,10 @@
       "winCount": 260.5,
       "lossCount": 334.5,
       "winProb": 0.4391,
-      "multiplier": 0.807,
-      "knowledgeBoost": 0.65,
+      "multiplier": 0.9,
+      "knowledgeBoost": 1.0,
       "blendRatio": 0.92,
-      "sanityCapped": false,
+      "sanityCapped": true,
       "isAutonomous": true
     },
     "turnover_guard:TURNOVER_NORMAL": {
@@ -330,8 +322,8 @@
       "winCount": 455.0,
       "lossCount": 779.0,
       "winProb": 0.3702,
-      "multiplier": 1.0039,
-      "knowledgeBoost": 1.1,
+      "multiplier": 1.0019,
+      "knowledgeBoost": 1.05,
       "blendRatio": 0.96,
       "sanityCapped": false,
       "isAutonomous": true
@@ -352,46 +344,6 @@
       "winProb": 0.5013,
       "multiplier": 1.0558,
       "knowledgeBoost": 1.15,
-      "blendRatio": 0.98,
-      "sanityCapped": false,
-      "isAutonomous": true
-    },
-    "ema_distance:PRICE_NEAR_EMA": {
-      "winCount": 1212.5,
-      "lossCount": 1270.5,
-      "winProb": 0.4883,
-      "multiplier": 1.003,
-      "knowledgeBoost": 1.15,
-      "blendRatio": 0.98,
-      "sanityCapped": false,
-      "isAutonomous": true
-    },
-    "wick_rejection:WICK_NORMAL": {
-      "winCount": 1212.5,
-      "lossCount": 1270.5,
-      "winProb": 0.4883,
-      "multiplier": 1.0,
-      "knowledgeBoost": 1.0,
-      "blendRatio": 0.98,
-      "sanityCapped": false,
-      "isAutonomous": true
-    },
-    "bb_squeeze:BB_NORMAL": {
-      "winCount": 1212.5,
-      "lossCount": 1270.5,
-      "winProb": 0.4883,
-      "multiplier": 1.0,
-      "knowledgeBoost": 1.0,
-      "blendRatio": 0.98,
-      "sanityCapped": false,
-      "isAutonomous": true
-    },
-    "cvd_flow:CVD_NEUTRAL": {
-      "winCount": 1212.5,
-      "lossCount": 1270.5,
-      "winProb": 0.4883,
-      "multiplier": 1.0,
-      "knowledgeBoost": 1.0,
       "blendRatio": 0.98,
       "sanityCapped": false,
       "isAutonomous": true
@@ -464,10 +416,10 @@
       "winCount": 13.0,
       "lossCount": 15.0,
       "winProb": 0.4727,
-      "multiplier": 1.0,
-      "knowledgeBoost": 1.1,
+      "multiplier": 0.9782,
+      "knowledgeBoost": 1.0,
       "blendRatio": 0.36,
-      "sanityCapped": true,
+      "sanityCapped": false,
       "isAutonomous": true
     },
     "sr_quality:SR_H4_ONLY": {
@@ -534,8 +486,8 @@
       "winCount": 660.0,
       "lossCount": 461.0,
       "winProb": 0.5874,
-      "multiplier": 0.95,
-      "knowledgeBoost": 0.85,
+      "multiplier": 1.05,
+      "knowledgeBoost": 0.95,
       "blendRatio": 0.96,
       "sanityCapped": true,
       "isAutonomous": true
@@ -634,8 +586,8 @@
       "winCount": 28.0,
       "lossCount": 11.0,
       "winProb": 0.6542,
-      "multiplier": 0.25,
-      "knowledgeBoost": 0.1,
+      "multiplier": 1.2,
+      "knowledgeBoost": 1.0,
       "blendRatio": 0.44,
       "sanityCapped": true,
       "isAutonomous": true
@@ -725,7 +677,7 @@
       "lossCount": 29.0,
       "winProb": 0.5634,
       "multiplier": 1.2,
-      "knowledgeBoost": 1.08,
+      "knowledgeBoost": 1.0,
       "blendRatio": 0.58,
       "sanityCapped": true,
       "isAutonomous": true
@@ -750,8 +702,8 @@
       "winCount": 308.0,
       "lossCount": 176.0,
       "winProb": 0.6319,
-      "multiplier": 0.75,
-      "knowledgeBoost": 0.65,
+      "multiplier": 1.15,
+      "knowledgeBoost": 1.0,
       "blendRatio": 0.91,
       "sanityCapped": true,
       "isAutonomous": true
@@ -760,10 +712,10 @@
       "winCount": 9.0,
       "lossCount": 7.0,
       "winProb": 0.5266,
-      "multiplier": 0.45,
-      "knowledgeBoost": 0.35,
+      "multiplier": 0.6235,
+      "knowledgeBoost": 0.45,
       "blendRatio": 0.24,
-      "sanityCapped": true,
+      "sanityCapped": false,
       "isAutonomous": true
     },
     "trading_session:SESSION_WEEKEND": {
@@ -894,8 +846,8 @@
       "winCount": 97.5,
       "lossCount": 30.5,
       "winProb": 0.733,
-      "multiplier": 0.35,
-      "knowledgeBoost": 0.2,
+      "multiplier": 1.25,
+      "knowledgeBoost": 1.0,
       "blendRatio": 0.72,
       "sanityCapped": true,
       "isAutonomous": true
@@ -1121,156 +1073,6 @@
       "isAutonomous": true
     },
     "level_freshness:EXHAUSTED_LEVEL_TOUCH3": {
-      "winCount": 0,
-      "lossCount": 0,
-      "winProb": 0.4883,
-      "multiplier": 0.7,
-      "knowledgeBoost": 0.7,
-      "blendRatio": 0.0,
-      "sanityCapped": false,
-      "isAutonomous": true
-    },
-    "ema_distance:PRICE_OVEREXTENDED": {
-      "winCount": 0,
-      "lossCount": 0,
-      "winProb": 0.4883,
-      "multiplier": 0.65,
-      "knowledgeBoost": 0.65,
-      "blendRatio": 0.0,
-      "sanityCapped": false,
-      "isAutonomous": true
-    },
-    "ema_distance:PRICE_EXTENDED": {
-      "winCount": 0,
-      "lossCount": 0,
-      "winProb": 0.4883,
-      "multiplier": 0.85,
-      "knowledgeBoost": 0.85,
-      "blendRatio": 0.0,
-      "sanityCapped": false,
-      "isAutonomous": true
-    },
-    "ema_distance:PRICE_COUNTER_EMA": {
-      "winCount": 0,
-      "lossCount": 0,
-      "winProb": 0.4883,
-      "multiplier": 0.75,
-      "knowledgeBoost": 0.75,
-      "blendRatio": 0.0,
-      "sanityCapped": false,
-      "isAutonomous": true
-    },
-    "wick_rejection:BULLISH_PINBAR_REJECTION": {
-      "winCount": 0,
-      "lossCount": 0,
-      "winProb": 0.4883,
-      "multiplier": 1.25,
-      "knowledgeBoost": 1.25,
-      "blendRatio": 0.0,
-      "sanityCapped": false,
-      "isAutonomous": true
-    },
-    "wick_rejection:BEARISH_PINBAR_REJECTION": {
-      "winCount": 0,
-      "lossCount": 0,
-      "winProb": 0.4883,
-      "multiplier": 1.25,
-      "knowledgeBoost": 1.25,
-      "blendRatio": 0.0,
-      "sanityCapped": false,
-      "isAutonomous": true
-    },
-    "wick_rejection:OPPOSING_WICK_TRAP": {
-      "winCount": 0,
-      "lossCount": 0,
-      "winProb": 0.4883,
-      "multiplier": 0.68,
-      "knowledgeBoost": 0.68,
-      "blendRatio": 0.0,
-      "sanityCapped": false,
-      "isAutonomous": true
-    },
-    "bb_squeeze:BB_ULTRA_SQUEEZE": {
-      "winCount": 0,
-      "lossCount": 0,
-      "winProb": 0.4883,
-      "multiplier": 1.22,
-      "knowledgeBoost": 1.22,
-      "blendRatio": 0.0,
-      "sanityCapped": false,
-      "isAutonomous": true
-    },
-    "bb_squeeze:BB_MODERATE_SQUEEZE": {
-      "winCount": 0,
-      "lossCount": 0,
-      "winProb": 0.4883,
-      "multiplier": 1.1,
-      "knowledgeBoost": 1.1,
-      "blendRatio": 0.0,
-      "sanityCapped": false,
-      "isAutonomous": true
-    },
-    "bb_squeeze:BB_EXPANSION": {
-      "winCount": 0,
-      "lossCount": 0,
-      "winProb": 0.4883,
-      "multiplier": 0.95,
-      "knowledgeBoost": 0.95,
-      "blendRatio": 0.0,
-      "sanityCapped": false,
-      "isAutonomous": true
-    },
-    "cvd_flow:CVD_BULLISH_FLOW": {
-      "winCount": 0,
-      "lossCount": 0,
-      "winProb": 0.4883,
-      "multiplier": 1.2,
-      "knowledgeBoost": 1.2,
-      "blendRatio": 0.0,
-      "sanityCapped": false,
-      "isAutonomous": true
-    },
-    "cvd_flow:CVD_BEARISH_FLOW": {
-      "winCount": 0,
-      "lossCount": 0,
-      "winProb": 0.4883,
-      "multiplier": 1.2,
-      "knowledgeBoost": 1.2,
-      "blendRatio": 0.0,
-      "sanityCapped": false,
-      "isAutonomous": true
-    },
-    "cvd_flow:CVD_ABSORPTION_BULLISH": {
-      "winCount": 0,
-      "lossCount": 0,
-      "winProb": 0.4883,
-      "multiplier": 1.25,
-      "knowledgeBoost": 1.25,
-      "blendRatio": 0.0,
-      "sanityCapped": false,
-      "isAutonomous": true
-    },
-    "cvd_flow:CVD_ABSORPTION_BEARISH": {
-      "winCount": 0,
-      "lossCount": 0,
-      "winProb": 0.4883,
-      "multiplier": 1.25,
-      "knowledgeBoost": 1.25,
-      "blendRatio": 0.0,
-      "sanityCapped": false,
-      "isAutonomous": true
-    },
-    "cvd_flow:CVD_EXHAUSTION_BEARISH": {
-      "winCount": 0,
-      "lossCount": 0,
-      "winProb": 0.4883,
-      "multiplier": 0.7,
-      "knowledgeBoost": 0.7,
-      "blendRatio": 0.0,
-      "sanityCapped": false,
-      "isAutonomous": true
-    },
-    "cvd_flow:CVD_EXHAUSTION_BULLISH": {
       "winCount": 0,
       "lossCount": 0,
       "winProb": 0.4883,

@@ -207,21 +207,6 @@ function extractSignalFeatures(reasons, score, rank, gridWidthPct, rawMarketData
     }
   }
 
-  // 4c. H1 Stagnant Liquidity Trap (Nén bế tắc H1 Range <= 1.5%)
-  if (sm?.h1Stagnant) {
-    features['h1_stagnant'] = sm.h1Stagnant;
-  } else if (Array.isArray(rawMarketData?.h1Klines) && rawMarketData.h1Klines.length >= 24) {
-    const sample = rawMarketData.h1Klines.slice(-Math.min(48, rawMarketData.h1Klines.length));
-    const sampleHigh = Math.max(...sample.map(c => (typeof c.high === 'number' ? c.high : c[2])));
-    const sampleLow = Math.min(...sample.map(c => (typeof c.low === 'number' ? c.low : c[3])));
-    const refPrice = entryPrice || (typeof sample[sample.length - 1].close === 'number' ? sample[sample.length - 1].close : sample[sample.length - 1][4]) || 1;
-    const sampleRangePct = ((sampleHigh - sampleLow) / refPrice) * 100;
-    features['h1_stagnant'] = sampleRangePct <= 1.5 ? 'H1_STAGNANT_TRAP' : 'H1_NOT_STAGNANT';
-  } else if (reasonsStr.includes('Nén bế tắc H1')) {
-    features['h1_stagnant'] = 'H1_STAGNANT_TRAP';
-  } else {
-    features['h1_stagnant'] = 'H1_NOT_STAGNANT';
-  }
 
   // 5. RSI (Số học thuần túy từ giá trị RSI 14 nến)
   if (sm?.rsiCondition) {
@@ -647,33 +632,7 @@ function extractSignalFeatures(reasons, score, rank, gridWidthPct, rawMarketData
   let wallCat = rawMarketData?.microstructure?.wall || rawMarketData?.wallCategory || 'WALL_CLEAR_PATH';
   features['orderbook_wall'] = wallCat;
 
-  // ── [MỚI] 24. 4 Chỉ báo Kỹ thuật Nâng cao (EMA Distance H1, Wick Rejection M15, BB Squeeze H1, CVD Delta M15) ──
-  features['ema_distance'] = sm?.emaDistanceZone || 'PRICE_NEAR_EMA';
-  if (sm?.m15WickRejection) {
-    features['wick_rejection'] = sm.m15WickRejection;
-  } else if (rawMarketData?.lastM15 || rawMarketData?.currM15) {
-    const c = rawMarketData.lastM15 || rawMarketData.currM15;
-    const totalRange = Math.max(1e-9, c.high - c.low);
-    const bodyTop = Math.max(c.open, c.close);
-    const bodyBottom = Math.min(c.open, c.close);
-    const upperWick = c.high - bodyTop;
-    const lowerWick = bodyBottom - c.low;
-    const lowerWickRatio = lowerWick / totalRange;
-    const upperWickRatio = upperWick / totalRange;
-    if (isLong) {
-      if (lowerWickRatio >= 0.50) features['wick_rejection'] = 'BULLISH_PINBAR_REJECTION';
-      else if (upperWickRatio >= 0.50) features['wick_rejection'] = 'OPPOSING_WICK_TRAP';
-      else features['wick_rejection'] = 'WICK_NORMAL';
-    } else {
-      if (upperWickRatio >= 0.50) features['wick_rejection'] = 'BEARISH_PINBAR_REJECTION';
-      else if (lowerWickRatio >= 0.50) features['wick_rejection'] = 'OPPOSING_WICK_TRAP';
-      else features['wick_rejection'] = 'WICK_NORMAL';
-    }
-  } else {
-    features['wick_rejection'] = 'WICK_NORMAL';
-  }
-  features['bb_squeeze'] = sm?.h1BbState || 'BB_NORMAL';
-  features['cvd_flow'] = sm?.m15CvdFlow || 'CVD_NEUTRAL';
+
 
   return features;
 }
@@ -752,48 +711,29 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
     'btc_flash:BTC_FLASH_NORMAL': 1.00,
     'turnover_guard:TURNOVER_RISK_BLOCKED': 0.30, // Phạt nặng coin Low-Cap bị bơm xả Turnover > 8%
     'turnover_guard:TURNOVER_NORMAL': 1.00,
-    'price_action:PA_0_LEVEL': 0.85,              // [LÕI AI] Rỗng cản S/R là rủi ro rất cao, phạt 15% (x0.85) thay vì chỉ trừ 5%
+    'price_action:PA_0_LEVEL': 1.00,              // Thực nghiệm N=1825 WinRate 51.84%, mốc 369 tự thân là cản chuẩn, không phạt PA_0_LEVEL
     'ls_flow:LS_DIVERGENCE': 0.80,                // [CÂN BẰNG] Phạt vừa phải 20% khi dòng tiền Cá voi và Retail phân kỳ ngược nhau
     'risk_interaction:INTERACTION_HIGH_VOLATILITY_WEAK_SETUP': 0.50, // Biến động mạnh kết hợp thế nến/cản yếu -> Veto
     'risk_interaction:INTERACTION_TREND_FLOW_CONFLICT': 0.65, // Phạt 35% khi vừa ngược trend vừa phân kỳ dòng tiền
-    'risk_interaction:INTERACTION_NO_SR_WEAK_SETUP': 0.65,      // Fallback nếu chưa có trong weights
+    'risk_interaction:INTERACTION_NO_SR_WEAK_SETUP': 1.00,      // Trung tính theo dữ liệu thực tế
     'risk_interaction:INTERACTION_DRY_VOL_COOLING_OI': 0.80,     // Fallback nếu chưa có trong weights
     'risk_interaction:INTERACTION_BALANCED': 1.00,
-    'economic_calendar:CALENDAR_RED_DANGER': ecoRedMult, // Bão giá CPI/FOMC/NFP từ riskPenaltyProfile
+    'economic_calendar:CALENDAR_RED_DANGER': 1.00,  // Thực nghiệm N=39 WinRate 65.4% ~ trung tính, không phạt định kiến
     'economic_calendar:CALENDAR_SAFE': 1.00,
-    'spread_slippage:SPREAD_WIDE_DANGER': spreadWideMult, // Trượt giá dãn Spread từ riskPenaltyProfile
-    'spread_slippage:SPREAD_MEDIUM_CAUTION': 0.85,
-    'spread_slippage:SPREAD_TIGHT_SAFE': 1.10,     // Spread hẹp (< 0.035%) -> Thưởng +10% cho Scalping
+    'spread_slippage:SPREAD_WIDE_DANGER': 1.00,      // Thực nghiệm N=128 WinRate 73.3% ~ coin có sóng mạnh
+    'spread_slippage:SPREAD_MEDIUM_CAUTION': 0.95,
+    'spread_slippage:SPREAD_TIGHT_SAFE': 1.05,
     'cvd_momentum:CVD_SURGE_ALIGNED': 1.25,        // Taker Buy/Sell đẩy mạnh thuận hướng -> Thưởng +25%
-    'cvd_momentum:CVD_DIVERGENCE_OPPOSING': 0.65,  // Taker đang xả/hấp thụ ngược hướng -> Phạt -35%
+    'cvd_momentum:CVD_DIVERGENCE_OPPOSING': 1.00,  // Thực nghiệm N=484 WinRate 63.2%
     'cvd_momentum:CVD_NEUTRAL': 1.00,
     'orderbook_wall:WALL_CLEAR_PATH': 1.15,        // Đường tới TP thông thoáng -> Thưởng +15%
     'orderbook_wall:WALL_SUPPORT_SHIELD': 1.12,    // Có tường dày bảo vệ sau Entry -> Thưởng +12%
-    'orderbook_wall:WALL_OPPOSING_BLOCK': wallBlockMult, // Tường cản chắn trước TP từ riskPenaltyProfile
+    'orderbook_wall:WALL_OPPOSING_BLOCK': 0.45,
     'trading_session:SESSION_ASIA': 1.02,        // Phiên Á nén chuẩn, sóng êm -> Thưởng nhẹ +2%
     'trading_session:SESSION_EUROPE': 1.01,      // Phiên Âu sóng đều -> Thưởng nhẹ +1%
     'trading_session:SESSION_US_OPEN': 0.98,     // Phiên Mỹ mở cửa -> Thận trọng nhẹ -2%
     'trading_session:SESSION_US_LATE': 1.00,     // Bình thường
-    'trading_session:SESSION_WEEKEND': 0.98,     // Cuối tuần vol mỏng -> Thận trọng nhẹ -2%
-    'ema_distance:PRICE_OVEREXTENDED': 0.65,     // Đu đỉnh/đáy quá 2.0 ATR -> Phạt -35% WinProb
-    'ema_distance:PRICE_EXTENDED': 0.85,         // Bắt đầu căng 1.2 - 2.0 ATR -> Phạt nhẹ -15%
-    'ema_distance:PRICE_NEAR_EMA': 1.15,         // Gần EMA < 1.2 ATR -> Vùng hồi vàng, Thưởng +15%
-    'ema_distance:PRICE_COUNTER_EMA': 0.75,      // Sai phía EMA -> Phạt -25%
-    'wick_rejection:BULLISH_PINBAR_REJECTION': 1.25, // Nến M15 rút chân dưới >= 50% -> Thưởng +25%
-    'wick_rejection:BEARISH_PINBAR_REJECTION': 1.25, // Nến M15 rút râu trên >= 50% -> Thưởng +25%
-    'wick_rejection:OPPOSING_WICK_TRAP': oppWickMult, // Bẫy đè râu ngược chiều từ riskPenaltyProfile
-    'wick_rejection:WICK_NORMAL': 1.00,
-    'bb_squeeze:BB_ULTRA_SQUEEZE': 1.22,         // Bollinger Bandwidth H1 <= 3% -> Sắp nổ biến động, Thưởng +22%
-    'bb_squeeze:BB_MODERATE_SQUEEZE': 1.10,      // Bollinger Bandwidth H1 <= 5% -> Thưởng +10%
-    'bb_squeeze:BB_EXPANSION': 0.95,             // Đang bung dải quá rộng
-    'bb_squeeze:BB_NORMAL': 1.00,
-    'cvd_flow:CVD_BULLISH_FLOW': 1.20,           // Taker Buy M15 áp đảo -> Thưởng +20%
-    'cvd_flow:CVD_BEARISH_FLOW': 1.20,           // Taker Sell M15 áp đảo (Short) -> Thưởng +20%
-    'cvd_flow:CVD_ABSORPTION_BULLISH': 1.25,     // Cá voi hấp thụ lệnh bán -> Thưởng +25%
-    'cvd_flow:CVD_ABSORPTION_BEARISH': 1.25,     // Cá voi gom Short -> Thưởng +25%
-    'cvd_flow:CVD_EXHAUSTION_BEARISH': 0.70,     // Giá lên nhưng hết lực mua -> Phạt -30%
-    'cvd_flow:CVD_EXHAUSTION_BULLISH': 0.70,     // Giá xuống nhưng hết lực bán -> Phạt -30%
-    'cvd_flow:CVD_NEUTRAL': 1.00
+    'trading_session:SESSION_WEEKEND': 0.98      // Cuối tuần vol mỏng -> Thận trọng nhẹ -2%
   };
 
   const score = parseFloat(sig.score) || 0;
@@ -834,6 +774,17 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
     skipForInteraction.add('oi_change');
   }
 
+  // 🛡️ DOUBLE-COUNTING PREVENTION CHO THẾ NẾN:
+  // puncture_interaction là feature tổng hợp của (h1_candle_geometry + m15_candle_geometry + candle_shape).
+  // Khi một trạng thái đâm lụt/rút chân đã capture bởi puncture_interaction, bỏ qua
+  // các feature thành phần để tránh nhân dồn phạt/thưởng tới 3-4 lần!
+  const punctureInteraction = features['puncture_interaction'];
+  if (punctureInteraction && punctureInteraction !== 'INTERACTION_PUNCTURE_NORMAL') {
+    skipForInteraction.add('h1_candle_geometry');
+    skipForInteraction.add('m15_candle_geometry');
+    skipForInteraction.add('candle_shape');
+  }
+
   for (const [cat, val] of Object.entries(features)) {
     const key = `${cat}:${val}`;
     let mult = 1.0;
@@ -864,6 +815,9 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
                              val === 'INTERACTION_PUNCTURE_NORMAL' ||
                              val === 'OI_STABLE' ||
                              val === 'BOUNCE_FRESH' ||
+                             val === 'PA_0_LEVEL' ||
+                             val === 'SR_NONE' ||
+                             val === 'INTERACTION_NO_SR_WEAK_SETUP' ||
                              val === 'SESSION_ASIA' ||
                              val === 'SESSION_EUROPE' ||
                              val === 'SESSION_US_LATE';
@@ -982,14 +936,13 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
     // 🛡️ SANITY GUARD: Khắc chế hệ số Ngược Sóng BTC (BTC_COUNTER)
     // Khi Altcoin đi ngược xu hướng chính của BTC (BTC đang có trend/đà ngược chiều):
     // - Tuyệt đối KHÔNG ĐƯỢC nhân hệ số thưởng (> 1.0)
-    // - Nếu Altcoin không có cản S/R mạnh (SR_NONE hoặc PA_0_LEVEL) hoặc ngược trend:
-    //   BẮT BUỘC bị PHẠT trừ nặng (x0.75) để loại bỏ các lệnh đu đỉnh / bắt dao rơi
-    // - Nếu Altcoin có cản S/R mạnh (SR_DAILY_D1_INCLUDED) và trend đồng thuận:
-    //   Hệ số tối đa chỉ là 0.85 (thận trọng -15%)
+    // 🛡️ SANITY GUARD: Khắc chế hệ số Ngược Sóng BTC (BTC_COUNTER)
+    // Khi Altcoin đi ngược xu hướng chính của BTC:
+    // - Nếu Altcoin thuận trend (TREND_PERFECT / TREND_M15_ALIGNED): Phạt nhẹ x0.85
+    // - Nếu Altcoin cũng ngược trend (TREND_CONFLICT): Phạt nặng x0.75
     if (cat === 'btc_wave' && val === 'BTC_COUNTER') {
-      const hasStrongSr = features['sr_quality'] === 'SR_DAILY_D1_INCLUDED' && features['price_action'] !== 'PA_0_LEVEL';
       const isAlignedTrend = features['trend'] === 'TREND_PERFECT' || features['trend'] === 'TREND_M15_ALIGNED';
-      if (!hasStrongSr || !isAlignedTrend) {
+      if (!isAlignedTrend) {
         mult = 0.75;
       } else {
         mult = Math.min(mult, 0.85);

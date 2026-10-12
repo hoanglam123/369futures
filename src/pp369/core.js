@@ -936,14 +936,7 @@ function analyzeRoundtrips(candles, lowerLevel, upperLevel) {
 async function get369Signal(symbol, currentPrice = null) {
   const month = yearLabel(); // Dùng nhãn năm 2026 thay vì tháng
 
-  if (isSymbolInGridBlacklist(symbol)) {
-    const info = getGridBlacklistInfo(symbol);
-    return {
-      signal: 'NONE', symbol, month, openPrice: null, closePrice: null, step: null,
-      reason: `[GridBlacklist 6h] Mã ${symbol} tạm ngưng do khung hẹp x*2 > y (Hết hạn lúc ${info?.expiresAtStr || 'chưa rõ'})`
-    };
-  }
-
+  // (Đã gỡ bỏ GridBlacklist và x*2 > y: Toàn bộ tín hiệu được trao cho AI Reviewer thẩm định)
   try {
     // Lấy nến H4 đầu năm 2026 làm mốc gốc (thay H1 đầu tháng)
     const h1 = await fetchH4Reference(symbol);
@@ -977,15 +970,6 @@ async function get369Signal(symbol, currentPrice = null) {
           return {
             signal: 'NONE', symbol, month, openPrice, closePrice, step: step,
             reason: `Khoảng cách giữa 2 mốc kẹp y=${y.toFixed(2)}% không đạt yêu cầu ${minGridPct}-${GRID_MAX_PCT}%`
-          };
-        }
-
-        if (x * 2 > y) {
-          addToGridBlacklist(symbol, `x*2 (${(x * 2).toFixed(2)}%) > y (${y.toFixed(2)}%)`, x, y);
-          _levelCache[symbol] = { longEntry: longEntry.value, shortEntry: shortEntry.value, step: step };
-          return {
-            signal: 'NONE', symbol, month, openPrice, closePrice, step: step,
-            reason: `[GridBlacklist 6h] Tạm ngưng ${symbol} do khung kẹp lệch: x*2 (${(x * 2).toFixed(2)}%) > y (${y.toFixed(2)}%)`
           };
         }
 
@@ -1046,14 +1030,7 @@ async function get369Signal(symbol, currentPrice = null) {
       };
     }
 
-    if (x * 2 > y) {
-      addToGridBlacklist(symbol, `x*2 (${(x * 2).toFixed(2)}%) > y (${y.toFixed(2)}%)`, x, y);
-      return {
-        signal: 'NONE', symbol, month, openPrice, closePrice, step: step,
-        reason: `[GridBlacklist 6h] Tạm ngưng ${symbol} do khung kẹp lệch: x*2 (${(x * 2).toFixed(2)}%) > y (${y.toFixed(2)}%)`
-      };
-    }
-
+    // (Đã gỡ bỏ bộ lọc cứng x*2 > y để chuyển giao toàn quyền thẩm định độ rộng lưới và nén giá cho AI Reviewer)
     const done = hybridCandles.slice(0, -1); // bỏ nến M1 đang hình thành (nến cuối)
 
     const { lowerCount, upperCount, lastSide, prevLastSide } =

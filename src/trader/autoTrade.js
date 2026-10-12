@@ -392,27 +392,31 @@ function calcHalfQuantity(sym, totalQty) {
  * Phân tầng dựa trên xác suất thắng WinProb (từ Bayesian Model) kết hợp Confluence Score và MarketCap Rank:
  * - Hạng S (Super Sniper): WinProb >= 65% hoặc (Top 10 & WinProb >= 55%) hoặc (Top 50 & WinProb >= 60% & Score >= 6.5): TP 1:2.0
  * - Hạng A (High Quality): WinProb >= 58% hoặc (Top 50 & WinProb >= 53%) hoặc (Top 150 & WinProb >= 55% & Score >= 6.0): TP 1:1.75
+/**
+ * Tính toán Tỷ lệ TakeProfit động (TP Ratio) và Cấp độ Lệnh dựa trên 100% AI Win Probability:
+ * - Hạng S (Super Sniper): WinProb >= 65% hoặc (Top 10 & WinProb >= 55%) hoặc (Top 50 & WinProb >= 60%): TP 1:2.00
+ * - Hạng A (High Quality): WinProb >= 58% hoặc (Top 50 & WinProb >= 53%) hoặc (Top 150 & WinProb >= 55%): TP 1:1.75
  * - Hạng B (Solid Quality): WinProb >= 52% hoặc (Top 150 & WinProb >= 50%): TP 1:1.50
  * - Hạng C (Standard): Còn lại: TP 1:1.35
+ * (Đã loại bỏ hoàn toàn ràng buộc điểm score thủ công cũ để trao toàn quyền định đoạt cho AI)
  */
-function getDynamicRiskProfile(rank, winProb, score, baseLossUSD = 7.5) {
+function getDynamicRiskProfile(rank, winProb, score = null, baseLossUSD = 7.5) {
   let multiplier = 1.0;
   let tpRatio = 1.35;
   let grade = 'C (Standard)';
 
   const wp = typeof winProb === 'number' && !isNaN(winProb) ? winProb : 50.0;
-  const sc = typeof score === 'number' && !isNaN(score) ? score : 5.0;
   const rk = typeof rank === 'number' && !isNaN(rank) ? rank : 999;
 
-  if ((wp >= 65.0 && sc >= 6.0) || (rk <= 10 && wp >= 55.0) || (rk <= 50 && wp >= 60.0 && sc >= 6.5)) {
+  if (wp >= 65.0 || (rk <= 10 && wp >= 55.0) || (rk <= 50 && wp >= 60.0)) {
     multiplier = 1.0;
     tpRatio = 2.0;    // R:R 1:2.0
     grade = 'S (Super Sniper)';
-  } else if ((wp >= 58.0 && sc >= 5.5) || (rk <= 50 && wp >= 53.0) || (rk <= 150 && wp >= 55.0 && sc >= 6.0)) {
+  } else if (wp >= 58.0 || (rk <= 50 && wp >= 53.0) || (rk <= 150 && wp >= 55.0)) {
     multiplier = 1.0;
     tpRatio = 1.75;   // R:R 1:1.75
     grade = 'A (High Quality)';
-  } else if ((wp >= 52.0 && sc >= 4.5) || (rk <= 150 && wp >= 50.0 && sc >= 4.5)) {
+  } else if (wp >= 52.0 || (rk <= 150 && wp >= 50.0)) {
     multiplier = 1.0;
     tpRatio = 1.5;    // R:R 1:1.5
     grade = 'B (Solid Quality)';
@@ -1685,8 +1689,8 @@ async function startAutoTrade(coins) {
 
       log.system(`[AI Reviewer] 🟢 Khuyên NÊN ĐẶT LỆNH ${sym} (${sig.signal}) - ${aiEval.reason}`);
 
-      // ── LOGIC MỚI: TÍNH TOÁN STOPLOSS THEO TIER, TP ĐỘNG (1:1.5 -> 1:2.0), VÀ ĐÒN BẨY / MARGIN ĐỘNG ──
-      const riskProfile = getDynamicRiskProfile(rank, aiEval.winProbability, sig.score ?? 0, baseTargetLossUSD);
+      // ── LOGIC MỚI: TÍNH TOÁN STOPLOSS THEO TIER, TP ĐỘNG (1:1.5 -> 1:2.0), VÀ ĐÒN BẨY / MARGIN ĐỘNG (100% TỪ AI) ──
+      const riskProfile = getDynamicRiskProfile(rank, aiEval.winProbability, null, baseTargetLossUSD);
       const targetLossUSD = riskProfile.targetLossUSD;
       const tpRatio = riskProfile.tpRatio;
 
@@ -1737,9 +1741,7 @@ async function startAutoTrade(coins) {
 
         activeSymbols.add(sym);
 
-        const trendReason = sig.scoreReasons.find(r => r.includes('[Xu hướng H4/H1]'));
-        const h4Part = trendReason ? trendReason.split('|')[0] : '';
-        const isCounter = h4Part.includes('H4 ngược');
+        const isCounter = (sig.signalMetrics?.trend === 'TREND_CONFLICT' || sig.signalMetrics?.trend === 'TREND_COUNTER');
 
         const posGridPct = (sig.step / sig.targetLevel) * 100;
         activeTradesMetadata[sym] = {
@@ -2505,8 +2507,8 @@ async function checkH1RetestSignals(client, activeSymbols, leverageInfo = {}) {
 
       log.system(`[AI Reviewer (Retest H1)] 🟢 Khuyên NÊN ĐẶT LỆNH ${sym} (${signal}) - ${aiEval.reason}`);
 
-      // ── TÍNH TOÁN STOPLOSS THEO TIER, TP ĐỘNG (1:1.5 -> 1:2.0), VÀ ĐÒN BẨY / MARGIN ĐỘNG CHO RETEST H1 ──
-      const riskProfileRetest = getDynamicRiskProfile(rank, aiEval.winProbability, watchData.score ?? 0, baseLossRetest);
+      // ── TÍNH TOÁN STOPLOSS THEO TIER, TP ĐỘNG (1:1.5 -> 1:2.0), VÀ ĐÒN BẨY / MARGIN ĐỘNG CHO RETEST H1 (100% TỪ AI) ──
+      const riskProfileRetest = getDynamicRiskProfile(rank, aiEval.winProbability, null, baseLossRetest);
       const targetLossUSDRetest = riskProfileRetest.targetLossUSD;
       const tpRatioRetest = riskProfileRetest.tpRatio;
 

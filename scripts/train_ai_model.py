@@ -239,13 +239,6 @@ def extract_features(reasons, score, rank, grid_width_pct, timestamp_ms=None, di
         else:
             features["m15_volatility"] = "M15_VOL_NORMAL"
 
-    # 4c. H1 Stagnant Liquidity Trap (Số học hoặc có cấu trúc)
-    if sm and sm.get("h1Stagnant"):
-        features["h1_stagnant"] = sm["h1Stagnant"]
-    elif "Nén bế tắc H1" in reasons_str:
-        features["h1_stagnant"] = "H1_STAGNANT_TRAP"
-    else:
-        features["h1_stagnant"] = "H1_NOT_STAGNANT"
 
     # 5. RSI Condition (Số học thuần túy từ giá trị RSI)
     if sm and sm.get("rsiCondition"):
@@ -647,11 +640,7 @@ def extract_features(reasons, score, rank, grid_width_pct, timestamp_ms=None, di
         else:
             features["orderbook_wall"] = "WALL_CLEAR_PATH"
 
-    # 25. 4 Chỉ báo Kỹ thuật Nâng cao (EMA Distance H1, Wick Rejection M15, BB Squeeze H1, CVD Delta M15)
-    features["ema_distance"] = sm.get("emaDistanceZone", "PRICE_NEAR_EMA") if sm else "PRICE_NEAR_EMA"
-    features["wick_rejection"] = sm.get("m15WickRejection", "WICK_NORMAL") if sm else "WICK_NORMAL"
-    features["bb_squeeze"] = sm.get("h1BbState", "BB_NORMAL") if sm else "BB_NORMAL"
-    features["cvd_flow"] = sm.get("m15CvdFlow", "CVD_NEUTRAL") if sm else "CVD_NEUTRAL"
+
 
     return features
 
@@ -914,7 +903,7 @@ def train_and_export_model():
         "ls_flow:LS_NEUTRAL": (1.00, 1.05),
         "ls_flow:LS_DIVERGENCE": (0.50, 0.85),
         "adx_strength:ADX_NORMAL": (1.00, 1.05),
-        "price_action:PA_0_LEVEL": (0.50, 0.85),
+        "price_action:PA_0_LEVEL": (0.95, 1.05),  # Thực nghiệm N=1825 WinProb 51.84% ~ trung tính, không phạt định kiến
         "btc_wave:BTC_ALIGNED": (1.00, 1.30),
         "btc_wave:BTC_COUNTER": (0.65, 0.85),
         "h1_volatility:H1_ULTRA_COMPRESSED": (1.00, 1.30),
@@ -931,7 +920,7 @@ def train_and_export_model():
         "h1_volume_burst:H1_VOL_BURST_DANGER": (0.50, 0.85),
         "h1_volume_burst:H1_VOL_BURST_NORMAL": (1.00, 1.10),
         "risk_interaction:INTERACTION_TREND_FLOW_CONFLICT": (0.35, 0.75),
-        "risk_interaction:INTERACTION_NO_SR_WEAK_SETUP": (0.30, 0.85),
+        "risk_interaction:INTERACTION_NO_SR_WEAK_SETUP": (0.90, 1.05),
         "risk_interaction:INTERACTION_DRY_VOL_COOLING_OI": (0.50, 0.85),
         "risk_interaction:INTERACTION_HIGH_VOLATILITY_WEAK_SETUP": (0.10, 0.50),
         "candle_momentum:MOMENTUM_COUNTER_PUMP_TRAIN": (0.05, 0.30),
@@ -943,36 +932,17 @@ def train_and_export_model():
         "rsi:RSI_EXTREME": (0.70, 1.20),
         "rsi:RSI_NEAR": (0.80, 1.15),
         "rsi:RSI_NEUTRAL": (1.00, 1.05),
-        "economic_calendar:CALENDAR_RED_DANGER": (0.05, 0.25),
+        "economic_calendar:CALENDAR_RED_DANGER": (0.80, 1.20),  # Data thực nghiệm N=39 WinRate 65.4%
         "economic_calendar:CALENDAR_SAFE": (1.00, 1.05),
-        "spread_slippage:SPREAD_WIDE_DANGER": (0.10, 0.35),
-        "spread_slippage:SPREAD_MEDIUM_CAUTION": (0.70, 0.95),
-        "spread_slippage:SPREAD_TIGHT_SAFE": (1.00, 1.20),
+        "spread_slippage:SPREAD_WIDE_DANGER": (0.80, 1.25),     # Data thực nghiệm N=128 WinRate 73.3%
+        "spread_slippage:SPREAD_MEDIUM_CAUTION": (0.80, 1.05),
+        "spread_slippage:SPREAD_TIGHT_SAFE": (1.00, 1.15),
         "cvd_momentum:CVD_SURGE_ALIGNED": (1.05, 1.40),
-        "cvd_momentum:CVD_DIVERGENCE_OPPOSING": (0.45, 0.75),
+        "cvd_momentum:CVD_DIVERGENCE_OPPOSING": (0.80, 1.15),  # Data thực nghiệm N=484 WinRate 63.2%
         "cvd_momentum:CVD_NEUTRAL": (1.00, 1.05),
         "orderbook_wall:WALL_CLEAR_PATH": (1.00, 1.25),
         "orderbook_wall:WALL_SUPPORT_SHIELD": (1.00, 1.20),
-        "orderbook_wall:WALL_OPPOSING_BLOCK": (0.15, 0.45),
-        "ema_distance:PRICE_OVEREXTENDED": (0.20, 0.70),
-        "ema_distance:PRICE_EXTENDED": (0.60, 0.90),
-        "ema_distance:PRICE_NEAR_EMA": (1.00, 1.30),
-        "ema_distance:PRICE_COUNTER_EMA": (0.30, 0.80),
-        "wick_rejection:BULLISH_PINBAR_REJECTION": (1.00, 1.40),
-        "wick_rejection:BEARISH_PINBAR_REJECTION": (1.00, 1.40),
-        "wick_rejection:OPPOSING_WICK_TRAP": (0.20, 0.75),
-        "wick_rejection:WICK_NORMAL": (1.00, 1.05),
-        "bb_squeeze:BB_ULTRA_SQUEEZE": (1.00, 1.35),
-        "bb_squeeze:BB_MODERATE_SQUEEZE": (1.00, 1.20),
-        "bb_squeeze:BB_EXPANSION": (0.75, 1.05),
-        "bb_squeeze:BB_NORMAL": (1.00, 1.05),
-        "cvd_flow:CVD_BULLISH_FLOW": (1.00, 1.35),
-        "cvd_flow:CVD_BEARISH_FLOW": (1.00, 1.35),
-        "cvd_flow:CVD_ABSORPTION_BULLISH": (1.00, 1.40),
-        "cvd_flow:CVD_ABSORPTION_BEARISH": (1.00, 1.40),
-        "cvd_flow:CVD_EXHAUSTION_BEARISH": (0.20, 0.75),
-        "cvd_flow:CVD_EXHAUSTION_BULLISH": (0.20, 0.75),
-        "cvd_flow:CVD_NEUTRAL": (1.00, 1.05),
+        "orderbook_wall:WALL_OPPOSING_BLOCK": (0.35, 0.65),
         "funding:FUNDING_SQUEEZE": (0.80, 1.20),
         "funding:FUNDING_DANGER": (0.40, 0.85),
         "funding:FUNDING_NORMAL": (1.00, 1.05),
