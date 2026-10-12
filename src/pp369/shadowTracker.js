@@ -189,6 +189,7 @@ function registerShadowTrade(sig, evalResult, options = {}) {
   activeShadowPositions[shadowId] = shadowTrade;
   saveActiveShadowPositions();
 
+  const fillStatusMsg = isImmediatelyFilled ? 'Khớp ngay' : 'Chờ Limit';
   const beTriggerStr = (typeof beTriggerPrice === 'number' && beTriggerPrice > 0) ? `$${beTriggerPrice.toFixed(4)}` : 'NONE';
   _logger.system(`[Shadow PnL] 👁️ Bắt đầu theo dõi VỊ THẾ BÓNG TỐI: ${sym} (${side}) @ $${entryPrice} [${fillStatusMsg}] | Đòn bẩy: ${leverage}x | Margin: $${margin} | SL: $${tierSlPrice.toFixed(4)} (-${slPct.toFixed(2)}%) | TP: $${tierTpPrice.toFixed(4)} (+${tpPct.toFixed(2)}%) | BE Trigger: ${beTriggerStr} | WinProb: ${shadowTrade.winProbability}% (Veto: ${shadowTrade.vetoCategory})`);
 
