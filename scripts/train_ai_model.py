@@ -3,9 +3,49 @@ import os
 import sys
 import time
 import math
-import requests
 import datetime
 from collections import defaultdict
+
+try:
+    import requests
+except ImportError:
+    import urllib.request
+    import urllib.parse
+    class RequestsFallback:
+        @staticmethod
+        def get(url, params=None, timeout=10):
+            req_url = url
+            if params:
+                req_url = f"{url}?{urllib.parse.urlencode(params)}"
+            req = urllib.request.Request(req_url, headers={'User-Agent': '369Bot/1.0'})
+            with urllib.request.urlopen(req, timeout=timeout) as resp:
+                raw = resp.read().decode('utf-8')
+                class MockResp:
+                    status_code = resp.status
+                    text = raw
+                    def json(self):
+                        return json.loads(raw)
+                return MockResp()
+
+        @staticmethod
+        def post(url, json=None, timeout=15):
+            data_bytes = None
+            headers = {'User-Agent': '369Bot/1.0'}
+            if json is not None:
+                import json as _j
+                data_bytes = _j.dumps(json).encode('utf-8')
+                headers['Content-Type'] = 'application/json'
+            req = urllib.request.Request(url, data=data_bytes, headers=headers)
+            with urllib.request.urlopen(req, timeout=timeout) as resp:
+                raw = resp.read().decode('utf-8')
+                class MockResp:
+                    status_code = resp.status
+                    text = raw
+                    def json(self):
+                        import json as _j
+                        return _j.loads(raw)
+                return MockResp()
+    requests = RequestsFallback()
 
 if sys.platform == 'win32':
     sys.stdout.reconfigure(encoding='utf-8')
