@@ -131,10 +131,10 @@ function registerShadowTrade(sig, evalResult, options = {}) {
     tpPct = Math.abs((tierTpPrice - entryPrice) / entryPrice) * 100;
   }
 
-  // 🛡️ BREAKEVEN TRIGGER: Mức giá kích hoạt kéo SL về Hòa vốn (tương ứng ROI >= +20%)
-  let beTriggerPrice = options.beTriggerPrice || null;
-  if (!beTriggerPrice) {
-    const beDeltaPct = 20.0 / leverage; // ví dụ 50x -> 0.4%, 25x -> 0.8%
+  // 🛡️ BREAKEVEN TRIGGER: Mức giá kích hoạt kéo SL về Hòa vốn (tôn trọng cấu hình từ AI / tierSetup)
+  let beTriggerPrice = options.beTriggerPrice !== undefined ? options.beTriggerPrice : null;
+  if (beTriggerPrice === null && options.beTriggerPrice === undefined) {
+    const beDeltaPct = 20.0 / leverage; // Fallback chỉ khi không truyền options.beTriggerPrice
     beTriggerPrice = isLong ? entryPrice * (1 + beDeltaPct / 100) : entryPrice * (1 - beDeltaPct / 100);
   }
 
@@ -189,8 +189,8 @@ function registerShadowTrade(sig, evalResult, options = {}) {
   activeShadowPositions[shadowId] = shadowTrade;
   saveActiveShadowPositions();
 
-  const fillStatusMsg = isImmediatelyFilled ? 'Đã khớp ngay' : 'Đang chờ râu nến khớp Limit';
-  _logger.system(`[Shadow PnL] 👁️ Bắt đầu theo dõi VỊ THẾ BÓNG TỐI: ${sym} (${side}) @ $${entryPrice} [${fillStatusMsg}] | Đòn bẩy: ${leverage}x | Margin: $${margin} | SL: $${tierSlPrice.toFixed(4)} (-${slPct.toFixed(2)}%) | TP: $${tierTpPrice.toFixed(4)} (+${tpPct.toFixed(2)}%) | BE Trigger: $${beTriggerPrice.toFixed(4)} | WinProb: ${shadowTrade.winProbability}% (Veto: ${shadowTrade.vetoCategory})`);
+  const beTriggerStr = (typeof beTriggerPrice === 'number' && beTriggerPrice > 0) ? `$${beTriggerPrice.toFixed(4)}` : 'NONE';
+  _logger.system(`[Shadow PnL] 👁️ Bắt đầu theo dõi VỊ THẾ BÓNG TỐI: ${sym} (${side}) @ $${entryPrice} [${fillStatusMsg}] | Đòn bẩy: ${leverage}x | Margin: $${margin} | SL: $${tierSlPrice.toFixed(4)} (-${slPct.toFixed(2)}%) | TP: $${tierTpPrice.toFixed(4)} (+${tpPct.toFixed(2)}%) | BE Trigger: ${beTriggerStr} | WinProb: ${shadowTrade.winProbability}% (Veto: ${shadowTrade.vetoCategory})`);
 
   // Record entry in ai_trade_dataset.jsonl (marked as shadow)
   _appendDatasetRecord({
@@ -323,10 +323,10 @@ function updateShadowPrices(priceMap) {
     p.maxFavorableRoi = Math.max(p.maxFavorableRoi || 0, favorableRoi);
 
     // 🛡️ DỜI SL VỀ HÒA VỐN (BREAKEVEN):
-    // Kích hoạt ngay khi râu nến chạm beTriggerPrice HOẶC ROI nảy đạt >= +20%
-    if (!p.isBeTriggered && p.beTriggerPrice) {
+    // Kích hoạt khi râu nến chạm beTriggerPrice (nếu có cấu hình BE)
+    if (!p.isBeTriggered && typeof p.beTriggerPrice === 'number' && p.beTriggerPrice > 0) {
       const hitBeTrigger = isLong ? (candleHigh >= p.beTriggerPrice) : (candleLow <= p.beTriggerPrice);
-      if (hitBeTrigger || favorableRoi >= 20.0) {
+      if (hitBeTrigger) {
         p.isBeTriggered = true;
         p.tierSlPrice = entry; // Dời SL về hòa vốn y hệt bot thật trên Binance
         _logger.system(`[Shadow PnL] 🛡️ [Breakeven Active] ${p.symbol} (${p.signal}) chạm mốc BE ($${p.beTriggerPrice}) / ROI +${favorableRoi.toFixed(1)}% -> Đã kéo SL về Hòa vốn (Entry $${entry})!`);

@@ -695,11 +695,24 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
   const priorWin = _modelConfig?.priorWinProb || 0.565;
   const weights = _modelConfig?.featureWeights || {};
 
+  // 🛡️ Nạp hồ sơ điểm phạt định lượng từ mô hình AI (loại bỏ hoàn toàn hardcode)
+  const riskPenalties = _modelConfig?.riskPenaltyProfile || {};
+  const stormH1Raw = riskPenalties.h1ExtremeStormRaw ?? 0.20;
+  const stormH1Rej = riskPenalties.h1ExtremeStormRejection ?? 0.55;
+  const stormM15Raw = riskPenalties.m15ExtremeStormRaw ?? 0.20;
+  const stormM15Rej = riskPenalties.m15ExtremeStormRejection ?? 0.60;
+  const counterTrendMult = riskPenalties.counterStrongTrend ?? 0.40;
+  const oppWickMult = riskPenalties.opposingWickTrap ?? 0.45;
+  const ecoRedMult = riskPenalties.economicRed ?? 0.10;
+  const spreadWideMult = riskPenalties.spreadWide ?? 0.20;
+  const wallBlockMult = riskPenalties.wallOpposingBlock ?? 0.35;
+  const btcFlashMult = riskPenalties.btcFlashOpposing ?? 0.35;
+
   // Custom weights for raw market features and risk interactions
   const dynamicModifiers = {
-    'h1_volatility:H1_EXTREME_STORM_PUMP_DUMP': 0.10, // Bão H1 >= 8% -> Phạt 90% WinProb -> Veto ngay
+    'h1_volatility:H1_EXTREME_STORM_PUMP_DUMP': stormH1Raw, // Điểm phạt bão nến từ riskPenaltyProfile
     'h1_volatility:H1_VOLATILE_DANGER': 0.65,     // H1 biến động mạnh nguy cơ quét SL
-    'm15_volatility:M15_EXTREME_STORM': 0.15,     // Bão M15 >= 6% -> Phạt 85% WinProb -> Veto ngay
+    'm15_volatility:M15_EXTREME_STORM': stormM15Raw, // Điểm phạt bão nến từ riskPenaltyProfile
     'm15_volatility:M15_VOLATILE_DANGER': 0.60,   // M15 biến động mạnh rủi ro đâm thủng Tier
     'm15_volatility:M15_VOLUME_SURGE': 0.55,      // Đột biến volume M15
     'h1_stagnant:H1_STAGNANT_TRAP': 0.65,         // Nén bế tắc bẫy thanh khoản
@@ -734,10 +747,10 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
     'h1_volume_burst:H1_VOL_BURST_NORMAL': 1.05,
     'btc_storm:BTC_STORM_VOLATILE': 0.43,        // BTC bão M15 > 1% -> Phạt -57%
     'btc_storm:BTC_STORM_NORMAL': 1.03,
-    'btc_flash:BTC_FLASH_PUMP_ACTIVE': 0.35,     // Phạt nặng bão BTC Flash Pump khi đánh SHORT -> Veto ngay
-    'btc_flash:BTC_FLASH_DUMP_ACTIVE': 0.35,     // Phạt nặng bão BTC Flash Dump khi đánh LONG -> Veto ngay
+    'btc_flash:BTC_FLASH_PUMP_ACTIVE': btcFlashMult, // Bão BTC Flash Pump từ riskPenaltyProfile
+    'btc_flash:BTC_FLASH_DUMP_ACTIVE': btcFlashMult, // Bão BTC Flash Dump từ riskPenaltyProfile
     'btc_flash:BTC_FLASH_NORMAL': 1.00,
-    'turnover_guard:TURNOVER_RISK_BLOCKED': 0.30, // Phạt nặng coin Low-Cap bị bơm xả Turnover > 8% -> AI Veto ngay
+    'turnover_guard:TURNOVER_RISK_BLOCKED': 0.30, // Phạt nặng coin Low-Cap bị bơm xả Turnover > 8%
     'turnover_guard:TURNOVER_NORMAL': 1.00,
     'price_action:PA_0_LEVEL': 0.85,              // [LÕI AI] Rỗng cản S/R là rủi ro rất cao, phạt 15% (x0.85) thay vì chỉ trừ 5%
     'ls_flow:LS_DIVERGENCE': 0.80,                // [CÂN BẰNG] Phạt vừa phải 20% khi dòng tiền Cá voi và Retail phân kỳ ngược nhau
@@ -746,9 +759,9 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
     'risk_interaction:INTERACTION_NO_SR_WEAK_SETUP': 0.65,      // Fallback nếu chưa có trong weights
     'risk_interaction:INTERACTION_DRY_VOL_COOLING_OI': 0.80,     // Fallback nếu chưa có trong weights
     'risk_interaction:INTERACTION_BALANCED': 1.00,
-    'economic_calendar:CALENDAR_RED_DANGER': 0.10, // Bão giá CPI/FOMC/NFP -> Phạt 90% WinProb -> Veto ngay
+    'economic_calendar:CALENDAR_RED_DANGER': ecoRedMult, // Bão giá CPI/FOMC/NFP từ riskPenaltyProfile
     'economic_calendar:CALENDAR_SAFE': 1.00,
-    'spread_slippage:SPREAD_WIDE_DANGER': 0.20,    // Spread dãn > 0.06% -> Phạt 80% WinProb -> Veto trượt giá
+    'spread_slippage:SPREAD_WIDE_DANGER': spreadWideMult, // Trượt giá dãn Spread từ riskPenaltyProfile
     'spread_slippage:SPREAD_MEDIUM_CAUTION': 0.85,
     'spread_slippage:SPREAD_TIGHT_SAFE': 1.10,     // Spread hẹp (< 0.035%) -> Thưởng +10% cho Scalping
     'cvd_momentum:CVD_SURGE_ALIGNED': 1.25,        // Taker Buy/Sell đẩy mạnh thuận hướng -> Thưởng +25%
@@ -756,7 +769,7 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
     'cvd_momentum:CVD_NEUTRAL': 1.00,
     'orderbook_wall:WALL_CLEAR_PATH': 1.15,        // Đường tới TP thông thoáng -> Thưởng +15%
     'orderbook_wall:WALL_SUPPORT_SHIELD': 1.12,    // Có tường dày bảo vệ sau Entry -> Thưởng +12%
-    'orderbook_wall:WALL_OPPOSING_BLOCK': 0.35,    // Tường dày chắn trước TP -> Phạt 65% WinProb
+    'orderbook_wall:WALL_OPPOSING_BLOCK': wallBlockMult, // Tường cản chắn trước TP từ riskPenaltyProfile
     'trading_session:SESSION_ASIA': 1.02,        // Phiên Á nén chuẩn, sóng êm -> Thưởng nhẹ +2%
     'trading_session:SESSION_EUROPE': 1.01,      // Phiên Âu sóng đều -> Thưởng nhẹ +1%
     'trading_session:SESSION_US_OPEN': 0.98,     // Phiên Mỹ mở cửa -> Thận trọng nhẹ -2%
@@ -768,7 +781,7 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
     'ema_distance:PRICE_COUNTER_EMA': 0.75,      // Sai phía EMA -> Phạt -25%
     'wick_rejection:BULLISH_PINBAR_REJECTION': 1.25, // Nến M15 rút chân dưới >= 50% -> Thưởng +25%
     'wick_rejection:BEARISH_PINBAR_REJECTION': 1.25, // Nến M15 rút râu trên >= 50% -> Thưởng +25%
-    'wick_rejection:OPPOSING_WICK_TRAP': 0.68,   // Nến M15 bị đè râu ngược chiều >= 50% -> Phạt -32%
+    'wick_rejection:OPPOSING_WICK_TRAP': oppWickMult, // Bẫy đè râu ngược chiều từ riskPenaltyProfile
     'wick_rejection:WICK_NORMAL': 1.00,
     'bb_squeeze:BB_ULTRA_SQUEEZE': 1.22,         // Bollinger Bandwidth H1 <= 3% -> Sắp nổ biến động, Thưởng +22%
     'bb_squeeze:BB_MODERATE_SQUEEZE': 1.10,      // Bollinger Bandwidth H1 <= 5% -> Thưởng +10%
@@ -805,7 +818,7 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
   // 🛡️ DOUBLE-COUNTING PREVENTION:
   // risk_interaction là feature tổng hợp của (trend + ls_flow + price_action + volume + oi).
   // Khi một conflict tương tác đã được capture bởi INTERACTION_*, bỏ qua
-  // feature thành phần tương ứng để tránh âm 2 lần vào cùng một riủi ro.
+  // feature thành phần tương ứng để tránh âm 2 lần vào cùng một rủi ro.
   const riskInteraction = features['risk_interaction'];
   const skipForInteraction = new Set();
   if (riskInteraction === 'INTERACTION_TREND_FLOW_CONFLICT') {
@@ -915,6 +928,36 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
       }
     }
 
+    // 🛡️ BÃO NẾN H1 / M15: Nếu có nến Pinbar / Hammer xác nhận từ chối giá và không bị Marubozu đè bẹp,
+    // nới lỏng hệ số phạt theo cấu hình riskPenaltyProfile (mặc định 0.55 / 0.60 thay vì 0.20)
+    if (cat === 'h1_volatility' && val === 'H1_EXTREME_STORM_PUMP_DUMP') {
+      const hasRejection = features['h1_candle_geometry'] === 'H1_REJECT_PINBAR' ||
+                           features['m15_candle_geometry'] === 'M15_REJECT_PINBAR' ||
+                           features['candle_shape'] === 'CANDLE_PINBAR_HAMMER' ||
+                           features['candle_shape'] === 'CANDLE_PINBAR_SHOOTING';
+      const isRunaway = (sig.signal === 'LONG' || sig.signal === 'BUY')
+        ? (features['candle_shape'] === 'CANDLE_MARUBOZU_DUMP')
+        : (features['candle_shape'] === 'CANDLE_MARUBOZU_PUMP');
+      if (hasRejection && !isRunaway) {
+        mult = stormH1Rej;
+      } else {
+        mult = stormH1Raw;
+      }
+    }
+    if (cat === 'm15_volatility' && val === 'M15_EXTREME_STORM') {
+      const hasRejection = features['h1_candle_geometry'] === 'H1_REJECT_PINBAR' ||
+                           features['m15_candle_geometry'] === 'M15_REJECT_PINBAR' ||
+                           features['candle_shape'] === 'CANDLE_PINBAR_HAMMER' ||
+                           features['candle_shape'] === 'CANDLE_PINBAR_SHOOTING';
+      const isRunaway = (sig.signal === 'LONG' || sig.signal === 'BUY')
+        ? (features['candle_shape'] === 'CANDLE_MARUBOZU_DUMP')
+        : (features['candle_shape'] === 'CANDLE_MARUBOZU_PUMP');
+      if (hasRejection && !isRunaway) {
+        mult = stormM15Rej;
+      } else {
+        mult = stormM15Raw;
+      }
+    }
 
     // 🛡️ SANITY GUARD: Khắc chế các yếu tố rủi ro ngược xu hướng và phân kỳ dòng tiền
     if (cat === 'risk_interaction' && val === 'INTERACTION_TREND_FLOW_CONFLICT') {
@@ -931,10 +974,9 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
     }
 
     // 🛡️ SANITY GUARD: Bắt đỉnh/đáy ngược xu hướng mạnh (Counter-Trend vs Strong ADX)
-    // Khi đang ngược Trend Dow/EMA H1 (TREND_CONFLICT) mà ADX >= 25 (Trend mạnh đang chạy cuồn cuộn):
-    // Phạt mạnh dứt khoát x0.60 (-40% WinOdds) để loại trừ rủi ro bị xuyên thủng mốc SL
+    // Phạt mạnh dứt khoát theo riskPenaltyProfile (mặc định x0.40) để loại trừ rủi ro bị xuyên thủng mốc SL
     if (features['trend'] === 'TREND_CONFLICT' && cat === 'adx_strength' && val === 'ADX_STRONG_TREND') {
-      mult = Math.min(mult, 0.60);
+      mult = Math.min(mult, counterTrendMult);
     }
 
     // 🛡️ SANITY GUARD: Khắc chế hệ số Ngược Sóng BTC (BTC_COUNTER)
@@ -1021,68 +1063,93 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
   const tradeMargin = parseFloat(sig.margin) || 75;
   const evUsd = (evRoi / 100.0) * tradeMargin;
 
-  // 🛡️ TỶ LỆ R:R SCALPING HỢP LÝ — Khi EV dương và WinProb cao, cho phép R:R linh hoạt
+  // 🛡️ TỶ LỆ R:R SCALPING HỢP LÝ — Đọc trực tiếp từ adaptiveRrProfile trong mô hình AI:
   const rrRatio = effSlPct > 0 ? (tpGridPct / effSlPct) : 1.0;
-  // Kèo WinProb >= 60% thì R:R chỉ cần >= 0.60:1 là EV đã dương và được phép vào lệnh
-  const minRequiredRr = (winProb >= 60.0) ? 0.60 : ((winProb >= 55.0) ? 0.70 : 0.80);
+  const rrProfile = _modelConfig?.adaptiveRrProfile?.minRrByWinProb;
+  let minRequiredRr = 0.80;
+  if (rrProfile) {
+    if (winProb >= 65.0 && typeof rrProfile['65.0'] === 'number') minRequiredRr = rrProfile['65.0'];
+    else if (winProb >= 60.0 && typeof rrProfile['60.0'] === 'number') minRequiredRr = rrProfile['60.0'];
+    else if (winProb >= 57.5 && typeof rrProfile['57.5'] === 'number') minRequiredRr = rrProfile['57.5'];
+    else if (winProb >= 55.0 && typeof rrProfile['55.0'] === 'number') minRequiredRr = rrProfile['55.0'];
+    else minRequiredRr = typeof rrProfile['floor'] === 'number' ? rrProfile['floor'] : 0.80;
+  } else {
+    minRequiredRr = (winProb >= 65.0) ? 0.55
+                  : (winProb >= 60.0) ? 0.60
+                  : (winProb >= 57.5) ? 0.65
+                  : (winProb >= 55.0) ? 0.70
+                  : 0.80;
+  }
   const isRrAcceptable = rrRatio >= minRequiredRr;
 
-  // ── AI LÀ NGƯỜI RA QUYẾT ĐỊNH 100% ──
-  const isExtremeStorm = features['h1_volatility'] === 'H1_EXTREME_STORM_PUMP_DUMP' || features['m15_volatility'] === 'M15_EXTREME_STORM';
-  const isEconomicRed = features['economic_calendar'] === 'CALENDAR_RED_DANGER';
-  const isSpreadDanger = features['spread_slippage'] === 'SPREAD_WIDE_DANGER';
-  const isWallBlocked = features['orderbook_wall'] === 'WALL_OPPOSING_BLOCK' && features['cvd_momentum'] !== 'CVD_SURGE_ALIGNED';
-  const isBtcFlashVeto = (features['btc_flash'] === 'BTC_FLASH_DUMP_ACTIVE' && (sig.signal === 'LONG' || sig.signal === 'BUY')) ||
-                         (features['btc_flash'] === 'BTC_FLASH_PUMP_ACTIVE' && (sig.signal === 'SHORT' || sig.signal === 'SELL'));
-  // 🚫 CẤM CẢN TÀU XU HƯỚNG: Ngược xu hướng trong khi xu hướng đối lập có xung lực cực mạnh (ADX >= 25)
-  const isStrongCounterTrendVeto = (features['trend'] === 'TREND_CONFLICT' || features['trend'] === 'TREND_COUNTER') &&
-                                   features['adx_strength'] === 'ADX_STRONG_TREND';
-  // 🚫 BẪY RÚT RÂU NGƯỢC CHIỀU: Nến M15 bị rút râu ngược chiều >= 50% (phe đối lập vừa đẩy mạnh)
-  const isOpposingWickTrap = features['wick_rejection'] === 'OPPOSING_WICK_TRAP';
-
-  const isApproved = !isExtremeStorm && !isEconomicRed && !isSpreadDanger && !isWallBlocked &&
-                     !isBtcFlashVeto && !isStrongCounterTrendVeto && !isOpposingWickTrap &&
-                     winProb >= threshold && evRoi >= minEvRoiThreshold && isRrAcceptable;
+  // ── AI LÀ NGƯỜI RA QUYẾT ĐỊNH 100% ĐỊNH LƯỢNG — XÓA BỎ HOÀN TOÀN LỆNH CẤM CỨNG (NO HARD BOOLEAN VETOES) ──
+  // Quyết định phê duyệt hoàn toàn dựa trên 3 trụ cột định lượng:
+  // 1. Xác suất thắng Bayesian (winProb >= threshold) sau khi đã tích lũy toàn bộ điểm thưởng/phạt
+  // 2. Lợi nhuận kỳ vọng thực nghiệm dương (evRoi >= minEvRoiThreshold)
+  // 3. Tỷ lệ R:R đáp ứng tiêu chuẩn thích ứng (isRrAcceptable)
+  const isApproved = winProb >= threshold && evRoi >= minEvRoiThreshold && isRrAcceptable;
   const factorSummary = keyFactors.length > 0 ? keyFactors.join(', ') : 'Điều kiện trung tính';
+
+  // Chẩn đoán nhân tố rủi ro nổi bật (nếu có) khi không được phê duyệt
+  const hasRejectionConfirmation =
+    features['h1_candle_geometry'] === 'H1_REJECT_PINBAR' ||
+    features['m15_candle_geometry'] === 'M15_REJECT_PINBAR' ||
+    features['candle_shape'] === 'CANDLE_PINBAR_HAMMER' ||
+    features['candle_shape'] === 'CANDLE_PINBAR_SHOOTING';
+  const isOpposingRunaway = (sig.signal === 'LONG' || sig.signal === 'BUY')
+    ? (features['candle_shape'] === 'CANDLE_MARUBOZU_DUMP')
+    : (features['candle_shape'] === 'CANDLE_MARUBOZU_PUMP');
+  const isExtremeStormCondition = (features['h1_volatility'] === 'H1_EXTREME_STORM_PUMP_DUMP' || features['m15_volatility'] === 'M15_EXTREME_STORM') &&
+                                  (!hasRejectionConfirmation || isOpposingRunaway);
+  const isStrongCounterTrendCondition = (features['trend'] === 'TREND_CONFLICT' || features['trend'] === 'TREND_COUNTER') &&
+                                        features['adx_strength'] === 'ADX_STRONG_TREND';
+  const isOpposingWickCondition = features['wick_rejection'] === 'OPPOSING_WICK_TRAP';
+  const isEconomicRedCondition = features['economic_calendar'] === 'CALENDAR_RED_DANGER';
+  const isSpreadDangerCondition = features['spread_slippage'] === 'SPREAD_WIDE_DANGER';
+  const isBtcFlashCondition = (features['btc_flash'] === 'BTC_FLASH_DUMP_ACTIVE' && (sig.signal === 'LONG' || sig.signal === 'BUY')) ||
+                              (features['btc_flash'] === 'BTC_FLASH_PUMP_ACTIVE' && (sig.signal === 'SHORT' || sig.signal === 'SELL'));
+  const isWallBlockedCondition = features['orderbook_wall'] === 'WALL_OPPOSING_BLOCK' && features['cvd_momentum'] !== 'CVD_SURGE_ALIGNED';
 
   let vetoCategory = null;
   let reasonText = '';
 
   if (!isApproved) {
-    if (isExtremeStorm) {
-      vetoCategory = features['h1_volatility'] === 'H1_EXTREME_STORM_PUMP_DUMP' ? 'H1_EXTREME_STORM' : 'M15_EXTREME_STORM';
-      reasonText = `[AI VETO BÃO NẾN CỰC ĐẠI] ${vetoCategory} (Biên độ nến vượt ngưỡng an toàn, rủi ro Pump & Dump càn quét mốc) [Rank #${rank}] (${factorSummary})`;
-    } else if (isStrongCounterTrendVeto) {
-      vetoCategory = 'COUNTER_STRONG_TREND_DANGER';
-      reasonText = `[AI VETO CẢN TÀU XU HƯỚNG] Tín hiệu ngược xu hướng trong khi xung lực xu hướng đối lập quá mạnh (TREND_CONFLICT + ADX_STRONG_TREND)! [Rank #${rank}] (${factorSummary})`;
-    } else if (isOpposingWickTrap) {
-      vetoCategory = 'OPPOSING_WICK_TRAP';
-      reasonText = `[AI VETO BẪY RÚT RÂU] Nến M15 bị rút râu ngược chiều >= 50% (OPPOSING_WICK_TRAP), phe đối lập vừa đẩy giá cực mạnh! [Rank #${rank}] (${factorSummary})`;
-    } else if (isEconomicRed) {
-      vetoCategory = 'ECONOMIC_BLACKOUT_DANGER';
-      reasonText = `[AI VETO LỊCH KINH TẾ ĐỎ] Đang trong cửa sổ bão giá CPI / FOMC / NFP (±30 phút), nghiêm cấm Scalping đòn bẩy lớn! [Rank #${rank}] (${factorSummary})`;
-    } else if (isSpreadDanger) {
-      vetoCategory = 'SPREAD_WIDE_DANGER';
-      const maxTh = rank <= 50 ? '0.04%' : (rank <= 150 ? '0.06%' : '0.08%');
-      reasonText = `[AI VETO ĐỘ DÃN SPREAD] Chênh lệch Bid-Ask vượt ngưỡng an toàn (>${maxTh} cho Rank #${rank}), trượt giá sẽ ăn sạch lợi nhuận Scalping! (${factorSummary})`;
-    } else if (isBtcFlashVeto) {
-      vetoCategory = features['btc_flash'];
-      reasonText = `[AI VETO BÃO BTC FLASH] Phát hiện ${features['btc_flash']} ngược chiều lệnh, nghiêm cấm bắt dao rơi! [Rank #${rank}] (${factorSummary})`;
-    } else if (isWallBlocked) {
-      vetoCategory = 'ORDERBOOK_WALL_BLOCK';
-      reasonText = `[AI VETO TƯỜNG CẢN SỔ LỆNH] Phát hiện bức tường thanh khoản khổng lồ chắn trước TP và thiếu lực đẩy CVD! [Rank #${rank}] (${factorSummary})`;
+    if (winProb < threshold) {
+      if (isStrongCounterTrendCondition) {
+        vetoCategory = 'COUNTER_STRONG_TREND_DANGER';
+        reasonText = `[AI VETO CẢN TÀU XU HƯỚNG] Tín hiệu ngược xu hướng trong khi xung lực xu hướng đối lập quá mạnh (TREND_CONFLICT + ADX_STRONG_TREND) kéo xác suất ${winProb.toFixed(1)}% < ${threshold}%! [Rank #${rank}] (${factorSummary})`;
+      } else if (isOpposingWickCondition) {
+        vetoCategory = 'OPPOSING_WICK_TRAP';
+        reasonText = `[AI VETO BẪY RÚT RÂU] Nến M15 bị rút râu ngược chiều >= 50% (OPPOSING_WICK_TRAP), phe đối lập vừa đẩy giá cực mạnh kéo xác suất ${winProb.toFixed(1)}% < ${threshold}%! [Rank #${rank}] (${factorSummary})`;
+      } else if (isExtremeStormCondition) {
+        vetoCategory = features['h1_volatility'] === 'H1_EXTREME_STORM_PUMP_DUMP' ? 'H1_EXTREME_STORM' : 'M15_EXTREME_STORM';
+        reasonText = `[AI VETO BÃO NẾN CỰC ĐẠI] ${vetoCategory} (Biên độ nến vượt ngưỡng an toàn kéo xác suất ${winProb.toFixed(1)}% < ${threshold}%) [Rank #${rank}] (${factorSummary})`;
+      } else if (isEconomicRedCondition) {
+        vetoCategory = 'ECONOMIC_BLACKOUT_DANGER';
+        reasonText = `[AI VETO LỊCH KINH TẾ ĐỎ] Đang trong cửa sổ bão giá CPI / FOMC / NFP kéo xác suất an toàn ${winProb.toFixed(1)}% < ${threshold}%! [Rank #${rank}] (${factorSummary})`;
+      } else if (isSpreadDangerCondition) {
+        vetoCategory = 'SPREAD_WIDE_DANGER';
+        const maxTh = rank <= 50 ? '0.04%' : (rank <= 150 ? '0.06%' : '0.08%');
+        reasonText = `[AI VETO ĐỘ DÃN SPREAD] Chênh lệch Bid-Ask vượt ngưỡng (>${maxTh}), trượt giá kéo xác suất ${winProb.toFixed(1)}% < ${threshold}%! [Rank #${rank}] (${factorSummary})`;
+      } else if (isBtcFlashCondition) {
+        vetoCategory = features['btc_flash'];
+        reasonText = `[AI VETO BÃO BTC FLASH] Phát hiện ${features['btc_flash']} ngược chiều lệnh kéo xác suất ${winProb.toFixed(1)}% < ${threshold}%! [Rank #${rank}] (${factorSummary})`;
+      } else if (isWallBlockedCondition) {
+        vetoCategory = 'ORDERBOOK_WALL_BLOCK';
+        reasonText = `[AI VETO TƯỜNG CẢN SỔ LỆNH] Phát hiện bức tường thanh khoản khổng lồ chắn trước TP kéo xác suất ${winProb.toFixed(1)}% < ${threshold}%! [Rank #${rank}] (${factorSummary})`;
+      } else if (features['puncture_interaction'] && (features['puncture_interaction'] === 'INTERACTION_H1_M15_PUNCTURED' || features['puncture_interaction'].startsWith('INTERACTION_H1_'))) {
+        vetoCategory = features['puncture_interaction'];
+        reasonText = `[ĐÁNH GIÁ RỦI RO AI: ${features['puncture_interaction']}] Nến đâm lụt qua Entry, xác suất thắng ${winProb.toFixed(1)}% < ${threshold}% [Rank #${rank}] (${factorSummary})`;
+      } else if (features['risk_interaction'] && features['risk_interaction'].startsWith('INTERACTION_') && features['risk_interaction'] !== 'INTERACTION_BALANCED') {
+        vetoCategory = features['risk_interaction'];
+        reasonText = `[ĐÁNH GIÁ RỦI RO AI: ${features['risk_interaction']}] Xác suất thắng ${winProb.toFixed(1)}% < ${threshold}% [Rank #${rank}] (${factorSummary})`;
+      } else {
+        vetoCategory = `WINPROB_LT_${threshold}`;
+        reasonText = `Xác suất thắng ${winProb.toFixed(1)}% < ${threshold}% [Rank #${rank}] (${factorSummary})`;
+      }
     } else if (!isRrAcceptable) {
       vetoCategory = 'BAD_RR_LESS_THAN_1';
       reasonText = `[RỦI RO R:R < 1.0] Tỷ lệ R:R không đạt chuẩn (TP ${tpGridPct.toFixed(2)}% / SL ${effSlPct.toFixed(2)}% = ${rrRatio.toFixed(2)}:1 < ${minRequiredRr.toFixed(2)}:1) [Rank #${rank}] (${factorSummary})`;
-    } else if (features['puncture_interaction'] && (features['puncture_interaction'] === 'INTERACTION_H1_M15_PUNCTURED' || features['puncture_interaction'].startsWith('INTERACTION_H1_'))) {
-      vetoCategory = features['puncture_interaction'];
-      reasonText = `[ĐÁNH GIÁ RỦI RO AI: ${features['puncture_interaction']}] Nến đâm lụt qua Entry, xác suất thắng ${winProb.toFixed(1)}% < ${threshold}% [Rank #${rank}] (${factorSummary})`;
-    } else if (features['risk_interaction'] && features['risk_interaction'].startsWith('INTERACTION_') && features['risk_interaction'] !== 'INTERACTION_BALANCED') {
-      vetoCategory = features['risk_interaction'];
-      reasonText = `[ĐÁNH GIÁ RỦI RO AI: ${features['risk_interaction']}] Xác suất thắng ${winProb.toFixed(1)}% < ${threshold}% [Rank #${rank}] (${factorSummary})`;
-    } else if (winProb < threshold) {
-      vetoCategory = `WINPROB_LT_${threshold}`;
-      reasonText = `Xác suất thắng ${winProb.toFixed(1)}% < ${threshold}% [Rank #${rank}] (${factorSummary})`;
     } else if (evRoi < minEvRoiThreshold) {
       vetoCategory = 'EV_BELOW_THRESHOLD';
       const rrNotice = (effSlPct > tpGridPct) ? ` [R:R bất lợi: Cản SL ${effSlPct.toFixed(2)}% > TP ${tpGridPct.toFixed(2)}%]` : '';

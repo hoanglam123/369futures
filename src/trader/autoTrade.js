@@ -533,9 +533,13 @@ function calculateTierSLTP(symbol, side, entryPrice, h4Ref, tickSize, maxExchang
   // Guardrail: không để BE trigger < 0.50% (quá sớm gây rũ non) hoặc > 2.0% (quá muộn)
   const beTriggerPct = Math.max(0.50, Math.min(rawBeTriggerPct, 2.0));
   const beDistRaw = entryPrice * (beTriggerPct / 100);
-  // Kích hoạt khi đạt khoảng 55% - 65% quãng đường đến TP
-  const beDist = Math.min(beDistRaw, finalTpDist * 0.65);
-  const beTriggerPrice = (side === 'LONG' || side === 'BUY') ? (entryPrice + beDist) : (entryPrice - beDist);
+  // 1. Bỏ ép trần 65%: Tôn trọng khoảng cách an toàn do AI học từ dữ liệu Retest (beDistRaw)
+  // 2. An toàn cho TP ngắn: Nếu finalTpDist <= beDistRaw (TP ngắn hơn hoặc bằng khoảng cách an toàn),
+  //    thì KHÔNG dời BE (beTriggerPrice = null), để lệnh chạy tự nhiên chạm TP mà không bị rũ non.
+  let beTriggerPrice = null;
+  if (finalTpDist > beDistRaw) {
+    beTriggerPrice = (side === 'LONG' || side === 'BUY') ? (entryPrice + beDistRaw) : (entryPrice - beDistRaw);
+  }
 
   // 🛡️ TỶ LỆ R:R THỰC TẾ: Không chặn cứng R:R < 1.0 ở đây, giao quyền toàn diện cho AI Reviewer thẩm định qua EV
   const rrRatio = slDist > 0 ? (finalTpDist / slDist) : 0;
@@ -555,7 +559,7 @@ function calculateTierSLTP(symbol, side, entryPrice, h4Ref, tickSize, maxExchang
     valid: true,
     slPrice: parseFloat(rawSL.toFixed(decimals)),
     tpPrice: parseFloat(tpPrice.toFixed(decimals)),
-    beTriggerPrice: parseFloat(beTriggerPrice.toFixed(decimals)),
+    beTriggerPrice: beTriggerPrice ? parseFloat(beTriggerPrice.toFixed(decimals)) : null,
     slDistance: slDist,
     slPct: slPct,
     tpDistance: finalTpDist,
@@ -1710,7 +1714,7 @@ async function startAutoTrade(coins) {
       try {
         try {
           await client.setLeverage(sym, effectiveLeverage);
-          log.system(`[AutoTrade] Set leverage ${sym}USDT = ${effectiveLeverage}x (Tier SL: $${tierSetup.slPrice} (${tierSetup.slPct.toFixed(2)}%${tierSetup.isLowcap ? ' [Lowcap]' : ''}), TP 1:${tierSetup.tpRatio}: $${tierSetup.tpPrice}${ENABLE_TRAILING_BE ? `, Dời SL tại $${tierSetup.beTriggerPrice}` : ' [Không dời BE]'} | Ký quỹ: $${actualTradeMargin} [${riskProfile.grade}])`);
+          log.system(`[AutoTrade] Set leverage ${sym}USDT = ${effectiveLeverage}x (Tier SL: $${tierSetup.slPrice} (${tierSetup.slPct.toFixed(2)}%${tierSetup.isLowcap ? ' [Lowcap]' : ''}), TP 1:${tierSetup.tpRatio}: $${tierSetup.tpPrice}${(ENABLE_TRAILING_BE && tierSetup.beTriggerPrice) ? `, Dời SL tại $${tierSetup.beTriggerPrice}` : ' [Không dời BE]'} | Ký quỹ: $${actualTradeMargin} [${riskProfile.grade}])`);
         } catch (e) {
           const binErr = e.response?.data;
           const errStr = _binanceErr(e);
@@ -2975,7 +2979,9 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
       // Đổi sang ROI % tương đương để logging / telegram / dataset
       const slPct = meta?.slPct ? -meta.slPct : -13;
       const tpPct = (meta?.isPanicEscape || meta?.isH1Failed) ? 0 : parseFloat(((Math.abs(targetTpPriceExact - entryPrice) / entryPrice) * leverageVal * 100).toFixed(2));
-      const trailTrigger = parseFloat(((Math.abs(trailTriggerPriceExact - entryPrice) / entryPrice) * leverageVal * 100).toFixed(2));
+      const trailTrigger = (typeof trailTriggerPriceExact === 'number' && trailTriggerPriceExact > 0)
+        ? parseFloat(((Math.abs(trailTriggerPriceExact - entryPrice) / entryPrice) * leverageVal * 100).toFixed(2))
+        : null;
       const trailSlRoi = parseFloat(((Math.abs(trailedSlPriceExact - entryPrice) / entryPrice) * leverageVal * 100).toFixed(2));
       const posNotional = absAmt * entryPrice;
       const unrealizedPnlUsd = (roi / 100) * (meta?.margin || (posNotional / leverageVal));
@@ -3162,11 +3168,13 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
       // Dùng peakPrice (giá đỉnh/đáy tốt nhất được theo dõi liên tục) thay vì chỉ markPrice hiện tại.
       const peakPrice = meta?.maxFavorablePrice || markPrice;
 
-      // a. Ngưỡng Kích hoạt Trailing SL cơ bản (45đ cố định, kèm đệm 5 ticks để tránh trượt WebSocket)
+      // a. Ngưỡng Kích hoạt Trailing SL cơ bản (kèm đệm 5 ticks để tránh trượt WebSocket)
       const triggerBuffer = unit * 0.05;
-      const isTrailTriggerReached = isLong
-        ? (peakPrice >= trailTriggerPriceExact - triggerBuffer)
-        : (peakPrice <= trailTriggerPriceExact + triggerBuffer);
+      const isTrailTriggerReached = (typeof trailTriggerPriceExact === 'number' && trailTriggerPriceExact > 0)
+        ? (isLong
+          ? (peakPrice >= trailTriggerPriceExact - triggerBuffer)
+          : (peakPrice <= trailTriggerPriceExact + triggerBuffer))
+        : false;
 
       // 🎯 0. HỖ TRỢ PARTIAL TP (Chốt lời 50% khi chạm mốc Trailing Trigger)
       if (ENABLE_PARTIAL_TP && isTrailTriggerReached && !partialClosedSymbols.has(sym)) {

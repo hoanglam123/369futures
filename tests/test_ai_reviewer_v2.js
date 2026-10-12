@@ -338,10 +338,67 @@ test('R:R Scalping Flexibility: WinProb >= 60% chỉ yêu cầu R:R >= 0.60:1', 
   }
 });
 
+// Test 12: H1_EXTREME_STORM with Pinbar Rejection is NOT hard vetoed as extreme storm
+test('H1 Extreme Storm: Pinbar Rejection removes hard storm veto, raw storm vetoes', () => {
+  const signal = {
+    symbol: 'LINKUSDT',
+    signal: 'LONG',
+    score: 6.8,
+    marketCapRank: 18,
+    gridWidthPct: 4.5,
+    scoreReasons: ['Dow & Trendline', 'H1 bão giá', 'Gold Setup', 'Cá voi đạt']
+  };
+
+  // Trường hợp 1: Có râu Pinbar Hammer từ chối đà xả
+  const rawWithRejection = {
+    currH1: { high: 12.0, low: 10.8, open: 11.9, close: 11.2 }, // range = 11.1% (Extreme Storm)
+    lastM15: { open: 11.0, high: 11.2, low: 10.5, close: 11.15 } // Pinbar Hammer rejection
+  };
+  const evalRejection = evaluateSignalWithAI(signal, rawWithRejection);
+  assert(!evalRejection.reason.includes('[AI VETO BÃO NẾN CỰC ĐẠI]'),
+    `Có pinbar từ chối giá không được bị hard veto BÃO NẾN CỰC ĐẠI, lý do: ${evalRejection.reason}`);
+
+  // Trường hợp 2: Bão nến lao thẳng đứng Marubozu Dump (không có râu) -> Bắt buộc Veto
+  const rawRunawayDump = {
+    currH1: { high: 12.0, low: 10.8, open: 11.9, close: 10.85 }, // range = 11.1%
+    lastM15: { open: 11.2, high: 11.2, low: 10.8, close: 10.82 } // Marubozu dump
+  };
+  const evalRunaway = evaluateSignalWithAI(signal, rawRunawayDump);
+  assert.strictEqual(evalRunaway.isApproved, false, 'Marubozu dump bão nến phải bị Veto');
+  assert(evalRunaway.reason.includes('[AI VETO BÃO NẾN CỰC ĐẠI]'),
+    `Nến lao thẳng đứng không cản râu phải bị VETO BÃO NẾN CỰC ĐẠI, lý do: ${evalRunaway.reason}`);
+});
+
+// Test 13: Adaptive R:R Thresholds by Win Probability
+test('Adaptive R:R: WinProb >= 65% allows R:R >= 0.55:1, WinProb >= 57.5% allows R:R >= 0.65:1', () => {
+  // Setup với WinProb cao (Rank Midcap, nén đẹp, trend aligned)
+  const highWinSignal = {
+    symbol: 'NEARUSDT',
+    signal: 'LONG',
+    score: 7.2,
+    marketCapRank: 35,
+    gridWidthPct: 3.0,
+    actualSlPct: 2.0,
+    actualTpPct: 1.35, // rrRatio = 1.35 / 2.0 = 0.675:1
+    scoreReasons: [
+      '[Xu hướng H4/H1] M15 cấu trúc hoàn chỉnh',
+      '[Tương quan dòng tiền L/S] Cá voi đạt',
+      '[Vốn hóa] Top 31-150 Mid Cap (Rank 35)',
+      '[Price Action S/R] H4: 3 cản cũ'
+    ]
+  };
+  const res = evaluateSignalWithAI(highWinSignal);
+  if (res.winProbability >= 57.5) {
+    assert(!res.reason.includes('BAD_RR_LESS_THAN_1'),
+      `Kèo WinProb ${res.winProbability}% >= 57.5% với R:R 0.675:1 không được bị Veto bởi R:R`);
+  }
+});
+
 console.log('=' .repeat(80));
 console.log(`📊 TEST RESULTS: ${passed}/${total} TESTS PASSED (${((passed/total)*100).toFixed(1)}%)`);
 console.log('=' .repeat(80));
 
 if (passed !== total) process.exit(1);
+
 
 

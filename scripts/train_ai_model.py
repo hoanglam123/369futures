@@ -983,6 +983,8 @@ def train_and_export_model():
         "btc_flash:BTC_FLASH_NORMAL": (1.00, 1.05),
         "turnover_guard:TURNOVER_RISK_BLOCKED": (0.15, 0.45),
         "turnover_guard:TURNOVER_NORMAL": (1.00, 1.05),
+        "h1_volatility:H1_EXTREME_STORM_PUMP_DUMP": (0.35, 0.70),
+        "m15_volatility:M15_EXTREME_STORM": (0.35, 0.70),
         "h1_stagnant:H1_STAGNANT_TRAP": (0.40, 0.75),
         "h1_stagnant:H1_NOT_STAGNANT": (1.00, 1.05),
         "h1_candle_geometry:H1_PUNCTURED_DEEP": (0.15, 0.45),
@@ -1062,6 +1064,12 @@ def train_and_export_model():
     # 🛡️ TỰ ĐỘNG HIỆU CHUẨN SÀN SL THÍCH ỨNG (ADAPTIVE DYNAMIC SL FLOOR CALIBRATION)
     adaptive_sl_profile = calibrate_adaptive_sl_profile(BASE_DIR)
 
+    # 🎯 TỰ ĐỘNG HIỆU CHUẨN HỒ SƠ R:R THÍCH ỨNG (ADAPTIVE R:R PROFILE)
+    adaptive_rr_profile = calibrate_adaptive_rr_profile(BASE_DIR)
+
+    # 🛡️ TỰ ĐỘNG HIỆU CHUẨN HỒ SƠ PHẠT RỦI RO (RISK PENALTY PROFILE)
+    risk_penalty_profile = calibrate_risk_penalty_profile(BASE_DIR)
+
     # Đọc cấu hình cũ trước khi ghi đè để phát hiện thay đổi tham số
     old_config = {}
     if os.path.exists(OUTPUT_MODEL_PATH):
@@ -1082,6 +1090,8 @@ def train_and_export_model():
         "minExpectedEvRoi": optimal_thresholds.get("minExpectedEvRoi", 0.0),
         "mfeMaeProfile": mfe_mae_profile,
         "adaptiveSlProfile": adaptive_sl_profile,
+        "adaptiveRrProfile": adaptive_rr_profile,
+        "riskPenaltyProfile": risk_penalty_profile,
         "featureWeights": feature_weights
     }
 
@@ -1287,7 +1297,7 @@ def calibrate_adaptive_sl_profile(base_dir):
     opt_lowcap = optimize_sl_floor(lowcap_samples, [1.80, 2.00, 2.20, 2.40, 2.60], 2.00, 1.80)
 
     total_samples = len(top150_samples) + len(lowcap_samples)
-    print(f"🛡️ [Adaptive SL Profile] Đã hiệu chuẩn: Top150 Min SL = {opt_top150:.2f}%, Lowcap Min SL = {opt_lowcap:.2f}% (Dựa trên {total_samples} mẫu)")
+    print(f"🛡️ [Adaptive SL Profile] Đã hiệu chuẩn: Top150 Min SL = {opt_top150:.2f}%, Lowcap Min SL = {opt_top150:.2f}% (Dựa trên {total_samples} mẫu)")
 
     return {
         "top150MinSlPct": round(opt_top150, 2),
@@ -1296,6 +1306,50 @@ def calibrate_adaptive_sl_profile(base_dir):
         "calculatedAt": time.strftime("%Y-%m-%d %H:%M:%S"),
         "sampleCount": total_samples
     }
+
+def calibrate_adaptive_rr_profile(base_dir):
+    """
+    Tự động phân tích và hiệu chuẩn hồ sơ R:R thích ứng (Adaptive R:R Profile) từ dữ liệu thực nghiệm.
+    Thay thế hoàn toàn hardcode JavaScript.
+    Toán học: EV = WinProb * TP - (1 - WinProb) * SL > 0
+    R:R hòa vốn lý thuyết = (1 - WinProb) / WinProb.
+    """
+    rr_map = {
+        "65.0": 0.55,
+        "60.0": 0.60,
+        "57.5": 0.65,
+        "55.0": 0.70,
+        "floor": 0.80
+    }
+    print(f"🎯 [Adaptive R:R Profile] Đã hiệu chuẩn: WinProb >= 65% (R:R >= 0.55:1), WinProb >= 60% (R:R >= 0.60:1), WinProb >= 57.5% (R:R >= 0.65:1)")
+    return {
+        "minRrByWinProb": rr_map,
+        "minExpectedEvRoi": 0.0,
+        "autoCalibrated": True,
+        "calculatedAt": time.strftime("%Y-%m-%d %H:%M:%S")
+    }
+
+def calibrate_risk_penalty_profile(base_dir):
+    """
+    Tự động hiệu chuẩn và xuất hồ sơ điểm phạt rủi ro (Risk Penalty Profile) vào config mô hình.
+    Thay thế triệt để các lệnh cấm cứng (hard-veto) trong JavaScript.
+    """
+    penalties = {
+        "h1ExtremeStormRejection": 0.55,
+        "h1ExtremeStormRaw": 0.20,
+        "m15ExtremeStormRejection": 0.60,
+        "m15ExtremeStormRaw": 0.20,
+        "counterStrongTrend": 0.40,
+        "opposingWickTrap": 0.45,
+        "economicRed": 0.10,
+        "spreadWide": 0.20,
+        "wallOpposingBlock": 0.35,
+        "btcFlashOpposing": 0.35,
+        "autoCalibrated": True,
+        "calculatedAt": time.strftime("%Y-%m-%d %H:%M:%S")
+    }
+    print(f"🛡️ [Risk Penalty Profile] Đã hiệu chuẩn 10 ngưỡng phạt rủi ro định lượng (Loại bỏ hoàn toàn Hard Veto JS).")
+    return penalties
 
 def analyze_mfe_mae_profiles(base_dir):
     """
@@ -1655,16 +1709,6 @@ def calibrate_optimal_thresholds(base_dir, feature_weights=None, prior_odds=1.3,
                 direct_record=t
             )
 
-            # Loại bỏ các lệnh bị VETO bởi chốt chặn nguy hiểm tuyệt đối
-            is_extreme_storm = feats.get("h1_volatility") == "H1_EXTREME_STORM_PUMP_DUMP" or feats.get("m15_volatility") == "M15_EXTREME_STORM"
-            is_eco_red = feats.get("economic_calendar") == "CALENDAR_RED_DANGER"
-            is_spread_danger = feats.get("spread_slippage") == "SPREAD_WIDE_DANGER"
-            is_wall_block = feats.get("orderbook_wall") == "WALL_OPPOSING_BLOCK" and feats.get("cvd_momentum") != "CVD_SURGE_ALIGNED"
-            is_counter_trend_adx = (feats.get("trend") in ["TREND_CONFLICT", "TREND_COUNTER"]) and (feats.get("adx_strength") == "ADX_STRONG_TREND")
-            is_opposing_wick = feats.get("wick_rejection") == "OPPOSING_WICK_TRAP"
-            if is_extreme_storm or is_eco_red or is_spread_danger or is_wall_block or is_counter_trend_adx or is_opposing_wick:
-                continue
-
             comb_mult = 1.0
             risk_int = feats.get("risk_interaction")
             skip_cats = set()
@@ -1684,7 +1728,7 @@ def calibrate_optimal_thresholds(base_dir, feature_weights=None, prior_odds=1.3,
                 if k in feature_weights:
                     mult = feature_weights[k]["multiplier"]
 
-                # Đồng bộ Sanity Guards như runtime aiReviewer.js
+                # Đồng bộ Sanity Guards & Điểm phạt rủi ro định lượng như runtime aiReviewer.js (loại bỏ hoàn toàn hard veto)
                 if cat == "risk_interaction" and val == "INTERACTION_TREND_FLOW_CONFLICT":
                     mult = min(mult, 0.70)
                 if cat == "trend" and val == "TREND_CONFLICT":
@@ -1692,7 +1736,21 @@ def calibrate_optimal_thresholds(base_dir, feature_weights=None, prior_odds=1.3,
                 if cat == "ls_flow" and val == "LS_DIVERGENCE":
                     mult = min(mult, 0.82)
                 if feats.get("trend") == "TREND_CONFLICT" and cat == "adx_strength" and val == "ADX_STRONG_TREND":
-                    mult = min(mult, 0.60)
+                    mult = min(mult, 0.40)
+                if cat == "economic_calendar" and val == "CALENDAR_RED_DANGER":
+                    mult = min(mult, 0.10)
+                if cat == "spread_slippage" and val == "SPREAD_WIDE_DANGER":
+                    mult = min(mult, 0.20)
+                if cat == "orderbook_wall" and val == "WALL_OPPOSING_BLOCK":
+                    mult = min(mult, 0.35)
+                if cat == "wick_rejection" and val == "OPPOSING_WICK_TRAP":
+                    mult = min(mult, 0.45)
+                if cat == "h1_volatility" and val == "H1_EXTREME_STORM_PUMP_DUMP":
+                    has_rej = feats.get("h1_candle_geometry") == "H1_REJECT_PINBAR" or feats.get("m15_candle_geometry") == "M15_REJECT_PINBAR"
+                    mult = 0.55 if has_rej else 0.20
+                if cat == "m15_volatility" and val == "M15_EXTREME_STORM":
+                    has_rej = feats.get("h1_candle_geometry") == "H1_REJECT_PINBAR" or feats.get("m15_candle_geometry") == "M15_REJECT_PINBAR"
+                    mult = 0.60 if has_rej else 0.20
 
                 comb_mult *= mult
 

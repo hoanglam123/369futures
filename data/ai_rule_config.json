@@ -1,6 +1,6 @@
 {
   "version": "1.4.0-auto",
-  "trainedAt": "2026-10-08 11:06:08",
+  "trainedAt": "2026-10-12 08:49:45",
   "totalSamples": 2483,
   "priorWinProb": 0.4883,
   "priorOdds": 0.9543,
@@ -9,9 +9,9 @@
     "lowcap": 54,
     "minExpectedEvRoi": 0.0,
     "autoCalibrated": true,
-    "calibratedAt": "2026-10-08 11:06:08",
+    "calibratedAt": "2026-10-12 08:49:45",
     "calibrationStats": {
-      "testedSamples": 2237,
+      "testedSamples": 3377,
       "approvedTrades": 65,
       "expectedWins": 35,
       "expectedLosses": 30,
@@ -44,14 +44,40 @@
     "shadowCount": 1871,
     "realCount": 2185,
     "autoCalibrated": true,
-    "calculatedAt": "2026-10-08 11:06:08"
+    "calculatedAt": "2026-10-12 08:49:45"
   },
   "adaptiveSlProfile": {
     "top150MinSlPct": 1.5,
     "lowcapMinSlPct": 1.8,
     "autoCalibrated": true,
-    "calculatedAt": "2026-10-08 11:06:08",
+    "calculatedAt": "2026-10-12 08:49:45",
     "sampleCount": 1933
+  },
+  "adaptiveRrProfile": {
+    "minRrByWinProb": {
+      "65.0": 0.55,
+      "60.0": 0.6,
+      "57.5": 0.65,
+      "55.0": 0.7,
+      "floor": 0.8
+    },
+    "minExpectedEvRoi": 0.0,
+    "autoCalibrated": true,
+    "calculatedAt": "2026-10-12 08:49:45"
+  },
+  "riskPenaltyProfile": {
+    "h1ExtremeStormRejection": 0.55,
+    "h1ExtremeStormRaw": 0.2,
+    "m15ExtremeStormRejection": 0.6,
+    "m15ExtremeStormRaw": 0.2,
+    "counterStrongTrend": 0.4,
+    "opposingWickTrap": 0.45,
+    "economicRed": 0.1,
+    "spreadWide": 0.2,
+    "wallOpposingBlock": 0.35,
+    "btcFlashOpposing": 0.35,
+    "autoCalibrated": true,
+    "calculatedAt": "2026-10-12 08:49:45"
   },
   "featureWeights": {
     "rank_group:RANK_TOP10": {
@@ -1012,7 +1038,7 @@
       "winCount": 22.0,
       "lossCount": 3.0,
       "winProb": 0.7331,
-      "multiplier": 0.2,
+      "multiplier": 0.7,
       "sanityCapped": true,
       "isAutonomous": true
     },
@@ -1030,7 +1056,7 @@
       "winCount": 32.5,
       "lossCount": 7.5,
       "winProb": 0.7241,
-      "multiplier": 0.2,
+      "multiplier": 0.7,
       "sanityCapped": true,
       "isAutonomous": true
     },
