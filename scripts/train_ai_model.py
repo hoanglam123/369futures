@@ -1799,7 +1799,7 @@ def calibrate_optimal_thresholds(base_dir, feature_weights=None, prior_odds=1.3,
     top150_trades = [t for t in recalculated_trades if t["marketCapRank"] <= 150]
     lowcap_trades = [t for t in recalculated_trades if t["marketCapRank"] > 150]
 
-    def optimize_segment(segment_name, segment_trades, candidates, default_floor=55.0):
+    def optimize_segment(segment_name, segment_trades, candidates, default_floor=50.0):
         best_u = -999999.0
         best_th = default_floor
         best_st = {}
@@ -1831,10 +1831,12 @@ def calibrate_optimal_thresholds(base_dir, feature_weights=None, prior_odds=1.3,
             pf = (gross_win / gross_loss) if gross_loss > 0 else (2.5 if gross_win > 0 else 1.0)
             net_pnl = gross_win - gross_loss
 
-            # Tiêu chuẩn toán học: WinRate >= 50.0%, Profit Factor >= 1.15 và Lãi ròng > 0
-            if wr >= 50.0 and pf >= 1.15 and net_pnl > 0:
-                # Hàm mục tiêu Quant: Tối đa hóa tỷ lệ Lãi/Lỗ, biên thắng so với hòa vốn (45%) và quy mô mẫu
-                utility = (pf - 1.0) * math.sqrt(total) * (wr - 45.0)
+            # Tiêu chuẩn toán học cơ bản: WinRate >= 50.0% (vượt hòa vốn), Profit Factor >= 1.10 và Lãi ròng > 0
+            if wr >= 50.0 and pf >= 1.10 and net_pnl > 0:
+                # Tiêu chuẩn AI Agent thuần túy kinh tế học Quant:
+                # Tối đa hóa Tổng Lãi Ròng (Net Profit USD) sinh ra cho tài khoản
+                # Không áp bất kỳ mức trần nhân tạo nào, để AI tự do chọn điểm cân bằng sinh lời cao nhất
+                utility = net_pnl
                 if utility > best_u:
                     best_u = utility
                     best_th = th
@@ -1848,7 +1850,7 @@ def calibrate_optimal_thresholds(base_dir, feature_weights=None, prior_odds=1.3,
                         "expectedNetPnlUsd": round(net_pnl, 2)
                     }
 
-        # Fallback tự động nếu phân khúc chưa có cấu hình đạt chuẩn khắt khe: chọn ngưỡng có Net PnL tốt nhất trong dải hợp lệ
+        # Fallback tự động nếu phân khúc chưa có cấu hình đạt chuẩn: chọn ngưỡng có Net PnL tốt nhất trong dải
         if not best_st:
             for th in candidates:
                 n_win = 0
@@ -1879,11 +1881,11 @@ def calibrate_optimal_thresholds(base_dir, feature_weights=None, prior_odds=1.3,
 
         return max(default_floor, best_th), best_st
 
-    # Dải xác suất tối ưu hóa: Khống chế sàn tuyệt đối Top150 >= 55.0% và Lowcap >= 53.0%
-    candidates_top = [round(x, 1) for x in range(55, 71, 1)]
-    candidates_low = [round(x, 1) for x in range(53, 71, 1)]
-    best_th_top, top_stats = optimize_segment("Top 150", top150_trades, candidates_top, default_floor=55.0)
-    best_th_low, low_stats = optimize_segment("Lowcap", lowcap_trades, candidates_low, default_floor=53.0)
+    # Không áp trần cứng nhân tạo: Mở rộng không gian tìm kiếm từ 50.0% đến 75.0% cho AI tự quyết
+    candidates_top = [round(x, 1) for x in range(50, 76, 1)]
+    candidates_low = [round(x, 1) for x in range(50, 76, 1)]
+    best_th_top, top_stats = optimize_segment("Top 150", top150_trades, candidates_top, default_floor=50.0)
+    best_th_low, low_stats = optimize_segment("Lowcap", lowcap_trades, candidates_low, default_floor=50.0)
 
     combined_wins = top_stats.get("expectedWins", 0) + low_stats.get("expectedWins", 0)
     combined_losses = top_stats.get("expectedLosses", 0) + low_stats.get("expectedLosses", 0)
