@@ -46,8 +46,8 @@ if (fs.existsSync(DATASET_PATH)) {
         const id = rec.tradeId || rec.orderId;
         const entry = entries.get(id);
         if (entry) {
-          const isWin = Boolean(rec.isWin);
-          const isBe = rec.exitType === 'BE_EXIT' || rec.exitType === 'BE';
+          const isWin = Boolean(rec.isWin) || rec.exitType === 'TREND_RUNNER_TP';
+          const isBe = rec.exitType === 'BE_EXIT' || rec.exitType === 'BE' || rec.exitType === 'DEFENSIVE_BE_EXIT';
           const pnlUsd = parseFloat(rec.pnlUsd) || 0;
           const pnlPct = parseFloat(rec.pnlPercent) || 0;
           allTrades.push({

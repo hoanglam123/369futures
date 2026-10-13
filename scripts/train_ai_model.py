@@ -713,6 +713,7 @@ def train_and_export_model():
                     entries[rec.get("tradeId")] = rec
                 elif rec.get("type") == "EXIT":
                     tid = rec.get("tradeId")
+                    exit_type = rec.get("exitType")
                     valid_exits = ["TP", "SL", "TRAILING_SL", "HARD_MAX_LOSS", "BE_EXIT", "TREND_RUNNER_TP", "DEFENSIVE_BE_EXIT", "DEFENSIVE_EARLY_CUT"]
                     if exit_type in valid_exits and tid in entries:
                         entry = entries[tid]
@@ -1465,7 +1466,7 @@ def analyze_mfe_mae_profiles(base_dir):
                 if is_win:
                     mfe_pct = max(move_pct, tp_dist_pct * 0.8)
                     did_reach_tp = True
-                elif exit_type == "TP":
+                elif exit_type in ["TP", "TREND_RUNNER_TP"]:
                     mfe_pct = tp_dist_pct
                     did_reach_tp = True
                 else:
@@ -1633,8 +1634,8 @@ def calibrate_optimal_thresholds(base_dir, feature_weights=None, prior_odds=1.3,
                             tid = rec.get("tradeId") or rec.get("orderId")
                             if tid in entries:
                                 en = entries[tid]
-                                is_win = bool(rec.get("isWin"))
-                                is_be = rec.get("exitType") in ["BE_EXIT", "BE"]
+                                is_win = bool(rec.get("isWin")) or rec.get("exitType") == "TREND_RUNNER_TP"
+                                is_be = rec.get("exitType") in ["BE_EXIT", "BE", "DEFENSIVE_BE_EXIT"]
                                 pnl = float(rec.get("pnlUsd", 0) or rec.get("pnlPercent", 0))
                                 trades.append({
                                     "symbol": en.get("symbol"),

@@ -91,6 +91,8 @@ function addSymbolToCooldown(sym, hours = null, reason = 'SL_NORMAL') {
     const r = (reason || '').toUpperCase();
     if (r.includes('BTC') || r.includes('MARKET') || r.includes('FLASH')) {
       effHours = 2.5;
+    } else if (r.includes('DEFENSIVE') || r.includes('EARLY_CUT')) {
+      effHours = 1.5; // Cắt non phòng thủ, cho phép tái đánh giá sau 1.5h nếu thị trường ổn định lại
     } else if (r.includes('HARD') || r.includes('MAX_LOSS') || r.includes('BREAK') || r.includes('TREND_BROKEN')) {
       effHours = 16.0;
     } else if (r.includes('PANIC') || r.includes('EMERGENCY')) {

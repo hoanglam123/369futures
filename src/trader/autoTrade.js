@@ -3701,31 +3701,34 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
             // ── Record trade exit for AI Dataset ──
             if (meta) {
               const holdingDurationMinutes = (Date.now() - (meta.time || Date.now())) / 60000;
+              const isRunnerSl = isRunnerSlValid;
+              const exitTypeVirtual = isRunnerSl ? 'TREND_RUNNER_TP' : (typeLabel === 'Trailing SL' ? 'TRAILING_SL' : 'SL');
+              const isWinVirtual = isRunnerSl || roi > 0;
               recordTradeExit({
                 tradeId: `${sym}-${meta.orderId || 'vSL'}`,
                 orderId: String(meta.orderId || ''),
                 symbol: sym,
                 exitPrice: markPrice,
                 exitTimestamp: Date.now(),
-                exitType: typeLabel === 'Trailing SL' ? 'TRAILING_SL' : 'SL',
+                exitType: exitTypeVirtual,
                 pnlPercent: roi,
                 pnlUsd: (roi / 100) * (meta.margin || 0),
                 holdingDurationMinutes: holdingDurationMinutes,
-                isWin: false,
+                isWin: isWinVirtual,
               });
               recordDirectionalTradeExit({
                 symbol: sym,
                 side: isLong ? 'LONG' : 'SHORT',
-                isWin: false,
-                exitType: typeLabel === 'Trailing SL' ? 'TRAILING_SL' : 'SL',
+                isWin: isWinVirtual,
+                exitType: exitTypeVirtual,
                 pnlUsd: (roi / 100) * (meta.margin || 0),
                 pnlPercent: roi
               });
               recordRealTradeOutcome({
                 symbol: sym,
                 side: isLong ? 'LONG' : 'SHORT',
-                isWin: false,
-                exitType: typeLabel === 'Trailing SL' ? 'TRAILING_SL' : 'SL',
+                isWin: isWinVirtual,
+                exitType: exitTypeVirtual,
                 pnlUsd: (roi / 100) * (meta.margin || 0),
                 pnlPercent: roi
               });
@@ -3831,7 +3834,13 @@ async function notifyRealClose(client, sym, prevPos, meta) {
       ? (prevPos.isLong ? (closePrice >= meta.tierTpPrice - 1e-8) : (closePrice <= meta.tierTpPrice + 1e-8))
       : false;
 
-    if (isTpTargetHit || (realizedProfit > 0.3 && roi >= 15)) {
+    if (meta?.runnerStage === 'RUNNING' && realizedProfit > 0.2) {
+      label = '🎯 Trend Runner TP';
+      exitType = 'TREND_RUNNER_TP';
+    } else if ((meta?.defensivePhase === 'PHASE1_BE' || meta?.defensiveMovedToBe) && realizedProfit >= -0.5 && roi >= -2.5) {
+      label = '🛡️ Defensive Breakeven';
+      exitType = 'DEFENSIVE_BE_EXIT';
+    } else if (isTpTargetHit || (realizedProfit > 0.3 && roi >= 15)) {
       label = '🎯 Take Profit';
       exitType = 'TP';
     } else if (realizedProfit > 0.2) {

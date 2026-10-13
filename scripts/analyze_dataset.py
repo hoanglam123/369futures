@@ -116,12 +116,15 @@ def analyze_all():
                     entries[rec.get("tradeId")] = rec
                 elif rec.get("type") == "EXIT":
                     tid = rec.get("tradeId")
-                    if rec.get("exitType") in ["TP", "SL", "TRAILING_SL"] and tid in entries:
+                    exit_type = rec.get("exitType")
+                    valid_exits = ["TP", "SL", "TRAILING_SL", "HARD_MAX_LOSS", "BE_EXIT", "TREND_RUNNER_TP", "DEFENSIVE_BE_EXIT", "DEFENSIVE_EARLY_CUT"]
+                    if exit_type in valid_exits and tid in entries:
+                        is_win = rec.get("isWin", False) or exit_type == "TREND_RUNNER_TP"
                         real_trades.append({
                             "type": "REAL",
                             "symbol": rec.get("symbol"),
-                            "is_win": rec.get("isWin", False),
-                            "outcome": "TP" if rec.get("isWin") else "SL",
+                            "is_win": is_win,
+                            "outcome": "TP" if is_win else ("BE" if exit_type in ["BE_EXIT", "DEFENSIVE_BE_EXIT"] else "SL"),
                             "reasons": entries[tid].get("scoreReasons", []),
                             "score": entries[tid].get("score", 0),
                             "rank": entries[tid].get("marketCapRank", 999)
