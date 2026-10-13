@@ -713,13 +713,13 @@ def train_and_export_model():
                     entries[rec.get("tradeId")] = rec
                 elif rec.get("type") == "EXIT":
                     tid = rec.get("tradeId")
-                    exit_type = rec.get("exitType")
-                    if exit_type in ["TP", "SL", "TRAILING_SL", "HARD_MAX_LOSS", "BE_EXIT"] and tid in entries:
+                    valid_exits = ["TP", "SL", "TRAILING_SL", "HARD_MAX_LOSS", "BE_EXIT", "TREND_RUNNER_TP", "DEFENSIVE_BE_EXIT", "DEFENSIVE_EARLY_CUT"]
+                    if exit_type in valid_exits and tid in entries:
                         entry = entries[tid]
                         is_win = rec.get("isWin", False)
-                        if is_win:
+                        if is_win or exit_type == "TREND_RUNNER_TP":
                             win_credit = 1.0
-                        elif exit_type == "BE_EXIT":
+                        elif exit_type in ["BE_EXIT", "DEFENSIVE_BE_EXIT"]:
                             win_credit = 0.50
                         else:
                             win_credit = 0.0
