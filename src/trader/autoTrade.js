@@ -147,6 +147,11 @@ let activeTradesMetadata = {};
 try {
   if (fs.existsSync(METADATA_PATH)) {
     activeTradesMetadata = JSON.parse(fs.readFileSync(METADATA_PATH, 'utf8'));
+    for (const [sym, meta] of Object.entries(activeTradesMetadata)) {
+      if (meta?.isPartialClosed) {
+        partialClosedSymbols.add(sym);
+      }
+    }
   }
 } catch (err) {
   log.warn(`[AutoTrade] Lỗi đọc active_trades.json: ${err.message}`);
@@ -2845,7 +2850,7 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
       // cho đến khi vị thế đóng — đảm bảo SL luôn được dời về hòa vốn khi đã đủ điều kiện.
       let metaForPeak = activeTradesMetadata[sym];
       if (!metaForPeak) {
-        // Fallback: Tự động khởi tạo metadata nếu vị thế mở trên sàn chưa có metadata
+        // Fallback: Tự động khởi tạo metadata nếu vị thế mở trên sàn chưa có metadata (đang chạy sẵn từ trước khi bot restart)
         const stepVal = getStep(entryPrice);
         metaForPeak = {
           symbol: sym,
@@ -2857,6 +2862,8 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
           gridStepPct: (stepVal / entryPrice) * 100,
           maxFavorablePrice: markPrice,
           time: Date.now(),
+          isFilled: true,
+          hasNotifiedFill: true, // Vị thế đã có sẵn trên sàn, không gửi lại thông báo "Lệnh LIMIT đã khớp"
         };
         activeTradesMetadata[sym] = metaForPeak;
         saveActiveTradesMetadata();
@@ -3395,13 +3402,18 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
           if (isMomentumStrong) {
             // 1. Chốt trước 50% vị thế nếu chưa chốt Partial TP để bỏ túi lãi tươi chắc chắn
             let closeQty = 0;
-            if (!partialClosedSymbols.has(sym)) {
+            const isAlreadyPartialClosed = (meta?.isPartialClosed === true) || partialClosedSymbols.has(sym);
+            if (!isAlreadyPartialClosed) {
               const halfAmt = absAmt * 0.5;
               closeQty = formatQuantity(sym, halfAmt);
               if (closeQty > 0) {
                 try {
                   await client.placeMarket(sym, oppositeSide, closeQty);
                   partialClosedSymbols.add(sym);
+                  if (meta) {
+                    meta.isPartialClosed = true;
+                    saveActiveTradesMetadata();
+                  }
                   absAmt = formatQuantity(sym, Math.max(0, absAmt - closeQty));
                   if (lastActivePositions.has(sym)) {
                     const prevData = lastActivePositions.get(sym);
@@ -3575,7 +3587,8 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
         : false;
 
       // 🎯 0. HỖ TRỢ PARTIAL TP (Chốt lời 50% khi chạm mốc Trailing Trigger)
-      if (ENABLE_PARTIAL_TP && isTrailTriggerReached && !partialClosedSymbols.has(sym)) {
+      const isAlreadyPartialClosed = (meta?.isPartialClosed === true) || partialClosedSymbols.has(sym);
+      if (ENABLE_PARTIAL_TP && isTrailTriggerReached && !isAlreadyPartialClosed) {
         const halfAmt = absAmt * 0.5;
         const closeQty = formatQuantity(sym, halfAmt);
         if (closeQty > 0) {
@@ -3584,6 +3597,10 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
           try {
             await client.placeMarket(sym, oppositeSide, closeQty);
             partialClosedSymbols.add(sym);
+            if (meta) {
+              meta.isPartialClosed = true;
+              saveActiveTradesMetadata();
+            }
             // Cập nhật số lượng vị thế còn lại
             absAmt = formatQuantity(sym, Math.max(0, absAmt - closeQty));
             if (lastActivePositions.has(sym)) {
