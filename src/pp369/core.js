@@ -39,9 +39,11 @@ const PROXIMITY_PCT = 0.02;  // 2% = ngưỡng lọc WebSocket — chỉ scan co
 const YEAR_START_MS = Date.UTC(2026, 0, 1);
 
 // ─── Lọc coin theo độ rộng grid (Sàn an toàn vật lý - Sanity Guard) ───────────
-// Hạ sàn lọc thô từ 3% về 1.5% - 30% để Lõi AI Reviewer toàn quyền thẩm định độ rộng Grid:
-const GRID_MIN_PCT = 1.5;          // Sàn vật lý 1.5% (tối thiểu đủ bù phí + slippage)
-const GRID_MIN_PCT_TOP100 = 1.5;   // Đồng nhất sàn vật lý 1.5% cho mọi nhóm coin
+// Sàn vật lý tối thiểu để đảm bảo đủ biên độ dao động, tránh bẫy nhiễu nến cắn SL:
+// - Top 30 Blue Chip (BTC, ETH, BNB...): Thanh khoản dày, râu ngắn -> tối thiểu >= 2.2%
+// - Altcoin / Midcap / Lowcap: Râu dài, biến động mạnh -> BẮT BUỘC tối thiểu >= 3.2%
+const GRID_MIN_PCT = 3.2;          // Sàn vật lý Altcoin/Midcap/Lowcap: tối thiểu 3.2%
+const GRID_MIN_PCT_TOP30 = 2.2;    // Sàn vật lý Top 30 Blue Chip: tối thiểu 2.2%
 const GRID_MAX_PCT = 30;           // Trần vật lý 30%
 
 let _top100SymbolsCache = null;
@@ -79,6 +81,14 @@ function getMarketCapRank(symbol) {
   return rankMap.get(cleanSym) ?? 999;
 }
 
+function isTop30Symbol(symbol) {
+  if (!symbol) return false;
+  const cleanSym = symbol.toUpperCase().replace(/USDT$/, '');
+  if (cleanSym === 'BTC' || cleanSym === 'ETH' || cleanSym === 'BNB' || cleanSym === 'SOL') return true;
+  const rank = getMarketCapRank(cleanSym);
+  return rank <= 30;
+}
+
 function getTop100SymbolsSync() {
   const now = Date.now();
   if (_top100SymbolsCache && (now - _top100CacheTime < 60 * 60 * 1000)) {
@@ -107,7 +117,7 @@ function isTop100Symbol(symbol) {
 }
 
 function getMinGridPct(symbol) {
-  return isTop100Symbol(symbol) ? GRID_MIN_PCT_TOP100 : GRID_MIN_PCT;
+  return isTop30Symbol(symbol) ? GRID_MIN_PCT_TOP30 : GRID_MIN_PCT;
 }
 
 /**
@@ -2864,6 +2874,6 @@ module.exports = {
   get369Signal, get369SignalsForCoins, score369Method, format369ForPrompt,
   getLevelCache, overrideLevelLastSide, PROXIMITY_PCT, getDecimals, getStep,
   initH4Cache, YEAR_START_MS, fetchBinanceKlines, fetchH4Reference, buildLevelGrid,
-  getGridStepPct, isGridWidthValid, GRID_MIN_PCT, GRID_MIN_PCT_TOP100, GRID_MAX_PCT, getMinGridPct, isTop100Symbol, getMarketCapRank,
+  getGridStepPct, isGridWidthValid, GRID_MIN_PCT, GRID_MIN_PCT_TOP30, GRID_MIN_PCT_TOP100: GRID_MIN_PCT_TOP30, GRID_MAX_PCT, getMinGridPct, isTop100Symbol, isTop30Symbol, getMarketCapRank,
   isSymbolInGridBlacklist, getGridBlacklistInfo, addToGridBlacklist, classifyCandleGeometry,
 };

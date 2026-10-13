@@ -32,6 +32,8 @@ const {
   sendTelegram,
   score369Method,
   isGridWidthValid,
+  getMinGridPct,
+  GRID_MAX_PCT,
   YEAR_START_MS,
   getMarketCapRank,
   fetchH4Reference,
@@ -1235,6 +1237,32 @@ async function startAutoTrade(coins) {
       sig.gridWidthPct = gridStepPct;
       sig.margin = tradeAmount;
 
+      // ── SÀN AN TOÀN VẬT LÝ ĐỘ RỘNG GRID (SANITY GUARD) ──
+      // Bỏ qua ngay các mốc có biên độ quá hẹp không thể giao dịch an toàn (tránh bẫy nhiễu nến cắn SL)
+      const minGridPct = getMinGridPct(sym);
+      if (gridStepPct < minGridPct || gridStepPct > GRID_MAX_PCT) {
+        if (_shouldLogSignal(sym, sig.signal, sig.targetLevel, 'grid_untradable', 30 * 60 * 1000)) {
+          log.system(
+            `[AutoTrade] 🛑 Bỏ qua ${sym} (${sig.signal}): Độ rộng lưới không hợp lệ (${gridStepPct.toFixed(2)}% ` +
+            `${gridStepPct < minGridPct ? `< sàn tối thiểu ${minGridPct}%` : `> trần tối đa ${GRID_MAX_PCT}%`}) ` +
+            `— Cấu trúc mốc không thể giao dịch an toàn (Untradable Grid).`
+          );
+        }
+        if (_shouldLogSignal(sym, sig.signal, sig.targetLevel, 'rec_grid_untradable')) {
+          recordSkippedSignal({
+            symbol: sym,
+            signal: sig.signal,
+            signalPrice: sig.targetLevel,
+            score: sig.score ?? 0,
+            scoreReasons: sig.scoreReasons || [],
+            skipReason: gridStepPct < minGridPct ? 'GRID_TOO_NARROW_UNTRADABLE' : 'GRID_TOO_WIDE_UNTRADABLE',
+            markPrice: markPrice,
+            marketCapRank: rank,
+          });
+        }
+        return;
+      }
+
       const score = sig.score ?? 0;
       if (isNewSignalLog) {
         log.system(
@@ -2314,6 +2342,16 @@ async function checkH1RetestSignals(client, activeSymbols, leverageInfo = {}) {
 
       // Tính đòn bẩy động
       const gridStepPct = (step / targetLevel) * 100;
+      const minGridPctRetest = getMinGridPct(sym);
+      if (gridStepPct < minGridPctRetest || gridStepPct > GRID_MAX_PCT) {
+        log.system(
+          `[AutoTrade (Retest H1)] 🛑 Bỏ qua ${sym} (${signal}): Độ rộng lưới không hợp lệ (${gridStepPct.toFixed(2)}% ` +
+          `${gridStepPct < minGridPctRetest ? `< sàn tối thiểu ${minGridPctRetest}%` : `> trần tối đa ${GRID_MAX_PCT}%`}) ` +
+          `— Cấu trúc mốc không thể giao dịch an toàn (Untradable Grid).`
+        );
+        delete lowScoreWatchlist[sym];
+        continue;
+      }
       const leverage = Math.max(1, Math.floor(39 / gridStepPct));
       const maxFavorableRoi = maxFavorableMovePct * leverage;
 
