@@ -967,19 +967,19 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
   winProb = Math.max(5.0, Math.min(95.0, winProb));
 
   // ── [MỚI] TỰ ĐỘNG NẠP NGƯỠNG TỐI ƯU DO AI TỰ HỌC (AUTONOMOUS THRESHOLD CALIBRATION) ──
-  // Ngưỡng hoàn toàn do AI tự động tối ưu hóa (Grid Search Quant Utility & Net PnL) sau mỗi chu kỳ huấn luyện hàng ngày
-  // Khống chế sàn an toàn: Top 150 tối thiểu 55.0%, Lowcap tối thiểu 53.0%
+  // Ngưỡng hoàn toàn do AI tự động tối ưu hóa (Grid Search Net PnL) sau mỗi chu kỳ huấn luyện
+  // Sàn an toàn toán học: 50.0% (điểm hòa vốn xác suất, không duyệt lệnh có winProb < 50%)
   const optimalTh = _modelConfig?.optimalThresholds || {};
-  const baseTop150 = typeof optimalTh.top150 === 'number' ? Math.max(55.0, optimalTh.top150) : 55.0;
-  const baseLowcap = typeof optimalTh.lowcap === 'number' ? Math.max(53.0, optimalTh.lowcap) : 53.0;
+  const baseTop150 = typeof optimalTh.top150 === 'number' ? Math.max(50.0, optimalTh.top150) : 55.0;
+  const baseLowcap = typeof optimalTh.lowcap === 'number' ? Math.max(50.0, optimalTh.lowcap) : 50.0;
   let threshold = (rank <= 150) ? baseTop150 : baseLowcap;
 
   // 🌊 MARKET REGIME FLEXIBILITY (Co giãn linh hoạt theo nhịp thở thị trường)
-  // Thuận sóng BTC: Tự tin nới nhẹ -0.5% để đón sóng (nhưng không vượt sàn tuyệt đối 55% / 53%)
+  // Thuận sóng BTC: Tự tin nới nhẹ -0.5% để đón sóng (nhưng không dưới sàn toán học 50.0%)
   // Ngược sóng BTC hoặc bão Flash: Tự động siết thêm +2.0% để bảo vệ vốn
-  const floorThreshold = (rank <= 150) ? 55.0 : 53.0;
+  const floorThreshold = (rank <= 150) ? baseTop150 : baseLowcap;
   if (features['btc_wave'] === 'BTC_ALIGNED') {
-    threshold = Math.max(floorThreshold, threshold - 0.5);
+    threshold = Math.max(50.0, threshold - 0.5);
   } else if (features['btc_wave'] === 'BTC_COUNTER' || features['btc_flash'] !== 'BTC_FLASH_NORMAL') {
     threshold += 2.0;
   }
