@@ -1798,6 +1798,8 @@ async function startAutoTrade(coins) {
           leverage: effectiveLeverage,
           margin: actualTradeMargin,
           maxRecentBouncePct: maxRecentBouncePct ?? null,
+          aiWinProbability: aiEval?.winProbability ?? null,
+          aiExpectedRoi: aiEval?.expectedEvRoi ?? null,
           // ── THÔNG SỐ TIER SL / TP MỚI ──
           tierSlPrice: tierSetup.slPrice,
           tierTpPrice: tierSetup.tpPrice,
@@ -2695,6 +2697,8 @@ async function checkH1RetestSignals(client, activeSymbols, leverageInfo = {}) {
           maxFavorablePrice: null,
           pendingBouncePeakPrice: null,
           isH1Retest: true,
+          aiWinProbability: aiEval?.winProbability ?? null,
+          aiExpectedRoi: aiEval?.expectedEvRoi ?? null,
           // ── THÔNG SỐ TIER SL / TP MỚI ──
           tierSlPrice: tierSetupRetest.slPrice,
           tierTpPrice: tierSetupRetest.tpPrice,
@@ -3328,9 +3332,11 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
           continue;
         }
 
-        // ── 🚀 BƯỚC 2: ADAPTIVE TREND RUNNER (GỒNG LÃI DÀI THEO SÓNG) ──
+        // ── 🚀 BƯỚC 2: ADAPTIVE TREND RUNNER (GỒNG LÃI DÀI THEO SÓNG DO AI QUYẾT ĐỊNH) ──
         const isDefensiveExit = (meta?.isPanicEscape || meta?.isH1Failed) === true;
-        const canRunTrend = ENABLE_TREND_RUNNER && !isDefensiveExit && !meta?.isTrendRunner && (meta?.score == null || meta.score >= 6.5);
+        // AI quyết định: Chỉ kích hoạt gồng sóng Trend Runner cho lệnh có chất lượng cao (WinProb >= 57% hoặc Score >= 6.5)
+        const isAiHighConfidence = (meta?.aiWinProbability == null || meta.aiWinProbability >= 0.57) && (meta?.score == null || meta.score >= 6.5);
+        const canRunTrend = ENABLE_TREND_RUNNER && !isDefensiveExit && !meta?.isTrendRunner && isAiHighConfidence;
 
         if (canRunTrend) {
           let isMomentumStrong = false;
