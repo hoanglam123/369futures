@@ -2003,12 +2003,12 @@ async function checkPendingLimits(client, activeSymbols) {
       const effGridPct = (meta.gridWidthPct && meta.gridWidthPct > 0) ? meta.gridWidthPct : ((stepVal / entry) * 100);
       const bouncePct = Math.min(Math.max(effGridPct * 0.25, 0.60), 1.50);
 
-      // 🛡️ BƯỚC 1: AI PRE-FILL LIMIT CANCEL (Kiểm tra vi cấu trúc khi giá tiệm cận Entry)
+      // 🛡️ BƯỚC 1: AI PRE-FILL LIMIT CANCEL (Kiểm tra vi cấu trúc thông minh khi giá áp sát cực gần Entry)
       if (ENABLE_AI_PREFILL_CANCEL) {
         const distToEntryPct = Math.abs(markPrice - entry) / entry * 100;
         const now = Date.now();
-        // Chỉ quét khi giá tiệm cận Entry trong vòng 1.2% hoặc đã chạm Entry, và cách lần quét trước ít nhất 8 giây
-        if ((distToEntryPct <= 1.2 || meta.hasTouchedEntry === true) && (!meta._lastMicroScanTime || (now - meta._lastMicroScanTime >= 8000))) {
+        // Chỉ quét khi giá áp sát cực gần Entry (<= 0.35%) hoặc đã chạm Entry, và cách lần quét trước ít nhất 4 giây
+        if ((distToEntryPct <= 0.35 || meta.hasTouchedEntry === true) && (!meta._lastMicroScanTime || (now - meta._lastMicroScanTime >= 4000))) {
           meta._lastMicroScanTime = now;
           try {
             const side = meta.side === 'BUY' ? 'LONG' : 'SHORT';
@@ -2017,38 +2017,50 @@ async function checkPendingLimits(client, activeSymbols) {
 
             let cancelReason = null;
             if (side === 'LONG') {
-              if (micro.takerBuyRatio <= 0.28) {
-                cancelReason = `Áp lực xả Taker đối lập quá mạnh (Taker Buy chỉ chiếm ${(micro.takerBuyRatio * 100).toFixed(1)}%)`;
+              if (micro.takerBuyRatio <= 0.12) {
+                cancelReason = `Áp lực xả Taker hoảng loạn cực đoan (Taker Buy chỉ chiếm ${(micro.takerBuyRatio * 100).toFixed(1)}% <= 12%)`;
               } else if (micro.spread === 'SPREAD_WIDE_DANGER') {
                 cancelReason = `Độ dãn Spread nguy hiểm (${micro.spreadPct.toFixed(3)}%), thanh khoản cạn kiệt`;
-              } else if (micro.wall === 'WALL_OPPOSING_BLOCK') {
-                cancelReason = `Tường xả đối lập chặn đường ($${micro.wallNotionalUsd} USDT @ $${micro.wallPrice})`;
+              } else if (micro.wall === 'WALL_CRUSHING_ENTRY') {
+                cancelReason = `Tường xả khổng lồ đè sát Entry ($${micro.wallNotionalUsd} USDT @ $${micro.wallPrice})`;
               }
             } else {
-              if (micro.takerBuyRatio >= 0.72) {
-                cancelReason = `Áp lực mua Taker đối lập quá mạnh (Taker Buy lên tới ${(micro.takerBuyRatio * 100).toFixed(1)}%)`;
+              if (micro.takerBuyRatio >= 0.88) {
+                cancelReason = `Áp lực mua Taker hoảng loạn cực đoan (Taker Buy lên tới ${(micro.takerBuyRatio * 100).toFixed(1)}% >= 88%)`;
               } else if (micro.spread === 'SPREAD_WIDE_DANGER') {
                 cancelReason = `Độ dãn Spread nguy hiểm (${micro.spreadPct.toFixed(3)}%), thanh khoản cạn kiệt`;
-              } else if (micro.wall === 'WALL_OPPOSING_BLOCK') {
-                cancelReason = `Tường mua đối lập chặn đường ($${micro.wallNotionalUsd} USDT @ $${micro.wallPrice})`;
+              } else if (micro.wall === 'WALL_CRUSHING_ENTRY') {
+                cancelReason = `Tường mua khổng lồ đè sát Entry ($${micro.wallNotionalUsd} USDT @ $${micro.wallPrice})`;
               }
             }
 
             if (cancelReason) {
+              // 🛡️ CƠ CHẾ XÁC NHẬN 2 NHỊP (TWO-STRIKE CONFIRMATION / ANTI-SPIKE FILTER):
+              // Trừ trường hợp SPREAD_WIDE_DANGER (rút cản toác spread phải hủy ngay),
+              // các trường hợp Taker hoặc Wall cần xác nhận lần 2 (cách nhau ~3.5s) để loại trừ giật nhiễu giả 1 giây!
+              const isUrgent = micro.spread === 'SPREAD_WIDE_DANGER';
+              if (!isUrgent && (!meta._microDangerStrikes || meta._microDangerStrikes < 1)) {
+                meta._microDangerStrikes = 1;
+                meta._lastMicroScanTime = now - 1000; // Cho phép quét lại xác nhận sau ~3 giây
+                log.system(`[AutoTrade] ⚠️ [Microstructure Alert] ${sym} ${side} phát hiện: ${cancelReason} -> Kích hoạt xác nhận nhịp 2 trước khi hủy.`);
+                continue;
+              }
+
+              // Nhịp 2 xác nhận nguy hiểm thực sự (hoặc Spread toác) -> HỦY LỆNH AN TOÀN!
               log.system(
                 `[AutoTrade] 🛡️ [AI Pre-Fill Cancel] ${sym} ${side}: ` +
-                `Cản suy yếu trước khi khớp -> ${cancelReason} -> Hủy LIMIT ngay lập tức!`
+                `Xác nhận cản suy yếu thực sự -> ${cancelReason} -> Hủy LIMIT an toàn!`
               );
               try {
                 await client.cancelOrder(sym, meta.orderId);
                 overrideLevelLastSide(sym, side === 'LONG' ? 'lower' : 'upper');
                 bounceCancelledLevels.set(`${sym}_${entry}`, Date.now() + 15 * 60_000);
                 sendTelegram(
-                  `🛡️ <b>[AutoTrade] AI Hủy LIMIT Sớm (Cản Suy Yếu)</b>\n` +
+                  `🛡️ <b>[AutoTrade] AI Hủy LIMIT Sớm (Bảo Vệ Vốn)</b>\n` +
                   `• Coin: <b>${sym} (${side})</b>\n` +
                   `• Entry: <b>$${entry}</b> | Giá hiện tại: <b>$${markPrice.toFixed(6)}</b>\n` +
                   `• Nguyên nhân: <b>${cancelReason}</b>\n` +
-                  `• Hành động: <b>Hủy lệnh trước khi bị dính dao rơi!</b>`
+                  `• Hành động: <b>Xác nhận 2 nhịp vi cấu trúc sụp đổ -> Hủy lệnh tránh dao rơi!</b>`
                 ).catch(() => {});
 
                 const holdingDurationMinutes = (Date.now() - (meta.time || Date.now())) / 60000;

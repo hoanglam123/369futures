@@ -152,9 +152,10 @@ function formatCvdForSide(baseData, side) {
  * @param {number} entryPrice - Giá vào lệnh
  * @param {number} tpPrice - Giá chốt lời kỳ vọng
  * @param {string} side - Hướng lệnh (LONG / SHORT)
+ * @param {number} [rank=999] - Thứ hạng vốn hóa
  * @returns {Promise<{ wallCategory: string, wallPrice: number|null, wallNotionalUsd: number }>}
  */
-async function getOrderbookWall(sym, entryPrice, tpPrice, side = 'LONG') {
+async function getOrderbookWall(sym, entryPrice, tpPrice, side = 'LONG', rank = 999) {
   const cacheKey = `depth_${sym}`;
   let depth = getCached(cacheKey);
 
@@ -172,37 +173,56 @@ async function getOrderbookWall(sym, entryPrice, tpPrice, side = 'LONG') {
   const bids = (depth?.bids || []).map(([p, q]) => ({ price: parseFloat(p), qty: parseFloat(q), notional: parseFloat(p) * parseFloat(q) }));
   const asks = (depth?.asks || []).map(([p, q]) => ({ price: parseFloat(p), qty: parseFloat(q), notional: parseFloat(p) * parseFloat(q) }));
 
+  // Phân tầng quy mô tường cản tối thiểu theo nhóm vốn hóa
+  let minWallUsd = 75_000;
+  if (rank <= 50) minWallUsd = 250_000;
+  else if (rank <= 150) minWallUsd = 120_000;
+
   if (isLong) {
-    // Với lệnh LONG: Đường tới TP là các nấc giá ASK phía trên entryPrice
-    const opposingAsks = asks.filter(a => a.price > entryPrice && a.price <= (tpPrice || entryPrice * 1.025));
     const avgNotional = asks.length > 0 ? (asks.reduce((s, a) => s + a.notional, 0) / asks.length) : 1;
 
-    // Tìm bức tường cản chặn đường tới TP (khối lượng >= 4.0x trung bình)
-    const bigWall = opposingAsks.find(a => a.notional >= avgNotional * 4.0 && a.notional >= 50_000);
+    // 1. Tường xả đè sát rạt Entry (trong phạm vi 0.25% trên đầu Entry) -> Đe dọa đè bẹp mốc nảy
+    const crushingAsks = asks.filter(a => a.price > entryPrice && a.price <= entryPrice * 1.0025);
+    const crushingWall = crushingAsks.find(a => a.notional >= avgNotional * 4.0 && a.notional >= minWallUsd);
+    if (crushingWall) {
+      return { wallCategory: 'WALL_CRUSHING_ENTRY', wallPrice: crushingWall.price, wallNotionalUsd: Math.round(crushingWall.notional) };
+    }
+
+    // 2. Tường cản ở xa trên đường tới TP (không dùng để hủy lệnh Limit đón râu nến)
+    const opposingAsks = asks.filter(a => a.price > entryPrice * 1.0025 && a.price <= (tpPrice || entryPrice * 1.025));
+    const bigWall = opposingAsks.find(a => a.notional >= avgNotional * 4.0 && a.notional >= minWallUsd);
     if (bigWall) {
       return { wallCategory: 'WALL_OPPOSING_BLOCK', wallPrice: bigWall.price, wallNotionalUsd: Math.round(bigWall.notional) };
     }
 
-    // Kiểm tra xem phía sau Entry (Bid) có tường dày đỡ giá không
+    // 3. Tường đỡ dày phía sau Entry (Bid)
     const supportingBids = bids.filter(b => b.price < entryPrice && b.price >= entryPrice * 0.985);
     const avgBidNotional = bids.length > 0 ? (bids.reduce((s, b) => s + b.notional, 0) / bids.length) : 1;
-    const supportWall = supportingBids.find(b => b.notional >= avgBidNotional * 3.0 && b.notional >= 40_000);
+    const supportWall = supportingBids.find(b => b.notional >= avgBidNotional * 3.0 && b.notional >= minWallUsd * 0.7);
     if (supportWall) {
       return { wallCategory: 'WALL_SUPPORT_SHIELD', wallPrice: supportWall.price, wallNotionalUsd: Math.round(supportWall.notional) };
     }
   } else {
-    // Với lệnh SHORT: Đường tới TP là các nấc giá BID phía dưới entryPrice
-    const opposingBids = bids.filter(b => b.price < entryPrice && b.price >= (tpPrice || entryPrice * 0.975));
     const avgNotional = bids.length > 0 ? (bids.reduce((s, b) => s + b.notional, 0) / bids.length) : 1;
 
-    const bigWall = opposingBids.find(b => b.notional >= avgNotional * 4.0 && b.notional >= 50_000);
+    // 1. Tường mua chặn sát rạt Entry (trong phạm vi 0.25% dưới chân Entry) đối với lệnh SHORT
+    const crushingBids = bids.filter(b => b.price < entryPrice && b.price >= entryPrice * 0.9975);
+    const crushingWall = crushingBids.find(b => b.notional >= avgNotional * 4.0 && b.notional >= minWallUsd);
+    if (crushingWall) {
+      return { wallCategory: 'WALL_CRUSHING_ENTRY', wallPrice: crushingWall.price, wallNotionalUsd: Math.round(crushingWall.notional) };
+    }
+
+    // 2. Tường cản ở xa trên đường tới TP
+    const opposingBids = bids.filter(b => b.price < entryPrice * 0.9975 && b.price >= (tpPrice || entryPrice * 0.975));
+    const bigWall = opposingBids.find(b => b.notional >= avgNotional * 4.0 && b.notional >= minWallUsd);
     if (bigWall) {
       return { wallCategory: 'WALL_OPPOSING_BLOCK', wallPrice: bigWall.price, wallNotionalUsd: Math.round(bigWall.notional) };
     }
 
+    // 3. Tường đỡ dày phía sau Entry (Ask)
     const supportingAsks = asks.filter(a => a.price > entryPrice && a.price <= entryPrice * 1.015);
     const avgAskNotional = asks.length > 0 ? (asks.reduce((s, a) => s + a.notional, 0) / asks.length) : 1;
-    const supportWall = supportingAsks.find(a => a.notional >= avgAskNotional * 3.0 && a.notional >= 40_000);
+    const supportWall = supportingAsks.find(a => a.notional >= avgAskNotional * 3.0 && a.notional >= minWallUsd * 0.7);
     if (supportWall) {
       return { wallCategory: 'WALL_SUPPORT_SHIELD', wallPrice: supportWall.price, wallNotionalUsd: Math.round(supportWall.notional) };
     }
@@ -225,7 +245,7 @@ async function scanMicrostructure(sym, entryPrice = 0, tpPrice = 0, side = 'LONG
     const [spreadMetrics, cvdMetrics, wallMetrics] = await Promise.all([
       getSpreadMetrics(sym, rank),
       getCvdMomentum(sym, side),
-      getOrderbookWall(sym, entryPrice, tpPrice, side)
+      getOrderbookWall(sym, entryPrice, tpPrice, side, rank)
     ]);
 
     return {
