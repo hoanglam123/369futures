@@ -3158,14 +3158,16 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
           if (!meta.isDefensiveBeActive && isSagging && neverReachedTrail) {
             let shouldTriggerPhase1 = false;
             let cvdRatio = 0.5;
+            const isLowcapTrade = meta.isLowcap || (typeof meta.marketCapRank === 'number' && meta.marketCapRank > 150) || (typeof meta.rank === 'number' && meta.rank > 150);
             try {
               const cvd = await getCvdMomentum(sym, isLong ? 'LONG' : 'SHORT');
               cvdRatio = cvd?.takerBuyRatio ?? 0.5;
-              // CVD đối lập > 70%:
-              // Với LONG: Taker Buy <= 30% (phe Bán chiếm >= 70%)
-              // Với SHORT: Taker Buy >= 70% (phe Mua chiếm >= 70%)
-              if (isLong && cvdRatio <= 0.30) shouldTriggerPhase1 = true;
-              if (!isLong && cvdRatio >= 0.70) shouldTriggerPhase1 = true;
+              // CVD đối lập:
+              // - Top 150: CVD đối lập >= 70% (Taker Buy <= 30% cho Long, >= 70% cho Short)
+              // - Lowcap (biến động nhanh, râu quét SL mỏng 1.8%): CVD đối lập chỉ cần >= 60% (Taker Buy <= 40% cho Long, >= 60% cho Short)
+              const opposingThreshold = isLowcapTrade ? 0.40 : 0.30;
+              if (isLong && cvdRatio <= opposingThreshold) shouldTriggerPhase1 = true;
+              if (!isLong && cvdRatio >= (1.0 - opposingThreshold)) shouldTriggerPhase1 = true;
             } catch (_) {}
 
             if (shouldTriggerPhase1) {
@@ -3178,7 +3180,7 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
               const opposingPct = isLong ? ((1 - cvdRatio) * 100).toFixed(1) : (cvdRatio * 100).toFixed(1);
               log.system(
                 `[AutoTrade] 🛡️ [Defensive Escape - Phase 1] ${sym} (${isLong ? 'LONG' : 'SHORT'}): ` +
-                `Lún sâu 40%-45% SL & Dòng tiền CVD đối lập áp đảo ${opposingPct}% -> Dời TP về Entry hòa vốn @ $${escapePrice}`
+                `Lún sâu 40%-45% SL & Dòng tiền CVD đối lập áp đảo ${opposingPct}% (Ngưỡng: ${isLowcapTrade ? '>=60% [Lowcap]' : '>=70% [Top150]'}) -> Dời TP về Entry hòa vốn @ $${escapePrice}`
               );
               await sendTelegram(
                 `🛡️ <b>[AutoTrade] Kích Hoạt Thoát Hiểm Giai Đoạn 1 (Dời TP về Entry)</b>\n` +

@@ -867,18 +867,23 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
       mult = Math.min(1.25, mult);
     }
 
-    // 🛡️ SANITY GUARD: Triệt tiêu điểm thưởng OI & Dòng tiền khi có rủi ro cấu trúc nghiêm trọng
-    const hasCriticalRisk = features['turnover_guard'] === 'TURNOVER_RISK_BLOCKED' ||
+    // 🛡️ SANITY GUARD: Triệt tiêu toàn bộ điểm thưởng khi có rủi ro cấu trúc nghiêm trọng
+    const isTurnoverBlockedRisk = features['turnover_guard'] === 'TURNOVER_RISK_BLOCKED';
+    const hasCriticalRisk = isTurnoverBlockedRisk ||
                             features['h1_volatility'] === 'H1_VOLATILE_DANGER' ||
                             features['h1_volatility'] === 'H1_EXTREME_STORM_PUMP_DUMP' ||
                             features['h1_volume_burst'] === 'H1_VOL_BURST_DANGER' ||
                             features['risk_interaction'] === 'INTERACTION_TREND_FLOW_CONFLICT' ||
                             features['risk_interaction'] === 'INTERACTION_HIGH_VOLATILITY_WEAK_SETUP';
     if (hasCriticalRisk) {
-      if ((cat === 'oi_change' && val === 'OI_SURGE') ||
-          (cat === 'ls_flow' && val === 'LS_GOLD') ||
-          (cat === 'volume' && val === 'VOL_SURGE')) {
-        mult = Math.min(1.00, mult); // Không cho phép điểm thưởng OI / Dòng tiền lấp liếm rủi ro cấu trúc
+      // Khi đã dính rủi ro cấu trúc nghiêm trọng, không cho phép các điểm cộng OI, dòng tiền, nến đơn lẻ lấp liếm rủi ro
+      if (['oi_change', 'ls_flow', 'volume', 'candle_shape', 'm15_candle_geometry', 'pre_entry_bounce', 'h1_candle_geometry'].includes(cat)) {
+        mult = Math.min(1.00, mult);
+      }
+      // Riêng với Turnover Blocked (MarketCap nhỏ nhưng volume đột biến > 12-15%, rủi ro xả / quét râu Lowcap):
+      // Tuyệt đối không cho phép bất kỳ điểm kỹ thuật phụ nào kéo điểm lên (> 1.00)
+      if (isTurnoverBlockedRisk && mult > 1.00) {
+        mult = Math.min(1.00, mult);
       }
     }
 
@@ -965,6 +970,13 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
 
   // Bound winProbability strictly between 5% and 95%
   winProb = Math.max(5.0, Math.min(95.0, winProb));
+
+  // 🛡️ SANITY CAP: Nếu đồng coin bị TURNOVER_RISK_BLOCKED (Rủi ro bơm xả / quét râu Lowcap),
+  // khống chế trần xác suất nghiêm ngặt tối đa 48.0% (dưới sàn duyệt 50.0%) để tuyệt đối không cho phép
+  // coin thanh khoản rỗng lọt lưới chỉ vì một vài chỉ báo kỹ thuật nhỏ lẻ!
+  if (features['turnover_guard'] === 'TURNOVER_RISK_BLOCKED') {
+    winProb = Math.min(48.0, winProb);
+  }
 
   // ── [MỚI] TỰ ĐỘNG NẠP NGƯỠNG TỐI ƯU DO AI TỰ HỌC (AUTONOMOUS THRESHOLD CALIBRATION) ──
   // Ngưỡng hoàn toàn do AI tự động tối ưu hóa (Grid Search Net PnL) sau mỗi chu kỳ huấn luyện
