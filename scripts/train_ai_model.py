@@ -602,36 +602,8 @@ def extract_features(reasons, score, rank, grid_width_pct, timestamp_ms=None, di
     if spread_val:
         features["spread_slippage"] = spread_val
     else:
-        # Tái lập trên dữ liệu lịch sử theo phân tầng Rank động (Adaptive Spread):
-        is_extreme_vol = (
-            features.get("h1_volatility") == "H1_EXTREME_STORM_PUMP_DUMP" or
-            features.get("m15_volatility") == "M15_EXTREME_STORM"
-        )
-        is_high_vol = (
-            features.get("h1_volatility") in ["H1_EXTREME_STORM_PUMP_DUMP", "H1_VOLATILE_DANGER"] or
-            features.get("m15_volatility") in ["M15_EXTREME_STORM", "M15_VOLATILE_DANGER"]
-        )
-        if rank <= 50:
-            if is_high_vol:
-                features["spread_slippage"] = "SPREAD_WIDE_DANGER"
-            elif gw > 3.8:
-                features["spread_slippage"] = "SPREAD_MEDIUM_CAUTION"
-            else:
-                features["spread_slippage"] = "SPREAD_TIGHT_SAFE"
-        elif rank <= 150:
-            if is_high_vol:
-                features["spread_slippage"] = "SPREAD_WIDE_DANGER"
-            elif gw > 4.2:
-                features["spread_slippage"] = "SPREAD_MEDIUM_CAUTION"
-            else:
-                features["spread_slippage"] = "SPREAD_TIGHT_SAFE"
-        else: # Lowcap (> 150)
-            if is_extreme_vol or (is_high_vol and gw > 5.0):
-                features["spread_slippage"] = "SPREAD_WIDE_DANGER"
-            elif is_high_vol or gw > 4.0:
-                features["spread_slippage"] = "SPREAD_MEDIUM_CAUTION"
-            else:
-                features["spread_slippage"] = "SPREAD_TIGHT_SAFE"
+        # Dữ liệu cũ trước khi có telemetry Microstructure: neo mốc chuẩn an toàn (Baseline = 1.00)
+        features["spread_slippage"] = "SPREAD_TIGHT_SAFE"
 
     # 23. Cumulative Volume Delta (CVD) M1/M5 Momentum
     cvd_val = None
@@ -645,18 +617,8 @@ def extract_features(reasons, score, rank, grid_width_pct, timestamp_ms=None, di
     if cvd_val:
         features["cvd_momentum"] = cvd_val
     else:
-        # Tái lập trên dữ liệu lịch sử dựa trên dòng tiền khớp chủ động:
-        is_flow_gold = features.get("ls_flow") == "LS_GOLD"
-        is_vol_surge = features.get("volume") == "VOL_SURGE" or features.get("m15_volatility") == "M15_VOLUME_SURGE"
-        is_flow_div = features.get("ls_flow") == "LS_DIVERGENCE"
-        is_counter_train = features.get("candle_momentum") in ["MOMENTUM_COUNTER_PUMP_TRAIN", "MOMENTUM_COUNTER_DUMP_TRAIN"]
-
-        if is_flow_gold and is_vol_surge:
-            features["cvd_momentum"] = "CVD_SURGE_ALIGNED"
-        elif is_flow_div or is_counter_train:
-            features["cvd_momentum"] = "CVD_DIVERGENCE_OPPOSING"
-        else:
-            features["cvd_momentum"] = "CVD_NEUTRAL"
+        # Dữ liệu cũ trước khi có telemetry Microstructure: neo mốc chuẩn trung tính (Baseline = 1.00)
+        features["cvd_momentum"] = "CVD_NEUTRAL"
 
     # 24. Orderbook Wall Distance (Tường cản thanh khoản sổ lệnh L2)
     wall_val = None
@@ -670,15 +632,8 @@ def extract_features(reasons, score, rank, grid_width_pct, timestamp_ms=None, di
     if wall_val:
         features["orderbook_wall"] = wall_val
     else:
-        # Tái lập trên dữ liệu lịch sử theo cụm cản S/R và Score:
-        pa = features.get("price_action")
-        sr = features.get("sr_quality")
-        if pa in ["PA_3_LEVELS", "PA_4_LEVELS"] and features.get("cvd_momentum") == "CVD_DIVERGENCE_OPPOSING":
-            features["orderbook_wall"] = "WALL_OPPOSING_BLOCK"
-        elif sr == "SR_DAILY_D1_INCLUDED" or pa in ["PA_3_LEVELS", "PA_4_LEVELS"]:
-            features["orderbook_wall"] = "WALL_SUPPORT_SHIELD"
-        else:
-            features["orderbook_wall"] = "WALL_CLEAR_PATH"
+        # Dữ liệu cũ trước khi có telemetry Microstructure: neo mốc chuẩn thông thoáng (Baseline = 1.00)
+        features["orderbook_wall"] = "WALL_CLEAR_PATH"
 
 
 
@@ -725,10 +680,18 @@ def train_and_export_model():
                         else:
                             win_credit = 0.0
 
+                        is_post_update = bool(
+                            entry.get("microstructure") is not None or
+                            entry.get("marketMetrics") is not None or
+                            (entry.get("signalMetrics") and entry["signalMetrics"].get("m15CandleGeometry"))
+                        )
+                        sample_weight = 2.5 if is_post_update else 0.5
+
                         seen_trade_ids.add(tid)
                         dataset.append({
                             "win_credit": win_credit,
-                            "weight": 1.0,
+                            "weight": sample_weight,
+                            "isPostUpdate": is_post_update,
                             "features": extract_features(
                                 entry.get("scoreReasons", []),
                                 entry.get("score", 0),
@@ -739,12 +702,13 @@ def train_and_export_model():
                             )
                         })
                         real_count += 1
-        print(f"💰 Đã nạp {real_count} mẫu LỆNH THẬT từ tài khoản Binance (Trọng số 1.0x chuẩn)")
+        print(f"💰 Đã nạp {real_count} mẫu LỆNH THẬT từ tài khoản Binance")
 
     # 2. Load SHADOW TRADES từ shadow_trades_history.jsonl
     # CHỈ LẤY CÁC LỆNH KHÔNG KHỚP TIỀN THẬT (Tránh duplicate 100% với real trades)
     # VÀ PHẢI LÀ LỆNH ĐÃ KHỚP LIMIT BÓNG TỐI (râu nến có chạm Entry, loại bỏ BOUNCE_CANCEL/LIMIT_TIMEOUT)
     shadow_count = 0
+    post_update_shadow_count = 0
     if os.path.exists(SHADOW_PATH):
         with open(SHADOW_PATH, 'r', encoding='utf-8') as f:
             for l in f:
@@ -771,10 +735,20 @@ def train_and_export_model():
                         else:
                             win_credit = 0.0
 
+                        is_post_update = bool(
+                            rec.get("microstructure") is not None or
+                            rec.get("marketMetrics") is not None or
+                            (rec.get("signalMetrics") and rec["signalMetrics"].get("m15CandleGeometry"))
+                        )
+                        sample_weight = 2.5 if is_post_update else 0.5
+                        if is_post_update:
+                            post_update_shadow_count += 1
+
                         seen_trade_ids.add(sid)
                         dataset.append({
                             "win_credit": win_credit,
-                            "weight": 1.0, # COI SHADOW NHƯ THẬT: Trọng số 1.0x ngang hàng với lệnh thật
+                            "weight": sample_weight,
+                            "isPostUpdate": is_post_update,
                             "features": extract_features(
                                 rec.get("scoreReasons", []),
                                 rec.get("score", 0),
@@ -787,7 +761,7 @@ def train_and_export_model():
                         shadow_count += 1
                 except Exception:
                     continue
-        print(f"👻 Đã nạp {shadow_count} mẫu SHADOW TRADES ĐỘC BẢN (Không trùng lệnh thật, Trọng số 1.0x như thật)")
+        print(f"👻 Đã nạp {shadow_count} mẫu SHADOW TRADES (Thế hệ mới có Telemetry: {post_update_shadow_count} mẫu [2.5x], Thế hệ cũ: {shadow_count - post_update_shadow_count} mẫu [0.5x])")
 
     # 3. Load mined dataset từ ai_mined_dataset.jsonl (Chỉ dùng làm dữ liệu mồi nếu chưa đủ 200 mẫu lệnh thật)
     real_sample_count = len(dataset)
@@ -879,7 +853,7 @@ def train_and_export_model():
             feat_val.endswith("_NORMAL") or feat_val.endswith("_NEUTRAL") or feat_val.endswith("_BALANCED") or
             feat_val.endswith("_SAFE") or feat_val in [
                 "H1_NOT_STAGNANT", "INTERACTION_PUNCTURE_NORMAL", "OI_STABLE", "BOUNCE_FRESH",
-                "SESSION_ASIA", "SESSION_EUROPE", "SESSION_US_LATE"
+                "WALL_CLEAR_PATH", "SESSION_ASIA", "SESSION_EUROPE", "SESSION_US_LATE"
             ]
         )
         if is_pure_baseline:
@@ -1637,6 +1611,10 @@ def calibrate_optimal_thresholds(base_dir, feature_weights=None, prior_odds=1.3,
                                 is_win = bool(rec.get("isWin")) or rec.get("exitType") == "TREND_RUNNER_TP"
                                 is_be = rec.get("exitType") in ["BE_EXIT", "BE", "DEFENSIVE_BE_EXIT"]
                                 pnl = float(rec.get("pnlUsd", 0) or rec.get("pnlPercent", 0))
+                                has_post_telemetry = bool(
+                                    en.get("microstructure") or en.get("marketMetrics") or
+                                    (en.get("signalMetrics") and en.get("signalMetrics").get("m15CandleGeometry"))
+                                )
                                 trades.append({
                                     "symbol": en.get("symbol"),
                                     "marketCapRank": en.get("marketCapRank", 999),
@@ -1650,7 +1628,8 @@ def calibrate_optimal_thresholds(base_dir, feature_weights=None, prior_odds=1.3,
                                     "missedProfitUSD": abs(pnl) if is_win else 0,
                                     "savedLossUSD": abs(pnl) if not is_win and not is_be else 0,
                                     "pnlUsd": pnl,
-                                    "isReal": True
+                                    "isReal": True,
+                                    "isPostUpdate": has_post_telemetry
                                 })
                     except Exception: pass
         except Exception as e:
@@ -1673,6 +1652,10 @@ def calibrate_optimal_thresholds(base_dir, feature_weights=None, prior_odds=1.3,
                         is_win = outcome in ["MISSED_TP", "TP"]
                         is_be = outcome in ["SAVED_BE", "BE"]
                         pnl = float(rec.get("pnlUsd") or 0)
+                        has_post_telemetry = bool(
+                            rec.get("microstructure") or rec.get("marketMetrics") or
+                            (rec.get("signalMetrics") and rec.get("signalMetrics").get("m15CandleGeometry"))
+                        )
                         trades.append({
                             "symbol": rec.get("symbol"),
                             "marketCapRank": rec.get("marketCapRank", 999),
@@ -1686,7 +1669,8 @@ def calibrate_optimal_thresholds(base_dir, feature_weights=None, prior_odds=1.3,
                             "missedProfitUSD": abs(pnl) if is_win else 0,
                             "savedLossUSD": abs(pnl) if not is_win and not is_be else 0,
                             "pnlUsd": pnl,
-                            "isReal": False
+                            "isReal": False,
+                            "isPostUpdate": has_post_telemetry
                         })
                     except Exception: pass
         except Exception as e:
@@ -1788,43 +1772,52 @@ def calibrate_optimal_thresholds(base_dir, feature_weights=None, prior_odds=1.3,
             "isSavedSL": t.get("isSavedSL", False),
             "missedProfitUSD": t.get("missedProfitUSD", 0) or abs(t.get("pnlUsd", 0)),
             "savedLossUSD": t.get("savedLossUSD", 0) or abs(t.get("pnlUsd", 0)),
-            "pnlUsd": t.get("pnlUsd", 0)
+            "pnlUsd": t.get("pnlUsd", 0),
+            "isPostUpdate": t.get("isPostUpdate", False)
         })
 
     # 4. TỐI ƯU HÓA ĐỘC LẬP THEO CHUẨN ĐỊNH LƯỢNG QUANT (DECOUPLED QUANT RISK-ADJUSTED OPTIMIZATION)
     # Tách riêng tập mẫu Top 150 và Lowcap để từng phân khúc tự quyết định ngưỡng tối ưu toán học:
     # - WinRate tối thiểu phải vượt ngưỡng hòa vốn toán học của R:R scalping (>= 50.0%)
     # - Profit Factor (Gross Win / Gross Loss) >= 1.15
-    # - Utility = (Profit_Factor - 1.0) * sqrt(total) * (WinRate - 45.0)
+    # - Ưu tiên tối ưu trên các mẫu Post-Update (có đầy đủ telemetry vi cấu trúc sau cập nhật)
     top150_trades = [t for t in recalculated_trades if t["marketCapRank"] <= 150]
     lowcap_trades = [t for t in recalculated_trades if t["marketCapRank"] > 150]
 
     def optimize_segment(segment_name, segment_trades, candidates, default_floor=50.0):
+        # Kiểm tra số lượng mẫu Post-Update thực tế
+        post_trades = [t for t in segment_trades if t.get("isPostUpdate")]
+        has_enough_post = len(post_trades) >= 20
+        eval_trades = post_trades if has_enough_post else segment_trades
+
         best_u = -999999.0
         best_th = default_floor
         best_st = {}
 
         for th in candidates:
-            n_win = 0
-            n_loss = 0
+            n_win = 0.0
+            n_loss = 0.0
             gross_win = 0.0
             gross_loss = 0.0
 
-            for t in segment_trades:
+            for t in eval_trades:
                 p = t["winProb"]
                 if p >= th:
+                    # Trọng số: Nếu chạy trên tập hỗn hợp, dữ liệu post-update có trọng số 2.5x, legacy 0.5x
+                    w = 1.0 if has_enough_post else (2.5 if t.get("isPostUpdate") else 0.5)
                     if t["isMissedTP"]:
-                        n_win += 1
-                        gross_win += t["missedProfitUSD"]
+                        n_win += w
+                        gross_win += t["missedProfitUSD"] * w
                     elif t["isSavedSL"]:
-                        n_loss += 1
-                        loss_v = t["savedLossUSD"]
+                        n_loss += w
+                        loss_v = t["savedLossUSD"] * w
                         if t["marketCapRank"] > 150:
                             loss_v *= 1.2  # Tail risk penalty cho Lowcap
                         gross_loss += loss_v
 
             total = n_win + n_loss
-            if total < 15:
+            min_required = 15 if has_enough_post else 25
+            if total < min_required:
                 continue
 
             wr = (n_win / total) * 100.0
@@ -1833,34 +1826,33 @@ def calibrate_optimal_thresholds(base_dir, feature_weights=None, prior_odds=1.3,
 
             # Tiêu chuẩn toán học cơ bản: WinRate >= 50.0% (vượt hòa vốn), Profit Factor >= 1.10 và Lãi ròng > 0
             if wr >= 50.0 and pf >= 1.10 and net_pnl > 0:
-                # Tiêu chuẩn AI Agent thuần túy kinh tế học Quant:
-                # Tối đa hóa Tổng Lãi Ròng (Net Profit USD) sinh ra cho tài khoản
-                # Không áp bất kỳ mức trần nhân tạo nào, để AI tự do chọn điểm cân bằng sinh lời cao nhất
                 utility = net_pnl
                 if utility > best_u:
                     best_u = utility
                     best_th = th
                     best_st = {
-                        "testedSamples": len(segment_trades),
-                        "approvedTrades": total,
-                        "expectedWins": n_win,
-                        "expectedLosses": n_loss,
+                        "testedSamples": len(eval_trades),
+                        "approvedTrades": round(total, 1),
+                        "expectedWins": round(n_win, 1),
+                        "expectedLosses": round(n_loss, 1),
                         "expectedWinRate": round(wr, 1),
                         "profitFactor": round(pf, 2),
-                        "expectedNetPnlUsd": round(net_pnl, 2)
+                        "expectedNetPnlUsd": round(net_pnl, 2),
+                        "evalMode": "POST_UPDATE_ONLY" if has_enough_post else "WEIGHTED_HYBRID"
                     }
 
         # Fallback tự động nếu phân khúc chưa có cấu hình đạt chuẩn: chọn ngưỡng có Net PnL tốt nhất trong dải
         if not best_st:
             for th in candidates:
-                n_win = 0
-                n_loss = 0
+                n_win = 0.0
+                n_loss = 0.0
                 gross_win = 0.0
                 gross_loss = 0.0
-                for t in segment_trades:
+                for t in eval_trades:
                     if t["winProb"] >= th:
-                        if t["isMissedTP"]: n_win += 1; gross_win += t["missedProfitUSD"]
-                        elif t["isSavedSL"]: n_loss += 1; gross_loss += t["savedLossUSD"]
+                        w = 1.0 if has_enough_post else (2.5 if t.get("isPostUpdate") else 0.5)
+                        if t["isMissedTP"]: n_win += w; gross_win += t["missedProfitUSD"] * w
+                        elif t["isSavedSL"]: n_loss += w; gross_loss += t["savedLossUSD"] * w
                 total = n_win + n_loss
                 if total >= 10:
                     wr = (n_win / total) * 100.0
@@ -1870,13 +1862,14 @@ def calibrate_optimal_thresholds(base_dir, feature_weights=None, prior_odds=1.3,
                         best_th = th
                         pf = (gross_win / gross_loss) if gross_loss > 0 else 1.0
                         best_st = {
-                            "testedSamples": len(segment_trades),
-                            "approvedTrades": total,
-                            "expectedWins": n_win,
-                            "expectedLosses": n_loss,
+                            "testedSamples": len(eval_trades),
+                            "approvedTrades": round(total, 1),
+                            "expectedWins": round(n_win, 1),
+                            "expectedLosses": round(n_loss, 1),
                             "expectedWinRate": round(wr, 1),
                             "profitFactor": round(pf, 2),
-                            "expectedNetPnlUsd": round(net_pnl, 2)
+                            "expectedNetPnlUsd": round(net_pnl, 2),
+                            "evalMode": "FALLBACK"
                         }
 
         return max(default_floor, best_th), best_st
