@@ -656,10 +656,10 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
 
   // 🛡️ Nạp hồ sơ điểm phạt định lượng từ mô hình AI (loại bỏ hoàn toàn hardcode)
   const riskPenalties = _modelConfig?.riskPenaltyProfile || {};
-  const stormH1Raw = riskPenalties.h1ExtremeStormRaw ?? 0.20;
-  const stormH1Rej = riskPenalties.h1ExtremeStormRejection ?? 0.55;
-  const stormM15Raw = riskPenalties.m15ExtremeStormRaw ?? 0.20;
-  const stormM15Rej = riskPenalties.m15ExtremeStormRejection ?? 0.60;
+  const stormH1Raw = riskPenalties.h1ExtremeStormRaw ?? 0.60;
+  const stormH1Rej = riskPenalties.h1ExtremeStormRejection ?? 0.85;
+  const stormM15Raw = riskPenalties.m15ExtremeStormRaw ?? 0.60;
+  const stormM15Rej = riskPenalties.m15ExtremeStormRejection ?? 0.85;
   const counterTrendMult = riskPenalties.counterStrongTrend ?? 0.40;
   const oppWickMult = riskPenalties.opposingWickTrap ?? 0.45;
   const ecoRedMult = riskPenalties.economicRed ?? 0.10;
@@ -669,11 +669,11 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
 
   // Custom weights for raw market features and risk interactions
   const dynamicModifiers = {
-    'h1_volatility:H1_EXTREME_STORM_PUMP_DUMP': stormH1Raw, // Điểm phạt bão nến từ riskPenaltyProfile
-    'h1_volatility:H1_VOLATILE_DANGER': 0.65,     // H1 biến động mạnh nguy cơ quét SL
-    'm15_volatility:M15_EXTREME_STORM': stormM15Raw, // Điểm phạt bão nến từ riskPenaltyProfile
-    'm15_volatility:M15_VOLATILE_DANGER': 0.60,   // M15 biến động mạnh rủi ro đâm thủng Tier
-    'm15_volatility:M15_VOLUME_SURGE': 0.55,      // Đột biến volume M15
+    'h1_volatility:H1_EXTREME_STORM_PUMP_DUMP': stormH1Raw, // Điểm phạt bão nến từ riskPenaltyProfile (giảm mức phạt từ 0.20 -> 0.60)
+    'h1_volatility:H1_VOLATILE_DANGER': 0.75,     // H1 biến động mạnh nguy cơ quét SL (nới từ 0.65 -> 0.75)
+    'm15_volatility:M15_EXTREME_STORM': stormM15Raw, // Điểm phạt bão nến từ riskPenaltyProfile (giảm mức phạt từ 0.20 -> 0.60)
+    'm15_volatility:M15_VOLATILE_DANGER': 0.75,   // M15 biến động mạnh (nới từ 0.60 -> 0.75)
+    'm15_volatility:M15_VOLUME_SURGE': 0.65,      // Đột biến volume M15
     'h1_stagnant:H1_STAGNANT_TRAP': 0.65,         // Nén bế tắc bẫy thanh khoản
     'h1_candle_geometry:H1_PUNCTURED_DEEP': 0.22, // Tỷ lệ thắng thực nghiệm 19.8% (x0.22) -> Veto dứt khoát
     'h1_candle_geometry:H1_PUNCTURED_LIGHT': 0.60,
@@ -692,9 +692,9 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
     'candle_shape:CANDLE_MARUBOZU_DUMP': 0.45,
     'candle_shape:CANDLE_MARUBOZU_PUMP': 0.45,
     'candle_shape:CANDLE_NORMAL': 1.00,
-    'pre_entry_bounce:BOUNCE_STALE_HIGH': 1.13,  // Dữ liệu thực tế cho thấy N=10 lệnh stale vẫn có winRate 55.5% (x1.13)
-    'pre_entry_bounce:BOUNCE_MODERATE': 1.10,
-    'pre_entry_bounce:BOUNCE_FRESH': 0.99,
+    'pre_entry_bounce:BOUNCE_STALE_HIGH': 0.90,  // Nảy xa mốc rồi quay đầu: phạt nhẹ thay vì thưởng
+    'pre_entry_bounce:BOUNCE_MODERATE': 1.00,
+    'pre_entry_bounce:BOUNCE_FRESH': 1.00,
     'trend:TREND_M15_ALIGNED': 1.34,             // M15 cấu trúc hoàn chỉnh khi H1 sideway -> Thưởng +34%
     'adx_strength:ADX_STRONG_TREND': 0.82,       // ADX >= 25 trend mạnh dễ xuyên thủng lưới 369 -> Phạt -18%
     'adx_strength:ADX_WEAK_TREND': 1.29,         // ADX < 25 nén đẹp, dao động mốc chuẩn xác -> Thưởng +29%
@@ -772,6 +772,11 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
     // VOL_DRY + OI_COOLING đã capture bởi interaction → bỏ qua riêng lẽ
     skipForInteraction.add('volume');
     skipForInteraction.add('oi_change');
+  } else if (riskInteraction === 'INTERACTION_HIGH_VOLATILITY_WEAK_SETUP') {
+    // 🛡️ DE-DUPLICATE MULTI-PENALTY:
+    // Đã tính rủi ro biến động ở h1_volatility & m15_volatility riêng lẻ,
+    // bỏ qua INTERACTION_HIGH_VOLATILITY_WEAK_SETUP để triệt tiêu hoàn toàn cơ chế phạt kép 2-3 lần vào cùng một rủi ro!
+    skipForInteraction.add('risk_interaction');
   }
 
   // 🛡️ DOUBLE-COUNTING PREVENTION CHO THẾ NẾN:
@@ -873,8 +878,7 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
                             features['h1_volatility'] === 'H1_VOLATILE_DANGER' ||
                             features['h1_volatility'] === 'H1_EXTREME_STORM_PUMP_DUMP' ||
                             features['h1_volume_burst'] === 'H1_VOL_BURST_DANGER' ||
-                            features['risk_interaction'] === 'INTERACTION_TREND_FLOW_CONFLICT' ||
-                            features['risk_interaction'] === 'INTERACTION_HIGH_VOLATILITY_WEAK_SETUP';
+                            features['risk_interaction'] === 'INTERACTION_TREND_FLOW_CONFLICT';
     if (hasCriticalRisk) {
       // Khi đã dính rủi ro cấu trúc nghiêm trọng, không cho phép các điểm cộng OI, dòng tiền, nến đơn lẻ lấp liếm rủi ro
       if (['oi_change', 'ls_flow', 'volume', 'candle_shape', 'm15_candle_geometry', 'pre_entry_bounce', 'h1_candle_geometry'].includes(cat)) {
@@ -933,9 +937,12 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
     }
 
     // 🛡️ SANITY GUARD: Bắt đỉnh/đáy ngược xu hướng mạnh (Counter-Trend vs Strong ADX)
-    // Phạt mạnh dứt khoát theo riskPenaltyProfile (mặc định x0.40) để loại trừ rủi ro bị xuyên thủng mốc SL
+    // Nếu có mốc cản Price Action H4/D1 (PA_1_LEVEL, PA_2_LEVELS): Nhịp nảy kỹ thuật tại cản cứng đạt WinRate 66.7%!
+    // Giữ mức phạt vừa phải x0.75 thay vì phạt gắt x0.40
     if (features['trend'] === 'TREND_CONFLICT' && cat === 'adx_strength' && val === 'ADX_STRONG_TREND') {
-      mult = Math.min(mult, counterTrendMult);
+      const hasSolidSR = features['price_action'] === 'PA_1_LEVEL' || features['price_action'] === 'PA_2_LEVELS';
+      const effectiveCounterMult = hasSolidSR ? Math.max(counterTrendMult, 0.75) : counterTrendMult;
+      mult = Math.min(mult, effectiveCounterMult);
     }
 
     // 🛡️ SANITY GUARD: Khắc chế hệ số Ngược Sóng BTC (BTC_COUNTER)

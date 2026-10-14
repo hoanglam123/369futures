@@ -1,6 +1,6 @@
 {
   "version": "1.4.0-auto",
-  "trainedAt": "2026-10-14 10:28:47",
+  "trainedAt": "2026-10-14 11:12:58",
   "totalSamples": 2483,
   "priorWinProb": 0.5924,
   "priorOdds": 1.4531,
@@ -9,14 +9,14 @@
     "lowcap": 52,
     "minExpectedEvRoi": 0.0,
     "autoCalibrated": true,
-    "calibratedAt": "2026-10-14 10:28:47",
+    "calibratedAt": "2026-10-14 11:12:58",
     "calibrationStats": {
       "testedSamples": 3377,
-      "approvedTrades": 337.0,
-      "expectedWins": 190.0,
-      "expectedLosses": 147.0,
-      "expectedWinRate": 56.4,
-      "expectedNetPnlUsd": 440.07
+      "approvedTrades": 375.0,
+      "expectedWins": 211.0,
+      "expectedLosses": 164.0,
+      "expectedWinRate": 56.3,
+      "expectedNetPnlUsd": 504.12
     }
   },
   "thresholdApprovalPct": 52,
@@ -44,13 +44,13 @@
     "shadowCount": 1871,
     "realCount": 2185,
     "autoCalibrated": true,
-    "calculatedAt": "2026-10-14 10:28:47"
+    "calculatedAt": "2026-10-14 11:12:58"
   },
   "adaptiveSlProfile": {
     "top150MinSlPct": 1.5,
     "lowcapMinSlPct": 1.8,
     "autoCalibrated": true,
-    "calculatedAt": "2026-10-14 10:28:47",
+    "calculatedAt": "2026-10-14 11:12:58",
     "sampleCount": 1933
   },
   "adaptiveRrProfile": {
@@ -63,13 +63,13 @@
     },
     "minExpectedEvRoi": 0.0,
     "autoCalibrated": true,
-    "calculatedAt": "2026-10-14 10:28:47"
+    "calculatedAt": "2026-10-14 11:12:58"
   },
   "riskPenaltyProfile": {
-    "h1ExtremeStormRejection": 0.55,
-    "h1ExtremeStormRaw": 0.2,
-    "m15ExtremeStormRejection": 0.6,
-    "m15ExtremeStormRaw": 0.2,
+    "h1ExtremeStormRejection": 0.85,
+    "h1ExtremeStormRaw": 0.6,
+    "m15ExtremeStormRejection": 0.85,
+    "m15ExtremeStormRaw": 0.6,
     "counterStrongTrend": 0.4,
     "opposingWickTrap": 0.45,
     "economicRed": 0.1,
@@ -77,7 +77,7 @@
     "wallOpposingBlock": 0.35,
     "btcFlashOpposing": 0.35,
     "autoCalibrated": true,
-    "calculatedAt": "2026-10-14 10:28:47"
+    "calculatedAt": "2026-10-14 11:12:58"
   },
   "featureWeights": {
     "rank_group:RANK_TOP10": {

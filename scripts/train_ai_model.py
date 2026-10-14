@@ -1320,10 +1320,10 @@ def calibrate_risk_penalty_profile(base_dir):
     Thay thế triệt để các lệnh cấm cứng (hard-veto) trong JavaScript.
     """
     penalties = {
-        "h1ExtremeStormRejection": 0.55,
-        "h1ExtremeStormRaw": 0.20,
-        "m15ExtremeStormRejection": 0.60,
-        "m15ExtremeStormRaw": 0.20,
+        "h1ExtremeStormRejection": 0.85,
+        "h1ExtremeStormRaw": 0.60,
+        "m15ExtremeStormRejection": 0.85,
+        "m15ExtremeStormRaw": 0.60,
         "counterStrongTrend": 0.40,
         "opposingWickTrap": 0.45,
         "economicRed": 0.10,
@@ -1715,6 +1715,8 @@ def calibrate_optimal_thresholds(base_dir, feature_weights=None, prior_odds=1.3,
             elif risk_int == "INTERACTION_DRY_VOL_COOLING_OI":
                 skip_cats.add("volume")
                 skip_cats.add("oi_change")
+            elif risk_int == "INTERACTION_HIGH_VOLATILITY_WEAK_SETUP":
+                skip_cats.add("risk_interaction")
 
             for cat, val in feats.items():
                 if cat in skip_cats: continue
@@ -1731,7 +1733,8 @@ def calibrate_optimal_thresholds(base_dir, feature_weights=None, prior_odds=1.3,
                 if cat == "ls_flow" and val == "LS_DIVERGENCE":
                     mult = min(mult, 0.82)
                 if feats.get("trend") == "TREND_CONFLICT" and cat == "adx_strength" and val == "ADX_STRONG_TREND":
-                    mult = min(mult, 0.40)
+                    has_solid_sr = feats.get("price_action") in ["PA_1_LEVEL", "PA_2_LEVELS"]
+                    mult = min(mult, 0.75 if has_solid_sr else 0.40)
                 if cat == "economic_calendar" and val == "CALENDAR_RED_DANGER":
                     mult = min(mult, 0.10)
                 if cat == "spread_slippage" and val == "SPREAD_WIDE_DANGER":
@@ -1742,10 +1745,10 @@ def calibrate_optimal_thresholds(base_dir, feature_weights=None, prior_odds=1.3,
                     mult = min(mult, 0.45)
                 if cat == "h1_volatility" and val == "H1_EXTREME_STORM_PUMP_DUMP":
                     has_rej = feats.get("h1_candle_geometry") == "H1_REJECT_PINBAR" or feats.get("m15_candle_geometry") == "M15_REJECT_PINBAR"
-                    mult = 0.55 if has_rej else 0.20
+                    mult = 0.85 if has_rej else 0.60
                 if cat == "m15_volatility" and val == "M15_EXTREME_STORM":
                     has_rej = feats.get("h1_candle_geometry") == "H1_REJECT_PINBAR" or feats.get("m15_candle_geometry") == "M15_REJECT_PINBAR"
-                    mult = 0.60 if has_rej else 0.20
+                    mult = 0.85 if has_rej else 0.60
 
                 comb_mult *= mult
 
