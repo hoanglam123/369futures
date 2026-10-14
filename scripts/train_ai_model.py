@@ -1170,12 +1170,12 @@ def check_and_notify_parameter_changes(old_config, new_config):
     old_th_top150 = old_th.get("top150")
     new_th_top150 = new_th.get("top150")
     if old_th_top150 is not None and new_th_top150 is not None and abs(old_th_top150 - new_th_top150) >= 0.1:
-        changes.append(f"• <b>Ngưỡng WinRate Top 150:</b> <code>{old_th_top150:.1f}%</code> ➔ <b><code>{new_th_top150:.1f}%</code></b>")
+        changes.append(f"• <b>Ngưỡng duyệt WinProb Top 150:</b> <code>{old_th_top150:.1f}%</code> ➔ <b><code>{new_th_top150:.1f}%</code></b>")
 
     old_th_lowcap = old_th.get("lowcap")
     new_th_lowcap = new_th.get("lowcap")
     if old_th_lowcap is not None and new_th_lowcap is not None and abs(old_th_lowcap - new_th_lowcap) >= 0.1:
-        changes.append(f"• <b>Ngưỡng WinRate Lowcap:</b> <code>{old_th_lowcap:.1f}%</code> ➔ <b><code>{new_th_lowcap:.1f}%</code></b>")
+        changes.append(f"• <b>Ngưỡng duyệt WinProb Lowcap:</b> <code>{old_th_lowcap:.1f}%</code> ➔ <b><code>{new_th_lowcap:.1f}%</code></b>")
 
     # 5. Prior WinRate cơ sở
     old_prior = old_config.get("priorWinProb")
@@ -1208,7 +1208,10 @@ def calibrate_adaptive_sl_profile(base_dir):
     if os.path.exists(mc_path):
         try:
             with open(mc_path, "r", encoding="utf-8") as f:
-                rank_map = json.load(f).get("rankMap", {})
+                mc_data = json.load(f)
+                rank_map = mc_data.get("rankMap", {})
+                if not rank_map and "symbols" in mc_data:
+                    rank_map = {s.upper(): idx + 1 for idx, s in enumerate(mc_data["symbols"])}
         except Exception:
             pass
 
@@ -1685,7 +1688,10 @@ def calibrate_optimal_thresholds(base_dir, feature_weights=None, prior_odds=1.3,
     if os.path.exists(mc_path):
         try:
             with open(mc_path, "r", encoding="utf-8") as f:
-                rank_map = json.load(f).get("rankMap", {})
+                mc_data = json.load(f)
+                rank_map = mc_data.get("rankMap", {})
+                if not rank_map and "symbols" in mc_data:
+                    rank_map = {s.upper(): idx + 1 for idx, s in enumerate(mc_data["symbols"])}
         except Exception:
             pass
 
@@ -1819,7 +1825,7 @@ def calibrate_optimal_thresholds(base_dir, feature_weights=None, prior_odds=1.3,
                         gross_loss += loss_v
 
             total = n_win + n_loss
-            min_required = 15 if has_enough_post else 25
+            min_required = max(10, int(len(eval_trades) * 0.03)) if not has_enough_post else 15
             if total < min_required:
                 continue
 
@@ -1827,9 +1833,16 @@ def calibrate_optimal_thresholds(base_dir, feature_weights=None, prior_odds=1.3,
             pf = (gross_win / gross_loss) if gross_loss > 0 else (2.5 if gross_win > 0 else 1.0)
             net_pnl = gross_win - gross_loss
 
-            # Tiêu chuẩn toán học cơ bản: WinRate >= 50.0% (vượt hòa vốn), Profit Factor >= 1.10 và Lãi ròng > 0
-            if wr >= 50.0 and pf >= 1.10 and net_pnl > 0:
-                utility = net_pnl
+            # 🎯 TIÊU CHUẨN ĐỊNH LƯỢNG ĐỘNG (QUANT DYNAMIC UTILITY):
+            # Điểm hòa vốn toán học thực tế phụ thuộc vào Profit Factor:
+            # Breakeven WR = 1 / (1 + PF). Nếu PF = 1.78 -> BE WR ~ 36.0%.
+            # Tiêu chuẩn động:
+            # 1. Tỷ lệ thắng thực tế phải vượt điểm hòa vốn toán học theo PF (kèm biên an toàn 2%): wr >= be_wr
+            # 2. Hệ số sinh lời Profit Factor >= 1.15 (có lãi ròng dương ít nhất 15%)
+            # 3. Lãi ròng kỳ vọng Net PnL > 0
+            be_wr = ((1.0 / (1.0 + max(0.5, pf))) * 100.0) + 2.0
+            if wr >= be_wr and pf >= 1.15 and net_pnl > 0:
+                utility = net_pnl * min(pf, 2.5)
                 if utility > best_u:
                     best_u = utility
                     best_th = th
@@ -1859,11 +1872,12 @@ def calibrate_optimal_thresholds(base_dir, feature_weights=None, prior_odds=1.3,
                 total = n_win + n_loss
                 if total >= 10:
                     wr = (n_win / total) * 100.0
+                    pf = (gross_win / gross_loss) if gross_loss > 0 else 1.0
                     net_pnl = gross_win - gross_loss
-                    if net_pnl > best_u and wr >= 48.0:
+                    be_wr = ((1.0 / (1.0 + max(0.5, pf))) * 100.0)
+                    if net_pnl > best_u and wr >= be_wr:
                         best_u = net_pnl
                         best_th = th
-                        pf = (gross_win / gross_loss) if gross_loss > 0 else 1.0
                         best_st = {
                             "testedSamples": len(eval_trades),
                             "approvedTrades": round(total, 1),
