@@ -893,32 +893,46 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
 
     // 🛡️ BÃO NẾN H1 / M15: Nếu có nến Pinbar / Hammer xác nhận từ chối giá và không bị Marubozu đè bẹp,
     // nới lỏng hệ số phạt theo cấu hình riskPenaltyProfile (mặc định 0.55 / 0.60 thay vì 0.20)
+    // 🌊 NỚI LỎNG KHI THUẬN CHIỀU BTC: Nếu bão nến bùng nổ thuận chiều với sóng BTC, đây là xung lực trend expansion
+    const isLongSig = sig.signal === 'LONG' || sig.signal === 'BUY';
+    const isShortSig = sig.signal === 'SHORT' || sig.signal === 'SELL';
+    const isBtcAligned = features['btc_wave'] === 'BTC_ALIGNED' ||
+                         (rawMarketData?.btcFlashDump && isShortSig) ||
+                         (rawMarketData?.btcFlashPump && isLongSig);
+    const isRunaway = isLongSig
+      ? (features['candle_shape'] === 'CANDLE_MARUBOZU_DUMP')
+      : (features['candle_shape'] === 'CANDLE_MARUBOZU_PUMP');
+    const hasRejection = features['h1_candle_geometry'] === 'H1_REJECT_PINBAR' ||
+                         features['m15_candle_geometry'] === 'M15_REJECT_PINBAR' ||
+                         features['candle_shape'] === 'CANDLE_PINBAR_HAMMER' ||
+                         features['candle_shape'] === 'CANDLE_PINBAR_SHOOTING';
+
     if (cat === 'h1_volatility' && val === 'H1_EXTREME_STORM_PUMP_DUMP') {
-      const hasRejection = features['h1_candle_geometry'] === 'H1_REJECT_PINBAR' ||
-                           features['m15_candle_geometry'] === 'M15_REJECT_PINBAR' ||
-                           features['candle_shape'] === 'CANDLE_PINBAR_HAMMER' ||
-                           features['candle_shape'] === 'CANDLE_PINBAR_SHOOTING';
-      const isRunaway = (sig.signal === 'LONG' || sig.signal === 'BUY')
-        ? (features['candle_shape'] === 'CANDLE_MARUBOZU_DUMP')
-        : (features['candle_shape'] === 'CANDLE_MARUBOZU_PUMP');
-      if (hasRejection && !isRunaway) {
+      if (isBtcAligned && !isRunaway) {
+        mult = hasRejection ? Math.max(stormH1Rej, 0.95) : Math.max(stormH1Raw, 0.85);
+      } else if (hasRejection && !isRunaway) {
         mult = stormH1Rej;
       } else {
         mult = stormH1Raw;
       }
     }
     if (cat === 'm15_volatility' && val === 'M15_EXTREME_STORM') {
-      const hasRejection = features['h1_candle_geometry'] === 'H1_REJECT_PINBAR' ||
-                           features['m15_candle_geometry'] === 'M15_REJECT_PINBAR' ||
-                           features['candle_shape'] === 'CANDLE_PINBAR_HAMMER' ||
-                           features['candle_shape'] === 'CANDLE_PINBAR_SHOOTING';
-      const isRunaway = (sig.signal === 'LONG' || sig.signal === 'BUY')
-        ? (features['candle_shape'] === 'CANDLE_MARUBOZU_DUMP')
-        : (features['candle_shape'] === 'CANDLE_MARUBOZU_PUMP');
-      if (hasRejection && !isRunaway) {
+      if (isBtcAligned && !isRunaway) {
+        mult = hasRejection ? Math.max(stormM15Rej, 0.95) : Math.max(stormM15Raw, 0.85);
+      } else if (hasRejection && !isRunaway) {
         mult = stormM15Rej;
       } else {
         mult = stormM15Raw;
+      }
+    }
+    if (cat === 'h1_volatility' && val === 'H1_VOLATILE_DANGER') {
+      if (isBtcAligned && !isRunaway) {
+        mult = Math.max(mult, 0.88); // Nới nhẹ biến động H1 khi thuận đà BTC
+      }
+    }
+    if (cat === 'm15_volatility' && val === 'M15_VOLATILE_DANGER') {
+      if (isBtcAligned && !isRunaway) {
+        mult = Math.max(mult, 0.88); // Nới nhẹ biến động M15 khi thuận đà BTC
       }
     }
 
@@ -1071,8 +1085,12 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
   const isOpposingRunaway = (sig.signal === 'LONG' || sig.signal === 'BUY')
     ? (features['candle_shape'] === 'CANDLE_MARUBOZU_DUMP')
     : (features['candle_shape'] === 'CANDLE_MARUBOZU_PUMP');
+  const isBtcAlignedSig = features['btc_wave'] === 'BTC_ALIGNED' ||
+                          (rawMarketData?.btcFlashDump && (sig.signal === 'SHORT' || sig.signal === 'SELL')) ||
+                          (rawMarketData?.btcFlashPump && (sig.signal === 'LONG' || sig.signal === 'BUY'));
   const isExtremeStormCondition = (features['h1_volatility'] === 'H1_EXTREME_STORM_PUMP_DUMP' || features['m15_volatility'] === 'M15_EXTREME_STORM') &&
-                                  (!hasRejectionConfirmation || isOpposingRunaway);
+                                  (!hasRejectionConfirmation || isOpposingRunaway) &&
+                                  !(isBtcAlignedSig && !isOpposingRunaway);
   const isStrongCounterTrendCondition = (features['trend'] === 'TREND_CONFLICT' || features['trend'] === 'TREND_COUNTER') &&
                                         features['adx_strength'] === 'ADX_STRONG_TREND';
   const isOpposingWickCondition = features['wick_rejection'] === 'OPPOSING_WICK_TRAP';

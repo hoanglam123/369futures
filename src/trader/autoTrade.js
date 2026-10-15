@@ -1663,12 +1663,26 @@ async function startAutoTrade(coins) {
       }
 
       const aiEval = evaluateSignalWithAI(sig, rawMarketData);
-      recordAIEvaluation(sig, aiEval);
 
       // ── TIÊU CHÍ DUY NHẤT: Đánh giá Rủi ro Toàn diện từ Lõi AI (AI Reviewer Core) ──
       // Toàn bộ các tiêu chí (Trend, S/R, Flow, Volume, BTC Flash, Turnover, M15 Spike, EV R:R) được AI tự học và ra quyết định
       if (!aiEval.isApproved) {
-        log.system(`[AutoTrade] 🛑 [AI Veto] ${sym} (${sig.signal}) bị phủ quyết: ${aiEval.reason} — Bỏ qua không đặt lệnh.`);
+        // 🛡️ THROTTLE CHỐNG SPAM LOG AI VETO: Không in lặp lại mỗi 15s cho cùng coin/mốc giá (cooldown 3 phút)
+        const shouldLogVeto = _shouldLogSignal(sym, sig.signal, sig.targetLevel, 'ai_veto_logged', 3 * 60 * 1000);
+        if (shouldLogVeto) {
+          log.system(`[AutoTrade] 🛑 [AI Veto] ${sym} (${sig.signal}) bị phủ quyết: ${aiEval.reason} — Bỏ qua không đặt lệnh.`);
+          recordAIEvaluation(sig, aiEval);
+          recordSkippedSignal({
+            symbol: sym,
+            signal: sig.signal,
+            signalPrice: sig.targetLevel,
+            score: sig.score ?? 0,
+            scoreReasons: sig.scoreReasons || [],
+            skipReason: `AI_VETO_${aiEval.vetoCategory || 'REJECTED'}`,
+            markPrice: markPrice,
+            marketCapRank: rank,
+          });
+        }
 
         // Đăng ký vị thế Shadow PnL để theo dõi kết quả thực tế trên thị trường với đòn bẩy và SL/TP thực
         registerShadowTrade(sig, aiEval, {
@@ -1686,19 +1700,6 @@ async function startAutoTrade(coins) {
           microstructure: rawMarketData?.microstructure || null,
           isEconomicBlackout: rawMarketData?.isEconomicBlackout
         });
-
-        if (_shouldLogSignal(sym, sig.signal, sig.targetLevel, 'ai_veto_skipped')) {
-          recordSkippedSignal({
-            symbol: sym,
-            signal: sig.signal,
-            signalPrice: sig.targetLevel,
-            score: sig.score ?? 0,
-            scoreReasons: sig.scoreReasons || [],
-            skipReason: `AI_VETO_${aiEval.vetoCategory || 'REJECTED'}`,
-            markPrice: markPrice,
-            marketCapRank: rank,
-          });
-        }
 
         // ── Thêm vào lowScoreWatchlist để chờ nến H1 Retest xác nhận rút râu/rút chân ──
         if (!lowScoreWatchlist[sym] || lowScoreWatchlist[sym].targetLevel !== sig.targetLevel) {
@@ -1727,6 +1728,7 @@ async function startAutoTrade(coins) {
         return;
       }
 
+      recordAIEvaluation(sig, aiEval);
       log.system(`[AI Reviewer] 🟢 Khuyên NÊN ĐẶT LỆNH ${sym} (${sig.signal}) - ${aiEval.reason}`);
 
       // ── LOGIC MỚI: TÍNH TOÁN STOPLOSS THEO TIER, TP ĐỘNG (1:1.5 -> 1:2.0), VÀ ĐÒN BẨY / MARGIN ĐỘNG (100% TỪ AI) ──
@@ -2631,11 +2633,15 @@ async function checkH1RetestSignals(client, activeSymbols, leverageInfo = {}) {
       }
 
       const aiEval = evaluateSignalWithAI(sigForAI, rawMarketDataRetest);
-      recordAIEvaluation(sigForAI, aiEval);
 
       // Tiêu chí 3: Đánh giá Rủi ro Toàn diện từ Lõi AI cho Retest H1 (AI Reviewer Core)
       if (!aiEval.isApproved) {
-        log.system(`[AutoTrade (Retest H1)] 🛑 [AI Veto] ${sym} (${signal}) bị phủ quyết: ${aiEval.reason} — Hủy đặt lệnh Retest.`);
+        // 🛡️ THROTTLE CHỐNG SPAM LOG AI VETO CHO RETEST H1: Không in lặp lại mỗi chu kỳ scan (cooldown 5 phút)
+        const shouldLogRetestVeto = _shouldLogSignal(sym, signal, targetLevel, 'retest_ai_veto_logged', 5 * 60 * 1000);
+        if (shouldLogRetestVeto) {
+          log.system(`[AutoTrade (Retest H1)] 🛑 [AI Veto] ${sym} (${signal}) bị phủ quyết: ${aiEval.reason} — Hủy đặt lệnh Retest.`);
+          recordAIEvaluation(sigForAI, aiEval);
+        }
 
         // Đăng ký vị thế Shadow PnL để theo dõi kết quả thực tế trên thị trường
         const currentPriceRetest = (typeof getMarkPrice === 'function' ? getMarkPrice(sym) : null) || h1Close || targetLevel;
@@ -2659,6 +2665,7 @@ async function checkH1RetestSignals(client, activeSymbols, leverageInfo = {}) {
         continue;
       }
 
+      recordAIEvaluation(sigForAI, aiEval);
       log.system(`[AI Reviewer (Retest H1)] 🟢 Khuyên NÊN ĐẶT LỆNH ${sym} (${signal}) - ${aiEval.reason}`);
 
       // ── TÍNH TOÁN STOPLOSS THEO TIER, TP ĐỘNG (1:1.5 -> 1:2.0), VÀ ĐÒN BẨY / MARGIN ĐỘNG CHO RETEST H1 (100% TỪ AI) ──
