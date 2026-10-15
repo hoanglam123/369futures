@@ -23,6 +23,10 @@ function setLogger(logger) {
 // In-memory active shadow positions: { [shadowId]: ShadowPosition }
 let activeShadowPositions = {};
 
+// Cache theo dõi các vị thế vừa chốt để chống duplicate lặp lại trong vòng quét tiếp theo
+const _recentlyResolvedShadows = new Map(); // key: `${sym}_${side}` -> timestamp
+const SHADOW_RESOLVED_COOLDOWN_MS = 20 * 60 * 1000; // 20 phút cooldown sau khi chốt vị thế
+
 /**
  * Load active shadow positions from disk
  */
@@ -95,10 +99,17 @@ function registerShadowTrade(sig, evalResult, options = {}) {
     return null;
   }
 
-  // 🛡️ DEDUPLICATION: Không tạo vị thế Shadow trùng lặp nếu vị thế trước đó của cùng coin/cùng chiều vẫn đang chạy (hoặc chưa quá 90 phút)
+  // 🛡️ DEDUPLICATION 1: Không tạo vị thế Shadow trùng lặp nếu vị thế trước đó của cùng coin/cùng chiều vẫn đang chạy (hoặc chưa quá 90 phút)
   const existing = Object.values(activeShadowPositions).find(p => p.symbol === sym && p.signal === side);
   if (existing && (Date.now() - existing.entryTimestamp) < 90 * 60 * 1000) {
     return existing; // Don't duplicate active shadow position
+  }
+
+  // 🛡️ DEDUPLICATION 2: Tránh tạo lại vị thế bóng tối cho cùng coin/chiều vừa kết thúc trong 20 phút (chống lặp ảo)
+  const cooldownKey = `${sym}_${side}`;
+  const lastResolvedTime = _recentlyResolvedShadows.get(cooldownKey);
+  if (lastResolvedTime && (Date.now() - lastResolvedTime) < SHADOW_RESOLVED_COOLDOWN_MS) {
+    return null; // Bỏ qua trùng lặp sau khi vừa chốt vị thế
   }
 
   // Calculate SL / TP distances
@@ -485,6 +496,18 @@ function _resolveShadowTrade(p, outcome, exitPrice, exitRoi, exitTimestamp) {
   delete activeShadowPositions[p.shadowId];
   saveActiveShadowPositions();
 
+  // Ghi nhận cooldown cho cặp sym + side vừa đóng để tránh lặp vị thế trong 20 phút
+  const cooldownKey = `${p.symbol}_${p.signal}`;
+  _recentlyResolvedShadows.set(cooldownKey, exitTimestamp || Date.now());
+
+  // Dọn dẹp cache cooldown quá 1 giờ
+  if (_recentlyResolvedShadows.size > 200) {
+    const pruneTime = Date.now() - 60 * 60 * 1000;
+    for (const [k, t] of _recentlyResolvedShadows.entries()) {
+      if (t < pruneTime) _recentlyResolvedShadows.delete(k);
+    }
+  }
+
   // Record to shadow history
   _appendShadowHistory(resultRecord);
 
@@ -525,7 +548,9 @@ function getShadowStats() {
   const activeCount = Object.keys(activeShadowPositions).length;
   let totalResolved = 0;
   let totalSavedSL = 0;
+  let totalSavedBE = 0;
   let totalMissedTP = 0;
+  let totalCancelled = 0;
   let totalSavedUSD = 0;
   let totalMissedUSD = 0;
   const categoryStats = {};
@@ -538,17 +563,23 @@ function getShadowStats() {
           const rec = JSON.parse(line);
           totalResolved++;
           const cat = rec.vetoCategory || 'OTHER';
-          if (!categoryStats[cat]) categoryStats[cat] = { total: 0, savedSL: 0, missedTP: 0 };
+          if (!categoryStats[cat]) categoryStats[cat] = { total: 0, savedSL: 0, savedBE: 0, missedTP: 0, cancelled: 0 };
           categoryStats[cat].total++;
 
           if (rec.isSavedSL) {
             totalSavedSL++;
             totalSavedUSD += (rec.savedLossUSD || 15);
             categoryStats[cat].savedSL++;
+          } else if (rec.isSavedBE) {
+            totalSavedBE++;
+            categoryStats[cat].savedBE++;
           } else if (rec.isMissedTP) {
             totalMissedTP++;
             totalMissedUSD += (rec.missedProfitUSD || 15);
             categoryStats[cat].missedTP++;
+          } else if (rec.isCancelled) {
+            totalCancelled++;
+            categoryStats[cat].cancelled++;
           }
         } catch (_) {}
       }
@@ -558,13 +589,17 @@ function getShadowStats() {
   }
 
   const netValueUSD = totalSavedUSD - totalMissedUSD;
-  const aiPrecision = totalResolved > 0 ? (totalSavedSL / totalResolved) * 100 : 0;
+  // Độ chính xác chuẩn: tỷ lệ bảo toàn vốn thành công (Cứu SL + Thoát BE) trên tổng số lệnh có kết quả rõ ràng (SL + BE + TP)
+  const decisiveCount = totalSavedSL + totalSavedBE + totalMissedTP;
+  const aiPrecision = decisiveCount > 0 ? ((totalSavedSL + totalSavedBE) / decisiveCount) * 100 : 0;
 
   return {
     activePositionsCount: activeCount,
     totalResolved,
     totalSavedSL,
+    totalSavedBE,
     totalMissedTP,
+    totalCancelled,
     totalSavedUSD: Math.round(totalSavedUSD * 100) / 100,
     totalMissedUSD: Math.round(totalMissedUSD * 100) / 100,
     netValueUSD: Math.round(netValueUSD * 100) / 100,

@@ -1114,7 +1114,8 @@ async function startAutoTrade(coins) {
         try {
           const shadowStats = getShadowStats();
           if (shadowStats.totalResolved > 0 || shadowStats.activePositionsCount > 0) {
-            log.system(`[Shadow PnL] 📊 Thống kê AI Veto: Đang theo dõi: ${shadowStats.activePositionsCount} lệnh | Đã cứu SL: ${shadowStats.totalSavedSL} lệnh (+$${shadowStats.totalSavedUSD}) | Bỏ lỡ TP: ${shadowStats.totalMissedTP} lệnh (-$${shadowStats.totalMissedUSD}) | Giá trị AI ròng: +$${shadowStats.netValueUSD} USD (Độ chính xác Veto: ${shadowStats.aiVetoAccuracyPct}%)`);
+            const beStr = shadowStats.totalSavedBE > 0 ? ` | Thoát BE: ${shadowStats.totalSavedBE} lệnh` : '';
+            log.system(`[Shadow PnL] 📊 Thống kê AI Veto: Đang theo dõi: ${shadowStats.activePositionsCount} lệnh | Đã cứu SL: ${shadowStats.totalSavedSL} lệnh (+$${shadowStats.totalSavedUSD})${beStr} | Bỏ lỡ TP: ${shadowStats.totalMissedTP} lệnh (-$${shadowStats.totalMissedUSD}) | Giá trị AI ròng: +$${shadowStats.netValueUSD} USD (Độ chính xác Veto: ${shadowStats.aiVetoAccuracyPct}%)`);
           }
         } catch (_) {}
       }
