@@ -58,12 +58,22 @@ loadState();
  * @param {number} [param0.pnlUsd=0]
  * @param {number} [param0.pnlPercent=0]
  * @param {string} [param0.exitType='SL']
+ * @param {boolean} [param0.isPartialClosed=false] Vị thế đã chốt Partial TP trước đó
  */
-function recordRealTradeOutcome({ symbol, side, isWin, pnlUsd = 0, pnlPercent = 0, exitType = 'SL' }) {
+function recordRealTradeOutcome({ symbol, side, isWin, pnlUsd = 0, pnlPercent = 0, exitType = 'SL', isPartialClosed = false }) {
   const now = Date.now();
   const cleanSym = symbol.replace('USDT', '');
   const realPnl = typeof pnlUsd === 'number' ? pnlUsd : 0;
-  const isLoss = !isWin || realPnl < -0.2;
+  
+  // 🛡️ BẢO VỆ ROLLING PERFORMANCE GUARD: Nếu lệnh đã chốt Partial TP (đã ăn lãi 50% trước đó),
+  // hoặc thoát hòa vốn Trailing SL / BE, thì nửa còn lại trượt nhẹ không tính là lệnh thua gãy hiệu suất!
+  const isProtectedExit = isPartialClosed || 
+                          exitType === 'TRAILING_SL' || 
+                          exitType === 'DEFENSIVE_BE_EXIT' || 
+                          exitType === 'BE_EXIT';
+  const isLoss = isProtectedExit 
+    ? (realPnl < -0.5 && !isPartialClosed) 
+    : (!isWin || realPnl < -0.2);
 
   // Thêm vào danh sách 10 lệnh thật gần nhất
   _state.recentRealTrades.push({

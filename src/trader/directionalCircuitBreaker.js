@@ -168,12 +168,23 @@ function tryEarlyDirectionalRecovery(side, symbol, roi = 0, source = 'SHADOW_PRO
  * @param {string} param0.exitType 'TP' | 'SL' | 'HARD_MAX_LOSS' | 'PANIC_ESCAPE' | ...
  * @param {number} [param0.pnlUsd=0] Lãi lỗ USD
  * @param {number} [param0.pnlPercent=0] Lãi lỗ %
+ * @param {boolean} [param0.isPartialClosed=false] Vị thế đã chốt Partial TP trước đó
  */
-function recordDirectionalTradeExit({ symbol, side, isWin, exitType, pnlUsd = 0, pnlPercent = 0 }) {
+function recordDirectionalTradeExit({ symbol, side, isWin, exitType, pnlUsd = 0, pnlPercent = 0, isPartialClosed = false }) {
   const normSide = (side === 'LONG' || side === 'BUY') ? 'LONG' : 'SHORT';
   const now = Date.now();
 
-  const isLoss = !isWin && (exitType === 'SL' || exitType === 'HARD_MAX_LOSS' || pnlPercent < -0.5 || pnlUsd < -0.2);
+  // 🛡️ BẢO VỆ DIRECTIONAL CB: Nếu lệnh đã chốt Partial TP có lãi, hoặc thoát ở mức Trailing SL / Hòa vốn (PnL ~ 0),
+  // tuyệt đối không ghi nhận là lệnh dính SL làm khóa mạch xu hướng oan!
+  const isProtectedExit = isPartialClosed || 
+                          exitType === 'TRAILING_SL' || 
+                          exitType === 'DEFENSIVE_BE_EXIT' || 
+                          exitType === 'BE_EXIT';
+  if (isProtectedExit && (pnlUsd >= -0.2 || pnlPercent >= -2.0)) {
+    return;
+  }
+
+  const isLoss = !isWin && !isPartialClosed && (exitType === 'SL' || exitType === 'HARD_MAX_LOSS' || pnlPercent < -0.5 || pnlUsd < -0.2);
 
   if (isLoss) {
     if (!_state[normSide]) _state[normSide] = { losses: [], lockedUntil: 0, lockReason: '', shadowTrades: [] };

@@ -394,14 +394,19 @@ function extractSignalFeatures(reasons, score, rank, gridWidthPct, rawMarketData
     ? rawMarketData.preEntryBouncePct
     : 1.25;
 
+  const extremeBounceThreshold = Math.max(3.0, preEntryThreshold * 1.8);
   if (bouncePct !== null) {
-    if (bouncePct >= preEntryThreshold || rawMarketData?.isPreEntryStale) {
+    if (bouncePct >= extremeBounceThreshold || rawMarketData?.isPreEntryExtremeStale) {
+      features['pre_entry_bounce'] = 'BOUNCE_STALE_EXTREME';
+    } else if (bouncePct >= preEntryThreshold || rawMarketData?.isPreEntryStale) {
       features['pre_entry_bounce'] = 'BOUNCE_STALE_HIGH';
     } else if (bouncePct >= 0.40) {
       features['pre_entry_bounce'] = 'BOUNCE_MODERATE';
     } else {
       features['pre_entry_bounce'] = 'BOUNCE_FRESH';
     }
+  } else if (reasonsStr.includes('nảy cực xa') || rawMarketData?.isPreEntryExtremeStale) {
+    features['pre_entry_bounce'] = 'BOUNCE_STALE_EXTREME';
   } else if (reasonsStr.includes('Giá đã nảy xa mốc') || rawMarketData?.isPreEntryStale) {
     features['pre_entry_bounce'] = 'BOUNCE_STALE_HIGH';
   } else if (reasonsStr.includes('Giá chớm nảy')) {
@@ -577,7 +582,16 @@ function extractSignalFeatures(reasons, score, rank, gridWidthPct, rawMarketData
   const isCounterTrain = features['candle_momentum'] === 'MOMENTUM_COUNTER_PUMP_TRAIN' ||
     features['candle_momentum'] === 'MOMENTUM_COUNTER_DUMP_TRAIN';
 
-  if (isVolDanger && (isTrendConflict || isLsDiv || isCounterTrain)) {
+  // 🛡️ TƯƠNG TÁC ĐA NHÂN TỐ RỦI RO: Nảy cực xa kết hợp Lowcap hoặc Bão BTC
+  const isStaleExtreme = features['pre_entry_bounce'] === 'BOUNCE_STALE_EXTREME';
+  const isStaleHigh = features['pre_entry_bounce'] === 'BOUNCE_STALE_HIGH';
+  const isLowcapRank = rank > 150;
+  const isBtcVolatileRegime = features['btc_storm'] === 'BTC_STORM_VOLATILE' || 
+                              (features['btc_flash'] && features['btc_flash'] !== 'BTC_FLASH_NORMAL');
+
+  if (isStaleExtreme || (isStaleHigh && (isLowcapRank || isBtcVolatileRegime || isTrendConflict))) {
+    features['risk_interaction'] = 'INTERACTION_STALE_BOUNCE_RUNAWAY';
+  } else if (isVolDanger && (isTrendConflict || isLsDiv || isCounterTrain)) {
     features['risk_interaction'] = 'INTERACTION_HIGH_VOLATILITY_WEAK_SETUP';
   } else if (isTrendConflict && isLsDiv) {
     features['risk_interaction'] = 'INTERACTION_TREND_FLOW_CONFLICT';
@@ -692,6 +706,7 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
     'candle_shape:CANDLE_MARUBOZU_DUMP': 0.45,
     'candle_shape:CANDLE_MARUBOZU_PUMP': 0.45,
     'candle_shape:CANDLE_NORMAL': 1.00,
+    'pre_entry_bounce:BOUNCE_STALE_EXTREME': 0.45, // Nảy cực xa (>= 3.0% hoặc >= 1.8x mốc khung): Quán tính phá cản mạnh -> Phạt -55%
     'pre_entry_bounce:BOUNCE_STALE_HIGH': 0.90,  // Nảy xa mốc rồi quay đầu: phạt nhẹ thay vì thưởng
     'pre_entry_bounce:BOUNCE_MODERATE': 1.00,
     'pre_entry_bounce:BOUNCE_FRESH': 1.00,
@@ -713,6 +728,7 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
     'turnover_guard:TURNOVER_NORMAL': 1.00,
     'price_action:PA_0_LEVEL': 1.00,              // Thực nghiệm N=1825 WinRate 51.84%, mốc 369 tự thân là cản chuẩn, không phạt PA_0_LEVEL
     'ls_flow:LS_DIVERGENCE': 0.80,                // [CÂN BẰNG] Phạt vừa phải 20% khi dòng tiền Cá voi và Retail phân kỳ ngược nhau
+    'risk_interaction:INTERACTION_STALE_BOUNCE_RUNAWAY': 0.45, // Quán tính nảy cực xa kết hợp Lowcap/Bão BTC -> Phạt dứt khoát -55%
     'risk_interaction:INTERACTION_HIGH_VOLATILITY_WEAK_SETUP': 0.50, // Biến động mạnh kết hợp thế nến/cản yếu -> Veto
     'risk_interaction:INTERACTION_TREND_FLOW_CONFLICT': 0.65, // Phạt 35% khi vừa ngược trend vừa phân kỳ dòng tiền
     'risk_interaction:INTERACTION_NO_SR_WEAK_SETUP': 1.00,      // Trung tính theo dữ liệu thực tế
@@ -760,23 +776,26 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
   // Khi một conflict tương tác đã được capture bởi INTERACTION_*, bỏ qua
   // feature thành phần tương ứng để tránh âm 2 lần vào cùng một rủi ro.
   const riskInteraction = features['risk_interaction'];
-  const skipForInteraction = new Set();
+  const skipForInteraction = new Map();
   if (riskInteraction === 'INTERACTION_TREND_FLOW_CONFLICT') {
     // Trend conflict + LS_DIVERGENCE đã capture bởi interaction → bỏ qua riêng lẽ
-    skipForInteraction.add('trend');
-    skipForInteraction.add('ls_flow');
+    skipForInteraction.set('trend', riskInteraction);
+    skipForInteraction.set('ls_flow', riskInteraction);
   } else if (riskInteraction === 'INTERACTION_NO_SR_WEAK_SETUP') {
     // PA_0_LEVEL đã capture bởi interaction → bỏ qua riêng lẻ
-    skipForInteraction.add('price_action');
+    skipForInteraction.set('price_action', riskInteraction);
   } else if (riskInteraction === 'INTERACTION_DRY_VOL_COOLING_OI') {
     // VOL_DRY + OI_COOLING đã capture bởi interaction → bỏ qua riêng lẽ
-    skipForInteraction.add('volume');
-    skipForInteraction.add('oi_change');
+    skipForInteraction.set('volume', riskInteraction);
+    skipForInteraction.set('oi_change', riskInteraction);
   } else if (riskInteraction === 'INTERACTION_HIGH_VOLATILITY_WEAK_SETUP') {
     // 🛡️ DE-DUPLICATE MULTI-PENALTY:
     // Đã tính rủi ro biến động ở h1_volatility & m15_volatility riêng lẻ,
     // bỏ qua INTERACTION_HIGH_VOLATILITY_WEAK_SETUP để triệt tiêu hoàn toàn cơ chế phạt kép 2-3 lần vào cùng một rủi ro!
-    skipForInteraction.add('risk_interaction');
+    skipForInteraction.set('risk_interaction', 'h1_m15_volatility');
+  } else if (riskInteraction === 'INTERACTION_STALE_BOUNCE_RUNAWAY') {
+    // 🛡️ Khi đã có INTERACTION_STALE_BOUNCE_RUNAWAY tổng hợp, bỏ qua pre_entry_bounce riêng lẻ để tránh phạt âm 2 lần
+    skipForInteraction.set('pre_entry_bounce', riskInteraction);
   }
 
   // 🛡️ DOUBLE-COUNTING PREVENTION CHO THẾ NẾN:
@@ -785,18 +804,39 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
   // các feature thành phần để tránh nhân dồn phạt/thưởng tới 3-4 lần!
   const punctureInteraction = features['puncture_interaction'];
   if (punctureInteraction && punctureInteraction !== 'INTERACTION_PUNCTURE_NORMAL') {
-    skipForInteraction.add('h1_candle_geometry');
-    skipForInteraction.add('m15_candle_geometry');
-    skipForInteraction.add('candle_shape');
+    skipForInteraction.set('h1_candle_geometry', punctureInteraction);
+    skipForInteraction.set('m15_candle_geometry', punctureInteraction);
+    skipForInteraction.set('candle_shape', punctureInteraction);
+  }
+
+  // 🛡️ DE-DUPLICATE STORM & VOLATILITY OVERLAP (KHỬ PHẠT BÃO CHỒNG CHÉO H1 & M15):
+  // Nến bão H1 đương nhiên chứa nến bão M15 bên trong (cùng một đợt bùng nổ biến động giá).
+  // Khi H1 đã dính bão cực đại (H1_EXTREME_STORM_PUMP_DUMP), nó đã phản ánh đầy đủ rủi ro biến động lớn.
+  // Nếu tiếp tục phạt M15_EXTREME_STORM (x0.60 * x0.60 = x0.36) sẽ tạo ra mức phạt kép dìm xác suất ảo xuống 5%,
+  // làm bỏ lỡ các lệnh bắt cản nảy phản ứng kỹ thuật (Mean Reversion) rất chuẩn xác của Grid 369.
+  // Vì vậy, khi H1 đã chịu phạt bão cực đại, m15_volatility được bỏ qua để tránh phạt chồng chéo.
+  if (features['h1_volatility'] === 'H1_EXTREME_STORM_PUMP_DUMP') {
+    if (features['m15_volatility'] === 'M15_EXTREME_STORM' || features['m15_volatility'] === 'M15_VOLATILE_DANGER') {
+      skipForInteraction.set('m15_volatility', 'H1_EXTREME_STORM');
+    }
+  } else if (features['h1_volatility'] === 'H1_VOLATILE_DANGER' && features['m15_volatility'] === 'M15_VOLATILE_DANGER') {
+    // Khi cả 2 khung cùng là VOLATILE_DANGER (biến động thường): H1 đã phạt x0.75,
+    // m15_volatility cũng được bỏ qua để tránh phạt kép x0.75 * x0.75 = x0.56
+    skipForInteraction.set('m15_volatility', 'H1_VOLATILE_DANGER');
+  } else if ((features['h1_volatility'] === 'H1_ULTRA_COMPRESSED' || features['h1_volatility'] === 'H1_MID_COMPRESSED') &&
+             (features['m15_volatility'] === 'M15_VOLUME_SURGE' || features['m15_volatility'] === 'M15_VOLATILE_DANGER')) {
+    // 🛡️ Khi H1 đang siêu nén/nén đẹp, đột biến M15 thường là râu quét thanh khoản cản (Liquidity Sweep) trong khung nén.
+    // Bỏ qua phạt nặng M15 để không bóp chết cơ hội bắt cản nảy chuẩn xác khung H1 của Grid 369.
+    skipForInteraction.set('m15_volatility', 'H1_COMPRESSION_ABSORPTION');
   }
 
   for (const [cat, val] of Object.entries(features)) {
     const key = `${cat}:${val}`;
     let mult = 1.0;
 
-    // 🚫 Bỏ qua feature đã được capture bởi risk_interaction (tránh double-counting)
+    // 🚫 Bỏ qua feature đã được capture / trùng lặp (tránh double-counting)
     if (skipForInteraction.has(cat)) {
-      keyFactors.push(`∅ ${val} (skip: included in ${riskInteraction})`);
+      keyFactors.push(`∅ ${val} (skip: included in ${skipForInteraction.get(cat)})`);
       continue;
     }
 
@@ -864,9 +904,14 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
       mult = Math.min(1.10, mult);
     }
 
-    // 🛡️ SANITY GUARD: Khống chế trần an toàn cho OI_SURGE & LS_GOLD (tối đa x1.25, chống lạm phát xác suất)
+    // 🛡️ SANITY GUARD: Không thưởng OI_SURGE nếu dòng tiền đang phân kỳ (LS_DIVERGENCE) hoặc ngược trend (TREND_CONFLICT)
+    // Bản chất: OI tăng vọt khi đang phân kỳ là dòng tiền bão phá cản (Breakout), không phải cản nảy!
     if (cat === 'oi_change' && val === 'OI_SURGE') {
-      mult = Math.min(1.25, mult);
+      if (features['ls_flow'] === 'LS_DIVERGENCE' || features['trend'] === 'TREND_CONFLICT') {
+        mult = Math.min(1.00, mult);
+      } else {
+        mult = Math.min(1.25, mult);
+      }
     }
     if (cat === 'ls_flow' && val === 'LS_GOLD') {
       mult = Math.min(1.25, mult);
@@ -878,7 +923,8 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
                             features['h1_volatility'] === 'H1_VOLATILE_DANGER' ||
                             features['h1_volatility'] === 'H1_EXTREME_STORM_PUMP_DUMP' ||
                             features['h1_volume_burst'] === 'H1_VOL_BURST_DANGER' ||
-                            features['risk_interaction'] === 'INTERACTION_TREND_FLOW_CONFLICT';
+                            features['risk_interaction'] === 'INTERACTION_TREND_FLOW_CONFLICT' ||
+                            features['risk_interaction'] === 'INTERACTION_STALE_BOUNCE_RUNAWAY';
     if (hasCriticalRisk) {
       // Khi đã dính rủi ro cấu trúc nghiêm trọng, không cho phép các điểm cộng OI, dòng tiền, nến đơn lẻ lấp liếm rủi ro
       if (['oi_change', 'ls_flow', 'volume', 'candle_shape', 'm15_candle_geometry', 'pre_entry_bounce', 'h1_candle_geometry'].includes(cat)) {
@@ -1130,6 +1176,9 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
       } else if (features['puncture_interaction'] && (features['puncture_interaction'] === 'INTERACTION_H1_M15_PUNCTURED' || features['puncture_interaction'].startsWith('INTERACTION_H1_'))) {
         vetoCategory = features['puncture_interaction'];
         reasonText = `[ĐÁNH GIÁ RỦI RO AI: ${features['puncture_interaction']}] Nến đâm lụt qua Entry, xác suất thắng ${winProb.toFixed(1)}% < ${threshold}% [Rank #${rank}] (${factorSummary})`;
+      } else if (features['risk_interaction'] === 'INTERACTION_STALE_BOUNCE_RUNAWAY') {
+        vetoCategory = 'INTERACTION_STALE_BOUNCE_RUNAWAY';
+        reasonText = `[AI VETO ĐỘ NẢY MẠNH PHÁ CẢN] Giá đã nảy cực xa mốc cản kết hợp rủi ro Lowcap/Bão kéo xác suất ${winProb.toFixed(1)}% < ${threshold}%! [Rank #${rank}] (${factorSummary})`;
       } else if (features['risk_interaction'] && features['risk_interaction'].startsWith('INTERACTION_') && features['risk_interaction'] !== 'INTERACTION_BALANCED') {
         vetoCategory = features['risk_interaction'];
         reasonText = `[ĐÁNH GIÁ RỦI RO AI: ${features['risk_interaction']}] Xác suất thắng ${winProb.toFixed(1)}% < ${threshold}% [Rank #${rank}] (${factorSummary})`;

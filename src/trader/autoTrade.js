@@ -1540,7 +1540,10 @@ async function startAutoTrade(coins) {
 
       if (!sig.scoreReasons) sig.scoreReasons = [];
       if (typeof maxRecentBouncePct === 'number') {
-        if (maxRecentBouncePct >= preEntryBouncePct) {
+        const extremeTh = Math.max(3.0, preEntryBouncePct * 1.8);
+        if (maxRecentBouncePct >= extremeTh) {
+          sig.scoreReasons.push(`[Độ nảy M1] Giá nảy cực xa mốc trước khi vào lệnh (${maxRecentBouncePct.toFixed(2)}% >= ${extremeTh.toFixed(2)}% Khung)`);
+        } else if (maxRecentBouncePct >= preEntryBouncePct) {
           sig.scoreReasons.push(`[Độ nảy M1] Giá đã nảy xa mốc trước khi vào lệnh (${maxRecentBouncePct.toFixed(2)}% >= ${preEntryBouncePct.toFixed(2)}% Khung/5)`);
         } else if (maxRecentBouncePct >= 0.50) {
           sig.scoreReasons.push(`[Độ nảy M1] Giá chớm nảy (${maxRecentBouncePct.toFixed(2)}% < ${preEntryBouncePct.toFixed(2)}%)`);
@@ -1607,6 +1610,9 @@ async function startAutoTrade(coins) {
           symbol: sym,
           maxRecentBouncePct: sig.maxRecentBouncePct ?? null,
           preEntryBouncePct: sig.preEntryBouncePct ?? null,
+          isPreEntryExtremeStale: (typeof sig.maxRecentBouncePct === 'number' && typeof sig.preEntryBouncePct === 'number')
+            ? (sig.maxRecentBouncePct >= Math.max(3.0, sig.preEntryBouncePct * 1.8))
+            : false,
           isPreEntryStale: (typeof sig.maxRecentBouncePct === 'number' && typeof sig.preEntryBouncePct === 'number')
             ? sig.maxRecentBouncePct >= sig.preEntryBouncePct
             : false,
@@ -1621,6 +1627,9 @@ async function startAutoTrade(coins) {
           symbol: sym,
           maxRecentBouncePct: sig.maxRecentBouncePct ?? null,
           preEntryBouncePct: sig.preEntryBouncePct ?? null,
+          isPreEntryExtremeStale: (typeof sig.maxRecentBouncePct === 'number' && typeof sig.preEntryBouncePct === 'number')
+            ? (sig.maxRecentBouncePct >= Math.max(3.0, sig.preEntryBouncePct * 1.8))
+            : false,
           isPreEntryStale: (typeof sig.maxRecentBouncePct === 'number' && typeof sig.preEntryBouncePct === 'number')
             ? sig.maxRecentBouncePct >= sig.preEntryBouncePct
             : false,
@@ -3531,21 +3540,24 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
               holdingDurationMinutes: holdingDurationMinutes,
               isWin: roi >= 0,
             });
+            const hasTakenPartial = !!(meta?.isPartialClosed || partialClosedSymbols.has(sym));
             recordDirectionalTradeExit({
               symbol: sym,
               side: isLong ? 'LONG' : 'SHORT',
-              isWin: roi >= 0,
+              isWin: roi >= 0 || hasTakenPartial,
               exitType: exitTypeVal,
               pnlUsd: (roi / 100) * (meta.margin || 0),
-              pnlPercent: roi
+              pnlPercent: roi,
+              isPartialClosed: hasTakenPartial
             });
             recordRealTradeOutcome({
               symbol: sym,
               side: isLong ? 'LONG' : 'SHORT',
-              isWin: roi >= 0,
+              isWin: roi >= 0 || hasTakenPartial,
               exitType: exitTypeVal,
               pnlUsd: (roi / 100) * (meta.margin || 0),
-              pnlPercent: roi
+              pnlPercent: roi,
+              isPartialClosed: hasTakenPartial
             });
           }
           if (meta?.isPanicEscape) {
@@ -3802,21 +3814,24 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
                 holdingDurationMinutes: holdingDurationMinutes,
                 isWin: isWinVirtual,
               });
+              const hasTakenPartial = !!(meta?.isPartialClosed || partialClosedSymbols.has(sym));
               recordDirectionalTradeExit({
                 symbol: sym,
                 side: isLong ? 'LONG' : 'SHORT',
-                isWin: isWinVirtual,
+                isWin: isWinVirtual || hasTakenPartial,
                 exitType: exitTypeVirtual,
                 pnlUsd: (roi / 100) * (meta.margin || 0),
-                pnlPercent: roi
+                pnlPercent: roi,
+                isPartialClosed: hasTakenPartial
               });
               recordRealTradeOutcome({
                 symbol: sym,
                 side: isLong ? 'LONG' : 'SHORT',
-                isWin: isWinVirtual,
+                isWin: isWinVirtual || hasTakenPartial,
                 exitType: exitTypeVirtual,
                 pnlUsd: (roi / 100) * (meta.margin || 0),
-                pnlPercent: roi
+                pnlPercent: roi,
+                isPartialClosed: hasTakenPartial
               });
             }
 
@@ -3956,21 +3971,24 @@ async function notifyRealClose(client, sym, prevPos, meta) {
         holdingDurationMinutes: holdingDurationMinutes,
         isWin: hasTradeData && realizedProfit >= 0,
       });
+      const hasTakenPartial = !!(meta?.isPartialClosed || partialClosedSymbols.has(sym));
       recordDirectionalTradeExit({
         symbol: sym,
         side: prevPos.isLong ? 'LONG' : 'SHORT',
-        isWin: hasTradeData && realizedProfit >= 0,
+        isWin: (hasTradeData && realizedProfit >= 0) || hasTakenPartial,
         exitType: exitType,
         pnlUsd: realizedProfit,
-        pnlPercent: roi
+        pnlPercent: roi,
+        isPartialClosed: hasTakenPartial
       });
       recordRealTradeOutcome({
         symbol: sym,
         side: prevPos.isLong ? 'LONG' : 'SHORT',
-        isWin: hasTradeData && realizedProfit >= 0,
+        isWin: (hasTradeData && realizedProfit >= 0) || hasTakenPartial,
         exitType: exitType,
         pnlUsd: realizedProfit,
-        pnlPercent: roi
+        pnlPercent: roi,
+        isPartialClosed: hasTakenPartial
       });
     }
 

@@ -414,14 +414,20 @@ def extract_features(reasons, score, rank, grid_width_pct, timestamp_ms=None, di
     bounce_val = None
     if direct_record and isinstance(direct_record.get("maxRecentBouncePct"), (int, float)):
         bounce_val = float(direct_record["maxRecentBouncePct"])
+    elif direct_record and isinstance(direct_record.get("preEntryBouncePct"), (int, float)):
+        bounce_val = float(direct_record["preEntryBouncePct"])
 
     if bounce_val is not None:
-        if bounce_val >= 1.25:
+        if bounce_val >= 3.0:
+            features["pre_entry_bounce"] = "BOUNCE_STALE_EXTREME"
+        elif bounce_val >= 1.25:
             features["pre_entry_bounce"] = "BOUNCE_STALE_HIGH"
         elif bounce_val >= 0.40:
             features["pre_entry_bounce"] = "BOUNCE_MODERATE"
         else:
             features["pre_entry_bounce"] = "BOUNCE_FRESH"
+    elif "Giá nảy cực xa mốc" in reasons_str:
+        features["pre_entry_bounce"] = "BOUNCE_STALE_EXTREME"
     elif "Giá đã nảy xa mốc" in reasons_str:
         features["pre_entry_bounce"] = "BOUNCE_STALE_HIGH"
     elif "Giá chớm nảy" in reasons_str:
@@ -475,30 +481,7 @@ def extract_features(reasons, score, rank, grid_width_pct, timestamp_ms=None, di
     else:
         features["candle_momentum"] = "MOMENTUM_NORMAL"
 
-    # 16. Multi-Factor Risk Interactions (AI tự học tương tác rủi ro)
-    is_trend_conflict = features.get("trend") == "TREND_CONFLICT"
-    is_ls_div = features.get("ls_flow") == "LS_DIVERGENCE"
-    is_no_sr = features.get("price_action") == "PA_0_LEVEL"
-    is_dry_vol = features.get("volume") == "VOL_DRY"
-    is_cooling_oi = features.get("oi_change") == "OI_COOLING"
-    is_vol_danger = (
-        features.get("h1_volatility") == "H1_VOLATILE_DANGER" or
-        features.get("m15_volatility") in ["M15_VOLATILE_DANGER", "M15_VOLUME_SURGE"]
-    )
-    is_counter_train = features.get("candle_momentum") in ["MOMENTUM_COUNTER_PUMP_TRAIN", "MOMENTUM_COUNTER_DUMP_TRAIN"]
-
-    if is_vol_danger and (is_trend_conflict or is_ls_div or is_counter_train):
-        features["risk_interaction"] = "INTERACTION_HIGH_VOLATILITY_WEAK_SETUP"
-    elif is_trend_conflict and is_ls_div:
-        features["risk_interaction"] = "INTERACTION_TREND_FLOW_CONFLICT"
-    elif is_no_sr and (is_trend_conflict or is_ls_div or features.get("trend") == "TREND_NEUTRAL"):
-        features["risk_interaction"] = "INTERACTION_NO_SR_WEAK_SETUP"
-    elif is_dry_vol and is_cooling_oi:
-        features["risk_interaction"] = "INTERACTION_DRY_VOL_COOLING_OI"
-    else:
-        features["risk_interaction"] = "INTERACTION_BALANCED"
-
-    # 17. BTC Flash & Turnover Guard (chuyển giao cho AI học)
+    # 16. BTC Flash & Turnover Guard (chuyển giao cho AI học)
     if "Turnover" in reasons_str or "ABNORMAL_TURNOVER" in reasons_str:
         features["turnover_guard"] = "TURNOVER_RISK_BLOCKED"
     else:
@@ -510,6 +493,40 @@ def extract_features(reasons, score, rank, grid_width_pct, timestamp_ms=None, di
         features["btc_flash"] = "BTC_FLASH_DUMP_ACTIVE"
     else:
         features["btc_flash"] = "BTC_FLASH_NORMAL"
+
+    # 17. Multi-Factor Risk Interactions (AI tự học tương tác rủi ro)
+    is_trend_conflict = features.get("trend") == "TREND_CONFLICT"
+    is_ls_div = features.get("ls_flow") == "LS_DIVERGENCE"
+    is_no_sr = features.get("price_action") == "PA_0_LEVEL"
+    is_dry_vol = features.get("volume") == "VOL_DRY"
+    is_cooling_oi = features.get("oi_change") == "OI_COOLING"
+    is_vol_danger = (
+        features.get("h1_volatility") == "H1_VOLATILE_DANGER" or
+        features.get("m15_volatility") in ["M15_VOLATILE_DANGER", "M15_VOLUME_SURGE"]
+    )
+    is_counter_train = features.get("candle_momentum") in ["MOMENTUM_COUNTER_PUMP_TRAIN", "MOMENTUM_COUNTER_DUMP_TRAIN"]
+
+    # 🛡️ TƯƠNG TÁC ĐA NHÂN TỐ RỦI RO: Nảy cực xa kết hợp Lowcap hoặc Bão BTC / Ngược trend
+    is_stale_extreme = features.get("pre_entry_bounce") == "BOUNCE_STALE_EXTREME"
+    is_stale_high = features.get("pre_entry_bounce") == "BOUNCE_STALE_HIGH"
+    is_lowcap_rank = rank > 150
+    is_btc_volatile_regime = (
+        features.get("btc_storm") == "BTC_STORM_VOLATILE" or
+        (features.get("btc_flash") and features.get("btc_flash") != "BTC_FLASH_NORMAL")
+    )
+
+    if is_stale_extreme or (is_stale_high and (is_lowcap_rank or is_btc_volatile_regime or is_trend_conflict)):
+        features["risk_interaction"] = "INTERACTION_STALE_BOUNCE_RUNAWAY"
+    elif is_vol_danger and (is_trend_conflict or is_ls_div or is_counter_train):
+        features["risk_interaction"] = "INTERACTION_HIGH_VOLATILITY_WEAK_SETUP"
+    elif is_trend_conflict and is_ls_div:
+        features["risk_interaction"] = "INTERACTION_TREND_FLOW_CONFLICT"
+    elif is_no_sr and (is_trend_conflict or is_ls_div or features.get("trend") == "TREND_NEUTRAL"):
+        features["risk_interaction"] = "INTERACTION_NO_SR_WEAK_SETUP"
+    elif is_dry_vol and is_cooling_oi:
+        features["risk_interaction"] = "INTERACTION_DRY_VOL_COOLING_OI"
+    else:
+        features["risk_interaction"] = "INTERACTION_BALANCED"
 
     # 18. H1 Candle Geometry vs Entry
     h1_direct = str(direct_record.get("h1CandleGeometry") or (sm.get("h1CandleGeometry") if sm else "") or "") if direct_record else ""
@@ -905,11 +922,11 @@ def train_and_export_model():
     GUARDRAIL_BOUNDS = {
         "rank_group:RANK_MIDCAP_150": (0.85, 1.10),
         "rank_group:RANK_LOWCAP_OUT150": (0.85, 1.05),
-        "h1_volatility:H1_EXTREME_STORM_PUMP_DUMP": (0.05, 0.20),
-        "h1_volatility:H1_VOLATILE_DANGER": (0.30, 0.70),
+        "h1_volatility:H1_EXTREME_STORM_PUMP_DUMP": (0.30, 0.85),
+        "h1_volatility:H1_VOLATILE_DANGER": (0.30, 0.80),
         "h1_volatility:H1_VOL_NORMAL": (1.00, 1.05),
-        "m15_volatility:M15_EXTREME_STORM": (0.05, 0.20),
-        "m15_volatility:M15_VOLATILE_DANGER": (0.30, 0.70),
+        "m15_volatility:M15_EXTREME_STORM": (0.30, 0.85),
+        "m15_volatility:M15_VOLATILE_DANGER": (0.30, 0.80),
         "m15_volatility:M15_VOLUME_SURGE": (0.30, 0.75),
         "m15_volatility:M15_VOL_NORMAL": (1.00, 1.05),
         "trend:TREND_NEUTRAL": (1.00, 1.05),
@@ -929,11 +946,13 @@ def train_and_export_model():
         "volume:VOL_SURGE": (1.00, 1.35),
         "grid_width:GRID_NORMAL": (0.95, 1.15),
         "m15_candle_geometry:M15_REJECT_PINBAR": (1.00, 1.25),
+        "pre_entry_bounce:BOUNCE_STALE_EXTREME": (0.35, 0.65),
         "pre_entry_bounce:BOUNCE_STALE_HIGH": (0.75, 0.95),
         "pre_entry_bounce:BOUNCE_MODERATE": (0.85, 1.05),
         "pre_entry_bounce:BOUNCE_FRESH": (1.00, 1.15),
         "h1_volume_burst:H1_VOL_BURST_DANGER": (0.50, 0.85),
         "h1_volume_burst:H1_VOL_BURST_NORMAL": (1.00, 1.10),
+        "risk_interaction:INTERACTION_STALE_BOUNCE_RUNAWAY": (0.30, 0.60),
         "risk_interaction:INTERACTION_TREND_FLOW_CONFLICT": (0.35, 0.75),
         "risk_interaction:INTERACTION_NO_SR_WEAK_SETUP": (0.90, 1.05),
         "risk_interaction:INTERACTION_DRY_VOL_COOLING_OI": (0.50, 0.85),
@@ -1723,6 +1742,25 @@ def calibrate_optimal_thresholds(base_dir, feature_weights=None, prior_odds=1.3,
                 skip_cats.add("oi_change")
             elif risk_int == "INTERACTION_HIGH_VOLATILITY_WEAK_SETUP":
                 skip_cats.add("risk_interaction")
+            elif risk_int == "INTERACTION_STALE_BOUNCE_RUNAWAY":
+                skip_cats.add("pre_entry_bounce")
+
+            # 🛡️ De-duplicate thế nến puncture interaction
+            punc_int = feats.get("puncture_interaction")
+            if punc_int and punc_int != "INTERACTION_PUNCTURE_NORMAL":
+                skip_cats.add("h1_candle_geometry")
+                skip_cats.add("m15_candle_geometry")
+                skip_cats.add("candle_shape")
+
+            # 🛡️ Khử phạt bão chồng chéo H1 & M15
+            if feats.get("h1_volatility") == "H1_EXTREME_STORM_PUMP_DUMP":
+                if feats.get("m15_volatility") in ["M15_EXTREME_STORM", "M15_VOLATILE_DANGER"]:
+                    skip_cats.add("m15_volatility")
+            elif feats.get("h1_volatility") == "H1_VOLATILE_DANGER" and feats.get("m15_volatility") == "M15_VOLATILE_DANGER":
+                skip_cats.add("m15_volatility")
+            elif (feats.get("h1_volatility") in ["H1_ULTRA_COMPRESSED", "H1_MID_COMPRESSED"] and
+                  feats.get("m15_volatility") in ["M15_VOLUME_SURGE", "M15_VOLATILE_DANGER"]):
+                skip_cats.add("m15_volatility")
 
             for cat, val in feats.items():
                 if cat in skip_cats: continue
@@ -1732,6 +1770,11 @@ def calibrate_optimal_thresholds(base_dir, feature_weights=None, prior_odds=1.3,
                     mult = feature_weights[k]["multiplier"]
 
                 # Đồng bộ Sanity Guards & Điểm phạt rủi ro định lượng như runtime aiReviewer.js (loại bỏ hoàn toàn hard veto)
+                if cat == "oi_change" and val == "OI_SURGE":
+                    if feats.get("ls_flow") == "LS_DIVERGENCE" or feats.get("trend") == "TREND_CONFLICT":
+                        mult = min(1.00, mult)
+                if cat == "risk_interaction" and val == "INTERACTION_STALE_BOUNCE_RUNAWAY":
+                    mult = min(mult, 0.45)
                 if cat == "risk_interaction" and val == "INTERACTION_TREND_FLOW_CONFLICT":
                     mult = min(mult, 0.70)
                 if cat == "trend" and val == "TREND_CONFLICT":
