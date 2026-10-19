@@ -491,6 +491,9 @@ function extractSignalFeatures(reasons, score, rank, gridWidthPct, rawMarketData
       } else {
         features['candle_shape'] = 'CANDLE_NORMAL';
       }
+      if (upperWick / totalRange >= 0.50) {
+        features['wick_rejection'] = 'OPPOSING_WICK_TRAP';
+      }
     } else {
       if (upperWick / totalRange >= 0.40 && !isSpike) {
         features['candle_shape'] = 'CANDLE_PINBAR_SHOOTING';
@@ -499,7 +502,14 @@ function extractSignalFeatures(reasons, score, rank, gridWidthPct, rawMarketData
       } else {
         features['candle_shape'] = 'CANDLE_NORMAL';
       }
+      if (lowerWick / totalRange >= 0.50) {
+        features['wick_rejection'] = 'OPPOSING_WICK_TRAP';
+      }
     }
+  }
+
+  if (sm?.m15WickRejection) {
+    features['wick_rejection'] = sm.m15WickRejection;
   }
 
   // ── [MỚI] 15. BTC Flash Pump / Dump Market Regime ──
@@ -706,6 +716,7 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
     'candle_shape:CANDLE_MARUBOZU_DUMP': 0.45,
     'candle_shape:CANDLE_MARUBOZU_PUMP': 0.45,
     'candle_shape:CANDLE_NORMAL': 1.00,
+    'wick_rejection:OPPOSING_WICK_TRAP': 0.40, // Bẫy rút râu ngược chiều >= 50% -> Phạt -60%
     'pre_entry_bounce:BOUNCE_STALE_EXTREME': 0.45, // Nảy cực xa (>= 3.0% hoặc >= 1.8x mốc khung): Quán tính phá cản mạnh -> Phạt -55%
     'pre_entry_bounce:BOUNCE_STALE_HIGH': 0.90,  // Nảy xa mốc rồi quay đầu: phạt nhẹ thay vì thưởng
     'pre_entry_bounce:BOUNCE_MODERATE': 1.00,
@@ -823,11 +834,6 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
     // Khi cả 2 khung cùng là VOLATILE_DANGER (biến động thường): H1 đã phạt x0.75,
     // m15_volatility cũng được bỏ qua để tránh phạt kép x0.75 * x0.75 = x0.56
     skipForInteraction.set('m15_volatility', 'H1_VOLATILE_DANGER');
-  } else if ((features['h1_volatility'] === 'H1_ULTRA_COMPRESSED' || features['h1_volatility'] === 'H1_MID_COMPRESSED') &&
-             (features['m15_volatility'] === 'M15_VOLUME_SURGE' || features['m15_volatility'] === 'M15_VOLATILE_DANGER')) {
-    // 🛡️ Khi H1 đang siêu nén/nén đẹp, đột biến M15 thường là râu quét thanh khoản cản (Liquidity Sweep) trong khung nén.
-    // Bỏ qua phạt nặng M15 để không bóp chết cơ hội bắt cản nảy chuẩn xác khung H1 của Grid 369.
-    skipForInteraction.set('m15_volatility', 'H1_COMPRESSION_ABSORPTION');
   }
 
   for (const [cat, val] of Object.entries(features)) {
@@ -868,6 +874,11 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
                              val === 'SESSION_US_LATE';
     if (isBaselineNormal && mult < 1.00) {
       mult = 1.00;
+    }
+
+    // 🛡️ SANITY GUARD: Bỏ thưởng nén M15 (M15 chỉ dùng để bắt xung lực/phạt biến động, không cộng thưởng nén)
+    if (cat === 'm15_volatility' && (val === 'M15_ULTRA_COMPRESSED' || val === 'M15_MID_COMPRESSED')) {
+      mult = Math.min(1.00, mult);
     }
 
     // 🛡️ SANITY GUARD: Không thưởng Pinbar M15 nếu đang ngược Trend Dow H1 & EMA

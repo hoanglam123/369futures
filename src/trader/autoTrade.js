@@ -630,6 +630,89 @@ function _markFired(sig) {
   _fired.set(_signalKey(sig), Date.now());
 }
 
+/**
+ * Pre-Limit Tactical Gatekeeper:
+ * Kiểm tra các rủi ro chiến thuật tức thì trước khi thực sự bắn lệnh LIMIT lên sàn Binance.
+ * Ngăn chặn tuyệt đối việc "hứng dao rơi" (M15 Marubozu xả thẳng hoặc Taker Sell > 75%).
+ * Nếu nguy hiểm: tạm hoãn đặt Limit và đưa vào Watchlist chờ nến H1 đóng rút chân/râu xác nhận.
+ */
+function checkPreLimitTacticalGatekeeper({ sym, signal, targetLevel, markPrice, currM15, microstructure }) {
+  const isLong = signal === 'LONG';
+
+  // 1. Kiểm tra nến M15 tức thì (Marubozu Dump / Flush into Entry)
+  if (currM15 && currM15.open && currM15.close && currM15.high && currM15.low) {
+    const range = currM15.high - currM15.low;
+    const body = Math.abs(currM15.close - currM15.open);
+    const bodyPct = (body / (currM15.low || 1)) * 100;
+
+    if (range > 0 && bodyPct >= 0.70) {
+      if (isLong && currM15.close < currM15.open) {
+        // Nến đỏ xả mạnh vào Entry
+        const lowerWick = currM15.close - currM15.low;
+        const lowerWickRatio = lowerWick / range;
+        const bodyRatio = body / range;
+        // Nếu thân nến chiếm >= 65% range và râu dưới < 15% (dao đang lao dốc chưa có lực cản)
+        if (bodyRatio >= 0.65 && lowerWickRatio < 0.15) {
+          return {
+            passed: false,
+            reason: `M15 Marubozu xả dốc (-${bodyPct.toFixed(2)}%, râu dưới chỉ ${(lowerWickRatio * 100).toFixed(1)}% < 15%) — Hứng dao rơi nguy hiểm`
+          };
+        }
+      } else if (!isLong && currM15.close > currM15.open) {
+        // Nến xanh bơm mạnh vào Entry
+        const upperWick = currM15.high - currM15.close;
+        const upperWickRatio = upperWick / range;
+        const bodyRatio = body / range;
+        // Nếu thân nến chiếm >= 65% range và râu trên < 15% (tên lửa đang phi lên)
+        if (bodyRatio >= 0.65 && upperWickRatio < 0.15) {
+          return {
+            passed: false,
+            reason: `M15 Marubozu bơm dốc (+${bodyPct.toFixed(2)}%, râu trên chỉ ${(upperWickRatio * 100).toFixed(1)}% < 15%) — Cản tàu nguy hiểm`
+          };
+        }
+      }
+    }
+  }
+
+  // 2. Kiểm tra Microstructure Order Flow (Taker Volume Flush & Tường đè)
+  if (microstructure) {
+    const takerBuyRatio = microstructure.takerBuyRatio ?? 0.5;
+    const wallCategory = microstructure.wall;
+
+    if (isLong) {
+      // Áp lực bán Taker Sell >= 75% (takerBuyRatio <= 0.25)
+      if (takerBuyRatio <= 0.25) {
+        return {
+          passed: false,
+          reason: `Áp lực xả chủ động Taker Sell cực lớn (${((1 - takerBuyRatio) * 100).toFixed(1)}% >= 75%) — Dòng tiền đang bán tháo`
+        };
+      }
+      if (wallCategory === 'WALL_CRUSHING_ENTRY') {
+        return {
+          passed: false,
+          reason: `Tường bán khổng lồ đè sát trên đầu Entry (Orderbook Wall Crushing)`
+        };
+      }
+    } else {
+      // Áp lực mua Taker Buy >= 75%
+      if (takerBuyRatio >= 0.75) {
+        return {
+          passed: false,
+          reason: `Áp lực mua chủ động Taker Buy cực lớn (${(takerBuyRatio * 100).toFixed(1)}% >= 75%) — Dòng tiền đang FOMO đẩy giá`
+        };
+      }
+      if (wallCategory === 'WALL_CRUSHING_ENTRY') {
+        return {
+          passed: false,
+          reason: `Tường mua khổng lồ kê sát dưới chân Entry (Orderbook Wall Crushing)`
+        };
+      }
+    }
+  }
+
+  return { passed: true, reason: 'Tactical conditions safe' };
+}
+
 // Using unified getDecimals from pp369 module
 
 // ─── Main ─────────────────────────────────────────────────────────────────────
@@ -1740,6 +1823,65 @@ async function startAutoTrade(coins) {
       recordAIEvaluation(sig, aiEval);
       log.system(`[AI Reviewer] 🟢 Khuyên NÊN ĐẶT LỆNH ${sym} (${sig.signal}) - ${aiEval.reason}`);
 
+      // ── BƯỚC KIỂM SOÁT CHIẾN THUẬT: PRE-LIMIT TACTICAL GATEKEEPER ──
+      // Chỉ áp dụng với lệnh LIMIT (tránh hứng dao rơi khi nến M15 xả Marubozu hoặc Taker Sell > 75%)
+      if (orderType !== 'MARKET') {
+        const gatekeeperCheck = checkPreLimitTacticalGatekeeper({
+          sym,
+          signal: sig.signal,
+          targetLevel: sig.targetLevel,
+          markPrice,
+          currM15: rawMarketData?.currM15,
+          microstructure: rawMarketData?.microstructure
+        });
+
+        if (!gatekeeperCheck.passed) {
+          log.system(`[AutoTrade] ⚠️ [PreLimitGatekeeper] Tạm hoãn đặt Limit cho ${sym} (${sig.signal}): ${gatekeeperCheck.reason}. Chuyển vào Watchlist chờ nến H1 đóng rút chân/râu.`);
+
+          // Đăng ký Shadow Trade để theo dõi
+          registerShadowTrade(sig, aiEval, {
+            markPrice,
+            marketCapRank: rank,
+            gridWidthPct: sig.gridWidthPct || gridStepPct,
+            leverage: prelimSetup.leverage,
+            margin: prelimSetup.margin,
+            tierSlPrice: prelimSetup.slPrice,
+            tierTpPrice: prelimSetup.tpPrice,
+            beTriggerPrice: prelimSetup.beTriggerPrice,
+            slPct: prelimSetup.slPct,
+            marketMetrics,
+            signalMetrics: sig.signalMetrics || null,
+            microstructure: rawMarketData?.microstructure || null,
+            isEconomicBlackout: rawMarketData?.isEconomicBlackout
+          });
+
+          // Đưa vào lowScoreWatchlist chờ Retest H1 nảy rút chân
+          if (!lowScoreWatchlist[sym] || lowScoreWatchlist[sym].targetLevel !== sig.targetLevel) {
+            const keys = Object.keys(lowScoreWatchlist);
+            if (keys.length >= 40) {
+              delete lowScoreWatchlist[keys[0]];
+            }
+            lowScoreWatchlist[sym] = {
+              symbol: sym,
+              signal: sig.signal,
+              targetLevel: sig.targetLevel,
+              score: sig.score ?? 0,
+              scoreReasons: sig.scoreReasons || [],
+              volScore: scoreRes?.volScore || 0,
+              otherScore: scoreRes?.otherScore || 0,
+              step: sig.step || getStep(markPrice),
+              gridWidthPct: sig.gridWidthPct || gridStepPct,
+              marketCapRank: rank,
+              margin: tradeAmount,
+              signalMetrics: sig.signalMetrics || null,
+              timestamp: Date.now()
+            };
+          }
+
+          return;
+        }
+      }
+
       // ── LOGIC MỚI: TÍNH TOÁN STOPLOSS THEO TIER, TP ĐỘNG (1:1.5 -> 1:2.0), VÀ ĐÒN BẨY / MARGIN ĐỘNG (100% TỪ AI) ──
       const riskProfile = getDynamicRiskProfile(rank, aiEval.winProbability, null, baseTargetLossUSD);
       const targetLossUSD = riskProfile.targetLossUSD;
@@ -2702,6 +2844,20 @@ async function checkH1RetestSignals(client, activeSymbols, leverageInfo = {}) {
         continue;
       }
 
+      // ── BƯỚC KIỂM SOÁT CHIẾN THUẬT: PRE-LIMIT GATEKEEPER CHO H1 RETEST ──
+      const gatekeeperRetest = checkPreLimitTacticalGatekeeper({
+        sym,
+        signal,
+        targetLevel,
+        markPrice: h1Close || targetLevel,
+        currM15: rawMarketDataRetest?.currM15,
+        microstructure: rawMarketDataRetest?.microstructure
+      });
+      if (!gatekeeperRetest.passed) {
+        log.system(`[H1Retest] ⚠️ [PreLimitGatekeeper] Tạm hoãn đặt Limit Retest cho ${sym} (${signal}): ${gatekeeperRetest.reason}. Giữ lại Watchlist.`);
+        continue;
+      }
+
       try {
         try { await client.setLeverage(sym, effectiveLeverageRetest); } catch (_) { }
 
@@ -3161,11 +3317,6 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
       const trailSlRoi = parseFloat(((Math.abs(trailedSlPriceExact - entryPrice) / entryPrice) * leverageVal * 100).toFixed(2));
       const posNotional = absAmt * entryPrice;
       const unrealizedPnlUsd = (roi / 100) * (meta?.margin || (posNotional / leverageVal));
-
-      // 🚀 AI Directional Early Recovery: Nếu lệnh thật đang chạy đạt ROI >= +10%, tự động mở khóa chiều sớm!
-      if (roi >= 10.0) {
-        tryEarlyDirectionalRecovery(isLong ? 'LONG' : 'SHORT', sym, roi, 'REAL_PROFIT');
-      }
 
         // ----------------------------------------------------
         // 0a. CƠ CHẾ THOÁT HIỂM 2 GIAI ĐOẠN (HYBRID DEFENSIVE ESCAPE)
@@ -4020,5 +4171,6 @@ async function notifyRealClose(client, sym, prevPos, meta) {
 module.exports = {
   startAutoTrade,
   calculateTierSLTP,
-  getDynamicRiskProfile
+  getDynamicRiskProfile,
+  checkPreLimitTacticalGatekeeper
 };

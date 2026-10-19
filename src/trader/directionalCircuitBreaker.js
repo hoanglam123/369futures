@@ -13,17 +13,20 @@ const FLASH_WINDOW_MS = 15 * 60 * 1000;    // 15 phút (Mật độ thua dồn d
 const FLASH_LOSSES_TRIGGER = 2;            // 2 lệnh thua dồn dập trong 15 phút -> Kích hoạt khóa
 const DEFAULT_LOCK_HOURS = 1.5;            // Thời gian khóa 90 phút
 const SHADOW_EVAL_COUNT = 5; // Số lệnh shadow cần theo dõi sau khi khóa để đánh giá độ ổn định
+const MIN_LOCK_BEFORE_EARLY_UNLOCK_MS = process.env.DIRECTIONAL_MIN_LOCK_MS ? parseInt(process.env.DIRECTIONAL_MIN_LOCK_MS, 10) : (30 * 60 * 1000); // Khóa tối thiểu 30p trước khi xét mở sớm
 
 let _state = {
   LONG: {
     losses: [],      // Array of { symbol, exitTime, pnlUsd, pnlPercent, exitType }
     lockedUntil: 0,
+    lockedAt: 0,
     lockReason: '',
     shadowTrades: [] // Array of { symbol, outcome, isWinOrBE, pnlUsd, roi, exitTime }
   },
   SHORT: {
     losses: [],
     lockedUntil: 0,
+    lockedAt: 0,
     lockReason: '',
     shadowTrades: []
   }
@@ -57,11 +60,11 @@ loadState();
 
 /**
  * Ghi nhận kết quả của một lệnh Shadow đã hoàn tất trong thời gian bị khóa để đánh giá mở khóa sớm
- * Quy tắc: Theo dõi 5 lệnh Shadow sau khi khóa, nếu tổng PnL 5 lệnh đã ổn định thì mở khóa sớm
+ * Quy tắc: Theo dõi 5 coin Shadow KHÁC NHAU CÙNG CHIỀU sau khi khóa, nếu tổng PnL 5 coin đã ổn định thì mở khóa sớm
  * @param {object} param0
  * @param {string} param0.symbol Mã coin
  * @param {'LONG'|'SHORT'|'BUY'|'SELL'} param0.signal Chiều lệnh
- * @param {string} param0.outcome 'MISSED_TP' | 'SAVED_BE' | 'SAVED_SL' | 'TIMEOUT_PROFIT' | 'TIMEOUT_LOSS' | 'REAL_TP'
+ * @param {string} param0.outcome 'MISSED_TP' | 'SAVED_BE' | 'SAVED_SL' | 'TIMEOUT_PROFIT' | 'TIMEOUT_LOSS'
  * @param {number} [param0.pnlUsd=0] Lãi/lỗ USD
  * @param {number} [param0.roi=0] ROI %
  * @returns {boolean} true nếu vừa giải phóng khóa thành công
@@ -74,6 +77,10 @@ function recordDirectionalShadowOutcome({ symbol, signal, outcome, pnlUsd = 0, r
   // Chỉ đánh giá khi chiều này ĐANG BỊ KHÓA
   if (!dirData || !dirData.lockedUntil || now >= dirData.lockedUntil) return false;
 
+  // 🛡️ BẢO VỆ DIRECTIONAL CB: Tuyệt đối KHÔNG tính các lệnh thật trên sàn (REAL_PROFIT / REAL_TP)
+  // Chỉ theo dõi các lệnh SHADOW thực sự đã hoàn tất từ shadowTracker
+  if (outcome === 'REAL_PROFIT' || outcome === 'REAL_TP') return false;
+
   // Bỏ qua các lệnh hủy Limit chưa khớp
   if (outcome === 'BOUNCE_CANCEL' || outcome === 'LIMIT_TIMEOUT') return false;
 
@@ -81,21 +88,29 @@ function recordDirectionalShadowOutcome({ symbol, signal, outcome, pnlUsd = 0, r
     dirData.shadowTrades = [];
   }
 
-  const cleanSym = (symbol || '').replace('USDT', '');
+  const cleanSym = (symbol || '').replace('USDT', '').toUpperCase();
   const numPnl = typeof pnlUsd === 'number' ? pnlUsd : 0;
   const numRoi = typeof roi === 'number' ? roi : 0;
-  const isWinOrBE = outcome === 'MISSED_TP' || outcome === 'SAVED_BE' || outcome === 'REAL_TP' || outcome === 'TIMEOUT_PROFIT' || numRoi >= 0 || numPnl >= 0;
+  const isWinOrBE = outcome === 'MISSED_TP' || outcome === 'SAVED_BE' || outcome === 'TIMEOUT_PROFIT' || numRoi >= 0 || numPnl >= 0;
 
-  dirData.shadowTrades.push({
+  const newTrade = {
     symbol: cleanSym,
     outcome,
     isWinOrBE,
     pnlUsd: Math.round(numPnl * 100) / 100,
     roi: Math.round(numRoi * 100) / 100,
     exitTime: now
-  });
+  };
 
-  // Chỉ giữ tối đa SHADOW_EVAL_COUNT (5 lệnh) gần nhất
+  // 🛡️ CHỐNG TRÙNG LẶP SYMBOL: Mỗi coin chỉ được tính 1 lần trong danh sách đánh giá
+  const existingIndex = dirData.shadowTrades.findIndex(t => t.symbol === cleanSym);
+  if (existingIndex >= 0) {
+    dirData.shadowTrades[existingIndex] = newTrade;
+  } else {
+    dirData.shadowTrades.push(newTrade);
+  }
+
+  // Chỉ giữ tối đa SHADOW_EVAL_COUNT (5 coin khác nhau)
   if (dirData.shadowTrades.length > SHADOW_EVAL_COUNT) {
     dirData.shadowTrades.shift();
   }
@@ -106,19 +121,28 @@ function recordDirectionalShadowOutcome({ symbol, signal, outcome, pnlUsd = 0, r
   const totalShadowPnl = dirData.shadowTrades.reduce((sum, t) => sum + t.pnlUsd, 0);
   const goodCount = dirData.shadowTrades.filter(t => t.isWinOrBE).length;
 
-  log.system(`[DirectionalCB] 👁️ Ghi nhận kết quả Shadow chiều ${normSide}: ${cleanSym} -> ${outcome} (PnL: $${numPnl >= 0 ? '+' : ''}${numPnl.toFixed(2)} USD). Tiến độ đánh giá mở khóa: ${count}/${SHADOW_EVAL_COUNT} lệnh (Tổng PnL: $${totalShadowPnl >= 0 ? '+' : ''}${totalShadowPnl.toFixed(2)} USD, ${goodCount}/${count} Win/BE).`);
+  log.system(`[DirectionalCB] 👁️ Ghi nhận kết quả Shadow chiều ${normSide}: ${cleanSym} -> ${outcome} (PnL: $${numPnl >= 0 ? '+' : ''}${numPnl.toFixed(2)} USD). Tiến độ đánh giá mở khóa (${normSide}): ${count}/${SHADOW_EVAL_COUNT} coin khác nhau (Tổng PnL: $${totalShadowPnl >= 0 ? '+' : ''}${totalShadowPnl.toFixed(2)} USD, ${goodCount}/${count} Win/BE).`);
 
-  // Kiểm tra điều kiện mở khóa sớm khi đã đủ 5 lệnh shadow
+  // Kiểm tra điều kiện mở khóa sớm khi đã đủ 5 coin khác nhau CÙNG CHIỀU
   if (count >= SHADOW_EVAL_COUNT) {
+    // 🛡️ Khóa cứng tối thiểu: Phải trôi qua ít nhất MIN_LOCK_BEFORE_EARLY_UNLOCK_MS kể từ khi khóa
+    const elapsedLockMs = now - (dirData.lockedAt || 0);
+    if (MIN_LOCK_BEFORE_EARLY_UNLOCK_MS > 0 && elapsedLockMs < MIN_LOCK_BEFORE_EARLY_UNLOCK_MS) {
+      const remainMin = Math.ceil((MIN_LOCK_BEFORE_EARLY_UNLOCK_MS - elapsedLockMs) / 60000);
+      log.system(`[DirectionalCB] ⏳ Đã đủ ${SHADOW_EVAL_COUNT} coin Shadow chiều ${normSide} (${goodCount}/5 Win/BE, PnL: $${totalShadowPnl.toFixed(2)}) nhưng cần chờ thời gian khóa tối thiểu thêm ${remainMin} phút để tránh bẫy hồi giả (Bull/Bear Trap).`);
+      return false;
+    }
+
     // Tiêu chuẩn ổn định:
-    // 1. Tổng PnL của 5 lệnh >= 0 USD (bảo toàn vốn hoặc dương)
-    // HOẶC 2. Có ít nhất 3/5 lệnh Win/BE (>= 60%) và tổng PnL không bị lỗ nặng (>= -0.5 USD)
-    const isStable = totalShadowPnl >= 0 || (goodCount >= 3 && totalShadowPnl >= -0.5);
+    // 1. Tổng PnL của 5 coin shadow cùng chiều phải >= 0 USD
+    // 2. Và ít nhất 3/5 coin có kết quả Win/BE (>= 60%)
+    const isStable = totalShadowPnl >= 0 && goodCount >= 3;
 
     if (isStable) {
       const symList = dirData.shadowTrades.map(t => `${t.symbol}:${t.outcome}($${t.pnlUsd >= 0 ? '+' : ''}${t.pnlUsd.toFixed(2)})`).join(', ');
-      log.system(`[DirectionalCB] 🚀🚀 [AI Market Recovery] 5 lệnh Shadow chiều ${normSide} đã ổn định: [${symList}] (Tổng PnL: $${totalShadowPnl >= 0 ? '+' : ''}${totalShadowPnl.toFixed(2)} USD, ${goodCount}/5 Win/BE) -> Sóng ngược đã hạ nhiệt, AI TỰ ĐỘNG MỞ KHÓA CHIỀU ${normSide} SỚM!`);
+      log.system(`[DirectionalCB] 🚀🚀 [AI Market Recovery] 5 coin Shadow chiều ${normSide} đã ổn định: [${symList}] (Tổng PnL: $${totalShadowPnl >= 0 ? '+' : ''}${totalShadowPnl.toFixed(2)} USD, ${goodCount}/5 Win/BE) -> Sóng ngược đã hạ nhiệt, AI TỰ ĐỘNG MỞ KHÓA CHIỀU ${normSide} SỚM!`);
       dirData.lockedUntil = 0;
+      dirData.lockedAt = 0;
       dirData.lockReason = '';
       dirData.losses = [];
       dirData.shadowTrades = [];
@@ -133,29 +157,9 @@ function recordDirectionalShadowOutcome({ symbol, signal, outcome, pnlUsd = 0, r
 
 /**
  * Thử giải phóng khóa sớm cho một chiều nếu có bằng chứng thị trường hồi phục / phe đó có lãi ổn định
- * @param {'LONG'|'SHORT'|'BUY'|'SELL'} side 
- * @param {string} symbol 
- * @param {number} roi 
- * @param {string} [source='SHADOW_PROFIT'] 'REAL_TP' | 'REAL_PROFIT' | 'SHADOW_TP' | 'SHADOW_PROFIT'
- * @returns {boolean} true nếu vừa giải phóng khóa thành công
+ * (Đã vô hiệu hóa việc mở khóa bằng lệnh thật trên sàn để đảm bảo an toàn tuyệt đối)
  */
 function tryEarlyDirectionalRecovery(side, symbol, roi = 0, source = 'SHADOW_PROFIT') {
-  const normSide = (side === 'LONG' || side === 'BUY') ? 'LONG' : 'SHORT';
-  const now = Date.now();
-  const dirData = _state[normSide];
-
-  if (dirData && dirData.lockedUntil && now < dirData.lockedUntil) {
-    if (source === 'REAL_TP' || source === 'REAL_PROFIT') {
-      const pnlUsd = (Number(roi) / 100) * 3.0;
-      return recordDirectionalShadowOutcome({
-        symbol,
-        signal: normSide,
-        outcome: source,
-        pnlUsd,
-        roi: Number(roi)
-      });
-    }
-  }
   return false;
 }
 
@@ -225,6 +229,7 @@ function recordDirectionalTradeExit({ symbol, side, isWin, exitType, pnlUsd = 0,
 
     if (shouldLock) {
       const lockUntil = now + lockHours * 3600 * 1000;
+      _state[normSide].lockedAt = now;
       _state[normSide].lockedUntil = Math.max(_state[normSide].lockedUntil || 0, lockUntil);
       _state[normSide].lockReason = lockReason;
       _state[normSide].shadowTrades = [];
@@ -237,8 +242,7 @@ function recordDirectionalTradeExit({ symbol, side, isWin, exitType, pnlUsd = 0,
       saveState();
     }
   } else if (isWin || exitType === 'TP') {
-    // Nếu có lệnh ăn TP cùng chiều -> Kiểm tra mở khóa sớm hoặc giảm bớt áp lực chuỗi thua
-    tryEarlyDirectionalRecovery(normSide, symbol, pnlPercent || 15.0, 'REAL_TP');
+    // Nếu có lệnh ăn TP cùng chiều -> Giảm bớt 1 lệnh thua cũ trong cửa sổ trượt (chỉ tính lệnh shadow để mở khóa sớm)
     if (_state[normSide] && _state[normSide].losses && _state[normSide].losses.length > 0) {
       _state[normSide].losses.shift(); // Xóa bớt 1 lệnh thua cũ nhất
       saveState();
@@ -305,6 +309,7 @@ function isDirectionLocked(side) {
     const pnlLogStr = shadowPnl >= 0 ? `+$${shadowPnl.toFixed(2)}` : `-$${Math.abs(shadowPnl).toFixed(2)}`;
     log.system(`[DirectionalCB] 🟢 Hết thời gian ngắt mạch chiều ${normSide} và kiểm tra an toàn đạt chuẩn (${shadowCount} lệnh Shadow, PnL: ${pnlLogStr} USD). Tự động khôi phục giao dịch ${normSide} bình thường!`);
     dirData.lockedUntil = 0;
+    dirData.lockedAt = 0;
     dirData.lockReason = '';
     dirData.losses = [];
     dirData.shadowTrades = [];
@@ -328,6 +333,7 @@ function clearDirectionLock(side) {
   const normSide = (side === 'LONG' || side === 'BUY') ? 'LONG' : 'SHORT';
   if (_state[normSide]) {
     _state[normSide].lockedUntil = 0;
+    _state[normSide].lockedAt = 0;
     _state[normSide].lockReason = '';
     _state[normSide].losses = [];
     _state[normSide].shadowTrades = [];

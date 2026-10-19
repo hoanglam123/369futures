@@ -4,6 +4,9 @@ const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
 
+// Override minimum lock time for fast unit testing
+process.env.DIRECTIONAL_MIN_LOCK_MS = '0';
+
 const STATE_FILE = path.join(process.cwd(), 'data', 'directional_circuit_breaker.json');
 
 // Backup existing state file if any
@@ -15,8 +18,8 @@ if (fs.existsSync(STATE_FILE)) {
 try {
   // Clear state file for test
   fs.writeFileSync(STATE_FILE, JSON.stringify({
-    LONG: { losses: [], lockedUntil: 0, lockReason: '', shadowTrades: [] },
-    SHORT: { losses: [], lockedUntil: 0, lockReason: '', shadowTrades: [] }
+    LONG: { losses: [], lockedUntil: 0, lockedAt: 0, lockReason: '', shadowTrades: [] },
+    SHORT: { losses: [], lockedUntil: 0, lockedAt: 0, lockReason: '', shadowTrades: [] }
   }), 'utf8');
 
   // Load module fresh
@@ -40,27 +43,38 @@ try {
   assert.strictEqual(status1.isLocked, true, 'Chiều LONG phải bị khóa sau 3 lệnh thua liên tiếp');
   console.log('✅ PASS: Khóa chiều LONG thành công sau 3 lệnh SL');
 
-  // Test 2: Shadow trades 1 to 4 should NOT unlock yet (needs 5 trades)
-  recordDirectionalShadowOutcome({ symbol: 'SHAD1', signal: 'LONG', outcome: 'MISSED_TP', pnlUsd: 0.60, roi: 20 });
-  assert.strictEqual(isDirectionLocked('LONG').isLocked, true, 'Chưa đủ 5 lệnh không được mở');
+  // Test 2: Reject REAL trades (REAL_PROFIT / REAL_TP)
+  const rejectedReal = recordDirectionalShadowOutcome({ symbol: 'BEAMX', signal: 'LONG', outcome: 'REAL_PROFIT', pnlUsd: 1.20, roi: 30 });
+  assert.strictEqual(rejectedReal, false, 'Lệnh thật trên sàn (REAL_PROFIT) phải bị từ chối');
+  console.log('✅ PASS: Lệnh thật trên sàn (REAL_PROFIT) bị từ chối, không tính vào Shadow recovery');
 
+  // Test 3: Anti-duplication (Sending same symbol 5 times must NOT unlock)
+  for (let k = 0; k < 5; k++) {
+    const dupRes = recordDirectionalShadowOutcome({ symbol: 'SAME_COIN', signal: 'LONG', outcome: 'MISSED_TP', pnlUsd: 1.0, roi: 30 });
+    assert.strictEqual(dupRes, false, 'Coin trùng lặp không được tính là 5 coin khác nhau');
+  }
+  assert.strictEqual(isDirectionLocked('LONG').isLocked, true, 'Vẫn phải bị khóa vì mới chỉ có 1 coin duy nhất');
+  console.log('✅ PASS: Chống trùng lặp Symbol hoạt động chuẩn xác (1 coin gửi 5 lần không bị mở khóa)');
+
+  // Test 4: Direction isolation (SHORT shadow while LONG is locked must NOT affect LONG)
+  recordDirectionalShadowOutcome({ symbol: 'SHORT_COIN', signal: 'SHORT', outcome: 'MISSED_TP', pnlUsd: 1.0, roi: 30 });
+  assert.strictEqual(isDirectionLocked('LONG').isLocked, true, 'Lệnh Shadow chiều SHORT không được tính vào chiều LONG');
+  console.log('✅ PASS: Tách biệt chiều chuẩn xác (Lệnh SHORT không ảnh hưởng đến khóa chiều LONG)');
+
+  // Test 5: Shadow trades 2 to 4 of different coins
   recordDirectionalShadowOutcome({ symbol: 'SHAD2', signal: 'LONG', outcome: 'SAVED_BE', pnlUsd: 0.0, roi: 0 });
-  assert.strictEqual(isDirectionLocked('LONG').isLocked, true, 'Chưa đủ 5 lệnh không được mở');
-
   recordDirectionalShadowOutcome({ symbol: 'SHAD3', signal: 'LONG', outcome: 'SAVED_SL', pnlUsd: -0.60, roi: -20 });
-  assert.strictEqual(isDirectionLocked('LONG').isLocked, true, 'Chưa đủ 5 lệnh không được mở (dù có lệnh SL, không reset về 0)');
-
   recordDirectionalShadowOutcome({ symbol: 'SHAD4', signal: 'LONG', outcome: 'MISSED_TP', pnlUsd: 0.70, roi: 23 });
-  assert.strictEqual(isDirectionLocked('LONG').isLocked, true, 'Chưa đủ 5 lệnh không được mở');
-  console.log('✅ PASS: 4 lệnh shadow (bao gồm cả lệnh lỗ) không bị reset về 0 và chưa mở khóa');
+  assert.strictEqual(isDirectionLocked('LONG').isLocked, true, 'Mới có 4 coin khác nhau (SAME_COIN, SHAD2, SHAD3, SHAD4), chưa đủ 5 coin');
+  console.log('✅ PASS: 4 coin shadow khác nhau chưa mở khóa');
 
-  // Test 3: 5th shadow trade makes total PnL = +1.20 USD -> Stable -> UNLOCKS!
+  // Test 6: 5th distinct coin shadow trade makes total PnL positive -> UNLOCKS!
   const unlocked = recordDirectionalShadowOutcome({ symbol: 'SHAD5', signal: 'LONG', outcome: 'MISSED_TP', pnlUsd: 0.50, roi: 17 });
-  assert.strictEqual(unlocked, true, '5 lệnh có tổng PnL dương (+1.20 USD) phải mở khóa');
+  assert.strictEqual(unlocked, true, '5 coin khác nhau có tổng PnL dương (+1.60 USD) phải mở khóa');
   assert.strictEqual(isDirectionLocked('LONG').isLocked, false, 'Chiều LONG phải được giải phóng khóa thành công');
-  console.log('✅ PASS: Đủ 5 lệnh shadow với PnL dương ổn định -> Tự động mở khóa sớm thành công!');
+  console.log('✅ PASS: Đủ 5 coin shadow khác nhau cùng chiều với PnL dương ổn định -> Tự động mở khóa sớm thành công!');
 
-  // Test 4: Negative scenario on SHORT
+  // Test 7: Negative scenario on SHORT
   recordDirectionalTradeExit({ symbol: 'COIN4', side: 'SHORT', isWin: false, exitType: 'SL', pnlUsd: -1.5, pnlPercent: -20 });
   recordDirectionalTradeExit({ symbol: 'COIN5', side: 'SHORT', isWin: false, exitType: 'SL', pnlUsd: -1.5, pnlPercent: -20 });
   recordDirectionalTradeExit({ symbol: 'COIN6', side: 'SHORT', isWin: false, exitType: 'SL', pnlUsd: -1.5, pnlPercent: -20 });
@@ -75,20 +89,18 @@ try {
 
   assert.strictEqual(stillLocked, false, 'Tổng PnL âm nặng không được mở khóa');
   assert.strictEqual(isDirectionLocked('SHORT').isLocked, true, 'SHORT vẫn phải tiếp tục bị khóa');
-  console.log('✅ PASS: 5 lệnh shadow tiếp tục thua lỗ -> Khóa vẫn được duy trì bảo vệ tài khoản');
+  console.log('✅ PASS: 5 coin shadow tiếp tục thua lỗ -> Khóa vẫn được duy trì bảo vệ tài khoản');
 
-  // Test 5: Ignored outcomes like BOUNCE_CANCEL or LIMIT_TIMEOUT
+  // Test 8: Ignored outcomes like BOUNCE_CANCEL or LIMIT_TIMEOUT
   const ignored = recordDirectionalShadowOutcome({ symbol: 'S6', signal: 'SHORT', outcome: 'BOUNCE_CANCEL' });
   assert.strictEqual(ignored, false, 'Lệnh hủy limit không được tính vào đánh giá');
   console.log('✅ PASS: BOUNCE_CANCEL được bỏ qua chuẩn xác');
 
-  // Test 6: Smart Dynamic Extension when 1.5h expires but shadow trades are negative
-  // Manually fast-forward lockedUntil to simulate 1.5h has expired
+  // Test 9: Smart Dynamic Extension when 1.5h expires but shadow trades are negative
   const stateRaw = JSON.parse(fs.readFileSync(STATE_FILE, 'utf8'));
   stateRaw.SHORT.lockedUntil = Date.now() - 1000; // Expired!
   fs.writeFileSync(STATE_FILE, JSON.stringify(stateRaw), 'utf8');
 
-  // Reload cache to sync with simulated file
   delete require.cache[require.resolve('../src/trader/directionalCircuitBreaker')];
   const { isDirectionLocked: isLockedAfterExpiry, clearDirectionLock: clearLock2 } = require('../src/trader/directionalCircuitBreaker');
 
@@ -97,17 +109,15 @@ try {
   assert.ok(expiryStatus.remainingMinutes > 30, 'Phải gia hạn thêm ~45 phút');
   console.log('✅ PASS: Hết 1.5h nhưng shadow đang lỗ -> Tự động gia hạn thêm 45 phút thành công!');
 
-  // Test 7: Normal unlock when expired and shadow trades are safe / positive
+  // Test 10: Normal unlock when expired and shadow trades are safe / positive
   clearLock2('SHORT');
   recordDirectionalTradeExit({ symbol: 'COIN8', side: 'SHORT', isWin: false, exitType: 'SL', pnlUsd: -1.5, pnlPercent: -20 });
   recordDirectionalTradeExit({ symbol: 'COIN9', side: 'SHORT', isWin: false, exitType: 'SL', pnlUsd: -1.5, pnlPercent: -20 });
   recordDirectionalTradeExit({ symbol: 'COIN10', side: 'SHORT', isWin: false, exitType: 'SL', pnlUsd: -1.5, pnlPercent: -20 });
 
-  // Add 1 positive shadow trade (+0.80 USD)
   const { recordDirectionalShadowOutcome: recShad } = require('../src/trader/directionalCircuitBreaker');
   recShad({ symbol: 'OK1', signal: 'SHORT', outcome: 'MISSED_TP', pnlUsd: 0.80, roi: 25 });
 
-  // Fast forward to expiry
   const stateRaw2 = JSON.parse(fs.readFileSync(STATE_FILE, 'utf8'));
   stateRaw2.SHORT.lockedUntil = Date.now() - 1000;
   fs.writeFileSync(STATE_FILE, JSON.stringify(stateRaw2), 'utf8');
