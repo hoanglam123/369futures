@@ -1300,15 +1300,16 @@ def calibrate_adaptive_sl_profile(base_dir):
                 best_floor = floor
         return best_floor
 
-    opt_top150 = optimize_sl_floor(top150_samples, [1.10, 1.20, 1.25, 1.30, 1.40, 1.50], 1.30, 1.20)
-    opt_lowcap = optimize_sl_floor(lowcap_samples, [1.80, 2.00, 2.20, 2.40, 2.60], 2.00, 1.80)
+    all_samples = top150_samples + lowcap_samples
+    opt_unified = optimize_sl_floor(all_samples, [1.10, 1.20, 1.25, 1.30, 1.40, 1.50], 1.30, 1.20)
 
-    total_samples = len(top150_samples) + len(lowcap_samples)
-    print(f"🛡️ [Adaptive SL Profile] Đã hiệu chuẩn: Top150 Min SL = {opt_top150:.2f}%, Lowcap Min SL = {opt_top150:.2f}% (Dựa trên {total_samples} mẫu)")
+    total_samples = len(all_samples)
+    print(f"🛡️ [Adaptive SL Profile] Đã hiệu chuẩn thống nhất (Mọi coin bình đẳng): Optimal Min SL = {opt_unified:.2f}% (Dựa trên {total_samples} mẫu)")
 
     return {
-        "top150MinSlPct": round(opt_top150, 2),
-        "lowcapMinSlPct": round(opt_lowcap, 2),
+        "optimalMinSlPct": round(opt_unified, 2),
+        "top150MinSlPct": round(opt_unified, 2),
+        "lowcapMinSlPct": round(opt_unified, 2),
         "autoCalibrated": True,
         "calculatedAt": time.strftime("%Y-%m-%d %H:%M:%S"),
         "sampleCount": total_samples
@@ -1934,17 +1935,15 @@ def calibrate_optimal_thresholds(base_dir, feature_weights=None, prior_odds=1.3,
 
         return max(default_floor, best_th), best_st
 
-    # Không áp trần cứng nhân tạo: Mở rộng không gian tìm kiếm từ 50.0% đến 75.0% cho AI tự quyết
-    candidates_top = [round(x, 1) for x in range(50, 76, 1)]
-    candidates_low = [round(x, 1) for x in range(50, 76, 1)]
-    best_th_top, top_stats = optimize_segment("Top 150", top150_trades, candidates_top, default_floor=50.0)
-    best_th_low, low_stats = optimize_segment("Lowcap", lowcap_trades, candidates_low, default_floor=50.0)
+    # Không áp trần cứng nhân tạo: Mở rộng không gian tìm kiếm từ 50.0% đến 75.0% cho AI tự quyết thống nhất
+    candidates_all = [round(x, 1) for x in range(50, 76, 1)]
+    best_th_uniform, uniform_stats = optimize_segment("Uniform", recalculated_trades, candidates_all, default_floor=50.0)
 
-    combined_wins = top_stats.get("expectedWins", 0) + low_stats.get("expectedWins", 0)
-    combined_losses = top_stats.get("expectedLosses", 0) + low_stats.get("expectedLosses", 0)
+    combined_wins = uniform_stats.get("expectedWins", 0)
+    combined_losses = uniform_stats.get("expectedLosses", 0)
     combined_total = combined_wins + combined_losses
     combined_wr = round((combined_wins / combined_total * 100.0), 1) if combined_total > 0 else 0.0
-    combined_pnl = round(top_stats.get("expectedNetPnlUsd", 0.0) + low_stats.get("expectedNetPnlUsd", 0.0), 2)
+    combined_pnl = round(uniform_stats.get("expectedNetPnlUsd", 0.0), 2)
 
     best_stats = {
         "testedSamples": len(recalculated_trades),
@@ -1955,14 +1954,14 @@ def calibrate_optimal_thresholds(base_dir, feature_weights=None, prior_odds=1.3,
         "expectedNetPnlUsd": combined_pnl
     }
 
-    print(f"\n🧠 [AI Auto-Calibration] Đã tự động hiệu chuẩn ngưỡng duyệt tối ưu thực nghiệm (Decoupled Quant Utility):")
-    print(f"   • Top 150 Threshold: {best_th_top}% (Mẫu N={top_stats.get('approvedTrades', 0)} | WR: {top_stats.get('expectedWinRate', 0)}% | PF: {top_stats.get('profitFactor', 0)} | PnL: +${top_stats.get('expectedNetPnlUsd', 0)} USD)")
-    print(f"   • Lowcap Threshold:  {best_th_low}% (Mẫu N={low_stats.get('approvedTrades', 0)} | WR: {low_stats.get('expectedWinRate', 0)}% | PF: {low_stats.get('profitFactor', 0)} | PnL: +${low_stats.get('expectedNetPnlUsd', 0)} USD)")
+    print(f"\n🧠 [AI Auto-Calibration] Đã tự động hiệu chuẩn ngưỡng duyệt tối ưu thực nghiệm thống nhất (Mọi coin bình đẳng):")
+    print(f"   • Ngưỡng AI tự quyết: {best_th_uniform}% (Mẫu N={uniform_stats.get('approvedTrades', 0)} | WR: {uniform_stats.get('expectedWinRate', 0)}% | PF: {uniform_stats.get('profitFactor', 0)} | PnL: +${uniform_stats.get('expectedNetPnlUsd', 0)} USD)")
     print(f"   • Thống kê kỳ vọng tổng: {combined_wins}W / {combined_losses}L (WinRate: {combined_wr}%, Lãi ròng: +${combined_pnl} USD)")
 
     return {
-        "top150": best_th_top,
-        "lowcap": best_th_low,
+        "uniform": best_th_uniform,
+        "top150": best_th_uniform,
+        "lowcap": best_th_uniform,
         "minExpectedEvRoi": 0.0,
         "autoCalibrated": True,
         "calibratedAt": time.strftime("%Y-%m-%d %H:%M:%S"),

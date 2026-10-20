@@ -474,11 +474,11 @@ function getDynamicTargetLossUSD(rank, winProb, score, baseLossUSD = 5.0) {
  */
 function calculateTierSLTP(symbol, side, entryPrice, h4Ref, tickSize, maxExchangeLeverage, targetLossUSD = 5.0, tpRatio = 1.5, rank = null, gridWidthPct = null) {
   const coinRank = (typeof rank === 'number' && !isNaN(rank)) ? rank : (getMarketCapRank ? getMarketCapRank(symbol) : 999);
-  const isLowcap = coinRank > 150;
   const slCfg = (typeof getAIModelConfig === 'function' ? getAIModelConfig() : null)?.adaptiveSlProfile;
-  const lowcapMin = typeof slCfg?.lowcapMinSlPct === 'number' ? slCfg.lowcapMinSlPct : 1.8;
-  const top150Min = typeof slCfg?.top150MinSlPct === 'number' ? slCfg.top150MinSlPct : 1.0;
-  const minSlPct = isLowcap ? lowcapMin : top150Min;
+  // 🧠 Khoảng cách cắt lỗ tối thiểu hoàn toàn do AI quyết định (tự động tối ưu hóa từ dữ liệu thị trường):
+  const minSlPct = typeof slCfg?.optimalMinSlPct === 'number'
+    ? slCfg.optimalMinSlPct
+    : (typeof slCfg?.top150MinSlPct === 'number' ? slCfg.top150MinSlPct : 1.3);
 
   const step = h4Ref?.step || getStep(entryPrice);
   const decimals = h4Ref?.decimals || getDecimals(entryPrice);
@@ -1303,29 +1303,11 @@ async function startAutoTrade(coins) {
       // ── Tiêu chí 2 (Biến động & Nén ATR H1/M15): Chuyển giao toàn quyền thẩm định cho Lõi AI Reviewer ──
       // (Đã gỡ bỏ khối chặn cứng hasCriterion2 cũ để AI tự đánh giá tỷ lệ thắng qua Bayesian Odds)
 
-      // Phân bổ ký quỹ (Margin) theo Xếp Hạng Vốn Hóa (MarketCap Rank):
-      // - Top 10 (BTC, ETH, SOL...): $50 USDT
-      // - Top 11 - 50: $40 USDT
-      // - Top 51 - 150: $35 USDT
-      // - Ngoài Top 150: $30 USDT chuẩn
-      const baseEnvMargin = parseFloat(process.env.TRADE_AMOUNT) || 30;
+      // Quản lý vốn đồng nhất (Uniform Position Sizing) - Coi mọi coin bình đẳng như nhau:
+      const baseEnvMargin = parseFloat(process.env.TRADE_AMOUNT) || 10;
       const rank = getMarketCapRank ? getMarketCapRank(sym) : 999;
-      let tradeAmount = baseEnvMargin;
-      let rankTierLabel = 'Ngoài Top 150';
-
-      if (sym === 'BTC' || sym === 'ETH' || rank <= 10) {
-        tradeAmount = Math.max(baseEnvMargin, 50);
-        rankTierLabel = `Top 10 (Rank #${rank})`;
-      } else if (rank <= 50) {
-        tradeAmount = Math.max(baseEnvMargin, 40);
-        rankTierLabel = `Top 50 (Rank #${rank})`;
-      } else if (rank <= 150) {
-        tradeAmount = Math.max(baseEnvMargin, 35);
-        rankTierLabel = `Top 150 (Rank #${rank})`;
-      } else {
-        tradeAmount = baseEnvMargin;
-        rankTierLabel = `Lowcap (Rank #${rank})`;
-      }
+      const tradeAmount = baseEnvMargin;
+      const rankTierLabel = `Đồng nhất (Rank #${rank})`;
 
       const gridStepPct = (sig.step / sig.targetLevel) * 100;
       sig.marketCapRank = rank;

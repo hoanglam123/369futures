@@ -592,15 +592,15 @@ function extractSignalFeatures(reasons, score, rank, gridWidthPct, rawMarketData
   const isCounterTrain = features['candle_momentum'] === 'MOMENTUM_COUNTER_PUMP_TRAIN' ||
     features['candle_momentum'] === 'MOMENTUM_COUNTER_DUMP_TRAIN';
 
-  // 🛡️ TƯƠNG TÁC ĐA NHÂN TỐ RỦI RO: Nảy cực xa kết hợp Lowcap hoặc Bão BTC / Ngược sóng BTC
+  // 🛡️ TƯƠNG TÁC ĐA NHÂN TỐ RỦI RO: Nảy cực xa kết hợp Bão BTC / Ngược sóng BTC (áp dụng bình đẳng mọi coin)
   const isStaleExtreme = features['pre_entry_bounce'] === 'BOUNCE_STALE_EXTREME';
   const isStaleHigh = features['pre_entry_bounce'] === 'BOUNCE_STALE_HIGH';
-  const isLowcapRank = rank > 150;
   const isBtcCounter = features['btc_wave'] === 'BTC_COUNTER';
   const isBtcVolatileRegime = features['btc_storm'] === 'BTC_STORM_VOLATILE' || 
                               (features['btc_flash'] && features['btc_flash'] !== 'BTC_FLASH_NORMAL');
 
-  if (isStaleExtreme || (isStaleHigh && (isLowcapRank || isBtcVolatileRegime || isTrendConflict || isBtcCounter))) {
+  // Giá đã nảy quá xa cản kết hợp bão hoặc ngược sóng BTC -> Kích hoạt rủi ro thoát vị thế
+  if (isStaleExtreme || (isStaleHigh && (isBtcVolatileRegime || isTrendConflict || isBtcCounter))) {
     features['risk_interaction'] = 'INTERACTION_STALE_BOUNCE_RUNAWAY';
   } else if (isVolDanger && (isTrendConflict || isLsDiv || isCounterTrain)) {
     features['risk_interaction'] = 'INTERACTION_HIGH_VOLATILITY_WEAK_SETUP';
@@ -934,17 +934,9 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
       mult = Math.min(mult, 1.00);
     }
 
-    // 🛡️ SANITY GUARD: Không thưởng Top-Cap nếu BTC đang có bão Flash ngược chiều
-    if (features['btc_flash'] !== 'BTC_FLASH_NORMAL' && cat === 'rank_group') {
-      mult = Math.min(1.00, mult);
-    }
-
-    // 🛡️ SANITY GUARD: Giới hạn điểm thưởng RANK_TOP10 & RANK_MIDCAP_150 (tránh thổi phồng xác suất coin lớn)
-    if (cat === 'rank_group' && val === 'RANK_TOP10') {
-      mult = Math.min(1.20, mult);
-    }
-    if (cat === 'rank_group' && val === 'RANK_MIDCAP_150') {
-      mult = Math.min(1.10, mult);
+    // 🛡️ SANITY GUARD: Trung tính hóa Rank (coi mọi coin bình đẳng như nhau, không cộng thưởng ảo hay phạt)
+    if (cat === 'rank_group') {
+      mult = 1.00;
     }
 
     // 🛡️ SANITY GUARD: Không thưởng OI_SURGE nếu dòng tiền đang phân kỳ (LS_DIVERGENCE) hoặc ngược trend (TREND_CONFLICT)
@@ -1089,17 +1081,15 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
   }
 
   // ── [MỚI] TỰ ĐỘNG NẠP NGƯỠNG TỐI ƯU DO AI TỰ HỌC (AUTONOMOUS THRESHOLD CALIBRATION) ──
-  // Ngưỡng hoàn toàn do AI tự động tối ưu hóa (Grid Search Net PnL) sau mỗi chu kỳ huấn luyện
-  // Sàn an toàn toán học: 50.0% (điểm hòa vốn xác suất, không duyệt lệnh có winProb < 50%)
+  // Ngưỡng hoàn toàn do AI tự động quyết định (tối ưu hóa Net PnL từ dữ liệu thị trường)
+  // Bỏ phân tách thủ công Topcap vs Lowcap: Toàn bộ danh mục tuân theo ngưỡng AI tối ưu
   const optimalTh = _modelConfig?.optimalThresholds || {};
-  const baseTop150 = typeof optimalTh.top150 === 'number' ? Math.max(50.0, optimalTh.top150) : 55.0;
-  const baseLowcap = typeof optimalTh.lowcap === 'number' ? Math.max(50.0, optimalTh.lowcap) : 50.0;
-  let threshold = (rank <= 150) ? baseTop150 : baseLowcap;
+  const aiLearnedThreshold = typeof optimalTh.uniform === 'number'
+    ? optimalTh.uniform
+    : (typeof optimalTh.top150 === 'number' ? optimalTh.top150 : (typeof optimalTh.thresholdApprovalPct === 'number' ? optimalTh.thresholdApprovalPct : 53.0));
+  let threshold = Math.max(50.0, aiLearnedThreshold);
 
-  // 🌊 MARKET REGIME FLEXIBILITY (Co giãn linh hoạt theo nhịp thở thị trường)
-  // Thuận sóng BTC: Tự tin nới nhẹ -0.5% để đón sóng (nhưng không dưới sàn toán học 50.0%)
-  // Ngược sóng BTC hoặc bão Flash: Tự động siết thêm +2.0% để bảo vệ vốn
-  const floorThreshold = (rank <= 150) ? baseTop150 : baseLowcap;
+  // 🌊 MARKET REGIME FLEXIBILITY (Co giãn linh hoạt theo nhịp thở thị trường do AI quyết định)
   if (features['btc_wave'] === 'BTC_ALIGNED') {
     threshold = Math.max(50.0, threshold - 0.5);
   } else if (features['btc_wave'] === 'BTC_COUNTER' || features['btc_flash'] !== 'BTC_FLASH_NORMAL') {
@@ -1112,17 +1102,16 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
   // Với hệ thống Tier Leverage: calcLeverage = 50 / slPct -> Lỗ khi dính SL luôn chuẩn ~50.0% ROI
   const estSlRoi = 50.0;
 
-  // 🎯 TP: Ưu tiên lấy TP thực tế từ prelimSetup nếu có (chính xác 100% theo sàn).
-  // Nếu không có, tính theo optimalTpGridRatio do AI học được từ phân phối MFE thực tế:
-  const isLowcap = rank > 150;
+  // ── [MỚI] KHOẢNG CÁCH CẮT LỖ HOÀN TOÀN DO AI QUYẾT ĐỊNH (ADAPTIVE DYNAMIC SL FLOOR) ──
+  // Bỏ phân biệt Topcap vs Lowcap, sử dụng ngưỡng cắt lỗ tối ưu do AI tự học từ phân phối nến và rung lắc thị trường
   const slCfg = _modelConfig?.adaptiveSlProfile;
-  const defaultLowcapMin = typeof slCfg?.lowcapMinSlPct === 'number' ? slCfg.lowcapMinSlPct : 1.8;
-  const defaultTop150Min = typeof slCfg?.top150MinSlPct === 'number' ? slCfg.top150MinSlPct : 1.0;
-  const defaultSlPct = isLowcap ? defaultLowcapMin : defaultTop150Min;
-  // Lấy khoảng cách SL thực tế từ mốc cản của tín hiệu nếu có, fallback linh hoạt theo Grid:
+  const aiLearnedMinSl = typeof slCfg?.optimalMinSlPct === 'number'
+    ? slCfg.optimalMinSlPct
+    : (typeof slCfg?.top150MinSlPct === 'number' ? slCfg.top150MinSlPct : 1.3);
+  const defaultSlPct = aiLearnedMinSl;
   const effSlPct = (typeof sig.actualSlPct === 'number' && sig.actualSlPct > 0)
     ? sig.actualSlPct
-    : (isLowcap ? Math.min(defaultSlPct, Math.max(1.2, gridWidthPct * 0.5)) : defaultSlPct);
+    : Math.max(defaultSlPct, Math.min(3.0, (typeof gridWidthPct === 'number' && gridWidthPct > 0 ? gridWidthPct : 3.0) * 0.5));
 
   const mfeMaeCfg = _modelConfig?.mfeMaeProfile;
   const learnedTpGridRatio = typeof mfeMaeCfg?.optimalTpGridRatio === 'number'
