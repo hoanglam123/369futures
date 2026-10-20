@@ -592,14 +592,15 @@ function extractSignalFeatures(reasons, score, rank, gridWidthPct, rawMarketData
   const isCounterTrain = features['candle_momentum'] === 'MOMENTUM_COUNTER_PUMP_TRAIN' ||
     features['candle_momentum'] === 'MOMENTUM_COUNTER_DUMP_TRAIN';
 
-  // 🛡️ TƯƠNG TÁC ĐA NHÂN TỐ RỦI RO: Nảy cực xa kết hợp Lowcap hoặc Bão BTC
+  // 🛡️ TƯƠNG TÁC ĐA NHÂN TỐ RỦI RO: Nảy cực xa kết hợp Lowcap hoặc Bão BTC / Ngược sóng BTC
   const isStaleExtreme = features['pre_entry_bounce'] === 'BOUNCE_STALE_EXTREME';
   const isStaleHigh = features['pre_entry_bounce'] === 'BOUNCE_STALE_HIGH';
   const isLowcapRank = rank > 150;
+  const isBtcCounter = features['btc_wave'] === 'BTC_COUNTER';
   const isBtcVolatileRegime = features['btc_storm'] === 'BTC_STORM_VOLATILE' || 
                               (features['btc_flash'] && features['btc_flash'] !== 'BTC_FLASH_NORMAL');
 
-  if (isStaleExtreme || (isStaleHigh && (isLowcapRank || isBtcVolatileRegime || isTrendConflict))) {
+  if (isStaleExtreme || (isStaleHigh && (isLowcapRank || isBtcVolatileRegime || isTrendConflict || isBtcCounter))) {
     features['risk_interaction'] = 'INTERACTION_STALE_BOUNCE_RUNAWAY';
   } else if (isVolDanger && (isTrendConflict || isLsDiv || isCounterTrain)) {
     features['risk_interaction'] = 'INTERACTION_HIGH_VOLATILITY_WEAK_SETUP';
@@ -820,6 +821,26 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
     skipForInteraction.set('candle_shape', punctureInteraction);
   }
 
+  // 🛡️ DE-DUPLICATE PINBAR / CANDLE REJECTION (KHỬ TRÙNG LẶP & NHÂN DỒN THẾ NẾN RÚT CHÂN):
+  // Tránh việc cùng 1 hành vi rút chân bị tính tới 3 lần:
+  // H1_REJECT_PINBAR (x1.40) * M15_REJECT_PINBAR (x1.25) * CANDLE_PINBAR_HAMMER (x1.25) = x2.19!
+  // Gói gọn về 1 tiêu chí uy tín duy nhất theo thứ bậc khung thời gian:
+  // 1. Nếu khung H1 đã xác nhận rút chân (H1_REJECT_PINBAR):
+  //    Chỉ giữ H1_REJECT_PINBAR (khung lớn có độ tin cậy áp đảo),
+  //    tự động bỏ qua M15_REJECT_PINBAR và các biến thể nến đơn M15 (CANDLE_PINBAR_HAMMER / CANDLE_PINBAR_SHOOTING).
+  // 2. Nếu H1 không có rút chân nhưng M15 có (M15_REJECT_PINBAR):
+  //    Chỉ giữ M15_REJECT_PINBAR, tự động bỏ qua CANDLE_PINBAR_HAMMER / CANDLE_PINBAR_SHOOTING vì cả 2 cùng đo nến M15.
+  const isH1Pinbar = features['h1_candle_geometry'] === 'H1_REJECT_PINBAR';
+  const isM15Pinbar = features['m15_candle_geometry'] === 'M15_REJECT_PINBAR';
+  const isShapePinbar = features['candle_shape'] === 'CANDLE_PINBAR_HAMMER' || features['candle_shape'] === 'CANDLE_PINBAR_SHOOTING';
+
+  if (isH1Pinbar) {
+    if (isM15Pinbar) skipForInteraction.set('m15_candle_geometry', 'H1_REJECT_PINBAR');
+    if (isShapePinbar) skipForInteraction.set('candle_shape', 'H1_REJECT_PINBAR');
+  } else if (isM15Pinbar) {
+    if (isShapePinbar) skipForInteraction.set('candle_shape', 'M15_REJECT_PINBAR');
+  }
+
   // 🛡️ DE-DUPLICATE STORM & VOLATILITY OVERLAP (KHỬ PHẠT BÃO CHỒNG CHÉO H1 & M15):
   // Nến bão H1 đương nhiên chứa nến bão M15 bên trong (cùng một đợt bùng nổ biến động giá).
   // Khi H1 đã dính bão cực đại (H1_EXTREME_STORM_PUMP_DUMP), nó đã phản ánh đầy đủ rủi ro biến động lớn.
@@ -881,14 +902,25 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
       mult = Math.min(1.00, mult);
     }
 
-    // 🛡️ SANITY GUARD: Không thưởng Pinbar M15 nếu đang ngược Trend Dow H1 & EMA
-    if (features['trend'] === 'TREND_CONFLICT' && (val === 'CANDLE_PINBAR_HAMMER' || val === 'CANDLE_PINBAR_SHOOTING' || val === 'M15_REJECT_PINBAR')) {
+    // 🛡️ SANITY GUARD: Không thưởng Pinbar nếu đang ngược Trend Dow H1 & EMA
+    if (features['trend'] === 'TREND_CONFLICT' && (val === 'CANDLE_PINBAR_HAMMER' || val === 'CANDLE_PINBAR_SHOOTING' || val === 'M15_REJECT_PINBAR' || val === 'H1_REJECT_PINBAR')) {
       mult = 1.00;
     }
 
-    // 🛡️ SANITY GUARD: Khống chế trần an toàn cho Pinbar M15 (khung ngắn tối đa x1.25, không thổi phồng xác suất)
+    // 🛡️ SANITY GUARD: Khống chế trần an toàn cho Pinbar (H1 tối đa x1.30, M15 tối đa x1.20, nến đơn tối đa x1.15)
+    if (cat === 'h1_candle_geometry' && val === 'H1_REJECT_PINBAR') {
+      mult = Math.min(mult, 1.30);
+    }
     if (cat === 'm15_candle_geometry' && val === 'M15_REJECT_PINBAR') {
-      mult = Math.min(mult, 1.25);
+      mult = Math.min(mult, 1.20);
+    }
+    if (cat === 'candle_shape' && (val === 'CANDLE_PINBAR_HAMMER' || val === 'CANDLE_PINBAR_SHOOTING')) {
+      mult = Math.min(mult, 1.15);
+    }
+
+    // 🛡️ SANITY GUARD: Không để điểm thưởng Pinbar lấn át rủi ro khi Altcoin đang ngược đà BTC (BTC_COUNTER)
+    if (features['btc_wave'] === 'BTC_COUNTER' && (val === 'H1_REJECT_PINBAR' || val === 'M15_REJECT_PINBAR' || val === 'CANDLE_PINBAR_HAMMER' || val === 'CANDLE_PINBAR_SHOOTING')) {
+      mult = Math.min(mult, 1.05); // Khi BTC ngược hướng, nến rút râu Altcoin chỉ tối đa x1.05
     }
 
     // 🛡️ SANITY GUARD: Khống chế trần an toàn cho BOUNCE_STALE_HIGH (giá nảy xa mốc rồi quay lại test, tối đa x1.20 tránh thổi phồng xác suất)

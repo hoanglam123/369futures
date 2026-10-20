@@ -9,9 +9,11 @@ const STATE_FILE = path.join(process.cwd(), 'data', 'directional_circuit_breaker
 // Cấu hình Cửa sổ trượt thời gian (Sliding Window):
 const WINDOW_MS = 2 * 60 * 60 * 1000;      // 2 giờ (120 phút)
 const MAX_LOSSES_TRIGGER = 3;              // 3 lệnh thua trong 2 giờ -> Kích hoạt khóa
-const FLASH_WINDOW_MS = 15 * 60 * 1000;    // 15 phút (Mật độ thua dồn dập)
-const FLASH_LOSSES_TRIGGER = 2;            // 2 lệnh thua dồn dập trong 15 phút -> Kích hoạt khóa
-const DEFAULT_LOCK_HOURS = 1.5;            // Thời gian khóa 90 phút
+const FLASH_WINDOW_MS = 40 * 60 * 1000;    // 40 phút (Mật độ thua dồn dập, bao trọn 2-3 cây nến M15)
+const FLASH_LOSSES_TRIGGER = 2;            // 2 lệnh thua dồn dập trong 40 phút -> Kích hoạt khóa
+const FLASH_LOCK_HOURS = 1.0;              // Thời gian khóa chớp nhoáng (Flash Surge): 60 phút (1 giờ)
+const TREND_LOCK_HOURS = 2.0;              // Thời gian khóa khi gãy xu hướng: 120 phút (2 giờ)
+const DEFAULT_LOCK_HOURS = 1.0;            // Mặc định khóa 60 phút
 const SHADOW_EVAL_COUNT = 5; // Số lệnh shadow cần theo dõi sau khi khóa để đánh giá độ ổn định
 const MIN_LOCK_BEFORE_EARLY_UNLOCK_MS = process.env.DIRECTIONAL_MIN_LOCK_MS ? parseInt(process.env.DIRECTIONAL_MIN_LOCK_MS, 10) : (30 * 60 * 1000); // Khóa tối thiểu 30p trước khi xét mở sớm
 
@@ -207,24 +209,24 @@ function recordDirectionalTradeExit({ symbol, side, isWin, exitType, pnlUsd = 0,
     const recentLosses = _state[normSide].losses;
     const count2h = recentLosses.length;
 
-    // Kiểm tra mất mát chớp nhoáng (Flash losses trong 15p)
-    const count15m = recentLosses.filter(l => (now - l.exitTime) <= FLASH_WINDOW_MS).length;
+    // Kiểm tra mất mát chớp nhoáng (Flash losses trong 40p)
+    const countFlash = recentLosses.filter(l => (now - l.exitTime) <= FLASH_WINDOW_MS).length;
 
-    log.system(`[DirectionalCB] ⚠️ Ghi nhận lệnh ${normSide} dính SL: ${symbol} (${exitType} | PnL: $${Number(pnlUsd).toFixed(2)} USD). Tổng SL chiều ${normSide} trong 2h qua: ${count2h} lệnh (15p qua: ${count15m} lệnh).`);
+    log.system(`[DirectionalCB] ⚠️ Ghi nhận lệnh ${normSide} dính SL: ${symbol} (${exitType} | PnL: $${Number(pnlUsd).toFixed(2)} USD). Tổng SL chiều ${normSide} trong 2h qua: ${count2h} lệnh (40p qua: ${countFlash} lệnh).`);
 
     let shouldLock = false;
     let lockReason = '';
     let lockHours = DEFAULT_LOCK_HOURS;
 
-    if (count15m >= FLASH_LOSSES_TRIGGER) {
+    if (countFlash >= FLASH_LOSSES_TRIGGER) {
       shouldLock = true;
-      lockReason = `Flash Surge (${count15m} lệnh ${normSide} dính SL dồn dập trong 15 phút)`;
-      lockHours = 1.5;
+      lockReason = `Flash Surge (${countFlash} lệnh ${normSide} dính SL dồn dập trong 40 phút)`;
+      lockHours = FLASH_LOCK_HOURS;
     } else if (count2h >= MAX_LOSSES_TRIGGER) {
       shouldLock = true;
       const symList = recentLosses.map(l => l.symbol).join(', ');
       lockReason = `Xu hướng ngược áp đảo (${count2h} lệnh ${normSide} dính SL trong 2h: [${symList}])`;
-      lockHours = 2.0;
+      lockHours = TREND_LOCK_HOURS;
     }
 
     if (shouldLock) {
@@ -365,6 +367,9 @@ module.exports = {
   getDirectionalStatus,
   WINDOW_MS,
   MAX_LOSSES_TRIGGER,
+  FLASH_WINDOW_MS,
   FLASH_LOSSES_TRIGGER,
+  FLASH_LOCK_HOURS,
+  TREND_LOCK_HOURS,
   SHADOW_EVAL_COUNT
 };
