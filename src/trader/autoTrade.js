@@ -161,6 +161,13 @@ function getTickSizeCached(sym) {
   return getSymbolTickSizeSync(sym);
 }
 
+function getEffectiveTickSize(sym, price) {
+  const cached = getTickSizeCached(sym);
+  if (typeof cached === 'number' && cached > 0) return cached;
+  const dec = getDecimals(price);
+  return Math.pow(10, -dec);
+}
+
 function saveActiveTradesMetadata() {
   try {
     fs.writeFileSync(METADATA_PATH, JSON.stringify(activeTradesMetadata, null, 2), 'utf8');
@@ -501,9 +508,12 @@ function calculateTierSLTP(symbol, side, entryPrice, h4Ref, tickSize, maxExchang
     tierLong = grid.find(l => l.type === 'tren' && l.value >= entryPrice * 0.995)?.value || (entryPrice + step * 0.1);
   }
 
-  // Buffer: max(33 ticks, 10% step, 0.3% price)
-  const effTickSize = tickSize || (decimals === 5 ? 0.00001 : (decimals === 4 ? 0.0001 : 0.000001));
-  const buffer = Math.max(33 * effTickSize, step * 0.10, entryPrice * 0.003);
+  // 🎯 Dynamic Tick Size & Buffer (Hỗ trợ hoàn hảo mọi coin từ BTC tới micro/meme coin 7-8 số thập phân)
+  const defaultTickSize = Math.pow(10, -decimals);
+  const effTickSize = (typeof tickSize === 'number' && tickSize > 0) ? tickSize : defaultTickSize;
+  const rawBuffer = Math.max(33 * effTickSize, step * 0.10, entryPrice * 0.003);
+  // 🛡️ SANITY CAP: Đệm chống quét râu tối đa 0.4% giá Entry, tránh thổi phồng SL và bóp nghẹt R:R đối với coin giá nhỏ
+  const buffer = Math.min(rawBuffer, entryPrice * 0.004);
   let rawSL = (side === 'LONG' || side === 'BUY') ? (tierShort - buffer) : (tierLong + buffer);
   let slDist = Math.abs(entryPrice - rawSL);
   let slPct = (slDist / entryPrice) * 100;
@@ -1383,7 +1393,7 @@ async function startAutoTrade(coins) {
         let prelimSetupCd = null;
         try {
           const h4RefCd = await fetchH4Reference(sym);
-          const tickSizeCd = getTickSizeCached(sym) || (getDecimals(sig.targetLevel) === 5 ? 0.00001 : (getDecimals(sig.targetLevel) === 4 ? 0.0001 : 0.000001));
+          const tickSizeCd = getEffectiveTickSize(sym, sig.targetLevel);
           const maxAllowedCd = leverageInfo[sym] ?? leverage;
           const baseTargetLossUSDCd = parseFloat(process.env.MAX_LOSS_PER_TRADE_USD || '5.0');
           prelimSetupCd = calculateTierSLTP(sym, sig.signal, sig.targetLevel, h4RefCd, tickSizeCd, maxAllowedCd, baseTargetLossUSDCd, 1.5, rank, sig.gridWidthPct);
@@ -1415,7 +1425,7 @@ async function startAutoTrade(coins) {
         let prelimSetupDir = null;
         try {
           const h4RefDir = await fetchH4Reference(sym);
-          const tickSizeDir = getTickSizeCached(sym) || (getDecimals(sig.targetLevel) === 5 ? 0.00001 : (getDecimals(sig.targetLevel) === 4 ? 0.0001 : 0.000001));
+          const tickSizeDir = getEffectiveTickSize(sym, sig.targetLevel);
           const maxAllowedDir = leverageInfo[sym] ?? leverage;
           const baseTargetLossUSDDir = parseFloat(process.env.MAX_LOSS_PER_TRADE_USD || '5.0');
           prelimSetupDir = calculateTierSLTP(sym, sig.signal, sig.targetLevel, h4RefDir, tickSizeDir, maxAllowedDir, baseTargetLossUSDDir, 1.5, rank, sig.gridWidthPct);
@@ -1446,7 +1456,7 @@ async function startAutoTrade(coins) {
         let prelimSetupSd = null;
         try {
           const h4RefSd = await fetchH4Reference(sym);
-          const tickSizeSd = getTickSizeCached(sym) || (getDecimals(sig.targetLevel) === 5 ? 0.00001 : (getDecimals(sig.targetLevel) === 4 ? 0.0001 : 0.000001));
+          const tickSizeSd = getEffectiveTickSize(sym, sig.targetLevel);
           const maxAllowedSd = leverageInfo[sym] ?? leverage;
           const baseTargetLossUSDSd = parseFloat(process.env.MAX_LOSS_PER_TRADE_USD || '5.0');
           prelimSetupSd = calculateTierSLTP(sym, sig.signal, sig.targetLevel, h4RefSd, tickSizeSd, maxAllowedSd, baseTargetLossUSDSd, 1.5, rank, sig.gridWidthPct);
@@ -1702,7 +1712,7 @@ async function startAutoTrade(coins) {
 
       // ── Đo trước cấu trúc cản thực tế để nạp khoảng cách SL chuẩn vào AI Reviewer tính EV ──
       const h4Ref = await fetchH4Reference(sym);
-      const tickSize = getTickSizeCached(sym) || (getDecimals(sig.targetLevel) === 5 ? 0.00001 : (getDecimals(sig.targetLevel) === 4 ? 0.0001 : 0.000001));
+      const tickSize = getEffectiveTickSize(sym, sig.targetLevel);
       const maxAllowed = leverageInfo[sym] ?? leverage;
       const baseTargetLossUSD = parseFloat(process.env.MAX_LOSS_PER_TRADE_USD || '5.0');
       const prelimSetup = calculateTierSLTP(sym, sig.signal, sig.targetLevel, h4Ref, tickSize, maxAllowed, baseTargetLossUSD, 1.5, rank, sig.gridWidthPct);
@@ -2730,7 +2740,7 @@ async function checkH1RetestSignals(client, activeSymbols, leverageInfo = {}) {
 
       // ── Đo trước cấu trúc cản thực tế cho Retest H1 để nạp vào AI Reviewer ──
       const h4RefRetest = await fetchH4Reference(sym);
-      const tickSizeRetest = getTickSizeCached(sym) || (getDecimals(targetLevel) === 5 ? 0.00001 : (getDecimals(targetLevel) === 4 ? 0.0001 : 0.000001));
+      const tickSizeRetest = getEffectiveTickSize(sym, targetLevel);
       const maxAllowedRetest = (leverageInfo && leverageInfo[sym]) ?? getLeverageCached(sym) ?? 20;
       const baseLossRetest = parseFloat(process.env.MAX_LOSS_PER_TRADE_USD || '5.0');
       const prelimRetest = calculateTierSLTP(sym, signal, targetLevel, h4RefRetest, tickSizeRetest, maxAllowedRetest, baseLossRetest, 1.5, rank, watchData.gridWidthPct || gridStepPct);
