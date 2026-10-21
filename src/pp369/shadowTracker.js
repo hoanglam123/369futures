@@ -114,12 +114,10 @@ function registerShadowTrade(sig, evalResult, options = {}) {
 
   // Calculate SL / TP distances
   const gridWidthPct = parseFloat(sig.gridWidthPct || options.gridWidthPct || 4.0);
-  const coinRank = parseInt(sig.marketCapRank || options.marketCapRank || 999, 10);
-  const isLowcap = coinRank > 150;
-  const minSlPct = isLowcap ? 1.8 : 1.0;
+  const minSlPct = 1.3;
 
-  // 🛡️ ĐÒN BẨY & MARGIN ĐỘNG: Phản ánh trung thực lệnh thật trên Binance (20x-50x, margin tính theo targetLossUSD)
-  const leverage = parseInt(options.leverage || sig.leverage || (isLowcap ? 20 : 35), 10);
+  // 🛡️ ĐÒN BẨY & MARGIN ĐỘNG: Phản ánh trung thực lệnh thật trên Binance (mọi coin đồng nhất)
+  const leverage = parseInt(options.leverage || sig.leverage || 20, 10);
   const margin = parseFloat(options.margin || sig.margin || 25.0);
 
   // 🛡️ SL CHUẨN TIER: Ưu tiên tierSlPrice chuẩn từ calculateTierSLTP của Binance

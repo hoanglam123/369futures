@@ -582,7 +582,6 @@ function calculateTierSLTP(symbol, side, entryPrice, h4Ref, tickSize, maxExchang
     tpDistance: finalTpDist,
     tpPct: tpPct,
     minSlPct: minSlPct,
-    isLowcap: isLowcap,
     leverage: leverage,
     margin: actualMargin,
     targetLossUSD: targetLossUSD,
@@ -1893,7 +1892,7 @@ async function startAutoTrade(coins) {
       try {
         try {
           await client.setLeverage(sym, effectiveLeverage);
-          log.system(`[AutoTrade] Set leverage ${sym}USDT = ${effectiveLeverage}x (Tier SL: $${tierSetup.slPrice} (${tierSetup.slPct.toFixed(2)}%${tierSetup.isLowcap ? ' [Lowcap]' : ''}), TP 1:${tierSetup.tpRatio}: $${tierSetup.tpPrice}${(ENABLE_TRAILING_BE && tierSetup.beTriggerPrice) ? `, Dời SL tại $${tierSetup.beTriggerPrice}` : ' [Không dời BE]'} | Ký quỹ: $${actualTradeMargin} [${riskProfile.grade}])`);
+          log.system(`[AutoTrade] Set leverage ${sym}USDT = ${effectiveLeverage}x (Tier SL: $${tierSetup.slPrice} (${tierSetup.slPct.toFixed(2)}%), TP 1:${tierSetup.tpRatio}: $${tierSetup.tpPrice}${(ENABLE_TRAILING_BE && tierSetup.beTriggerPrice) ? `, Dời SL tại $${tierSetup.beTriggerPrice}` : ' [Không dời BE]'} | Ký quỹ: $${actualTradeMargin} [${riskProfile.grade}])`);
         } catch (e) {
           const binErr = e.response?.data;
           const errStr = _binanceErr(e);
@@ -3320,14 +3319,11 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
           if (!meta.isDefensiveBeActive && isSagging && neverReachedTrail) {
             let shouldTriggerPhase1 = false;
             let cvdRatio = 0.5;
-            const isLowcapTrade = meta.isLowcap || (typeof meta.marketCapRank === 'number' && meta.marketCapRank > 150) || (typeof meta.rank === 'number' && meta.rank > 150);
             try {
               const cvd = await getCvdMomentum(sym, isLong ? 'LONG' : 'SHORT');
               cvdRatio = cvd?.takerBuyRatio ?? 0.5;
-              // CVD đối lập:
-              // - Top 150: CVD đối lập >= 70% (Taker Buy <= 30% cho Long, >= 70% cho Short)
-              // - Lowcap (biến động nhanh, râu quét SL mỏng 1.8%): CVD đối lập chỉ cần >= 60% (Taker Buy <= 40% cho Long, >= 60% cho Short)
-              const opposingThreshold = isLowcapTrade ? 0.40 : 0.30;
+              // CVD đối lập: Ngưỡng đồng nhất mọi coin >= 65% (Taker Buy <= 35% cho Long, >= 65% cho Short)
+              const opposingThreshold = 0.35;
               if (isLong && cvdRatio <= opposingThreshold) shouldTriggerPhase1 = true;
               if (!isLong && cvdRatio >= (1.0 - opposingThreshold)) shouldTriggerPhase1 = true;
             } catch (_) {}
@@ -3342,7 +3338,7 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
               const opposingPct = isLong ? ((1 - cvdRatio) * 100).toFixed(1) : (cvdRatio * 100).toFixed(1);
               log.system(
                 `[AutoTrade] 🛡️ [Defensive Escape - Phase 1] ${sym} (${isLong ? 'LONG' : 'SHORT'}): ` +
-                `Lún sâu 40%-45% SL & Dòng tiền CVD đối lập áp đảo ${opposingPct}% (Ngưỡng: ${isLowcapTrade ? '>=60% [Lowcap]' : '>=70% [Top150]'}) -> Dời TP về Entry hòa vốn @ $${escapePrice}`
+                `Lún sâu 40%-45% SL & Dòng tiền CVD đối lập áp đảo ${opposingPct}% (Ngưỡng: >=65%) -> Dời TP về Entry hòa vốn @ $${escapePrice}`
               );
               await sendTelegram(
                 `🛡️ <b>[AutoTrade] Kích Hoạt Thoát Hiểm Giai Đoạn 1 (Dời TP về Entry)</b>\n` +
