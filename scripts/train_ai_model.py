@@ -863,8 +863,9 @@ def train_and_export_model():
         feat_odds = smoothed_win_prob / (1.0 - smoothed_win_prob)
         weight_mult = feat_odds / prior_odds
 
-        # Giới hạn an toàn (cap) từ 0.20 đến 3.0 để tránh phân kỳ cực đoan
-        weight_mult = max(0.20, min(3.0, weight_mult))
+        # Giới hạn an toàn (cap) từ 0.05 đến 3.0 để các rủi ro hệ thống (BTC flash, turnover pump dump) phản ánh trung thực xác suất thực nghiệm
+        min_weight_floor = 0.05 if ("btc_flash" in key or "turnover_guard" in key) else 0.20
+        weight_mult = max(min_weight_floor, min(3.0, weight_mult))
 
         # 🎯 BASELINE ANCHORING: Các trạng thái bình thường/trung tính là mốc quy chiếu chuẩn (baseline = 1.00),
         # triệt tiêu hoàn toàn hiện tượng 10-15 nhãn "bình thường" cùng nhân dồn hệ số 0.85-0.95 dìm xác suất ảo xuống 15-25%!
@@ -985,8 +986,8 @@ def train_and_export_model():
         "funding:FUNDING_NORMAL": (1.00, 1.05),
         "btc_storm:BTC_STORM_VOLATILE": (0.40, 0.75),
         "btc_storm:BTC_STORM_NORMAL": (1.00, 1.05),
-        "btc_flash:BTC_FLASH_PUMP_ACTIVE": (0.10, 0.40),
-        "btc_flash:BTC_FLASH_DUMP_ACTIVE": (0.10, 0.40),
+        "btc_flash:BTC_FLASH_PUMP_ACTIVE": (0.05, 0.25),
+        "btc_flash:BTC_FLASH_DUMP_ACTIVE": (0.05, 0.25),
         "btc_flash:BTC_FLASH_NORMAL": (1.00, 1.05),
         "turnover_guard:TURNOVER_RISK_BLOCKED": (0.15, 0.45),
         "turnover_guard:TURNOVER_NORMAL": (1.00, 1.05),

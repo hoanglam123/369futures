@@ -1,6 +1,6 @@
 {
   "version": "1.4.0-auto",
-  "trainedAt": "2026-10-22 13:14:50",
+  "trainedAt": "2026-10-22 14:22:07",
   "totalSamples": 1993,
   "priorWinProb": 0.6511,
   "priorOdds": 1.8659,
@@ -10,7 +10,7 @@
     "lowcap": 50.0,
     "minExpectedEvRoi": 0.0,
     "autoCalibrated": true,
-    "calibratedAt": "2026-10-22 13:14:50",
+    "calibratedAt": "2026-10-22 14:22:07",
     "calibrationStats": {
       "testedSamples": 2811,
       "approvedTrades": 784.0,
@@ -45,14 +45,14 @@
     "shadowCount": 1128,
     "realCount": 1974,
     "autoCalibrated": true,
-    "calculatedAt": "2026-10-22 13:14:50"
+    "calculatedAt": "2026-10-22 14:22:07"
   },
   "adaptiveSlProfile": {
     "optimalMinSlPct": 1.5,
     "top150MinSlPct": 1.5,
     "lowcapMinSlPct": 1.5,
     "autoCalibrated": true,
-    "calculatedAt": "2026-10-22 13:14:50",
+    "calculatedAt": "2026-10-22 14:22:07",
     "sampleCount": 1562
   },
   "adaptiveRrProfile": {
@@ -65,7 +65,7 @@
     },
     "minExpectedEvRoi": 0.0,
     "autoCalibrated": true,
-    "calculatedAt": "2026-10-22 13:14:50"
+    "calculatedAt": "2026-10-22 14:22:07"
   },
   "riskPenaltyProfile": {
     "h1ExtremeStormRejection": 0.85,
@@ -79,7 +79,7 @@
     "wallOpposingBlock": 0.35,
     "btcFlashOpposing": 0.35,
     "autoCalibrated": true,
-    "calculatedAt": "2026-10-22 13:14:50"
+    "calculatedAt": "2026-10-22 14:22:07"
   },
   "featureWeights": {
     "rank_group:RANK_TOP10": {
@@ -984,8 +984,8 @@
       "winCount": 0,
       "lossCount": 0,
       "winProb": 0.6511,
-      "multiplier": 0.4,
-      "knowledgeBoost": 0.4,
+      "multiplier": 0.08,
+      "knowledgeBoost": 0.08,
       "blendRatio": 0.0,
       "sanityCapped": false,
       "isAutonomous": true
@@ -994,8 +994,8 @@
       "winCount": 0,
       "lossCount": 0,
       "winProb": 0.6511,
-      "multiplier": 0.4,
-      "knowledgeBoost": 0.4,
+      "multiplier": 0.08,
+      "knowledgeBoost": 0.08,
       "blendRatio": 0.0,
       "sanityCapped": false,
       "isAutonomous": true

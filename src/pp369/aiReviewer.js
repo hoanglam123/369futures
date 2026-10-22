@@ -690,7 +690,7 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
   const ecoRedMult = riskPenalties.economicRed ?? 0.10;
   const spreadWideMult = riskPenalties.spreadWide ?? 0.20;
   const wallBlockMult = riskPenalties.wallOpposingBlock ?? 0.35;
-  const btcFlashMult = riskPenalties.btcFlashOpposing ?? 0.25;
+  const btcFlashMult = riskPenalties.btcFlashOpposing ?? 0.08;
 
   // Custom weights for raw market features and risk interactions
   const dynamicModifiers = {
@@ -954,11 +954,7 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
 
     // 🛡️ SANITY GUARD: Triệt tiêu toàn bộ điểm thưởng khi có rủi ro cấu trúc nghiêm trọng
     const isTurnoverBlockedRisk = features['turnover_guard'] === 'TURNOVER_RISK_BLOCKED';
-    const isBtcFlashRisk = features['btc_flash'] === 'BTC_FLASH_DUMP_ACTIVE' || features['btc_flash'] === 'BTC_FLASH_PUMP_ACTIVE';
-    const isBtcCounterConflictRisk = features['btc_wave'] === 'BTC_COUNTER' && features['trend'] === 'TREND_CONFLICT';
     const hasCriticalRisk = isTurnoverBlockedRisk ||
-                            isBtcFlashRisk ||
-                            isBtcCounterConflictRisk ||
                             features['h1_volatility'] === 'H1_VOLATILE_DANGER' ||
                             features['h1_volatility'] === 'H1_EXTREME_STORM_PUMP_DUMP' ||
                             features['h1_volume_burst'] === 'H1_VOL_BURST_DANGER' ||
@@ -966,12 +962,12 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
                             features['risk_interaction'] === 'INTERACTION_STALE_BOUNCE_RUNAWAY';
     if (hasCriticalRisk) {
       // Khi đã dính rủi ro cấu trúc nghiêm trọng, không cho phép các điểm cộng OI, dòng tiền, nến đơn lẻ lấp liếm rủi ro
-      if (['oi_change', 'ls_flow', 'volume', 'candle_shape', 'm15_candle_geometry', 'pre_entry_bounce', 'h1_candle_geometry', 'h1_volatility', 'adx_strength'].includes(cat)) {
+      if (['oi_change', 'ls_flow', 'volume', 'candle_shape', 'm15_candle_geometry', 'pre_entry_bounce', 'h1_candle_geometry'].includes(cat)) {
         mult = Math.min(1.00, mult);
       }
-      // Riêng với Turnover Blocked, BTC Flash Active hoặc Ngược trend kép BTC:
+      // Riêng với Turnover Blocked (MarketCap nhỏ nhưng volume đột biến > 12-15%, rủi ro xả / quét râu Lowcap):
       // Tuyệt đối không cho phép bất kỳ điểm kỹ thuật phụ nào kéo điểm lên (> 1.00)
-      if ((isTurnoverBlockedRisk || isBtcFlashRisk || isBtcCounterConflictRisk) && mult > 1.00) {
+      if (isTurnoverBlockedRisk && mult > 1.00) {
         mult = Math.min(1.00, mult);
       }
     }
@@ -1078,16 +1074,6 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
 
   // Bound winProbability strictly between 5% and 95%
   winProb = Math.max(5.0, Math.min(95.0, winProb));
-
-  // 🛡️ SANITY CAP CHO BÃO BTC FLASH:
-  // Khi thị trường đang xảy ra sự kiện BTC Flash Dump / Pump ngược chiều lệnh, tỷ lệ thắng thực nghiệm < 15%.
-  // Khống chế trần xác suất nghiêm ngặt tối đa 35.0% (dưới xa ngưỡng duyệt) để bảo đảm AI phủ quyết tuyệt đối!
-  if (features['btc_flash'] === 'BTC_FLASH_DUMP_ACTIVE' || features['btc_flash'] === 'BTC_FLASH_PUMP_ACTIVE') {
-    winProb = Math.min(35.0, winProb);
-  } else if (features['btc_wave'] === 'BTC_COUNTER' && features['trend'] === 'TREND_CONFLICT') {
-    // Vừa ngược trend Altcoin vừa ngược xu hướng BTC: khống chế trần xác suất tối đa 46.0% (dưới ngưỡng 50%)
-    winProb = Math.min(46.0, winProb);
-  }
 
   // 🛡️ SANITY CAP: Nếu đồng coin bị TURNOVER_RISK_BLOCKED (Rủi ro bơm xả / quét râu Lowcap),
   // khống chế trần xác suất nghiêm ngặt tối đa 48.0% (dưới sàn duyệt 50.0%) để tuyệt đối không cho phép
