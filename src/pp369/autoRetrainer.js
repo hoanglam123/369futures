@@ -8,6 +8,7 @@ const aiReviewer = require('./aiReviewer');
 const DATA_DIR = path.join(process.cwd(), 'data');
 const STATE_FILE = path.join(DATA_DIR, 'retrain_state.json');
 const DATASET_FILE = path.join(DATA_DIR, 'ai_trade_dataset.jsonl');
+const SHADOW_HISTORY_FILE = path.join(DATA_DIR, 'shadow_trades_history.jsonl');
 const CONFIG_FILE = path.join(DATA_DIR, 'ai_rule_config.json');
 
 let _logger = {
@@ -55,22 +56,59 @@ function saveRetrainState(state) {
 }
 
 /**
- * Count the number of EXIT records in ai_trade_dataset.jsonl
+ * Get detailed sample breakdown from real trades and shadow trades
+ */
+function getDatasetBreakdown() {
+  let realCount = 0;
+  let shadowCount = 0;
+
+  // 1. Đếm lệnh thật đã EXIT
+  try {
+    if (fs.existsSync(DATASET_FILE)) {
+      const lines = fs.readFileSync(DATASET_FILE, 'utf8').trim().split('\n');
+      for (const l of lines) {
+        if (!l) continue;
+        if (l.includes('"type":"EXIT"') && !l.includes('"isShadow":true')) {
+          realCount++;
+        }
+      }
+    }
+  } catch (e) {
+    _logger.warn(`Lỗi đếm dataset real samples: ${e.message}`);
+  }
+
+  // 2. Đếm lệnh Shadow đã kết thúc rõ ràng (đã chạm TP, SL hoặc BE)
+  try {
+    if (fs.existsSync(SHADOW_HISTORY_FILE)) {
+      const lines = fs.readFileSync(SHADOW_HISTORY_FILE, 'utf8').trim().split('\n');
+      for (const l of lines) {
+        if (!l) continue;
+        if (l.includes('"outcome":"MISSED_TP"') ||
+            l.includes('"outcome":"SAVED_SL"') ||
+            l.includes('"outcome":"SAVED_BE"') ||
+            l.includes('"outcome":"TP"') ||
+            l.includes('"outcome":"SL"') ||
+            l.includes('"outcome":"BE"')) {
+          shadowCount++;
+        }
+      }
+    }
+  } catch (e) {
+    _logger.warn(`Lỗi đếm dataset shadow samples: ${e.message}`);
+  }
+
+  return {
+    total: realCount + shadowCount,
+    realCount,
+    shadowCount
+  };
+}
+
+/**
+ * Count the total number of EXIT records in ai_trade_dataset.jsonl and resolved shadow trades
  */
 function countDatasetSamples() {
-  try {
-    if (!fs.existsSync(DATASET_FILE)) return 0;
-    const lines = fs.readFileSync(DATASET_FILE, 'utf8').trim().split('\n');
-    let exitCount = 0;
-    for (const l of lines) {
-      if (!l) continue;
-      if (l.includes('"type":"EXIT"')) exitCount++;
-    }
-    return exitCount;
-  } catch (e) {
-    _logger.warn(`Lỗi đếm dataset samples: ${e.message}`);
-    return 0;
-  }
+  return getDatasetBreakdown().total;
 }
 
 /**
@@ -235,19 +273,24 @@ function startPeriodicRetrain(options = {}) {
   if (_timer) clearInterval(_timer);
 
   const intervalMs = options.checkIntervalMs || 60 * 60 * 1000; // 1 hour
-  _logger.info(`[AutoRetrain] Đã khởi động bộ lập lịch tự học AI (Kiểm tra mỗi ${(intervalMs / 60000).toFixed(0)} phút, ngưỡng mẫu mới: ${options.minNewSamples || 20})`);
+  const minSamples = options.minNewSamples || 20;
+  _logger.info(`[AutoRetrain] Đã khởi động bộ lập lịch tự học AI (Kiểm tra mỗi ${(intervalMs / 60000).toFixed(0)} phút, ngưỡng mẫu mới: ${minSamples})`);
 
   _timer = setInterval(async () => {
     try {
       const now = new Date();
-      // Prefer running at 03:00 AM VN time (UTC+7) or when enough samples
+      // Giờ VN (UTC+7)
       const vnHour = (now.getUTCHours() + 7) % 24;
       const state = loadRetrainState();
-      const currentSamples = countDatasetSamples();
+      const breakdown = getDatasetBreakdown();
+      const currentSamples = breakdown.total;
       const newSamples = currentSamples - (state.lastDatasetSampleCount || 0);
+      const hoursSinceLast = (Date.now() - (state.lastRetrainTimestamp || 0)) / (3600 * 1000);
 
-      const minSamples = options.minNewSamples || 20;
-      if (newSamples >= minSamples || (vnHour === 3 && newSamples >= 5)) {
+      _logger.info(`[AutoRetrain] 🔄 Kiểm tra chu kỳ tự học: ${newSamples} mẫu mới tích lũy (Real: ${breakdown.realCount}, Shadow: ${breakdown.shadowCount}) | Ngưỡng: ${minSamples} mẫu (hoặc >=5 mẫu lúc 03:00 VN - hiện tại: ${vnHour}h VN)`);
+
+      if (newSamples >= minSamples || (vnHour === 3 && newSamples >= 5) || (hoursSinceLast >= 24 && newSamples >= 10)) {
+        _logger.system(`[AutoRetrain] 🎯 Đạt điều kiện kích hoạt tự học AI (newSamples=${newSamples} >= ${minSamples} hoặc định kỳ 24h). Bắt đầu huấn luyện...`);
         await runRetrainCycle(false);
       }
     } catch (err) {
@@ -274,13 +317,16 @@ function stopPeriodicRetrain() {
  */
 function getRetrainStatus() {
   const state = loadRetrainState();
-  const currentSamples = countDatasetSamples();
+  const breakdown = getDatasetBreakdown();
+  const currentSamples = breakdown.total;
   const newSamples = currentSamples - (state.lastDatasetSampleCount || 0);
   return {
     isRetraining: _isRetraining,
     lastRetrainTime: state.lastRetrainTimestamp ? new Date(state.lastRetrainTimestamp).toISOString() : null,
     lastModelVersion: state.lastModelVersion,
     totalSamplesInDataset: currentSamples,
+    realSamples: breakdown.realCount,
+    shadowSamples: breakdown.shadowCount,
     newSamplesSinceLastRetrain: newSamples,
     retrainCount: state.retrainCount || 0
   };
@@ -292,5 +338,6 @@ module.exports = {
   startPeriodicRetrain,
   stopPeriodicRetrain,
   getRetrainStatus,
-  countDatasetSamples
+  countDatasetSamples,
+  getDatasetBreakdown
 };

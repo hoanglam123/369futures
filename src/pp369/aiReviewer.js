@@ -1032,11 +1032,13 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
     }
 
     // 🛡️ SANITY GUARD: Bắt đỉnh/đáy ngược xu hướng mạnh (Counter-Trend vs Strong ADX)
-    // Nếu có mốc cản Price Action H4/D1 (PA_1_LEVEL, PA_2_LEVELS): Nhịp nảy kỹ thuật tại cản cứng đạt WinRate 66.7%!
-    // Giữ mức phạt vừa phải x0.75 thay vì phạt gắt x0.40
+    // Nếu có mốc cản Price Action H4/D1 (PA_1_LEVEL, PA_2_LEVELS) hoặc nến H1 đã giữ cấu trúc/rút chân (H1_HOLD_OR_HOVER, H1_REJECT_PINBAR):
+    // Nhịp nảy kỹ thuật tại cản PP369 đạt WinRate cao trong thực nghiệm!
+    // Giữ mức phạt vừa phải x0.70 thay vì phạt gắt x0.40 dìm xác suất ảo
     if (features['trend'] === 'TREND_CONFLICT' && cat === 'adx_strength' && val === 'ADX_STRONG_TREND') {
       const hasSolidSR = features['price_action'] === 'PA_1_LEVEL' || features['price_action'] === 'PA_2_LEVELS';
-      const effectiveCounterMult = hasSolidSR ? Math.max(counterTrendMult, 0.75) : counterTrendMult;
+      const hasH1Support = features['h1_candle_geometry'] === 'H1_HOLD_OR_HOVER' || features['h1_candle_geometry'] === 'H1_REJECT_PINBAR';
+      const effectiveCounterMult = (hasSolidSR || hasH1Support) ? Math.max(counterTrendMult, 0.70) : counterTrendMult;
       mult = Math.min(mult, effectiveCounterMult);
     }
 

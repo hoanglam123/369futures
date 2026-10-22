@@ -744,9 +744,9 @@ def train_and_export_model():
                             (rec.get("exitTimestamp", 0) - rec.get("entryTimestamp", 0)) / 60000
                             if rec.get("exitTimestamp") and rec.get("entryTimestamp") else 0
                         )
-                        # Lọc trần nhịp nảy nhanh <= 4h của PP369
+                        # Đánh giá kết quả lệnh Shadow: nhịp nảy đạt TP chuẩn <= 12h tính full Win
                         if outcome in ["MISSED_TP", "TP"]:
-                            win_credit = 0.0 if holding_mins > 240 else 1.0
+                            win_credit = 0.5 if holding_mins > 720 else 1.0
                         elif outcome in ["SAVED_BE", "BE"]:
                             win_credit = 0.50
                         else:
