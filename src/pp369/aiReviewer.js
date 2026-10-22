@@ -690,7 +690,7 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
   const ecoRedMult = riskPenalties.economicRed ?? 0.10;
   const spreadWideMult = riskPenalties.spreadWide ?? 0.20;
   const wallBlockMult = riskPenalties.wallOpposingBlock ?? 0.35;
-  const btcFlashMult = riskPenalties.btcFlashOpposing ?? 0.35;
+  const btcFlashMult = riskPenalties.btcFlashOpposing ?? 0.25;
 
   // Custom weights for raw market features and risk interactions
   const dynamicModifiers = {
@@ -954,7 +954,11 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
 
     // 🛡️ SANITY GUARD: Triệt tiêu toàn bộ điểm thưởng khi có rủi ro cấu trúc nghiêm trọng
     const isTurnoverBlockedRisk = features['turnover_guard'] === 'TURNOVER_RISK_BLOCKED';
+    const isBtcFlashRisk = features['btc_flash'] === 'BTC_FLASH_DUMP_ACTIVE' || features['btc_flash'] === 'BTC_FLASH_PUMP_ACTIVE';
+    const isBtcCounterConflictRisk = features['btc_wave'] === 'BTC_COUNTER' && features['trend'] === 'TREND_CONFLICT';
     const hasCriticalRisk = isTurnoverBlockedRisk ||
+                            isBtcFlashRisk ||
+                            isBtcCounterConflictRisk ||
                             features['h1_volatility'] === 'H1_VOLATILE_DANGER' ||
                             features['h1_volatility'] === 'H1_EXTREME_STORM_PUMP_DUMP' ||
                             features['h1_volume_burst'] === 'H1_VOL_BURST_DANGER' ||
@@ -962,12 +966,12 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
                             features['risk_interaction'] === 'INTERACTION_STALE_BOUNCE_RUNAWAY';
     if (hasCriticalRisk) {
       // Khi đã dính rủi ro cấu trúc nghiêm trọng, không cho phép các điểm cộng OI, dòng tiền, nến đơn lẻ lấp liếm rủi ro
-      if (['oi_change', 'ls_flow', 'volume', 'candle_shape', 'm15_candle_geometry', 'pre_entry_bounce', 'h1_candle_geometry'].includes(cat)) {
+      if (['oi_change', 'ls_flow', 'volume', 'candle_shape', 'm15_candle_geometry', 'pre_entry_bounce', 'h1_candle_geometry', 'h1_volatility', 'adx_strength'].includes(cat)) {
         mult = Math.min(1.00, mult);
       }
-      // Riêng với Turnover Blocked (MarketCap nhỏ nhưng volume đột biến > 12-15%, rủi ro xả / quét râu Lowcap):
+      // Riêng với Turnover Blocked, BTC Flash Active hoặc Ngược trend kép BTC:
       // Tuyệt đối không cho phép bất kỳ điểm kỹ thuật phụ nào kéo điểm lên (> 1.00)
-      if (isTurnoverBlockedRisk && mult > 1.00) {
+      if ((isTurnoverBlockedRisk || isBtcFlashRisk || isBtcCounterConflictRisk) && mult > 1.00) {
         mult = Math.min(1.00, mult);
       }
     }
@@ -1052,7 +1056,7 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
     if (cat === 'btc_wave' && val === 'BTC_COUNTER') {
       const isAlignedTrend = features['trend'] === 'TREND_PERFECT' || features['trend'] === 'TREND_M15_ALIGNED';
       if (!isAlignedTrend) {
-        mult = 0.75;
+        mult = 0.65;
       } else {
         mult = Math.min(mult, 0.85);
       }
@@ -1074,6 +1078,16 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
 
   // Bound winProbability strictly between 5% and 95%
   winProb = Math.max(5.0, Math.min(95.0, winProb));
+
+  // 🛡️ SANITY CAP CHO BÃO BTC FLASH:
+  // Khi thị trường đang xảy ra sự kiện BTC Flash Dump / Pump ngược chiều lệnh, tỷ lệ thắng thực nghiệm < 15%.
+  // Khống chế trần xác suất nghiêm ngặt tối đa 35.0% (dưới xa ngưỡng duyệt) để bảo đảm AI phủ quyết tuyệt đối!
+  if (features['btc_flash'] === 'BTC_FLASH_DUMP_ACTIVE' || features['btc_flash'] === 'BTC_FLASH_PUMP_ACTIVE') {
+    winProb = Math.min(35.0, winProb);
+  } else if (features['btc_wave'] === 'BTC_COUNTER' && features['trend'] === 'TREND_CONFLICT') {
+    // Vừa ngược trend Altcoin vừa ngược xu hướng BTC: khống chế trần xác suất tối đa 46.0% (dưới ngưỡng 50%)
+    winProb = Math.min(46.0, winProb);
+  }
 
   // 🛡️ SANITY CAP: Nếu đồng coin bị TURNOVER_RISK_BLOCKED (Rủi ro bơm xả / quét râu Lowcap),
   // khống chế trần xác suất nghiêm ngặt tối đa 48.0% (dưới sàn duyệt 50.0%) để tuyệt đối không cho phép
@@ -1185,7 +1199,13 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
 
   if (!isApproved) {
     if (winProb < threshold) {
-      if (isStrongCounterTrendCondition) {
+      if (isBtcFlashCondition) {
+        vetoCategory = features['btc_flash'];
+        reasonText = `[AI VETO BÃO BTC FLASH] Phát hiện ${features['btc_flash']} ngược chiều lệnh kéo xác suất ${winProb.toFixed(1)}% < ${threshold}%! [Rank #${rank}] (${factorSummary})`;
+      } else if (features['btc_wave'] === 'BTC_COUNTER' && features['trend'] === 'TREND_CONFLICT') {
+        vetoCategory = 'BTC_COUNTER_TREND_CONFLICT';
+        reasonText = `[AI VETO NGƯỢC SÓNG KÉP BTC] Altcoin ngược xu hướng và đi ngược đà sóng BTC kéo xác suất ${winProb.toFixed(1)}% < ${threshold}%! [Rank #${rank}] (${factorSummary})`;
+      } else if (isStrongCounterTrendCondition) {
         vetoCategory = 'COUNTER_STRONG_TREND_DANGER';
         reasonText = `[AI VETO CẢN TÀU XU HƯỚNG] Tín hiệu ngược xu hướng trong khi xung lực xu hướng đối lập quá mạnh (TREND_CONFLICT + ADX_STRONG_TREND) kéo xác suất ${winProb.toFixed(1)}% < ${threshold}%! [Rank #${rank}] (${factorSummary})`;
       } else if (isOpposingWickCondition) {
@@ -1201,9 +1221,6 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
         vetoCategory = 'SPREAD_WIDE_DANGER';
         const maxTh = rank <= 50 ? '0.04%' : (rank <= 150 ? '0.06%' : '0.08%');
         reasonText = `[AI VETO ĐỘ DÃN SPREAD] Chênh lệch Bid-Ask vượt ngưỡng (>${maxTh}), trượt giá kéo xác suất ${winProb.toFixed(1)}% < ${threshold}%! [Rank #${rank}] (${factorSummary})`;
-      } else if (isBtcFlashCondition) {
-        vetoCategory = features['btc_flash'];
-        reasonText = `[AI VETO BÃO BTC FLASH] Phát hiện ${features['btc_flash']} ngược chiều lệnh kéo xác suất ${winProb.toFixed(1)}% < ${threshold}%! [Rank #${rank}] (${factorSummary})`;
       } else if (isWallBlockedCondition) {
         vetoCategory = 'ORDERBOOK_WALL_BLOCK';
         reasonText = `[AI VETO TƯỜNG CẢN SỔ LỆNH] Phát hiện bức tường thanh khoản khổng lồ chắn trước TP kéo xác suất ${winProb.toFixed(1)}% < ${threshold}%! [Rank #${rank}] (${factorSummary})`;

@@ -482,14 +482,17 @@ def extract_features(reasons, score, rank, grid_width_pct, timestamp_ms=None, di
         features["candle_momentum"] = "MOMENTUM_NORMAL"
 
     # 16. BTC Flash & Turnover Guard (chuyển giao cho AI học)
-    if "Turnover" in reasons_str or "ABNORMAL_TURNOVER" in reasons_str:
+    veto_cat = (direct_record.get("vetoCategory") or "") if (direct_record and isinstance(direct_record, dict)) else ""
+    raw_md = (direct_record.get("rawMarketData") or {}) if (direct_record and isinstance(direct_record, dict)) else {}
+
+    if "Turnover" in reasons_str or "ABNORMAL_TURNOVER" in reasons_str or veto_cat == "TURNOVER_RISK_BLOCKED" or raw_md.get("turnoverBlocked"):
         features["turnover_guard"] = "TURNOVER_RISK_BLOCKED"
     else:
         features["turnover_guard"] = "TURNOVER_NORMAL"
 
-    if "BTC_FLASH_PUMP" in reasons_str:
+    if "BTC_FLASH_PUMP" in reasons_str or veto_cat == "BTC_FLASH_PUMP_ACTIVE" or raw_md.get("btcFlashPump"):
         features["btc_flash"] = "BTC_FLASH_PUMP_ACTIVE"
-    elif "BTC_FLASH_DUMP" in reasons_str:
+    elif "BTC_FLASH_DUMP" in reasons_str or veto_cat == "BTC_FLASH_DUMP_ACTIVE" or raw_md.get("btcFlashDump"):
         features["btc_flash"] = "BTC_FLASH_DUMP_ACTIVE"
     else:
         features["btc_flash"] = "BTC_FLASH_NORMAL"

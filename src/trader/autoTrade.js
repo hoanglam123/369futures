@@ -364,7 +364,7 @@ async function updateBtcFlashGuard(client) {
     // Kiểm tra mở khóa an toàn khi thị trường đã hạ nhiệt
     else if (btcFlashState.isShortLocked || btcFlashState.isLongLocked) {
       const timeRemaining = btcFlashState.lockedUntil - now;
-      if (timeRemaining <= 15 * 60_000 || now >= btcFlashState.lockedUntil) {
+      if (timeRemaining <= 5 * 60_000 || now >= btcFlashState.lockedUntil) {
         const lastVolRatio = ma20Vol > 0 ? (lastClosed.volume / ma20Vol) : 1.0;
         const lastRangePct = ((lastClosed.high - lastClosed.low) / (lastClosed.low || 1)) * 100;
         const isCooledDown = lastVolRatio < 1.3 && lastRangePct <= 0.45;
@@ -1493,38 +1493,8 @@ async function startAutoTrade(coins) {
         return;
       }
 
-      // ── BTC FLASH GATEKEEPER: Chặn cứng tuyệt đối việc hứng dao rơi khi BTC đang biến động bão ──
+      // ── BTC FLASH & TURNOVER GUARD: Chuyển giao toàn quyền thẩm định cho Lõi AI Reviewer ──
       const btcFlashCheck = checkBtcFlashGatekeeper(sig.signal);
-      if (btcFlashCheck.isLocked) {
-        if (_shouldLogSignal(sym, sig.signal, sig.targetLevel, 'btc_flash_gatekeeper', 15 * 60 * 1000)) {
-          log.system(`[AutoTrade] 🛑 [BTC Flash Gatekeeper] Chiều ${sig.signal} đang bị khóa do bão ${btcFlashCheck.reason} (còn ${btcFlashCheck.remainingMinutes}p) — Chuyển sang theo dõi Shadow ${sym} để bảo toàn vốn.`);
-        }
-
-        let prelimSetupBtc = null;
-        try {
-          const h4RefBtc = await fetchH4Reference(sym);
-          const tickSizeBtc = getEffectiveTickSize(sym, sig.targetLevel);
-          const maxAllowedBtc = leverageInfo[sym] ?? leverage;
-          const baseTargetLossUSDBtc = parseFloat(process.env.MAX_LOSS_PER_TRADE_USD || '5.0');
-          prelimSetupBtc = calculateTierSLTP(sym, sig.signal, sig.targetLevel, h4RefBtc, tickSizeBtc, maxAllowedBtc, baseTargetLossUSDBtc, 1.5, rank, sig.gridWidthPct);
-        } catch (_) {}
-
-        registerShadowTrade(sig, null, {
-          markPrice,
-          marketCapRank: rank,
-          gridWidthPct: sig.gridWidthPct || gridStepPct,
-          leverage: prelimSetupBtc?.leverage,
-          margin: prelimSetupBtc?.margin,
-          tierSlPrice: prelimSetupBtc?.slPrice,
-          tierTpPrice: prelimSetupBtc?.tpPrice,
-          beTriggerPrice: prelimSetupBtc?.beTriggerPrice,
-          slPct: prelimSetupBtc?.slPct,
-          signalMetrics: sig.signalMetrics || null,
-          vetoCategory: sig.signal === 'LONG' ? 'BTC_FLASH_DUMP_ACTIVE' : 'BTC_FLASH_PUMP_ACTIVE'
-        });
-        return;
-      }
-
       const turnoverCheck = checkTurnoverGuard(sym);
 
       try {
@@ -1723,8 +1693,8 @@ async function startAutoTrade(coins) {
           m15RangePct,
           h1VolRatio,
           touchCount: (typeof sig.touchCount === 'number' ? sig.touchCount + 1 : 1),
-          btcFlashPump: btcFlashState.isShortLocked,
-          btcFlashDump: btcFlashState.isLongLocked,
+          btcFlashPump: btcFlashState.isShortLocked && Date.now() < btcFlashState.lockedUntil,
+          btcFlashDump: btcFlashState.isLongLocked && Date.now() < btcFlashState.lockedUntil,
           turnoverBlocked: turnoverCheck.isBlocked,
           symbol: sym,
           maxRecentBouncePct: sig.maxRecentBouncePct ?? null,
@@ -1740,8 +1710,8 @@ async function startAutoTrade(coins) {
         rawMarketData = {
           targetLevel: sig.targetLevel,
           step: sig.step,
-          btcFlashPump: btcFlashState.isShortLocked,
-          btcFlashDump: btcFlashState.isLongLocked,
+          btcFlashPump: btcFlashState.isShortLocked && Date.now() < btcFlashState.lockedUntil,
+          btcFlashDump: btcFlashState.isLongLocked && Date.now() < btcFlashState.lockedUntil,
           turnoverBlocked: turnoverCheck.isBlocked,
           symbol: sym,
           maxRecentBouncePct: sig.maxRecentBouncePct ?? null,
@@ -2688,15 +2658,7 @@ async function checkH1RetestSignals(client, activeSymbols, leverageInfo = {}) {
         continue;
       }
 
-      // ── BTC FLASH GATEKEEPER CHO H1 RETEST ──
-      const btcFlashCheckRetest = checkBtcFlashGatekeeper(signal);
-      if (btcFlashCheckRetest.isLocked) {
-        log.system(`[AutoTrade (Retest H1)] 🛑 [BTC Flash Gatekeeper] Tạm khóa mở lệnh ${signal} cho ${sym} do bão ${btcFlashCheckRetest.reason} (còn ${btcFlashCheckRetest.remainingMinutes}p) — Hủy Retest H1 để bảo toàn vốn.`);
-        delete lowScoreWatchlist[sym];
-        continue;
-      }
-
-      // ── TURNOVER GUARD CHO H1 RETEST ──
+      // ── BTC FLASH & TURNOVER GUARD CHO H1 RETEST: Chuyển giao toàn quyền cho AI Reviewer ──
       const turnoverCheckRetest = checkTurnoverGuard(sym);
       const nowTimeRetest = Date.now();
       const btcFlashPumpRetest = btcFlashState.isShortLocked && nowTimeRetest < btcFlashState.lockedUntil;
