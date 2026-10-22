@@ -692,11 +692,14 @@ def train_and_export_model():
                     valid_exits = ["TP", "SL", "TRAILING_SL", "HARD_MAX_LOSS", "BE_EXIT", "TREND_RUNNER_TP", "DEFENSIVE_BE_EXIT", "DEFENSIVE_EARLY_CUT"]
                     if exit_type in valid_exits and tid in entries:
                         entry = entries[tid]
-                        is_win = rec.get("isWin", False)
-                        if is_win or exit_type == "TREND_RUNNER_TP":
+                        # Phân loại kết quả chuẩn xác: BE_EXIT không bị đánh đồng với Full TP
+                        if exit_type in ["TP", "TREND_RUNNER_TP"]:
                             win_credit = 1.0
                         elif exit_type in ["BE_EXIT", "DEFENSIVE_BE_EXIT"]:
                             win_credit = 0.50
+                        elif rec.get("isWin", False):
+                            pnl = float(rec.get("realizedPnl") or rec.get("pnlUsd") or 0)
+                            win_credit = 1.0 if pnl >= 0.80 else 0.50
                         else:
                             win_credit = 0.0
 
