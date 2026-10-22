@@ -432,35 +432,50 @@ function calcHalfQuantity(sym, totalQty) {
  * Tính toán Tỷ lệ TakeProfit động (TP Ratio) và Cấp độ Lệnh dựa trên 100% AI Win Probability:
  * - Hạng S (Super Sniper): WinProb >= 65% hoặc (Top 10 & WinProb >= 55%) hoặc (Top 50 & WinProb >= 60%): TP 1:2.00
  * - Hạng A (High Quality): WinProb >= 58% hoặc (Top 50 & WinProb >= 53%) hoặc (Top 150 & WinProb >= 55%): TP 1:1.75
- * - Hạng B (Solid Quality): WinProb >= 52% hoặc (Top 150 & WinProb >= 50%): TP 1:1.50
- * - Hạng C (Standard): Còn lại: TP 1:1.35
- * (Đã loại bỏ hoàn toàn ràng buộc điểm score thủ công cũ để trao toàn quyền định đoạt cho AI)
+/**
+ * Phân tầng rủi ro & tỷ lệ TP/SL động theo mô hình học máy AI (Adaptive Risk & Dynamic TP/SL Profile):
+ * - Không hardcode các mốc 65/58/52 hay tỷ lệ 2.0/1.75/1.5 thủ công
+ * - Tự động đọc ngưỡng duyệt tối ưu (optTh) và tỷ lệ chốt lời MFE (optimalTpGridRatio) từ AI
+ * - Phân hạng thích ứng theo khoảng cách xác suất vượt trội so với ngưỡng tối ưu của AI
+ *
+ * @param {number} rank - MarketCap rank
+ * @param {number} winProb - Xác suất thắng Bayesian do AI Reviewer chấm (5% - 95%)
+ * @param {number|null} [score=null]
+ * @param {number} [baseLossUSD=7.5]
  */
 function getDynamicRiskProfile(rank, winProb, score = null, baseLossUSD = 7.5) {
-  let multiplier = 1.0;
-  let tpRatio = 1.35;
-  let grade = 'C (Standard)';
+  const modelCfg = typeof getAIModelConfig === 'function' ? getAIModelConfig() : null;
+  const optTh = modelCfg?.optimalThresholds?.uniform || modelCfg?.thresholdApprovalPct || 48.0;
+  const mfeMae = modelCfg?.mfeMaeProfile;
+  const optimalTpGridRatio = typeof mfeMae?.optimalTpGridRatio === 'number' ? mfeMae.optimalTpGridRatio : 0.50;
 
-  const wp = typeof winProb === 'number' && !isNaN(winProb) ? winProb : 50.0;
+  const wp = typeof winProb === 'number' && !isNaN(winProb) ? winProb : optTh;
   const rk = typeof rank === 'number' && !isNaN(rank) ? rank : 999;
 
-  if (wp >= 65.0 || (rk <= 10 && wp >= 55.0) || (rk <= 50 && wp >= 60.0)) {
-    multiplier = 1.0;
-    tpRatio = 2.0;    // R:R 1:2.0
+  let multiplier = 1.0;
+  // Tỷ lệ TP R:R cơ sở chuẩn hóa theo tỷ lệ nảy MFE học được từ dữ liệu lịch sử
+  const baseRr = Math.max(1.35, Number((optimalTpGridRatio * 3.0).toFixed(2)));
+  let tpRatio = baseRr;
+  let grade = 'B (Solid Quality)';
+
+  // Phân hạng động theo mức độ vượt trội của tín hiệu so với ngưỡng chuẩn AI:
+  if (wp >= optTh + 5.0 || (rk <= 10 && wp >= optTh + 2.0)) {
+    tpRatio = Math.max(baseRr, 2.0);
     grade = 'S (Super Sniper)';
-  } else if (wp >= 58.0 || (rk <= 50 && wp >= 53.0) || (rk <= 150 && wp >= 55.0)) {
-    multiplier = 1.0;
-    tpRatio = 1.75;   // R:R 1:1.75
+  } else if (wp >= optTh + 2.0 || (rk <= 50 && wp >= optTh + 1.0)) {
+    tpRatio = Math.max(baseRr, 1.75);
     grade = 'A (High Quality)';
-  } else if (wp >= 52.0 || (rk <= 150 && wp >= 50.0)) {
-    multiplier = 1.0;
-    tpRatio = 1.5;    // R:R 1:1.5
+  } else if (wp >= optTh) {
+    tpRatio = Math.max(baseRr, 1.50);
     grade = 'B (Solid Quality)';
+  } else {
+    tpRatio = baseRr;
+    grade = 'C (Standard)';
   }
 
   return {
     targetLossUSD: Number((baseLossUSD * multiplier).toFixed(2)),
-    tpRatio: tpRatio,
+    tpRatio: Number(tpRatio.toFixed(2)),
     multiplier: multiplier,
     grade: grade
   };
@@ -1965,6 +1980,7 @@ async function startAutoTrade(coins) {
           maxRecentBouncePct: maxRecentBouncePct ?? null,
           aiWinProbability: aiEval?.winProbability ?? null,
           aiExpectedRoi: aiEval?.expectedEvRoi ?? null,
+          isTrendRunnerEligible: aiEval?.isTrendRunnerEligible ?? false,
           // ── THÔNG SỐ TIER SL / TP MỚI ──
           tierSlPrice: tierSetup.slPrice,
           tierTpPrice: tierSetup.tpPrice,
@@ -2895,6 +2911,7 @@ async function checkH1RetestSignals(client, activeSymbols, leverageInfo = {}) {
           isH1Retest: true,
           aiWinProbability: aiEval?.winProbability ?? null,
           aiExpectedRoi: aiEval?.expectedEvRoi ?? null,
+          isTrendRunnerEligible: aiEval?.isTrendRunnerEligible ?? false,
           // ── THÔNG SỐ TIER SL / TP MỚI ──
           tierSlPrice: tierSetupRetest.slPrice,
           tierTpPrice: tierSetupRetest.tpPrice,
@@ -3567,8 +3584,12 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
 
         // ── 🚀 BƯỚC 2: ADAPTIVE TREND RUNNER (GỒNG LÃI DÀI THEO SÓNG DO AI QUYẾT ĐỊNH) ──
         const isDefensiveExit = (meta?.isPanicEscape || meta?.isH1Failed) === true;
-        // AI quyết định: Chỉ kích hoạt gồng sóng Trend Runner cho lệnh có chất lượng cao (WinProb >= 57% hoặc Score >= 6.5)
-        const isAiHighConfidence = (meta?.aiWinProbability == null || meta.aiWinProbability >= 0.57) && (meta?.score == null || meta.score >= 6.5);
+        // AI quyết định gồng sóng Trend Runner: Tự động dựa trên thẩm định vi cấu trúc, Expected ROI và xác suất AI đã học từ dữ liệu quá khứ
+        const modelCfg = typeof getAIModelConfig === 'function' ? getAIModelConfig() : null;
+        const aiThreshold = modelCfg?.optimalThresholds?.uniform || modelCfg?.thresholdApprovalPct || 48.0;
+        const isAiHighConfidence = meta?.isTrendRunnerEligible === true ||
+          (meta?.aiExpectedRoi != null && meta.aiExpectedRoi >= 10.0) ||
+          (typeof meta?.aiWinProbability === 'number' ? (meta.aiWinProbability >= (aiThreshold + 2.0)) : true);
         const canRunTrend = ENABLE_TREND_RUNNER && !isDefensiveExit && !meta?.isTrendRunner && isAiHighConfidence;
 
         if (canRunTrend) {

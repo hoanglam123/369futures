@@ -1075,25 +1075,18 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
   // Bound winProbability strictly between 5% and 95%
   winProb = Math.max(5.0, Math.min(95.0, winProb));
 
-  // 🛡️ SANITY CAP: Nếu đồng coin bị TURNOVER_RISK_BLOCKED (Rủi ro bơm xả / quét râu Lowcap),
-  // khống chế trần xác suất nghiêm ngặt tối đa 48.0% (dưới sàn duyệt 50.0%) để tuyệt đối không cho phép
-  // coin thanh khoản rỗng lọt lưới chỉ vì một vài chỉ báo kỹ thuật nhỏ lẻ!
-  if (features['turnover_guard'] === 'TURNOVER_RISK_BLOCKED') {
-    winProb = Math.min(48.0, winProb);
-  }
-
-  // ── [MỚI] TỰ ĐỘNG NẠP NGƯỠNG TỐI ƯU DO AI TỰ HỌC (AUTONOMOUS THRESHOLD CALIBRATION) ──
-  // Ngưỡng hoàn toàn do AI tự động quyết định (tối ưu hóa Net PnL từ dữ liệu thị trường)
-  // Bỏ phân tách thủ công Topcap vs Lowcap: Toàn bộ danh mục tuân theo ngưỡng AI tối ưu
+  // ── TỰ ĐỘNG NẠP NGƯỠNG TỐI ƯU DO AI TỰ HỌC (AUTONOMOUS THRESHOLD CALIBRATION) ──
+  // Ngưỡng hoàn toàn do AI tự động quyết định (tối ưu hóa Net PnL và Profit Factor từ dữ liệu thị trường)
+  // Không áp sàn cứng 50.0% nhân tạo để AI thích ứng linh hoạt theo Prior Win và phân phối thực tế
   const optimalTh = _modelConfig?.optimalThresholds || {};
   const aiLearnedThreshold = typeof optimalTh.uniform === 'number'
     ? optimalTh.uniform
-    : (typeof optimalTh.top150 === 'number' ? optimalTh.top150 : (typeof optimalTh.thresholdApprovalPct === 'number' ? optimalTh.thresholdApprovalPct : 53.0));
-  let threshold = Math.max(50.0, aiLearnedThreshold);
+    : (typeof optimalTh.top150 === 'number' ? optimalTh.top150 : (typeof optimalTh.thresholdApprovalPct === 'number' ? optimalTh.thresholdApprovalPct : 48.0));
+  let threshold = aiLearnedThreshold;
 
   // 🌊 MARKET REGIME FLEXIBILITY (Co giãn linh hoạt theo nhịp thở thị trường do AI quyết định)
   if (features['btc_wave'] === 'BTC_ALIGNED') {
-    threshold = Math.max(50.0, threshold - 0.5);
+    threshold -= 0.5;
   } else if (features['btc_wave'] === 'BTC_COUNTER' || features['btc_flash'] !== 'BTC_FLASH_NORMAL') {
     threshold += 2.0;
   }
@@ -1238,12 +1231,18 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
     reasonText = `Xác suất thắng ${winProb.toFixed(1)}% >= ${threshold}% [Rank #${rank}] & EV = +${evRoi.toFixed(2)}% ROI ($${evUsd.toFixed(2)}) (${factorSummary})`;
   }
 
+  const isTrendRunnerEligible = isApproved && (
+    (features['trend'] === 'TREND_PERFECT' || features['trend'] === 'TREND_EMA') &&
+    (features['adx_strength'] === 'ADX_STRONG_TREND' || features['ls_flow'] === 'LS_GOLD' || evRoi >= 10.0)
+  );
+
   return {
     winProbability: parseFloat(winProb.toFixed(1)),
     threshold: parseFloat(threshold.toFixed(1)),
     expectedValueRoi: parseFloat(evRoi.toFixed(2)),
     expectedValueUsd: parseFloat(evUsd.toFixed(2)),
     isApproved,
+    isTrendRunnerEligible,
     vetoCategory,
     reason: reasonText,
     keyFactors,

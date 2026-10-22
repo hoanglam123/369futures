@@ -1844,14 +1844,14 @@ def calibrate_optimal_thresholds(base_dir, feature_weights=None, prior_odds=1.3,
     top150_trades = [t for t in recalculated_trades if t["marketCapRank"] <= 150]
     lowcap_trades = [t for t in recalculated_trades if t["marketCapRank"] > 150]
 
-    def optimize_segment(segment_name, segment_trades, candidates, default_floor=50.0):
+    def optimize_segment(segment_name, segment_trades, candidates):
         # Kiểm tra số lượng mẫu Post-Update thực tế
         post_trades = [t for t in segment_trades if t.get("isPostUpdate")]
         has_enough_post = len(post_trades) >= 20
         eval_trades = post_trades if has_enough_post else segment_trades
 
         best_u = -999999.0
-        best_th = default_floor
+        best_th = candidates[0] if candidates else 48.0
         best_st = {}
 
         for th in candidates:
@@ -1940,11 +1940,11 @@ def calibrate_optimal_thresholds(base_dir, feature_weights=None, prior_odds=1.3,
                             "evalMode": "FALLBACK"
                         }
 
-        return max(default_floor, best_th), best_st
+        return best_th, best_st
 
-    # Không áp trần cứng nhân tạo: Mở rộng không gian tìm kiếm từ 50.0% đến 75.0% cho AI tự quyết thống nhất
-    candidates_all = [round(x, 1) for x in range(50, 76, 1)]
-    best_th_uniform, uniform_stats = optimize_segment("Uniform", recalculated_trades, candidates_all, default_floor=50.0)
+    # Không áp trần/sàn cứng nhân tạo: Mở rộng không gian tìm kiếm từ 40.0% đến 75.0% cho AI tự quyết hoàn toàn
+    candidates_all = [round(x, 1) for x in range(40, 76, 1)]
+    best_th_uniform, uniform_stats = optimize_segment("Uniform", recalculated_trades, candidates_all)
 
     combined_wins = uniform_stats.get("expectedWins", 0)
     combined_losses = uniform_stats.get("expectedLosses", 0)
