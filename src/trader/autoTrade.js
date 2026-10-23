@@ -66,11 +66,14 @@ const DEBOUNCE_MS = 5 * 60_000; // 5 phút / tín hiệu
 const COIN_REFRESH_INTERVAL_MS = 4 * 60 * 60_000; // Tái kiểm tra danh sách coin mỗi 4 giờ
 const LEVERAGE_REFRESH_INTERVAL_MS = 6 * 60 * 60_000; // Tự động cập nhật trần đòn bẩy mỗi 6 giờ
 const MIN_CONFLUENCE_SCORE = parseFloat(process.env.MIN_CONFLUENCE_SCORE || '5.0'); // Ngưỡng Confluence Score tối thiểu (mặc định 5.0đ)
-// Cấu hình Dời SL về Breakeven (Mặc định: true)
-const ENABLE_TRAILING_BE = process.env.ENABLE_TRAILING_BE !== 'false';
-// Cấu hình Chốt Lời Từng Phần (Mặc định: true - Chốt 50% vị thế khi chạm mốc Trailing Trigger để bỏ túi lãi tươi)
-const ENABLE_PARTIAL_TP = process.env.ENABLE_PARTIAL_TP !== 'false';
-// Cấu hình Gồng Lãi Theo Sóng (Trend Runner: Khi chạm TP1 nếu sóng còn mạnh thì chốt 50%, dời SL khóa lãi và mở rộng TP2)
+
+// [ARCHIVED - BE] Cơ chế Dời SL về hòa vốn (Breakeven) & Chốt lời từng phần cũ:
+// Tạm tắt để AI tự quyết định TP & SL dứt điểm cho từng lệnh, loại bỏ bẫy quét non hòa vốn (Negative Asymmetry)
+// Code cũ:
+//   const ENABLE_TRAILING_BE = process.env.ENABLE_TRAILING_BE !== 'false';
+//   const ENABLE_PARTIAL_TP = process.env.ENABLE_PARTIAL_TP !== 'false';
+const ENABLE_TRAILING_BE = false; // Tắt dời BE: Vị thế chạy dứt điểm tới TP hoặc SL do AI học
+const ENABLE_PARTIAL_TP = false;  // Tắt chốt 50% non: Chốt trọn vẹn 100% tại mốc TP tối ưu của AI
 const ENABLE_TREND_RUNNER = process.env.ENABLE_TREND_RUNNER !== 'false';
 // Cấu hình AI Hủy Limit Sớm (Pre-Fill Cancel: Hủy lệnh LIMIT nếu dòng tiền Taker/sổ lệnh suy yếu trước khi khớp)
 const ENABLE_AI_PREFILL_CANCEL = process.env.ENABLE_AI_PREFILL_CANCEL !== 'false';
@@ -583,21 +586,17 @@ function calculateTierSLTP(symbol, side, entryPrice, h4Ref, tickSize, maxExchang
   const finalTpDist = entryPrice * ((effGridWidth * tpGridRatio) / 100.0);
   const tpPrice = (side === 'LONG' || side === 'BUY') ? (entryPrice + finalTpDist) : (entryPrice - finalTpDist);
 
-  // 🧠 DỜI SL VỀ HÒA VỐN SỚM (Adaptive Trailing Breakeven Trigger — tự học từ data)
-  // Ngưỡng kích BE được hiệu chuẩn động mỗi lần training dựa trên F-beta và phân phối Retest
-  const rawBeTriggerPct = typeof mfeMaeCfg?.recommendedBeTriggerPct === 'number'
-    ? mfeMaeCfg.recommendedBeTriggerPct
-    : 1.10;
-  // Guardrail: không để BE trigger < 0.50% (quá sớm gây rũ non) hoặc > 2.0% (quá muộn)
-  const beTriggerPct = Math.max(0.50, Math.min(rawBeTriggerPct, 2.0));
-  const beDistRaw = entryPrice * (beTriggerPct / 100);
-  // 1. Bỏ ép trần 65%: Tôn trọng khoảng cách an toàn do AI học từ dữ liệu Retest (beDistRaw)
-  // 2. An toàn cho TP ngắn: Nếu finalTpDist <= beDistRaw (TP ngắn hơn hoặc bằng khoảng cách an toàn),
-  //    thì KHÔNG dời BE (beTriggerPrice = null), để lệnh chạy tự nhiên chạm TP mà không bị rũ non.
-  let beTriggerPrice = null;
-  if (finalTpDist > beDistRaw) {
-    beTriggerPrice = (side === 'LONG' || side === 'BUY') ? (entryPrice + beDistRaw) : (entryPrice - beDistRaw);
-  }
+  // 🧠 [ARCHIVED - BE] DỜI SL VỀ HÒA VỐN SỚM CŨ (Đã tắt để vị thế chạy dứt điểm theo TP/SL do AI quyết định)
+  // Lý do: Cơ chế BE gây bất đối xứng âm - giật râu cắn hòa vốn 0đ quá nhiều, khiến tỷ lệ ăn trọn nhịp nảy bị triệt tiêu.
+  // Code cũ:
+  //   const rawBeTriggerPct = typeof mfeMaeCfg?.recommendedBeTriggerPct === 'number' ? mfeMaeCfg.recommendedBeTriggerPct : 1.10;
+  //   const beTriggerPct = Math.max(0.50, Math.min(rawBeTriggerPct, 2.0));
+  //   const beDistRaw = entryPrice * (beTriggerPct / 100);
+  //   let beTriggerPrice = null;
+  //   if (finalTpDist > beDistRaw) {
+  //     beTriggerPrice = (side === 'LONG' || side === 'BUY') ? (entryPrice + beDistRaw) : (entryPrice - beDistRaw);
+  //   }
+  const beTriggerPrice = null; // Vô hiệu hóa dời BE: Vị thế chạy dứt điểm 100% tới TP mục tiêu của AI hoặc SL an toàn
 
   // 🛡️ TỶ LỆ R:R THỰC TẾ: Không chặn cứng R:R < 1.0 ở đây, giao quyền toàn diện cho AI Reviewer thẩm định qua EV
   const rrRatio = slDist > 0 ? (finalTpDist / slDist) : 0;

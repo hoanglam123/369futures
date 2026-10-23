@@ -1168,6 +1168,8 @@ def check_and_notify_parameter_changes(old_config, new_config):
     new_be = new_mfe.get("recommendedBeTriggerPct")
     if old_be is not None and new_be is not None and abs(old_be - new_be) >= 0.01:
         changes.append(f"• <b>Kích hoạt Partial TP / Dời BE:</b> <code>{old_be:.2f}%</code> ➔ <b><code>+{new_be:.2f}%</code></b>")
+    elif old_be is not None and new_be is None:
+        changes.append(f"• <b>Kích hoạt Partial TP / Dời BE:</b> <code>{old_be:.2f}%</code> ➔ <b><code>TẮT (Chốt dứt điểm không BE)</code></b>")
 
     # 2. Tỷ lệ TP / Grid
     old_tp = old_mfe.get("optimalTpGridRatio")
@@ -1494,15 +1496,10 @@ def analyze_mfe_mae_profiles(base_dir):
 
     total_samples = len(samples)
 
-    # === 3. Tối ưu hóa ngưỡng beTriggerPct kết hợp mô hình Partial TP 50% & Pullback ===
-    # Thay vì giả định phi thực tế, thuật toán mô phỏng đường đi của nến:
-    # 1. Khi giá chạm ngưỡng th: Kích hoạt Partial TP chốt 50% vị thế tại +th%
-    # 2. 50% vị thế còn lại được kéo SL về Hòa Vốn (0đ).
-    # 3. Rủi ro Pullback (tỷ lệ quét về Entry):
-    #    - Ngưỡng th quá thấp (< 0.90%): dễ bị nhiễu động nến M15 rũ non (tỷ lệ quét BE cao).
-    #    - Ngưỡng th hợp lý (1.10% - 1.50%): vị thế đã bứt phá thoát nền, xác suất vươn tới Full TP cao.
-    # 4. Đối với lệnh thua (Loss): nếu nến có nhịp giật ban đầu chạm th, bot chốt được 50% lãi và cứu vị thế khỏi full SL!
-    # Mục tiêu tối ưu: Tối đa hóa Net Expected Return PnL trên toàn bộ tập dữ liệu.
+    # === 3. [ARCHIVED - BE CALIBRATION] Thuật toán tìm ngưỡng BE cũ dựa trên công thức xác suất giả định ===
+    # Tạm ngưng cơ chế dời BE để vị thế chạy dứt điểm theo TP/SL do AI tự học từ MFE thực tế.
+    # Code cũ được lưu lại nguyên vẹn bên dưới để tái sử dụng hoặc so sánh về sau nếu cần:
+    """
     DEFAULT_BE = 1.15
     recommended_be_trigger_pct = DEFAULT_BE
     be_calibration_stats = {}
@@ -1526,8 +1523,6 @@ def analyze_mfe_mae_profiles(base_dir):
 
                 if did_tp:
                     if tp_dist >= th:
-                        # 50% chốt lời tại th; 50% còn lại gồng về TP
-                        # Pullback probability: tỷ lệ hồi về Entry trước khi chạm full TP
                         ratio = min(1.0, th / max(tp_dist, 0.1))
                         pullback_prob = max(0.18, min(0.65, 0.70 - 0.40 * ratio))
                         pnl = 0.5 * th + 0.5 * (1.0 - pullback_prob) * tp_dist
@@ -1535,8 +1530,6 @@ def analyze_mfe_mae_profiles(base_dir):
                     else:
                         pnl = tp_dist
                 else:
-                    # Lệnh thua: kiểm tra xác suất nến có nhịp nảy chạm th trước khi chết
-                    # Nhịp nảy giảm theo hàm mũ khi th tăng cao
                     bounce_prob = max(0.04, min(0.35, 0.42 * math.exp(-1.8 * (th / max(sl_dist, 0.1)))))
                     if bounce_prob > 0.15:
                         saved_sls += 1
@@ -1550,7 +1543,6 @@ def analyze_mfe_mae_profiles(base_dir):
                 best_partial_wins = partial_wins
                 best_saved_sls = saved_sls
 
-        # Áp dụng guardrail: không để ngưỡng quá thấp (< 0.85% gây rũ non) hoặc quá cao (> 1.60% mất tính bảo vệ)
         recommended_be_trigger_pct = max(0.85, min(best_threshold, 1.60))
         be_calibration_stats = {
             "threshold": recommended_be_trigger_pct,
@@ -1561,52 +1553,57 @@ def analyze_mfe_mae_profiles(base_dir):
             "savedSlCount": best_saved_sls,
             "sampleCount": total_samples
         }
-        print(f"🎯 [BE & Partial TP Calibration] Ngưỡng tối ưu học được: +{recommended_be_trigger_pct:.2f}%")
-        print(f"   • Expected Net PnL/lệnh: {be_calibration_stats['expectedNetPnlPct']:+.3f}% | Tổng PnL: {be_calibration_stats['totalSimulatedPnl']:+.1f}%")
-        print(f"   • Số lệnh chốt Partial TP: {best_partial_wins} | Số lệnh SL được cứu hòa/lãi: {best_saved_sls}")
-    else:
-        print(f"⚠️ [BE Trigger Calibration] Chưa đủ dữ liệu ({total_samples} mẫu < 50), dùng mặc định {DEFAULT_BE}%")
+    """
+    # Cơ chế mới: Vô hiệu hóa dời BE để nến chạy tự nhiên dứt điểm tới TP/SL của AI
+    recommended_be_trigger_pct = None
+    be_calibration_stats = {
+        "isBreakevenDisabled": True,
+        "reason": "Vô hiệu hóa Breakeven để chạy dứt điểm TP & SL theo học máy MFE, loại bỏ bẫy quét non hòa vốn",
+        "sampleCount": total_samples
+    }
 
-    # === 4. Học optimalTpGridRatio từ phân phối MFE thực tế ===
-    # Không gò ép trần cứng ở 0.45 làm bóp nghẹt R:R
-    # Thay vào đó, tự động chọn tỷ lệ cân bằng giữa Win Rate và Reward-to-Risk tối thiểu 1.4:1
-    DEFAULT_TP_RATIO = 0.55
+    # === 4. Học optimalTpGridRatio từ phân phối MFE thực tế (Chốt lời dứt điểm) ===
+    # Đo đạc trực tiếp khoảng cách nảy giá thực tế của lệnh thắng (MFE / GridWidth)
+    # Tìm điểm cân bằng tối ưu hóa: Tỷ lệ lệnh chạm Full TP * R:R
+    DEFAULT_TP_RATIO = 0.42
     optimal_tp_grid_ratio = DEFAULT_TP_RATIO
     tp_ratio_stats = {}
 
     if len(tp_ratio_samples) >= 30:
         tp_ratio_samples_sorted = sorted(tp_ratio_samples)
         n = len(tp_ratio_samples_sorted)
-        # Lấy percentile 65 (thay vì 55) để cho phép TP mở rộng biên độ chạy theo sóng
-        p65_idx = int(n * 0.35)
+        # Sử dụng phân vị an toàn (Percentile 40 - 50) để neo TP đúng tại vùng nhịp nảy kỹ thuật đầu tiên có xác suất đạt cao nhất (>55%)
+        p40_idx = int(n * 0.40)
         p50_idx = int(n * 0.50)
-        p65_val = tp_ratio_samples_sorted[p65_idx]
+        p40_val = tp_ratio_samples_sorted[p40_idx]
         p50_val = tp_ratio_samples_sorted[p50_idx]
-        learned_ratio = max(0.50, (p65_val + p50_val) / 2.0)
-        # Guardrail: [0.45, 0.75] — đảm bảo TP đủ xa để tạo R:R vượt trội
-        optimal_tp_grid_ratio = round(max(0.45, min(learned_ratio, 0.75)), 3)
+        learned_ratio = (p40_val + p50_val) / 2.0
+        # Guardrail an toàn cho Scalping dứt điểm: [0.35, 0.50] (~1.2% - 1.6% move giá thực tế)
+        optimal_tp_grid_ratio = round(max(0.35, min(learned_ratio, 0.50)), 3)
         tp_ratio_stats = {
             "learnedRatio": optimal_tp_grid_ratio,
+            "p40": round(p40_val, 3),
             "p50": round(p50_val, 3),
-            "p65": round(p65_val, 3),
             "sampleCount": n,
-            "medianRatio": round(tp_ratio_samples_sorted[n // 2], 3)
+            "medianRatio": round(tp_ratio_samples_sorted[n // 2], 3),
+            "executionMode": "DEFINITIVE_TP_NO_BE"
         }
-        print(f"🎯 [TP Grid Ratio] Tỷ lệ TP/Grid tối ưu học được: {optimal_tp_grid_ratio:.3f} ({optimal_tp_grid_ratio*100:.1f}% GridWidth)")
+        print(f"🎯 [TP Grid Ratio] Tỷ lệ TP/Grid tối ưu học được: {optimal_tp_grid_ratio:.3f} ({optimal_tp_grid_ratio*100:.1f}% GridWidth) [Chốt dứt điểm không BE]")
     else:
         print(f"⚠️ [TP Grid Ratio] Chưa đủ mẫu thắng có gridWidthPct ({len(tp_ratio_samples)} < 30), dùng mặc định {DEFAULT_TP_RATIO}")
 
-    print(f"📊 [MAE/MFE Profile] Hoàn tất: TP = {optimal_tp_grid_ratio*100:.1f}% GridWidth, BE/Partial Trigger = +{recommended_be_trigger_pct:.2f}% (N={total_samples}: {shadow_count} shadow + {real_count} real)")
+    print(f"📊 [MAE/MFE Profile] Hoàn tất: TP = {optimal_tp_grid_ratio*100:.1f}% GridWidth, Breakeven = TẮT (Chốt dứt điểm 100%) (N={total_samples})")
 
     return {
         "optimalTpGridRatio": optimal_tp_grid_ratio,
         "tpRatioStats": tp_ratio_stats,
-        "recommendedBeTriggerPct": recommended_be_trigger_pct,
+        "recommendedBeTriggerPct": None,
+        "isBreakevenDisabled": True,
         "beCalibrationStats": be_calibration_stats,
         "sampleCount": total_samples,
         "shadowCount": shadow_count,
         "realCount": real_count,
-        "autoCalibrated": total_samples >= 50,
+        "autoCalibrated": True,
         "calculatedAt": time.strftime("%Y-%m-%d %H:%M:%S")
     }
 

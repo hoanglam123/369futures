@@ -1,6 +1,6 @@
 {
   "version": "1.4.0-auto",
-  "trainedAt": "2026-10-22 15:02:12",
+  "trainedAt": "2026-10-23 15:36:15",
   "totalSamples": 1993,
   "priorWinProb": 0.4839,
   "priorOdds": 0.9376,
@@ -10,7 +10,7 @@
     "lowcap": 43,
     "minExpectedEvRoi": 0.0,
     "autoCalibrated": true,
-    "calibratedAt": "2026-10-22 15:02:12",
+    "calibratedAt": "2026-10-23 15:36:15",
     "calibrationStats": {
       "testedSamples": 2811,
       "approvedTrades": 388.0,
@@ -23,36 +23,34 @@
   "thresholdApprovalPct": 43,
   "minExpectedEvRoi": 0.0,
   "mfeMaeProfile": {
-    "optimalTpGridRatio": 0.5,
+    "optimalTpGridRatio": 0.45,
     "tpRatioStats": {
-      "learnedRatio": 0.5,
+      "learnedRatio": 0.45,
+      "p40": 0.45,
       "p50": 0.45,
-      "p65": 0.45,
       "sampleCount": 1050,
-      "medianRatio": 0.45
+      "medianRatio": 0.45,
+      "executionMode": "DEFINITIVE_TP_NO_BE"
     },
-    "recommendedBeTriggerPct": 1.6,
+    "recommendedBeTriggerPct": null,
+    "isBreakevenDisabled": true,
     "beCalibrationStats": {
-      "threshold": 1.6,
-      "bestThreshold": 1.75,
-      "expectedNetPnlPct": -0.043,
-      "totalSimulatedPnl": -131.2,
-      "partialWinsProtected": 907,
-      "savedSlCount": 104,
+      "isBreakevenDisabled": true,
+      "reason": "Vô hiệu hóa Breakeven để chạy dứt điểm TP & SL theo học máy MFE, loại bỏ bẫy quét non hòa vốn",
       "sampleCount": 3030
     },
     "sampleCount": 3030,
     "shadowCount": 1128,
     "realCount": 1974,
     "autoCalibrated": true,
-    "calculatedAt": "2026-10-22 15:02:12"
+    "calculatedAt": "2026-10-23 15:36:15"
   },
   "adaptiveSlProfile": {
     "optimalMinSlPct": 1.5,
     "top150MinSlPct": 1.5,
     "lowcapMinSlPct": 1.5,
     "autoCalibrated": true,
-    "calculatedAt": "2026-10-22 15:02:12",
+    "calculatedAt": "2026-10-23 15:36:15",
     "sampleCount": 1562
   },
   "adaptiveRrProfile": {
@@ -65,7 +63,7 @@
     },
     "minExpectedEvRoi": 0.0,
     "autoCalibrated": true,
-    "calculatedAt": "2026-10-22 15:02:12"
+    "calculatedAt": "2026-10-23 15:36:15"
   },
   "riskPenaltyProfile": {
     "h1ExtremeStormRejection": 0.85,
@@ -79,7 +77,7 @@
     "wallOpposingBlock": 0.35,
     "btcFlashOpposing": 0.35,
     "autoCalibrated": true,
-    "calculatedAt": "2026-10-22 15:02:12"
+    "calculatedAt": "2026-10-23 15:36:15"
   },
   "featureWeights": {
     "rank_group:RANK_TOP10": {
