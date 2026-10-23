@@ -140,12 +140,15 @@ function registerShadowTrade(sig, evalResult, options = {}) {
     tpPct = Math.abs((tierTpPrice - entryPrice) / entryPrice) * 100;
   }
 
-  // 🛡️ BREAKEVEN TRIGGER: Mức giá kích hoạt kéo SL về Hòa vốn (tôn trọng cấu hình từ AI / tierSetup)
-  let beTriggerPrice = options.beTriggerPrice !== undefined ? options.beTriggerPrice : null;
-  if (beTriggerPrice === null && options.beTriggerPrice === undefined) {
-    const beDeltaPct = 20.0 / leverage; // Fallback chỉ khi không truyền options.beTriggerPrice
-    beTriggerPrice = isLong ? entryPrice * (1 + beDeltaPct / 100) : entryPrice * (1 - beDeltaPct / 100);
-  }
+  // 🛡️ BREAKEVEN TRIGGER: Mức giá kích hoạt kéo SL về Hòa vốn
+  // [ARCHIVED - BE] Đã đồng bộ tắt dời BE theo mô hình AI mới để theo dõi kết quả dứt điểm TP & SL
+  // Code cũ:
+  //   let beTriggerPrice = options.beTriggerPrice !== undefined ? options.beTriggerPrice : null;
+  //   if (beTriggerPrice === null && options.beTriggerPrice === undefined) {
+  //     const beDeltaPct = 20.0 / leverage;
+  //     beTriggerPrice = isLong ? entryPrice * (1 + beDeltaPct / 100) : entryPrice * (1 - beDeltaPct / 100);
+  //   }
+  let beTriggerPrice = (typeof options.beTriggerPrice === 'number' && options.beTriggerPrice > 0) ? options.beTriggerPrice : null;
 
   // 🛡️ MỨC GIÁ THỊ TRƯỜNG HIỆN TẠI VÀ TRẠNG THÁI KHỚP LỆNH LIMIT
   const currentMark = parseFloat(options.markPrice || entryPrice);
