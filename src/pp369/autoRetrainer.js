@@ -188,14 +188,25 @@ async function runRetrainCycle(force = false) {
 
   const state = loadRetrainState();
   const currentSamples = countDatasetSamples();
-  const newSamples = currentSamples - (state.lastDatasetSampleCount || 0);
+
+  // 🛡️ Auto-heal: Nếu dataset bị thu hẹp/lọc lại khiến currentSamples < lastDatasetSampleCount,
+  // tự động đồng bộ lại mốc đếm để newSamples không bị âm và chu kỳ tự học không bị kẹt vĩnh viễn.
+  let datasetReset = false;
+  if (currentSamples < (state.lastDatasetSampleCount || 0)) {
+    _logger.warn(`[AutoRetrain] ⚠️ Phát hiện dataset thay đổi/thu hẹp (${currentSamples} < ${state.lastDatasetSampleCount}). Tự động đồng bộ lại mốc đếm.`);
+    state.lastDatasetSampleCount = currentSamples;
+    saveRetrainState(state);
+    datasetReset = true;
+  }
+
+  const newSamples = Math.max(0, currentSamples - (state.lastDatasetSampleCount || 0));
 
   // Conditions:
   // 1. Force is true
   // 2. newSamples >= 20
-  // 3. Time elapsed >= 24h AND newSamples >= 5
+  // 3. Time elapsed >= 24h AND (newSamples >= 5 OR datasetReset)
   const hoursSinceLast = (Date.now() - (state.lastRetrainTimestamp || 0)) / (3600 * 1000);
-  const shouldTrain = force || newSamples >= 20 || (hoursSinceLast >= 24 && newSamples >= 5);
+  const shouldTrain = force || newSamples >= 20 || (hoursSinceLast >= 24 && (newSamples >= 5 || datasetReset));
 
   if (!shouldTrain) {
     return {
@@ -284,12 +295,22 @@ function startPeriodicRetrain(options = {}) {
       const state = loadRetrainState();
       const breakdown = getDatasetBreakdown();
       const currentSamples = breakdown.total;
-      const newSamples = currentSamples - (state.lastDatasetSampleCount || 0);
+
+      // 🛡️ Auto-heal: Tự động phục hồi mốc đếm nếu dataset bị thu hẹp
+      let datasetReset = false;
+      if (currentSamples < (state.lastDatasetSampleCount || 0)) {
+        _logger.warn(`[AutoRetrain] ⚠️ Phát hiện dataset thay đổi/thu hẹp (${currentSamples} < ${state.lastDatasetSampleCount}). Tự động đồng bộ lại mốc đếm.`);
+        state.lastDatasetSampleCount = currentSamples;
+        saveRetrainState(state);
+        datasetReset = true;
+      }
+
+      const newSamples = Math.max(0, currentSamples - (state.lastDatasetSampleCount || 0));
       const hoursSinceLast = (Date.now() - (state.lastRetrainTimestamp || 0)) / (3600 * 1000);
 
       _logger.info(`[AutoRetrain] 🔄 Kiểm tra chu kỳ tự học: ${newSamples} mẫu mới tích lũy (Real: ${breakdown.realCount}, Shadow: ${breakdown.shadowCount}) | Ngưỡng: ${minSamples} mẫu (hoặc >=5 mẫu lúc 03:00 VN - hiện tại: ${vnHour}h VN)`);
 
-      if (newSamples >= minSamples || (vnHour === 3 && newSamples >= 5) || (hoursSinceLast >= 24 && newSamples >= 10)) {
+      if (newSamples >= minSamples || (vnHour === 3 && newSamples >= 5) || (hoursSinceLast >= 24 && (newSamples >= 10 || datasetReset))) {
         _logger.system(`[AutoRetrain] 🎯 Đạt điều kiện kích hoạt tự học AI (newSamples=${newSamples} >= ${minSamples} hoặc định kỳ 24h). Bắt đầu huấn luyện...`);
         await runRetrainCycle(false);
       }
@@ -319,7 +340,7 @@ function getRetrainStatus() {
   const state = loadRetrainState();
   const breakdown = getDatasetBreakdown();
   const currentSamples = breakdown.total;
-  const newSamples = currentSamples - (state.lastDatasetSampleCount || 0);
+  const newSamples = Math.max(0, currentSamples - (state.lastDatasetSampleCount || 0));
   return {
     isRetraining: _isRetraining,
     lastRetrainTime: state.lastRetrainTimestamp ? new Date(state.lastRetrainTimestamp).toISOString() : null,
