@@ -2740,58 +2740,60 @@ async function score369Method(sig369, direction) {
           } = btcState;
 
           if (isLong) {
-            // Nguy cơ lớn cho LONG nếu BTC đang xả dốc M15 hoặc phá vỡ dưới EMA20 H1 kèm nến đỏ liên tiếp
+            // Vùng đệm Sideway quanh EMA20 (±0.5%): Giá đang quấn lấy EMA20 H1, chưa bứt phá dứt khoát
+            const isPriceInEmaDeadzone = btcEma20 ? (Math.abs(btcPrice - btcEma20) / btcEma20 <= 0.0050) : false;
+            // Nguy cơ thực sự cho LONG nếu BTC đang xả dốc M15 hoặc phá vỡ dưới EMA20 dứt khoát kèm nến đỏ
             const isBtcDumping = (btcM15ChangePct != null && btcM15ChangePct <= -0.40) ||
-              (btcPrice < btcEma20 && isLastH1Red && isLowerH1Close) ||
-              (isBtcLowerHigh && btcPrice < btcEma20);
+              (btcPrice < btcEma20 * 0.995 && isLastH1Red && isLowerH1Close) ||
+              (isBtcLowerHigh && btcPrice < btcEma20 * 0.995 && isBtcStrong);
+            const isTrueBearTrend = isBtcEmaBear && isBtcStrong && !isPriceInEmaDeadzone;
 
-            if (isBtcDumping || isBtcEmaBear) {
+            if (isBtcDumping || isTrueBearTrend) {
               signalMetrics.btcWave = 'BTC_COUNTER';
               btcScore = 0;
               btcReasons.push(
                 `BTC ngược xu hướng Dow/EMA H1 (${btcAdxText}): Giá $${btcPrice ? btcPrice.toFixed(0) : '?'} < EMA20 $${btcEma20 ? btcEma20.toFixed(0) : '?'}${isLastH1Red ? ' [H1 đỏ]' : ''} (+0đ)`
               );
-            } else if (isBtcEmaBull && (isBtcHigherLow || isHigherH1Close) && !isLastH1Red) {
+            } else if (isBtcEmaBull && (isBtcHigherLow || isHigherH1Close) && !isLastH1Red && !isPriceInEmaDeadzone) {
               btcScore = isBtcStrong ? 1.0 : 0.5;
               signalMetrics.btcWave = 'BTC_ALIGNED';
               btcReasons.push(
                 `BTC thuận Dow/EMA LONG (${btcAdxText}): HL ($${bLow2.toFixed(1)} > $${bLow1.toFixed(1)}) & trên EMA20 (+${btcScore.toFixed(1)}đ)`
               );
-            } else if (!isBtcStrong && !isBtcDumping) {
+            } else {
+              // Đi ngang / Sideway biên hẹp quanh EMA20 hoặc ADX yếu: Cho phép giao dịch tự do (BTC_NEUTRAL)
               btcScore = 0.5;
               signalMetrics.btcWave = 'BTC_NEUTRAL';
-              btcReasons.push(`BTC đi ngang/trung tính (${btcAdxText}): Giao dịch tự do (+0.5đ)`);
-            } else {
-              signalMetrics.btcWave = 'BTC_COUNTER';
-              btcScore = 0;
-              btcReasons.push(`BTC ngược xu hướng Dow/EMA (${btcAdxText}) (+0đ)`);
+              const distFromEmaPct = btcEma20 ? (Math.abs(btcPrice - btcEma20) / btcEma20 * 100).toFixed(2) : '0';
+              btcReasons.push(`BTC đi ngang/trung tính (${btcAdxText}, lệch EMA20 ${distFromEmaPct}%): Giao dịch tự do (+0.5đ)`);
             }
           } else { // SHORT
-            // Nguy cơ lớn cho SHORT nếu BTC đang bơm dốc M15 hoặc phá vỡ vượt đỉnh EMA20 H1 kèm nến xanh liên tiếp
+            // Vùng đệm Sideway quanh EMA20 (±0.5%): Giá đang quấn lấy EMA20 H1, chưa bứt phá dứt khoát
+            const isPriceInEmaDeadzone = btcEma20 ? (Math.abs(btcPrice - btcEma20) / btcEma20 <= 0.0050) : false;
+            // Nguy cơ thực sự cho SHORT nếu BTC đang bơm dốc M15 hoặc phá vỡ vượt đỉnh EMA20 dứt khoát kèm nến xanh
             const isBtcPumping = (btcM15ChangePct != null && btcM15ChangePct >= 0.40) ||
-              (btcPrice > btcEma20 && isLastH1Green && isHigherH1Close) ||
-              (isBtcHigherLow && btcPrice > btcEma20);
+              (btcPrice > btcEma20 * 1.005 && isLastH1Green && isHigherH1Close) ||
+              (isBtcHigherLow && btcPrice > btcEma20 * 1.005 && isBtcStrong);
+            const isTrueBullTrend = isBtcEmaBull && isBtcStrong && !isPriceInEmaDeadzone;
 
-            if (isBtcPumping || isBtcEmaBull) {
+            if (isBtcPumping || isTrueBullTrend) {
               signalMetrics.btcWave = 'BTC_COUNTER';
               btcScore = 0;
               btcReasons.push(
                 `BTC ngược xu hướng Dow/EMA H1 (${btcAdxText}): Giá $${btcPrice ? btcPrice.toFixed(0) : '?'} > EMA20 $${btcEma20 ? btcEma20.toFixed(0) : '?'}${isLastH1Green ? ' [H1 xanh]' : ''} (+0đ)`
               );
-            } else if (isBtcEmaBear && (isBtcLowerHigh || isLowerH1Close) && !isLastH1Green) {
+            } else if (isBtcEmaBear && (isBtcLowerHigh || isLowerH1Close) && !isLastH1Green && !isPriceInEmaDeadzone) {
               btcScore = isBtcStrong ? 1.0 : 0.5;
               signalMetrics.btcWave = 'BTC_ALIGNED';
               btcReasons.push(
                 `BTC thuận Dow/EMA SHORT (${btcAdxText}): LH ($${bHigh2.toFixed(1)} < $${bHigh1.toFixed(1)}) & dưới EMA20 (+${btcScore.toFixed(1)}đ)`
               );
-            } else if (!isBtcStrong && !isBtcPumping) {
+            } else {
+              // Đi ngang / Sideway biên hẹp quanh EMA20 hoặc ADX yếu: Cho phép giao dịch tự do (BTC_NEUTRAL)
               btcScore = 0.5;
               signalMetrics.btcWave = 'BTC_NEUTRAL';
-              btcReasons.push(`BTC đi ngang/trung tính (${btcAdxText}): Giao dịch tự do (+0.5đ)`);
-            } else {
-              signalMetrics.btcWave = 'BTC_COUNTER';
-              btcScore = 0;
-              btcReasons.push(`BTC ngược xu hướng Dow/EMA (${btcAdxText}) (+0đ)`);
+              const distFromEmaPct = btcEma20 ? (Math.abs(btcPrice - btcEma20) / btcEma20 * 100).toFixed(2) : '0';
+              btcReasons.push(`BTC đi ngang/trung tính (${btcAdxText}, lệch EMA20 ${distFromEmaPct}%): Giao dịch tự do (+0.5đ)`);
             }
           }
         }

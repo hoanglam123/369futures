@@ -1092,7 +1092,12 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
   }
 
   // ── 🎯 TÍNH TOÁN LỢI NHUẬN KỲ VỌNG (EXPECTED VALUE - EV) CHUẨN XÁC THEO TIER VÀ GRID ──
-  const minEvRoiThreshold = optimalTh.minExpectedEvRoi ?? _modelConfig?.minExpectedEvRoi ?? 0.0;
+  // Sàn lọc lợi nhuận kỳ vọng tối thiểu: Mặc định bắt buộc >= 2.0% ROI (có thể cấu hình qua env MIN_EXPECTED_EV_ROI)
+  const envMinEv = parseFloat(process.env.MIN_EXPECTED_EV_ROI || '2.0');
+  const learnedMinEv = optimalTh.minExpectedEvRoi ?? _modelConfig?.minExpectedEvRoi;
+  const minEvRoiThreshold = typeof learnedMinEv === 'number' && learnedMinEv > envMinEv
+    ? learnedMinEv
+    : envMinEv;
 
   // Với hệ thống Tier Leverage: calcLeverage = 50 / slPct -> Lỗ khi dính SL luôn chuẩn ~50.0% ROI
   const estSlRoi = 50.0;
@@ -1222,7 +1227,7 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
     } else if (evRoi < minEvRoiThreshold) {
       vetoCategory = 'EV_BELOW_THRESHOLD';
       const rrNotice = (effSlPct > tpGridPct) ? ` [R:R bất lợi: Cản SL ${effSlPct.toFixed(2)}% > TP ${tpGridPct.toFixed(2)}%]` : '';
-      reasonText = `Xác suất thắng ${winProb.toFixed(1)}% >= ${threshold}%, nhưng Lợi Nhuận Kỳ Vọng (EV) âm/thấp (${evRoi.toFixed(2)}% ROI, $${evUsd.toFixed(2)})${rrNotice} (${factorSummary})`;
+      reasonText = `[AI VETO EV THẤP] Xác suất thắng ${winProb.toFixed(1)}% >= ${threshold}%, nhưng Lợi Nhuận Kỳ Vọng (EV) không đạt chuẩn (${evRoi.toFixed(2)}% < ${minEvRoiThreshold.toFixed(2)}% ROI, $${evUsd.toFixed(2)})${rrNotice} (${factorSummary})`;
     } else {
       vetoCategory = 'AI_VETO';
       reasonText = `Phủ quyết bởi AI [Rank #${rank}] (${factorSummary})`;

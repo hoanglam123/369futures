@@ -1341,7 +1341,7 @@ def calibrate_adaptive_rr_profile(base_dir):
     print(f"🎯 [Adaptive R:R Profile] Đã hiệu chuẩn: WinProb >= 65% (R:R >= 0.55:1), WinProb >= 60% (R:R >= 0.60:1), WinProb >= 57.5% (R:R >= 0.65:1)")
     return {
         "minRrByWinProb": rr_map,
-        "minExpectedEvRoi": 0.0,
+        "minExpectedEvRoi": 2.0,
         "autoCalibrated": True,
         "calculatedAt": time.strftime("%Y-%m-%d %H:%M:%S")
     }
@@ -1705,7 +1705,7 @@ def calibrate_optimal_thresholds(base_dir, feature_weights=None, prior_odds=1.3,
 
     if len(trades) < 20:
         print(f"⚠️ Mẫu dữ liệu để hiệu chuẩn ngưỡng quá ít ({len(trades)} mẫu). Sử dụng ngưỡng an toàn mặc định.")
-        return {"top150": 55.0, "lowcap": 53.0, "minExpectedEvRoi": 0.0, "autoCalibrated": False}
+        return {"top150": 55.0, "lowcap": 53.0, "minExpectedEvRoi": 2.0, "autoCalibrated": False}
 
     rank_map = {}
     mc_path = os.path.join(base_dir, "data", "market_cap_top.json")
@@ -1966,7 +1966,7 @@ def calibrate_optimal_thresholds(base_dir, feature_weights=None, prior_odds=1.3,
         "uniform": best_th_uniform,
         "top150": best_th_uniform,
         "lowcap": best_th_uniform,
-        "minExpectedEvRoi": 0.0,
+        "minExpectedEvRoi": 2.0,
         "autoCalibrated": True,
         "calibratedAt": time.strftime("%Y-%m-%d %H:%M:%S"),
         "calibrationStats": best_stats
