@@ -72,7 +72,7 @@ const MIN_CONFLUENCE_SCORE = parseFloat(process.env.MIN_CONFLUENCE_SCORE || '5.0
 // Code cũ:
 //   const ENABLE_TRAILING_BE = process.env.ENABLE_TRAILING_BE !== 'false';
 //   const ENABLE_PARTIAL_TP = process.env.ENABLE_PARTIAL_TP !== 'false';
-const ENABLE_TRAILING_BE = false; // Tắt dời BE: Vị thế chạy dứt điểm tới TP hoặc SL do AI học
+const ENABLE_TRAILING_BE = true; // Kích hoạt Buffer Trailing SL (Hướng 3): Dời SL về Vùng đệm An toàn (-0.5% Entry) khi đạt 65% TP
 const ENABLE_PARTIAL_TP = false;  // Tắt chốt 50% non: Chốt trọn vẹn 100% tại mốc TP tối ưu của AI
 const ENABLE_TREND_RUNNER = process.env.ENABLE_TREND_RUNNER !== 'false';
 // Cấu hình AI Hủy Limit Sớm (Pre-Fill Cancel: Hủy lệnh LIMIT nếu dòng tiền Taker/sổ lệnh suy yếu trước khi khớp)
@@ -596,7 +596,11 @@ function calculateTierSLTP(symbol, side, entryPrice, h4Ref, tickSize, maxExchang
   //   if (finalTpDist > beDistRaw) {
   //     beTriggerPrice = (side === 'LONG' || side === 'BUY') ? (entryPrice + beDistRaw) : (entryPrice - beDistRaw);
   //   }
-  const beTriggerPrice = null; // Vô hiệu hóa dời BE: Vị thế chạy dứt điểm 100% tới TP mục tiêu của AI hoặc SL an toàn
+  // 🛡️ BUFFER TRAILING SL (Hướng 3): Kích hoạt khi giá đi được 65% quãng đường tới TP
+  // Thay vì dời về đúng Entry (dễ bị quét râu retest như MELANIA/SAPIEN), dời về Vùng đệm -0.5% Entry (giảm 67% rủi ro)
+  const isLongSide = (side === 'LONG' || side === 'BUY');
+  const bufferTriggerDist = finalTpDist * 0.65;
+  const beTriggerPrice = isLongSide ? (entryPrice + bufferTriggerDist) : (entryPrice - bufferTriggerDist);
 
   // 🛡️ TỶ LỆ R:R THỰC TẾ: Không chặn cứng R:R < 1.0 ở đây, giao quyền toàn diện cho AI Reviewer thẩm định qua EV
   const rrRatio = slDist > 0 ? (finalTpDist / slDist) : 0;
@@ -1931,7 +1935,7 @@ async function startAutoTrade(coins) {
       try {
         try {
           await client.setLeverage(sym, effectiveLeverage);
-          log.system(`[AutoTrade] Set leverage ${sym}USDT = ${effectiveLeverage}x (Tier SL: $${tierSetup.slPrice} (${tierSetup.slPct.toFixed(2)}%), TP 1:${tierSetup.tpRatio}: $${tierSetup.tpPrice}${(ENABLE_TRAILING_BE && tierSetup.beTriggerPrice) ? `, Dời SL tại $${tierSetup.beTriggerPrice}` : ' [Không dời BE]'} | Ký quỹ: $${actualTradeMargin} [${riskProfile.grade}])`);
+          log.system(`[AutoTrade] Set leverage ${sym}USDT = ${effectiveLeverage}x (Tier SL: $${tierSetup.slPrice} (${tierSetup.slPct.toFixed(2)}%), TP 1:${tierSetup.rrRatio}: $${tierSetup.tpPrice}${(ENABLE_TRAILING_BE && tierSetup.beTriggerPrice) ? `, Buffer SL kích hoạt tại $${tierSetup.beTriggerPrice}` : ' [Không dời BE]'} | Ký quỹ: $${actualTradeMargin} [${riskProfile.grade}])`);
         } catch (e) {
           const binErr = e.response?.data;
           const errStr = _binanceErr(e);
@@ -3300,8 +3304,17 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
           targetTpPriceExact = meta.tierTpPrice;
         }
         trailTriggerPriceExact = meta.beTriggerPrice;
-        // Dời SL về hòa vốn (+/- 5 ticks bù phí và trượt giá)
-        trailedSlPriceExact = isLong ? Number((entryPrice + beBuffer).toFixed(8)) : Number((entryPrice - beBuffer).toFixed(8));
+        // 🛡️ BUFFER TRAILING SL: Dời SL về Vùng đệm an toàn (-0.5% Entry)
+        // Chừa khoảng đệm 0.5% cho giá retest Entry mà không bị cắn non, đồng thời giảm 67% rủi ro nếu đảo chiều
+        const bufferAdverseDist = entryPrice * 0.005; // 0.5% khoảng cách giá đệm
+        const bufferSlCandidate = isLong 
+          ? Number((entryPrice - bufferAdverseDist).toFixed(8))
+          : Number((entryPrice + bufferAdverseDist).toFixed(8));
+        
+        // Chỉ dời SL nếu mốc đệm tốt hơn SL ban đầu (không làm xấu SL)
+        trailedSlPriceExact = isLong
+          ? Math.max(targetSlPriceExact, bufferSlCandidate)
+          : Math.min(targetSlPriceExact, bufferSlCandidate);
       } else {
         // Fallback theo unit nếu metadata cũ
         const trailMultiplier = 0.45;
@@ -3851,7 +3864,10 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
         targetSlPrice = meta.runnerLockedSlPrice;
         currentSlPct = parseFloat(((Math.abs(targetSlPrice - entryPrice) / entryPrice) * leverageVal * 100).toFixed(2));
       } else if (canApplyTrailingSl) {
-        currentSlPct = trailSlRoi; // Dời SL về entry + 5đ (+5 ticks)
+        currentSlPct = parseFloat(((Math.abs(trailedSlPriceExact - entryPrice) / entryPrice) * leverageVal * 100).toFixed(2));
+        if (isLong ? (trailedSlPriceExact < entryPrice) : (trailedSlPriceExact > entryPrice)) {
+          currentSlPct = -currentSlPct; // Vùng đệm là âm (-16.5% ROI thay vì -50% ROI)
+        }
         targetSlPrice = trailedSlPriceExact;
       }
 
@@ -3894,9 +3910,9 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
           }
 
           if (!alreadyMoved && !betterOrEqualExists) {
-            const levelLabel = isRunnerSlValid ? `Runner Khóa Lãi (+${currentSlPct}%)` : (currentSlPct === trailSlRoi ? '+5đ (Khóa lãi)' : 'Khóa lãi');
-            const ticksLabel = isRunnerSlValid ? 'Runner' : (trailMultiplier * 100).toFixed(0);
-            log.system(`[AutoTrade] Trailing SL (chạm mốc ${ticksLabel}đ): ${sym} đạt ROI ${roi.toFixed(2)}% -> Dịch SL trên sàn về ${isRunnerSlValid ? 'mốc khóa lãi Runner' : 'entry + buffer'} ($${targetSlStr}, ROI ~${currentSlPct}%) [Mức: ${levelLabel}]`);
+            const levelLabel = isRunnerSlValid ? `Runner Khóa Lãi (+${currentSlPct}%)` : `Vùng đệm An toàn (${currentSlPct}%)`;
+            const ticksLabel = isRunnerSlValid ? 'Runner' : '65% TP';
+            log.system(`[AutoTrade] 🛡️ [Buffer Trailing SL] ${sym} đạt 65% TP (đỉnh lãi ROI +${roi.toFixed(2)}%) -> Dịch SL trên sàn về vùng đệm an toàn ($${targetSlStr}, ROI ~${currentSlPct}%) [Giảm 67% rủi ro nếu đảo chiều]`);
 
             // 🧹 Hủy sạch các lệnh LIMIT Entry còn treo dư (chống khớp lại phần dư khi giá hồi về Entry)
             const remainingEntryLimits = openOrders.filter(o => o.type === 'LIMIT' || o.orderType === 'LIMIT');
@@ -3928,17 +3944,17 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
               const ticksLabel = (trailMultiplier * 100).toFixed(0);
               const telegramTitle = isRunnerSlValid
                 ? `🚀 <b>[AutoTrade] Khóa Lãi Trend Runner (+${currentSlPct}%)</b>`
-                : `🛡️ <b>[AutoTrade] Khóa Lãi Hòa Vốn (+${ticksLabel} ticks)</b>`;
+                : `🛡️ <b>[AutoTrade] Kích Hoạt Buffer Trailing SL (Đạt 65% TP)</b>`;
               const partialNotice = isRunnerSlValid
                 ? `• Đã khóa chặt mốc bảo hiểm lợi nhuận, tiếp tục gồng 50% còn lại về đích TP2!`
                 : (partialClosedSymbols.has(sym)
                   ? `• Đã chốt trước 50% lợi nhuận, giữ 50% vị thế còn lại tiếp tục gồng về Full TP!`
-                  : `• Giữ nguyên 100% vị thế tiếp tục gồng về Full TP!`);
+                  : `• Dời SL về mốc -0.5% Entry (chừa đệm retest, giảm 67% rủi ro), giữ 100% vị thế tiếp tục gồng về Full TP!`);
               sendTelegram(
                 `${telegramTitle}\n` +
                 `• Coin: <b>#${sym} (${isLong ? 'LONG' : 'SHORT'})</b>\n` +
                 `• ROI hiện tại: <b>+${roi.toFixed(2)}%</b>\n` +
-                `• Đã dời SL trên sàn về: <b>$${targetSlStr}</b> (${isRunnerSlValid ? 'Bảo toàn lợi nhuận chắc chắn' : 'Hòa vốn + đệm phí'})\n` +
+                `• Đã dời SL trên sàn về: <b>$${targetSlStr}</b> (${isRunnerSlValid ? 'Bảo toàn lợi nhuận chắc chắn' : 'Vùng đệm an toàn -0.5% Entry'})\n` +
                 `${partialNotice}`
               ).catch(() => { });
             } catch (e) {

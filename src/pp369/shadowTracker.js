@@ -148,7 +148,9 @@ function registerShadowTrade(sig, evalResult, options = {}) {
   //     const beDeltaPct = 20.0 / leverage;
   //     beTriggerPrice = isLong ? entryPrice * (1 + beDeltaPct / 100) : entryPrice * (1 - beDeltaPct / 100);
   //   }
-  let beTriggerPrice = (typeof options.beTriggerPrice === 'number' && options.beTriggerPrice > 0) ? options.beTriggerPrice : null;
+  let beTriggerPrice = (typeof options.beTriggerPrice === 'number' && options.beTriggerPrice > 0)
+    ? options.beTriggerPrice
+    : (isLong ? (entryPrice + (tierTpPrice - entryPrice) * 0.65) : (entryPrice - (entryPrice - tierTpPrice) * 0.65));
 
   // 🛡️ MỨC GIÁ THỊ TRƯỜNG HIỆN TẠI VÀ TRẠNG THÁI KHỚP LỆNH LIMIT
   const currentMark = parseFloat(options.markPrice || entryPrice);
@@ -335,14 +337,15 @@ function updateShadowPrices(priceMap) {
       : ((entry - p.maxFavorablePrice) / entry) * p.leverage * 100;
     p.maxFavorableRoi = Math.max(p.maxFavorableRoi || 0, favorableRoi);
 
-    // 🛡️ DỜI SL VỀ HÒA VỐN (BREAKEVEN):
-    // Kích hoạt khi râu nến chạm beTriggerPrice (nếu có cấu hình BE)
+    // 🛡️ BUFFER TRAILING SL (Hướng 3):
+    // Kích hoạt khi râu nến chạm mốc 65% TP -> Dời SL về Vùng đệm An toàn (-0.5% Entry)
     if (!p.isBeTriggered && typeof p.beTriggerPrice === 'number' && p.beTriggerPrice > 0) {
       const hitBeTrigger = isLong ? (candleHigh >= p.beTriggerPrice) : (candleLow <= p.beTriggerPrice);
       if (hitBeTrigger) {
         p.isBeTriggered = true;
-        p.tierSlPrice = entry; // Dời SL về hòa vốn y hệt bot thật trên Binance
-        _logger.system(`[Shadow PnL] 🛡️ [Breakeven Active] ${p.symbol} (${p.signal}) chạm mốc BE ($${p.beTriggerPrice}) / ROI +${favorableRoi.toFixed(1)}% -> Đã kéo SL về Hòa vốn (Entry $${entry})!`);
+        const bufferDist = entry * 0.005; // 0.5% buffer
+        p.tierSlPrice = isLong ? Math.max(p.tierSlPrice, entry - bufferDist) : Math.min(p.tierSlPrice, entry + bufferDist);
+        _logger.system(`[Shadow PnL] 🛡️ [Buffer Trailing SL] ${p.symbol} (${p.signal}) chạm mốc 65% TP ($${p.beTriggerPrice.toFixed(4)}) / ROI +${favorableRoi.toFixed(1)}% -> Đã dời SL về Vùng đệm An toàn ($${p.tierSlPrice.toFixed(4)}, -0.5% Entry)!`);
       }
     }
 
@@ -430,7 +433,11 @@ function _resolveShadowTrade(p, outcome, exitPrice, exitRoi, exitTimestamp) {
   } else if (isSavedSL) {
     finalRoi = -p.slPct * p.leverage;
     pnlUsd = (finalRoi / 100) * p.margin;
-  } else if (isSavedBE || isCancelled) {
+  } else if (isSavedBE) {
+    // Vùng đệm an toàn -0.5% Entry: Lỗ nhẹ tương đương -0.5% * leverage (~-16.5% ROI thay vì -50% ROI)
+    finalRoi = -0.5 * p.leverage;
+    pnlUsd = (finalRoi / 100) * p.margin;
+  } else if (isCancelled) {
     finalRoi = 0;
     pnlUsd = 0;
   }
@@ -456,7 +463,7 @@ function _resolveShadowTrade(p, outcome, exitPrice, exitRoi, exitTimestamp) {
     aiDecisionWasCorrect: isSavedSL || isSavedBE || isCancelled,
     pnlPercent: Math.round(finalRoi * 100) / 100,
     pnlUsd: Math.round(pnlUsd * 100) / 100,
-    savedLossUSD: isSavedSL ? Math.abs(p.hypotheticalLossUSD) : 0,
+    savedLossUSD: isSavedSL ? Math.abs(p.hypotheticalLossUSD) : (isSavedBE ? Math.max(0, Math.abs(p.hypotheticalLossUSD) - Math.abs(pnlUsd)) : 0),
     missedProfitUSD: isMissedTP ? Math.abs(p.hypotheticalProfitUSD) : 0,
     score: p.score,
     scoreReasons: p.scoreReasons,
