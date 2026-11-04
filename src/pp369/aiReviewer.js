@@ -321,6 +321,32 @@ function extractSignalFeatures(reasons, score, rank, gridWidthPct, rawMarketData
     features['volume'] = 'VOL_DRY';
   }
 
+  // 9c. Realtime Volume Kinematics (Khối lượng giao dịch tức thì M15/H1 số học - Không hardcode)
+  const m15Vol = rawMarketData?.marketMetrics?.m15VolRatio ?? (parseFloat(rawMarketData?.m15VolRatio) || null);
+  const h1Vol = rawMarketData?.marketMetrics?.h1VolRatio ?? (parseFloat(rawMarketData?.h1VolRatio) || null);
+  if (m15Vol != null || h1Vol != null) {
+    if ((m15Vol != null && m15Vol >= 3.0) || (h1Vol != null && h1Vol >= 2.5)) {
+      features['realtime_volume'] = 'VOL_BURST_DANGER';
+    } else if (m15Vol != null && m15Vol >= 1.8) {
+      features['realtime_volume'] = 'VOL_SURGE';
+    } else if (m15Vol != null && m15Vol >= 0.7) {
+      features['realtime_volume'] = 'VOL_STABLE';
+    } else if (m15Vol != null && m15Vol > 0) {
+      features['realtime_volume'] = 'VOL_DRY';
+    } else {
+      features['realtime_volume'] = 'VOL_STABLE';
+    }
+  } else {
+    // Fallback theo feature volume cũ nếu không có dữ liệu số
+    if (reasonsStr.includes('Volume bùng nổ') || sm?.volumeRatio >= 2.0) {
+      features['realtime_volume'] = 'VOL_BURST_DANGER';
+    } else if (reasonsStr.includes('Volume ổn định') || sm?.volumeRatio >= 0.8) {
+      features['realtime_volume'] = 'VOL_STABLE';
+    } else {
+      features['realtime_volume'] = 'VOL_DRY';
+    }
+  }
+
   // 9b. H1 3-Candle Volume Burst (Bão Volume H1 số học)
   if (sm?.h1VolumeBurst) {
     features['h1_volume_burst'] = sm.h1VolumeBurst;
@@ -731,6 +757,10 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
     'sr_quality:SR_NONE': 1.00,
     'h1_volume_burst:H1_VOL_BURST_DANGER': 0.81, // Đột biến Volume 3 nến H1 -> Phạt -19%
     'h1_volume_burst:H1_VOL_BURST_NORMAL': 1.05,
+    'realtime_volume:VOL_BURST_DANGER': 0.70,     // Khối lượng bùng nổ đột biến bão giá -> Phạt -30%
+    'realtime_volume:VOL_SURGE': 0.95,            // Dòng tiền gia tăng
+    'realtime_volume:VOL_STABLE': 1.05,           // Khối lượng bình ổn sóng êm -> Thưởng +5%
+    'realtime_volume:VOL_DRY': 0.92,              // Thanh khoản cạn kiệt -> Thận trọng -8%
     'btc_storm:BTC_STORM_VOLATILE': 0.43,        // BTC bão M15 > 1% -> Phạt -57%
     'btc_storm:BTC_STORM_NORMAL': 1.03,
     'btc_flash:BTC_FLASH_PUMP_ACTIVE': btcFlashMult, // Bão BTC Flash Pump từ riskPenaltyProfile
@@ -857,6 +887,11 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
     skipForInteraction.set('m15_volatility', 'H1_VOLATILE_DANGER');
   }
 
+  // Khử lặp Volume: realtime_volume đã đo đạc chính xác khối lượng nến tức thì
+  if (features['realtime_volume'] && features['volume']) {
+    skipForInteraction.set('volume', 'realtime_volume');
+  }
+
   for (const [cat, val] of Object.entries(features)) {
     const key = `${cat}:${val}`;
     let mult = 1.0;
@@ -952,29 +987,7 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
       mult = Math.min(1.25, mult);
     }
 
-    // 🛡️ SANITY GUARD: Triệt tiêu toàn bộ điểm thưởng khi có rủi ro cấu trúc nghiêm trọng
-    const isTurnoverBlockedRisk = features['turnover_guard'] === 'TURNOVER_RISK_BLOCKED';
-    const hasCriticalRisk = isTurnoverBlockedRisk ||
-                            features['h1_volatility'] === 'H1_VOLATILE_DANGER' ||
-                            features['h1_volatility'] === 'H1_EXTREME_STORM_PUMP_DUMP' ||
-                            features['h1_volume_burst'] === 'H1_VOL_BURST_DANGER' ||
-                            features['risk_interaction'] === 'INTERACTION_TREND_FLOW_CONFLICT' ||
-                            features['risk_interaction'] === 'INTERACTION_STALE_BOUNCE_RUNAWAY';
-    if (hasCriticalRisk) {
-      // Khi đã dính rủi ro cấu trúc nghiêm trọng, không cho phép các điểm cộng OI, dòng tiền, nến đơn lẻ lấp liếm rủi ro
-      if (['oi_change', 'ls_flow', 'volume', 'candle_shape', 'm15_candle_geometry', 'pre_entry_bounce', 'h1_candle_geometry'].includes(cat)) {
-        mult = Math.min(1.00, mult);
-      }
-      // Riêng với Turnover Blocked (MarketCap nhỏ nhưng volume đột biến > 12-15%, rủi ro xả / quét râu Lowcap):
-      // Tuyệt đối không cho phép bất kỳ điểm kỹ thuật phụ nào kéo điểm lên (> 1.00)
-      if (isTurnoverBlockedRisk && mult > 1.00) {
-        mult = Math.min(1.00, mult);
-      }
-    }
-
-    // 🛡️ BÃO NẾN H1 / M15: Nếu có nến Pinbar / Hammer xác nhận từ chối giá và không bị Marubozu đè bẹp,
-    // nới lỏng hệ số phạt theo cấu hình riskPenaltyProfile (mặc định 0.55 / 0.60 thay vì 0.20)
-    // 🌊 NỚI LỎNG KHI THUẬN CHIỀU BTC: Nếu bão nến bùng nổ thuận chiều với sóng BTC, đây là xung lực trend expansion
+    // 🛡️ Phân tích động lực nến tức thì (Kinematics & Multi-timeframe Radar)
     const isLongSig = sig.signal === 'LONG' || sig.signal === 'BUY';
     const isShortSig = sig.signal === 'SHORT' || sig.signal === 'SELL';
     const isBtcAligned = features['btc_wave'] === 'BTC_ALIGNED' ||
@@ -987,6 +1000,36 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
                          features['m15_candle_geometry'] === 'M15_REJECT_PINBAR' ||
                          features['candle_shape'] === 'CANDLE_PINBAR_HAMMER' ||
                          features['candle_shape'] === 'CANDLE_PINBAR_SHOOTING';
+
+    const isM15PuncturedDeep = features['m15_candle_geometry'] === 'M15_PUNCTURED_DEEP';
+    const isM15Storm = features['m15_volatility'] === 'M15_VOLATILE_DANGER' || features['m15_volatility'] === 'M15_EXTREME_STORM';
+    const isVolBurst = features['realtime_volume'] === 'VOL_BURST_DANGER';
+    const isOrderFlowAdverse = isLongSig
+      ? (rawMarketData?.microstructure?.takerBuyRatio != null && rawMarketData.microstructure.takerBuyRatio <= 0.25)
+      : (rawMarketData?.microstructure?.takerBuyRatio != null && rawMarketData.microstructure.takerBuyRatio >= 0.75);
+
+    // 🔥 TÂM BÃO ĐANG LAO DỐC (Active Storm Attack): M15 Marubozu xả dốc, đâm thủng lụt, vol nổ bão, taker xả áp đảo
+    const isActiveStormAttack = isRunaway || isM15PuncturedDeep || isM15Storm || isVolBurst || isOrderFlowAdverse;
+
+    // 🛡️ SANITY GUARD: Triệt tiêu toàn bộ điểm thưởng khi có rủi ro cấu trúc nghiêm trọng
+    const isTurnoverBlockedRisk = features['turnover_guard'] === 'TURNOVER_RISK_BLOCKED';
+    const isVolDangerCritical = (features['h1_volatility'] === 'H1_VOLATILE_DANGER' && isActiveStormAttack) ||
+                                features['h1_volatility'] === 'H1_EXTREME_STORM_PUMP_DUMP';
+    const hasCriticalRisk = isTurnoverBlockedRisk ||
+                            isVolDangerCritical ||
+                            features['h1_volume_burst'] === 'H1_VOL_BURST_DANGER' ||
+                            features['risk_interaction'] === 'INTERACTION_TREND_FLOW_CONFLICT' ||
+                            features['risk_interaction'] === 'INTERACTION_STALE_BOUNCE_RUNAWAY' ||
+                            features['puncture_interaction'] === 'INTERACTION_H1_M15_PUNCTURED';
+    if (hasCriticalRisk) {
+      // Khi tâm bão đang lao dốc hoặc dính rủi ro cấu trúc nặng, KHÔNG cho phép bất kỳ điểm thưởng nào lấp liếm rủi ro
+      if (['oi_change', 'ls_flow', 'volume', 'realtime_volume', 'candle_shape', 'm15_candle_geometry', 'pre_entry_bounce', 'h1_candle_geometry', 'trend', 'adx_strength', 'price_action', 'sr_quality'].includes(cat)) {
+        mult = Math.min(1.00, mult);
+      }
+      if ((isTurnoverBlockedRisk || isVolDangerCritical) && mult > 1.00) {
+        mult = Math.min(1.00, mult);
+      }
+    }
 
     if (cat === 'h1_volatility' && val === 'H1_EXTREME_STORM_PUMP_DUMP') {
       if (isBtcAligned && !isRunaway) {
@@ -1007,8 +1050,25 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
       }
     }
     if (cat === 'h1_volatility' && val === 'H1_VOLATILE_DANGER') {
-      if (isBtcAligned && !isRunaway) {
-        mult = Math.max(mult, 0.88); // Nới nhẹ biến động H1 khi thuận đà BTC
+      if (hasRejection && !isActiveStormAttack) {
+        // 🎯 KỊCH BẢN 3: Đã có xác nhận rút chân sớm từ M15/H1 (Từ chối cản đẹp)
+        mult = isBtcAligned ? 0.95 : 0.85;
+      } else if (isActiveStormAttack) {
+        // 🔥 KỊCH BẢN 1: TÂM BÃO ĐANG LAO DỐC (M15 Marubozu xả dốc, đâm thủng lụt, vol bão)
+        // Dao rơi không có lực đỡ -> Phạt dứt khoát x0.55 để Veto cản bão (như ca RUNE)
+        mult = 0.55;
+      } else {
+        // ❄️ KỊCH BẢN 2: BÃO NẾN ĐANG HẠ NHIỆT / TÍCH LŨY QUANH CẢN (Volatility Cooling & Hover)
+        // H1 từng biến động nhưng M15 đã co hẹp biên độ, volume êm, không đâm thủng
+        // Giữ mức phạt tự nhiên x0.75 - x0.80, để AI cân nhắc đa biến không bóp chết lệnh đón cản!
+        mult = isBtcAligned ? 0.82 : 0.75;
+      }
+    }
+    if (cat === 'realtime_volume' && val === 'VOL_BURST_DANGER') {
+      if (isBtcAligned && hasRejection && !isRunaway) {
+        mult = 0.88; // Nổ volume nhưng thuận trend và rút râu
+      } else if (isActiveStormAttack) {
+        mult = 0.65; // Nổ volume trong nhịp xả dốc -> Phạt nặng
       }
     }
     if (cat === 'm15_volatility' && val === 'M15_VOLATILE_DANGER') {

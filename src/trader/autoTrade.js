@@ -3312,9 +3312,11 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
           : Number((entryPrice + bufferAdverseDist).toFixed(8));
         
         // Chỉ dời SL nếu mốc đệm tốt hơn SL ban đầu (không làm xấu SL)
-        trailedSlPriceExact = isLong
+        const staleBePrice = isLong ? Number((entryPrice + beBuffer).toFixed(8)) : Number((entryPrice - beBuffer).toFixed(8));
+        const baseTrailedSl = isLong
           ? Math.max(targetSlPriceExact, bufferSlCandidate)
           : Math.min(targetSlPriceExact, bufferSlCandidate);
+        trailedSlPriceExact = meta?.isStaleBeMoved ? staleBePrice : baseTrailedSl;
       } else {
         // Fallback theo unit nếu metadata cũ
         const trailMultiplier = 0.45;
@@ -3510,6 +3512,101 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
               }
             }
           }
+      }
+
+            // ----------------------------------------------------
+      // 0b. STALE POSITION GUARD (Quán lý vị thế ứ đọng quá 9 giờ ~ 2 nến H4)
+      // ----------------------------------------------------
+      const holdingDurationMinutes = (Date.now() - (meta?.time || Date.now())) / 60000;
+      const holdingHours = holdingDurationMinutes / 60;
+      const STALE_TIMEOUT_HOURS = 9.0; // 9 tiếng (ứng với 2 cây nến H4 đầy đủ)
+
+      if (meta && holdingHours >= STALE_TIMEOUT_HOURS && !meta.isTrendRunner) {
+        if (!meta.isStaleTimeoutActive) {
+          meta.isStaleTimeoutActive = true;
+          saveActiveTradesMetadata();
+          log.system(`[AutoTrade] ⏱️ [Stale Position Guard] ${sym} (${isLong ? 'LONG' : 'SHORT'}): Đã giữ lệnh ${holdingHours.toFixed(1)}h (>= 9h - 2 cây H4) không chạm TP -> Kích hoạt cơ chế vị thế ứ đọng!`);
+        }
+
+        // 👉 TRƯỜNG HỢP 1: Lệnh đang CÓ LÃI (ROI > +0.5%)
+        // Tuyệt đối KHÔNG đóng non! Dời SL về sát Entry (+ buffer bù phí) để bảo toàn vốn 100%,
+        // biến lệnh thành 'Free Trade' (rủi ro = 0) để tiếp tục gồng lãi Full TP!
+        if (roi > 0.5) {
+          if (!meta.isStaleBeMoved) {
+            meta.isStaleBeMoved = true;
+            saveActiveTradesMetadata();
+            log.system(`[AutoTrade] ⏱️ [Stale Position BE Lock] ${sym} (${isLong ? 'LONG' : 'SHORT'}): Đã giữ ${holdingHours.toFixed(1)}h và ĐANG CÓ LÃI (ROI +${roi.toFixed(2)}%) -> Dời SL về Entry hòa vốn để tiếp tục gồng Full TP không rủi ro!`);
+            sendTelegram(
+              `⏱️ <b>[AutoTrade] Khóa Hòa Vốn Vị Thế Sau 9 Giờ (Stale BE Lock)</b>\n` +
+              `• Coin: <b>#${sym} (${isLong ? 'LONG' : 'SHORT'})</b>\n` +
+              `• Thời gian giữ lệnh: <b>${holdingHours.toFixed(1)} giờ (>= 2 nến H4)</b>\n` +
+              `• Hiện tại: <b>$${markPrice}</b> | ROI: <b>+${roi.toFixed(2)}%</b>\n` +
+              `• Hành động: <b>Lệnh đang có lãi -> Tự động dời SL về Entry hòa vốn để tiếp tục gồng Full TP với RỦI RO = 0!</b>`
+            ).catch(() => {});
+          }
+        }
+        // 👉 TRƯỜNG HỢP 2: Lệnh đang LÌNH XÌNH HÒA VỐN / ÂM NHẸ (-3.0% <= ROI <= +0.5%)
+        // đã ngâm 9 tiếng không tạo được sóng: Chủ động đóng Market giải phóng margin đón cơ hội mới!
+        else if (roi >= -3.0 && roi <= 0.5) {
+          log.system(
+            `[AutoTrade] ⏱️ [Stale Position Exit] ${sym} (${isLong ? 'LONG' : 'SHORT'}): ` +
+            `đã giữ ${holdingHours.toFixed(1)}h (>= 9h - 2 nến H4) và giá đang lình xình quanh Entry (ROI ${roi.toFixed(2)}%, PnL $${unrealizedPnlUsd.toFixed(2)}) -> đóng Market giải phóng margin!`
+          );
+          try {
+            justClosedByBot.add(sym);
+            await client.placeMarket(sym, oppositeSide, absAmt);
+            client.cancelAllOpenOrders(sym).catch(() => {});
+            for (const algo of openAlgoOrders) {
+              client.cancelAlgoOrder(sym, algo.algoId || algo.orderId).catch(() => {});
+            }
+            await sendTelegram(
+              `⏱️ <b>[AutoTrade] Thoát Vị Thế Ứ đọng Quá 9 Giờ (Stale Position Exit)</b>\n` +
+              `• Coin: <b>#${sym} (${isLong ? 'LONG' : 'SHORT'})</b>\n` +
+              `• Thời gian giữ lệnh: <b>${holdingHours.toFixed(1)} giờ (>= 2 nến H4)</b>\n` +
+              `• Giá đóng: <b>$${markPrice}</b> | ROI: <b>${roi >= 0 ? '+' : ''}${roi.toFixed(2)}%</b>\n` +
+              `• PnL: <b>${unrealizedPnlUsd >= 0 ? '+' : ''}${unrealizedPnlUsd.toFixed(2)} USDT</b>\n` +
+              `• Hành động: <b>Chủ động đóng Market giải phóng vốn sau 2 chu kỳ H4 đi ngang không bứt phá!</b>`
+            ).catch(() => {});
+
+            recordTradeExit({
+              tradeId: `${sym}-${meta.orderId || 'staleExit'}`,
+              orderId: String(meta.orderId || ''),
+              symbol: sym,
+              exitPrice: markPrice,
+              exitTimestamp: Date.now(),
+              exitType: 'STALE_POSITION_EXIT',
+              pnlPercent: roi,
+              pnlUsd: unrealizedPnlUsd,
+              holdingDurationMinutes: holdingDurationMinutes,
+              isWin: unrealizedPnlUsd >= 0,
+            });
+            recordDirectionalTradeExit({
+              symbol: sym,
+              side: isLong ? 'LONG' : 'SHORT',
+              isWin: unrealizedPnlUsd >= 0,
+              exitType: 'STALE_POSITION_EXIT',
+              pnlUsd: unrealizedPnlUsd,
+              pnlPercent: roi
+            });
+            recordRealTradeOutcome({
+              symbol: sym,
+              side: isLong ? 'LONG' : 'SHORT',
+              isWin: unrealizedPnlUsd >= 0,
+              exitType: 'STALE_POSITION_EXIT',
+              pnlUsd: unrealizedPnlUsd,
+              pnlPercent: roi
+            });
+            continue;
+          } catch (e) {
+            justClosedByBot.delete(sym);
+            log.error(`[AutoTrade] [Stale Position Exit] Lỗi đóng market vị thế ${sym}: ${e.message}`);
+          }
+        }
+        // 👉 TRƯỜNG HỢP 3: Lệnh đang ÂM (ROI < -3.0%)
+        // Dời TP về sát Entry hòa vốn để đón nhịp giật râu thoát hàng $0.00
+        else {
+          meta.isPanicEscape = true;
+        }
       }
 
       // ----------------------------------------------------
@@ -3855,7 +3952,7 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
       const isRunnerSlValid = Boolean(meta?.isTrendRunner && meta?.runnerLockedSlPrice && (isLong ? (markPrice > meta.runnerLockedSlPrice) : (markPrice < meta.runnerLockedSlPrice)));
 
       // CẬP NHẬT: Không dời BE nếu tắt ENABLE_TRAILING_BE (cho phép vị thế chạy thuần túy đến TP/SL)
-      const canApplyTrailingSl = (ENABLE_TRAILING_BE && isTrailTriggerReached && isTrailedSlValid) || isRunnerSlValid;
+      const canApplyTrailingSl = (ENABLE_TRAILING_BE && isTrailTriggerReached && isTrailedSlValid) || isRunnerSlValid || Boolean(meta?.isStaleBeMoved && isTrailedSlValid);
 
       let targetSlPrice = targetSlPriceExact;
       let currentSlPct = slPct;
