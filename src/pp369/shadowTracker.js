@@ -150,7 +150,7 @@ function registerShadowTrade(sig, evalResult, options = {}) {
   //   }
   let beTriggerPrice = (typeof options.beTriggerPrice === 'number' && options.beTriggerPrice > 0)
     ? options.beTriggerPrice
-    : (isLong ? (entryPrice + (tierTpPrice - entryPrice) * 0.65) : (entryPrice - (entryPrice - tierTpPrice) * 0.65));
+    : (isLong ? (entryPrice + (tierTpPrice - entryPrice) * 0.50) : (entryPrice - (entryPrice - tierTpPrice) * 0.50));
 
   // 🛡️ MỨC GIÁ THỊ TRƯỜNG HIỆN TẠI VÀ TRẠNG THÁI KHỚP LỆNH LIMIT
   const currentMark = parseFloat(options.markPrice || entryPrice);
@@ -338,14 +338,14 @@ function updateShadowPrices(priceMap) {
     p.maxFavorableRoi = Math.max(p.maxFavorableRoi || 0, favorableRoi);
 
     // 🛡️ BUFFER TRAILING SL (Hướng 3):
-    // Kích hoạt khi râu nến chạm mốc 65% TP -> Dời SL về Vùng đệm An toàn (-0.5% Entry)
+    // Kích hoạt khi râu nến chạm mốc 50% TP -> Dời SL về Vùng đệm An toàn (-0.5% Entry)
     if (!p.isBeTriggered && typeof p.beTriggerPrice === 'number' && p.beTriggerPrice > 0) {
       const hitBeTrigger = isLong ? (candleHigh >= p.beTriggerPrice) : (candleLow <= p.beTriggerPrice);
       if (hitBeTrigger) {
         p.isBeTriggered = true;
         const bufferDist = entry * 0.005; // 0.5% buffer
         p.tierSlPrice = isLong ? Math.max(p.tierSlPrice, entry - bufferDist) : Math.min(p.tierSlPrice, entry + bufferDist);
-        _logger.system(`[Shadow PnL] 🛡️ [Buffer Trailing SL] ${p.symbol} (${p.signal}) chạm mốc 65% TP ($${p.beTriggerPrice.toFixed(4)}) / ROI +${favorableRoi.toFixed(1)}% -> Đã dời SL về Vùng đệm An toàn ($${p.tierSlPrice.toFixed(4)}, -0.5% Entry)!`);
+        _logger.system(`[Shadow PnL] 🛡️ [Buffer Trailing SL] ${p.symbol} (${p.signal}) chạm mốc 50% TP ($${p.beTriggerPrice.toFixed(4)}) / ROI +${favorableRoi.toFixed(1)}% -> Đã dời SL về Vùng đệm An toàn ($${p.tierSlPrice.toFixed(4)}, -0.5% Entry)!`);
       }
     }
 
@@ -376,8 +376,8 @@ function updateShadowPrices(priceMap) {
       }
     }
 
-        // ⏱️ STALE POSITION GUARD (9 tiếng ~ 2 nến H4)
-    if (!resolvedOutcome && holdingHours >= 9.0 && !p.isTrendRunner) {
+        // ⏱️ STALE POSITION GUARD (6 tiếng ~ 1.5 nến H4)
+    if (!resolvedOutcome && holdingHours >= 6.0 && !p.isTrendRunner) {
       if (currentRoi > 0.5) {
         // Lệnh đang có lãi -> Dời SL về Entry hòa vốn để tiếp tục gồng Full TP không rủi ro!
         if (!p.isBeTriggered) {
@@ -388,7 +388,7 @@ function updateShadowPrices(priceMap) {
       } else if (currentRoi >= -3.0 && currentRoi <= 0.5) {
         // Lệnh lình xình quanh Entry -> Thoát hòa vốn giải phóng vị thế
         resolvedOutcome = 'SAVED_BE';
-        _logger.system(`[Shadow PnL] ⏱️ [Stale Position Exit] ${p.symbol} (${p.signal}) đã ngâm ${holdingHours.toFixed(1)}h (>= 9h - 2 nến H4) và giá đang lình xình quanh Entry (ROI ${currentRoi.toFixed(2)}%) -> Thoát hòa vốn giải phóng vị thế!`);
+        _logger.system(`[Shadow PnL] ⏱️ [Stale Position Exit] ${p.symbol} (${p.signal}) đã ngâm ${holdingHours.toFixed(1)}h (>= 6h - 1.5 nến H4) và giá đang lình xình quanh Entry (ROI ${currentRoi.toFixed(2)}%) -> Thoát hòa vốn giải phóng vị thế!`);
       } else if (!p.isBeTriggered) {
         // Lệnh đang âm -> Ép SL về vùng đệm an toàn (-0.5% Entry)
         p.isBeTriggered = true;
