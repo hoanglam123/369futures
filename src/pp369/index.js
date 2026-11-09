@@ -82,6 +82,7 @@ module.exports = {
   initH1Cache:           core.initH1Cache,
   initH4Cache:           core.initH4Cache, // alias
   getH1MonthAnchorMs:    core.getH1MonthAnchorMs,
+  monthLabel:            core.monthLabel,
   MONTH_ANCHOR_MS:       core.MONTH_ANCHOR_MS,
   YEAR_START_MS:         core.YEAR_START_MS, // alias
   fetchBinanceKlines:    core.fetchBinanceKlines,

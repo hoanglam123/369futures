@@ -35,18 +35,32 @@ const NEAR_LEVEL_PCT = 0.005; // 0.5% = "giá đang tiếp cận mốc — đủ
 const PROXIMITY_PCT = 0.02;  // 2% = ngưỡng lọc WebSocket — chỉ scan coin đang gần mốc
 // Quy tắc 3 lần: lần 1 = strong (+2), lần 2 = medium (+1), lần 3+ = weak (+1)
 
-// Cấu hình mốc nến H1 đầu tháng:
-// 'CLOSE_AT_0700': nến H1 đóng lúc 07:00 UTC+7 (mở 23:00 UTC ngày cuối tháng trước) -> Mặc định theo yêu cầu
-// 'OPEN_AT_0700': nến H1 mở lúc 07:00 UTC+7 (mở 00:00 UTC ngày mùng 1)
-const H1_MONTHLY_MODE = process.env.H1_MONTHLY_MODE || 'CLOSE_AT_0700';
-
+/**
+ * Mốc nến H1 đầu tháng:
+ * Nến H1 mở lúc 00:00 UTC (07:00 UTC+7) ngày đầu tiên của tháng và đóng lúc 01:00 UTC (08:00 UTC+7).
+ * Ví dụ: BTC 01/11/2026 open = 77522.6, close = 77638.3
+ * Tự động chuyển sang tháng mới khi nến H1 đầu tháng mới đã đóng hoàn tất (sau 08:00 UTC+7 ngày mùng 1).
+ */
 function getH1MonthAnchorMs(date = new Date()) {
-  const monthStartUtc = Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), 1);
-  if (H1_MONTHLY_MODE === 'OPEN_AT_0700') {
-    return monthStartUtc;
+  const nowMs = date.getTime();
+  const currentMonthStartUtc = Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), 1, 0, 0, 0);
+  const candleCloseTimeUtc = currentMonthStartUtc + 3600_000; // 01:00 UTC = 08:00 UTC+7
+
+  // Nếu đang ở ngày mùng 1 nhưng chưa hoàn tất nến H1 đầu tháng (< 08:00 UTC+7):
+  // Nến tháng mới chưa đóng -> Dùng mốc nến của tháng trước
+  if (nowMs < candleCloseTimeUtc) {
+    const prevMonthDate = new Date(currentMonthStartUtc - 1);
+    return Date.UTC(prevMonthDate.getUTCFullYear(), prevMonthDate.getUTCMonth(), 1, 0, 0, 0);
   }
-  // Mặc định: Nến H1 đóng lúc 07:00 UTC+7 (00:00 UTC) -> openTime là 23:00 UTC ngày cuối tháng trước
-  return monthStartUtc - 3600_000;
+
+  return currentMonthStartUtc;
+}
+
+function monthLabel(anchorMs = getH1MonthAnchorMs()) {
+  const d = new Date(anchorMs);
+  const y = d.getUTCFullYear();
+  const m = String(d.getUTCMonth() + 1).padStart(2, '0');
+  return `${y}-${m}`;
 }
 
 const MONTH_ANCHOR_MS = getH1MonthAnchorMs();
@@ -485,8 +499,7 @@ async function fetchH1Reference(symbol) {
     upperPrice,
     lowerPrice,
     candleOpenTime: new Date(first.openTime).toISOString(),
-    candleCloseTime: new Date(first.openTime + 3600000 - 1).toISOString(),
-    mode: H1_MONTHLY_MODE
+    candleCloseTime: new Date(first.openTime + 3600000 - 1).toISOString()
   };
   _h1RefCache[symbol] = entry;
   try {
@@ -814,13 +827,6 @@ async function fetchHybridCandles(symbol) {
 
 function monthStartMs() {
   return getH1MonthAnchorMs();
-}
-
-function monthLabel() {
-  const now = new Date();
-  const y = now.getUTCFullYear();
-  const m = String(now.getUTCMonth() + 1).padStart(2, '0');
-  return `${y}-${m}`;
 }
 
 // Làm tròn timestamp xuống boundary H1 gần nhất
@@ -2942,7 +2948,7 @@ const getRecentM15FractalSwing = getRecentFractalSwing;
 module.exports = {
   get369Signal, get369SignalsForCoins, score369Method, format369ForPrompt,
   getLevelCache, overrideLevelLastSide, PROXIMITY_PCT, getDecimals, getStep,
-  initH1Cache, initH4Cache, getH1MonthAnchorMs, MONTH_ANCHOR_MS, YEAR_START_MS,
+  initH1Cache, initH4Cache, getH1MonthAnchorMs, monthLabel, MONTH_ANCHOR_MS, YEAR_START_MS,
   fetchBinanceKlines, fetchH1Reference, fetchH4Reference, fetchH1Cached, buildLevelGrid,
   getGridStepPct, isGridWidthValid, GRID_MIN_PCT, GRID_MIN_PCT_TOP30, GRID_MIN_PCT_TOP100: GRID_MIN_PCT_TOP30, GRID_MAX_PCT, getMinGridPct, isTop100Symbol, isTop30Symbol, getMarketCapRank,
   isSymbolInGridBlacklist, getGridBlacklistInfo, addToGridBlacklist, classifyCandleGeometry,

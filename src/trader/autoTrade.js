@@ -37,6 +37,8 @@ const {
   getMinGridPct,
   GRID_MAX_PCT,
   getH1MonthAnchorMs,
+  monthLabel,
+  initH1Cache,
   MONTH_ANCHOR_MS,
   YEAR_START_MS,
   getMarketCapRank,
@@ -924,6 +926,45 @@ async function startAutoTrade(coins) {
       log.warn(`[AutoTrade] [CoinRefresh] Lỗi tái kiểm tra danh sách coin: ${err.message}`);
     }
   }, COIN_REFRESH_INTERVAL_MS);
+
+  // ── Tự động phát hiện nến H1 mốc tháng mới và làm mới lưới mốc (New Month Detector) ──
+  let _lastCheckedMonthAnchor = getH1MonthAnchorMs();
+  setInterval(async () => {
+    try {
+      const currentAnchor = getH1MonthAnchorMs();
+      if (currentAnchor !== _lastCheckedMonthAnchor) {
+        const newLabel = monthLabel ? monthLabel(currentAnchor) : 'Tháng Mới';
+        log.system(`[AutoTrade] [NewMonthDetector] 🌟 Phát hiện mốc nến H1 tháng mới (${newLabel})! Đang nạp nến mốc cho toàn bộ coin...`);
+        _lastCheckedMonthAnchor = currentAnchor;
+
+        // 1. Nạp cache H1 tháng mới cho tất cả các coin
+        await initH1Cache(activeCoinList);
+
+        // 2. Làm mới levelCache để cập nhật ngay longEntry/shortEntry
+        getLevelCache(true);
+
+        // 3. Tái kiểm tra danh sách coin hợp lệ theo nến tháng mới
+        const cachePath = path.join(process.cwd(), 'data', 'step_sizes.json');
+        if (fs.existsSync(cachePath)) {
+          const cacheData = JSON.parse(fs.readFileSync(cachePath, 'utf8'));
+          const h1Cache = cacheData.h1MonthlyCache || {};
+          activeCoinList = Object.entries(h1Cache)
+            .filter(([sym, e]) => {
+              if (e.monthAnchor !== currentAnchor || e.failed) return false;
+              const currentPrice = getMarkPrice(sym);
+              return isGridWidthValid(e, currentPrice, sym);
+            })
+            .map(([sym]) => sym);
+        }
+
+        // 4. Thông báo Telegram
+        const anchorTimeStr = new Date(currentAnchor + 7 * 3600000).toISOString().replace('T', ' ').substring(0, 19);
+        await sendTelegram(`📅 <b>[PP369 H1 Tháng] Tự Động Cập Nhật Mốc Tháng Mới</b>\n• Mốc tháng: <b>${newLabel}</b>\n• Thời gian nến mốc: <code>${anchorTimeStr} (UTC+7)</code>\n• Số coin hợp lệ: <b>${activeCoinList.length}</b>\n• Đã tự động cập nhật lại toàn bộ lưới mốc 369.`);
+      }
+    } catch (err) {
+      log.warn(`[AutoTrade] [NewMonthDetector] Lỗi cập nhật nến tháng mới: ${err.message}`);
+    }
+  }, 60_000); // Quét kiểm tra mỗi 1 phút
 
   // Chờ WebSocket kết nối và nhận giá live ban đầu cho các mã đó
   await new Promise(r => setTimeout(r, 4000));

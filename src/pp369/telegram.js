@@ -84,7 +84,7 @@ async function notifyBotStart(coinCount) {
     '',
     `🕐 Thời gian: <code>${now}</code>`,
     `📊 Số mã theo dõi: <b>${coinCount}</b> coin`,
-    `📌 Khung tham chiếu: <b>H1 đầu tháng (đóng lúc 07:00 UTC+7)</b>`,
+    `📌 Khung tham chiếu: <b>H1 đầu tháng (07:00 UTC+7 ngày mùng 1)</b>`,
     '',
     '<i>Bot đang quét các mốc phản ứng theo phương pháp 369...</i>',
   ].join('\n');
