@@ -786,11 +786,13 @@ async function startAutoTrade(coins) {
   // trước mọi async call để tránh cả 2 luồng (WS + Poll) cùng đặt lệnh song song
   const processingSymbols = new Set();
 
-  if (!apiKey || !secret) {
-    throw new Error('Thiếu BINANCE_API_KEY hoặc BINANCE_SECRET trong .env');
+  const isShadowMode = process.env.SHADOW_MODE === 'true' || !apiKey || !secret;
+  if (isShadowMode) {
+    log.system(`[AutoTrade] 👻 KHỞI CHẠY CHẾ ĐỘ SHADOW TRACKER (Paper Trading) — Không vào lệnh thật trên sàn Binance.`);
+    log.system(`[AutoTrade] Tự động theo dõi vị thế ảo, trailing SL M5/M15 fractal và đo đạc PnL.`);
+  } else {
+    log.system(`[AutoTrade] Khởi động: ${coins.length} coin | margin=$${amount} | ${leverage}x | type=${orderType}`);
   }
-
-  log.system(`[AutoTrade] Khởi động: ${coins.length} coin | margin=$${amount} | ${leverage}x | type=${orderType}`);
 
   // Danh sách coin mutable — sẽ được cập nhật định kỳ theo giá hiện tại
   let activeCoinList = [...coins];
@@ -969,32 +971,34 @@ async function startAutoTrade(coins) {
   // Chờ WebSocket kết nối và nhận giá live ban đầu cho các mã đó
   await new Promise(r => setTimeout(r, 4000));
 
-  const client = createClient(apiKey, secret);
+  const client = isShadowMode ? null : createClient(apiKey, secret);
 
   // ── Đồng bộ hóa trạng thái vị thế/lệnh chờ với sàn khi bot khởi động lại (Startup Reconciliation) ──
-  try {
-    const [openPos, openOrders] = await Promise.all([
-      client.getOpenPositions(),
-      client.getOpenOrders()
-    ]);
-    const activeExchangeSymbols = new Set([
-      ...openPos.filter(p => parseFloat(p.positionAmt) !== 0).map(p => p.symbol.replace('USDT', '')),
-      ...openOrders.map(o => o.symbol.replace('USDT', ''))
-    ]);
+  if (!isShadowMode && client) {
+    try {
+      const [openPos, openOrders] = await Promise.all([
+        client.getOpenPositions(),
+        client.getOpenOrders()
+      ]);
+      const activeExchangeSymbols = new Set([
+        ...openPos.filter(p => parseFloat(p.positionAmt) !== 0).map(p => p.symbol.replace('USDT', '')),
+        ...openOrders.map(o => o.symbol.replace('USDT', ''))
+      ]);
 
-    let cleanedCount = 0;
-    for (const sym of Object.keys(activeTradesMetadata)) {
-      if (!activeExchangeSymbols.has(sym)) {
-        delete activeTradesMetadata[sym];
-        cleanedCount++;
+      let cleanedCount = 0;
+      for (const sym of Object.keys(activeTradesMetadata)) {
+        if (!activeExchangeSymbols.has(sym)) {
+          delete activeTradesMetadata[sym];
+          cleanedCount++;
+        }
       }
+      if (cleanedCount > 0) {
+        saveActiveTradesMetadata();
+        log.system(`[AutoTrade] [StartupReconciliation] Đã dọn dẹp ${cleanedCount} vị thế rác cũ trong metadata không còn tồn tại trên sàn.`);
+      }
+    } catch (err) {
+      log.warn(`[AutoTrade] [StartupReconciliation] Lỗi kiểm tra chéo vị thế khi khởi động: ${err.message}`);
     }
-    if (cleanedCount > 0) {
-      saveActiveTradesMetadata();
-      log.system(`[AutoTrade] [StartupReconciliation] Đã dọn dẹp ${cleanedCount} vị thế rác cũ trong metadata không còn tồn tại trên sàn.`);
-    }
-  } catch (err) {
-    log.warn(`[AutoTrade] [StartupReconciliation] Lỗi kiểm tra chéo vị thế khi khởi động: ${err.message}`);
   }
 
   log.system('[AutoTrade] Bắt đầu scan...');
@@ -1008,14 +1012,17 @@ async function startAutoTrade(coins) {
       pruneMemoryCaches();
 
       // Cập nhật và kiểm tra lưới bảo vệ BTC Flash Pump / Dump Guard & Cache Volume 24H
-      await updateBtcFlashGuard(client);
+      if (!isShadowMode && client) {
+        await updateBtcFlashGuard(client);
+      }
       await updateVolume24hCache();
 
       // 1. Cập nhật lại giá REST của toàn bộ coin để kiểm tra xem có coin nào mới đi vào mốc gần phản ứng không
       await updatePricesRest();
 
       // Đồng bộ danh sách coin có vị thế hoặc lệnh chờ (thường + algo) để tối ưu checkTrailingSL
-      try {
+      if (!isShadowMode && client) {
+        try {
         const currentPos = await client.getOpenPositions();
         const currentOrders = await client.getOpenOrders();
         const currentAlgoOrders = await client.getOpenAlgoOrders();
@@ -1269,6 +1276,7 @@ async function startAutoTrade(coins) {
       } catch (e) {
         log.warn(`[AutoTrade] Lỗi đồng bộ activeSymbols: ${_binanceErr(e)}`);
       }
+    }
 
       const levelCache = getLevelCache();
       // 1. WebSocket lắng nghe biến động giá cho tất cả coin trong bán kính 1.0% + toàn bộ coin đang có vị thế/lệnh chờ
@@ -1980,6 +1988,28 @@ async function startAutoTrade(coins) {
 
       const side = sig.signal === 'LONG' ? 'BUY' : 'SELL';
 
+      if (isShadowMode) {
+        log.system(`[AutoTrade] 👻 [Shadow Entry] Ghi nhận lệnh ảo #${sym} (${sig.signal}) @ $${sig.targetLevel} | Đòn bẩy ${effectiveLeverage}x | SL: $${tierSetup.slPrice} | TP: $${tierSetup.tpPrice}`);
+        registerShadowTrade(sig, aiEval, {
+          markPrice,
+          marketCapRank: rank,
+          gridWidthPct: sig.gridWidthPct || gridStepPct,
+          leverage: effectiveLeverage,
+          margin: actualTradeMargin,
+          tierSlPrice: tierSetup.slPrice,
+          tierTpPrice: tierSetup.tpPrice,
+          beTriggerPrice: tierSetup.beTriggerPrice,
+          slPct: tierSetup.slPct,
+          marketMetrics,
+          signalMetrics: sig.signalMetrics || null,
+          microstructure: rawMarketData?.microstructure || null,
+          isEconomicBlackout: rawMarketData?.isEconomicBlackout
+        });
+
+        sendTelegram(`👻 <b>[Shadow Entry] #${sym} (${sig.signal})</b>\n• Mức giá: <code>$${sig.targetLevel}</code> (Đòn bẩy: <b>${effectiveLeverage}x</b> | Ký quỹ: <b>$${actualTradeMargin}</b>)\n• Mục tiêu: SL: <code>$${tierSetup.slPrice}</code> | TP: <code>$${tierSetup.tpPrice}</code>\n• Đang theo dõi ảo qua Shadow PnL Tracker!`);
+        return;
+      }
+
       try {
         try {
           await client.setLeverage(sym, effectiveLeverage);
@@ -2201,7 +2231,7 @@ function _binanceErr(e) {
 let isCheckingPendingLimits = false;
 
 async function checkPendingLimits(client, activeSymbols) {
-  if (isIpBanned() || isCheckingPendingLimits) return;
+  if (!client || isIpBanned() || isCheckingPendingLimits) return;
   isCheckingPendingLimits = true;
   try {
     // Ngưỡng: giá phải bounce ra bao nhiêu % từ entry mới coi là bounce thật
@@ -2939,6 +2969,29 @@ async function checkH1RetestSignals(client, activeSymbols, leverageInfo = {}) {
         continue;
       }
 
+      if (isShadowMode) {
+        log.system(`[H1Retest] 👻 [Shadow Retest Entry] Ghi nhận lệnh Retest ảo #${sym} (${signal}) @ $${targetLevel}`);
+        registerShadowTrade(sigForAI, aiEval, {
+          markPrice,
+          marketCapRank: rank,
+          gridWidthPct: watchData.gridWidthPct || gridStepPct,
+          leverage: effectiveLeverageRetest,
+          margin: actualTradeMarginRetest,
+          tierSlPrice: prelimRetest.slPrice,
+          tierTpPrice: prelimRetest.tpPrice,
+          beTriggerPrice: prelimRetest.beTriggerPrice,
+          slPct: prelimRetest.slPct,
+          marketMetrics: marketMetricsRetest,
+          signalMetrics: sigForAI.signalMetrics || null,
+          microstructure: rawMarketDataRetest?.microstructure || null,
+          isEconomicBlackout: rawMarketDataRetest?.isEconomicBlackout
+        });
+
+        sendTelegram(`👻 <b>[Shadow Retest Entry] #${sym} (${signal})</b>\n• Mức giá: <code>$${targetLevel}</code> (Đòn bẩy: <b>${effectiveLeverageRetest}x</b>)\n• Đang theo dõi ảo qua Shadow PnL Tracker!`);
+        delete lowScoreWatchlist[sym];
+        continue;
+      }
+
       try {
         try { await client.setLeverage(sym, effectiveLeverageRetest); } catch (_) { }
 
@@ -3008,7 +3061,7 @@ async function checkH1RetestSignals(client, activeSymbols, leverageInfo = {}) {
 let isCheckingTrailingSL = false;
 
 async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymbols) {
-  if (isIpBanned() || isCheckingTrailingSL) return;
+  if (!client || isIpBanned() || isCheckingTrailingSL) return;
   isCheckingTrailingSL = true;
   try {
     if (!activeSymbols || activeSymbols.size === 0) return;
