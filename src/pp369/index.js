@@ -79,10 +79,15 @@ module.exports = {
   format369ForPrompt:    core.format369ForPrompt,
   getLevelCache:         core.getLevelCache,
   overrideLevelLastSide: core.overrideLevelLastSide,
-  initH4Cache:           core.initH4Cache,
-  YEAR_START_MS:         core.YEAR_START_MS,
+  initH1Cache:           core.initH1Cache,
+  initH4Cache:           core.initH4Cache, // alias
+  getH1MonthAnchorMs:    core.getH1MonthAnchorMs,
+  MONTH_ANCHOR_MS:       core.MONTH_ANCHOR_MS,
+  YEAR_START_MS:         core.YEAR_START_MS, // alias
   fetchBinanceKlines:    core.fetchBinanceKlines,
-  fetchH4Reference:      core.fetchH4Reference,
+  fetchH1Reference:      core.fetchH1Reference,
+  fetchH4Reference:      core.fetchH4Reference, // alias
+  fetchH1Cached:         core.fetchH1Cached,    // alias
   buildLevelGrid:        core.buildLevelGrid,
   PROXIMITY_PCT:         core.PROXIMITY_PCT,
   getDecimals:           core.getDecimals,

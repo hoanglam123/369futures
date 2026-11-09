@@ -6,7 +6,7 @@ const fs = require('fs');
 const path = require('path');
 const { startAutoTrade } = require('../src/trader/autoTrade');
 const { loadLeverageBrackets } = require('../src/trader/binance');
-const { initH4Cache, isGridWidthValid, GRID_MIN_PCT, GRID_MAX_PCT, YEAR_START_MS, updatePricesRest, getMarkPrice } = require('../src/pp369');
+const { initH1Cache, isGridWidthValid, GRID_MIN_PCT, GRID_MAX_PCT, getH1MonthAnchorMs, MONTH_ANCHOR_MS, YEAR_START_MS, updatePricesRest, getMarkPrice } = require('../src/pp369');
 const { notifyBotStart } = require('../src/pp369/telegram');
 
 async function main() {
@@ -23,33 +23,36 @@ async function main() {
         .filter(sym => sym.endsWith('USDT') && !sym.includes('_'))
         .map(sym => sym.replace('USDT', ''));
       
-      // Gọi initH4Cache để kiểm tra và chỉ lấy nến H4 đầu năm 2026 cho mã chưa có cache
-      await initH4Cache(allSymbols);
+      // Gọi initH1Cache để kiểm tra và nạp nến H1 đầu tháng (đóng lúc 07:00 UTC+7) cho mã chưa có cache
+      await initH1Cache(allSymbols);
 
       // Lấy giá thị trường hiện tại (1 request duy nhất) để lọc coin theo % grid hiện tại
       try {
         await updatePricesRest();
       } catch (err) {
-        console.warn('[AutoTrade] Không thể lấy giá hiện tại, fallback về giá openPrice đầu năm:', err.message);
+        console.warn('[AutoTrade] Không thể lấy giá hiện tại, fallback về giá openPrice đầu tháng:', err.message);
       }
 
-      // Đọc lại tệp sau khi đã lấy nến H4 xong
+      // Đọc lại tệp sau khi đã lấy nến H1 xong
       const updatedData = JSON.parse(fs.readFileSync(filePath, 'utf8'));
-      const updatedH4Cache = updatedData.h4Cache || {};
+      const updatedCache = updatedData.h1MonthlyCache || updatedData.h4Cache || {};
+      const anchorMs = getH1MonthAnchorMs ? getH1MonthAnchorMs() : MONTH_ANCHOR_MS;
 
-      // Chỉ dùng mã đã cache H4 thành công (yearStart đúng, không bị failed)
+      // Chỉ dùng mã đã cache H1 thành công (monthAnchor đúng, không bị failed)
       // và có độ rộng grid nằm trong khoảng cho phép theo GIÁ HIỆN TẠI
-      const allValid = Object.entries(updatedH4Cache)
+      const allValid = Object.entries(updatedCache)
         .filter(([sym, e]) => {
-          if (e.yearStart !== YEAR_START_MS || e.failed) return false;
+          const isValidAnchor = (e.monthAnchor === anchorMs || e.yearStart === anchorMs);
+          if (!isValidAnchor || e.failed) return false;
           const currentPrice = getMarkPrice(sym);
           return isGridWidthValid(e, currentPrice, sym);
         })
         .map(([sym]) => sym);
 
-      const filtered = Object.entries(updatedH4Cache)
+      const filtered = Object.entries(updatedCache)
         .filter(([sym, e]) => {
-          if (e.yearStart !== YEAR_START_MS || e.failed) return false;
+          const isValidAnchor = (e.monthAnchor === anchorMs || e.yearStart === anchorMs);
+          if (!isValidAnchor || e.failed) return false;
           const currentPrice = getMarkPrice(sym);
           return !isGridWidthValid(e, currentPrice, sym);
         });

@@ -36,8 +36,11 @@ const {
   isGridWidthValid,
   getMinGridPct,
   GRID_MAX_PCT,
+  getH1MonthAnchorMs,
+  MONTH_ANCHOR_MS,
   YEAR_START_MS,
   getMarketCapRank,
+  fetchH1Reference,
   fetchH4Reference,
   buildLevelGrid,
   recordTradeEntry,
@@ -904,10 +907,12 @@ async function startAutoTrade(coins) {
       const cachePath = path.join(process.cwd(), 'data', 'step_sizes.json');
       if (!fs.existsSync(cachePath)) return;
       const cacheData = JSON.parse(fs.readFileSync(cachePath, 'utf8'));
-      const h4Cache = cacheData.h4Cache || {};
-      const newList = Object.entries(h4Cache)
+      const h1Cache = cacheData.h1MonthlyCache || cacheData.h4Cache || {};
+      const anchorMs = getH1MonthAnchorMs ? getH1MonthAnchorMs() : (MONTH_ANCHOR_MS || YEAR_START_MS);
+      const newList = Object.entries(h1Cache)
         .filter(([sym, e]) => {
-          if (e.yearStart !== YEAR_START_MS || e.failed) return false;
+          const isValidAnchor = (e.monthAnchor === anchorMs || e.yearStart === anchorMs);
+          if (!isValidAnchor || e.failed) return false;
           const currentPrice = getMarkPrice(sym);
           return isGridWidthValid(e, currentPrice, sym);
         })
@@ -2454,18 +2459,26 @@ async function markSymbolFailed(sym, reason) {
     const filePath = path.join(process.cwd(), 'data', 'step_sizes.json');
     if (fs.existsSync(filePath)) {
       const data = JSON.parse(fs.readFileSync(filePath, 'utf8'));
-      if (!data.h4Cache) data.h4Cache = {};
+      if (!data.h1MonthlyCache) data.h1MonthlyCache = {};
 
       // Đánh dấu failed để không tải lại khi khởi động
-      data.h4Cache[sym] = {
-        ...(data.h4Cache[sym] || {}),
+      data.h1MonthlyCache[sym] = {
+        ...(data.h1MonthlyCache[sym] || {}),
         failed: true,
         reason: reason,
         updatedAt: Date.now()
       };
+      if (data.h4Cache) {
+        data.h4Cache[sym] = {
+          ...(data.h4Cache[sym] || {}),
+          failed: true,
+          reason: reason,
+          updatedAt: Date.now()
+        };
+      }
 
       fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf8');
-      log.system(`[AutoTrade] Đã lưu trạng thái lỗi 4411 của ${sym} vào h4Cache.`);
+      log.system(`[AutoTrade] Đã lưu trạng thái lỗi 4411 của ${sym} vào h1MonthlyCache.`);
     }
   } catch (err) {
     log.warn(`[AutoTrade] Lỗi cập nhật step_sizes.json khi đánh dấu lỗi ${sym}: ${err.message}`);

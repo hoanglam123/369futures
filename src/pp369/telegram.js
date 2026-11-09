@@ -11,6 +11,7 @@ const { log } = require('./_logger');
 
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || '8974388983:AAGTEgJNmAegGPmWUgvd3Lpvtbefv-yn6pg';
 const CHAT_ID = process.env.TELEGRAM_CHAT_ID || '1663202780';
+const BOT_TAG = process.env.BOT_TAG !== undefined ? process.env.BOT_TAG : '[PP369 H1 Tháng]';
 
 const API_URL = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`;
 
@@ -32,12 +33,15 @@ const axiosTelegram = axios.create({
  * @returns {Promise<void>}
  */
 async function sendTelegram(text) {
+  const finalPrefix = BOT_TAG ? `${BOT_TAG} ` : '';
+  const messageText = (finalPrefix && !text.includes(BOT_TAG)) ? `${finalPrefix}${text}` : text;
+
   const maxAttempts = 3;
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
       await axiosTelegram.post(API_URL, {
         chat_id: CHAT_ID,
-        text,
+        text: messageText,
         parse_mode: 'HTML',
         disable_web_page_preview: true,
       });
@@ -46,7 +50,7 @@ async function sendTelegram(text) {
       if (err.response?.status === 400) {
         // Fallback khẩn cấp nếu dính lỗi HTML parse entity: Gửi dạng Plain Text loại bỏ thẻ HTML
         try {
-          const plainText = (text || '').replace(/<[^>]*>/g, '');
+          const plainText = (messageText || '').replace(/<[^>]*>/g, '');
           await axiosTelegram.post(API_URL, {
             chat_id: CHAT_ID,
             text: plainText,
@@ -76,10 +80,11 @@ async function sendTelegram(text) {
 async function notifyBotStart(coinCount) {
   const now = new Date().toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' });
   const text = [
-    '🚀 <b>PP369 AutoTrade đã khởi động</b>',
+    `🚀 <b>${BOT_TAG} AutoTrade đã khởi động</b>`,
     '',
     `🕐 Thời gian: <code>${now}</code>`,
     `📊 Số mã theo dõi: <b>${coinCount}</b> coin`,
+    `📌 Khung tham chiếu: <b>H1 đầu tháng (đóng lúc 07:00 UTC+7)</b>`,
     '',
     '<i>Bot đang quét các mốc phản ứng theo phương pháp 369...</i>',
   ].join('\n');

@@ -11,7 +11,10 @@ const {
   getNearbySymbols,
   getGridBotConfig,
   fmt369Price,
+  initH1Cache,
   initH4Cache,
+  getH1MonthAnchorMs,
+  MONTH_ANCHOR_MS,
   YEAR_START_MS,
   updatePricesRest,
   syncWebSocketSubscriptions,
@@ -977,11 +980,12 @@ async function bootstrap() {
   if (fs.existsSync(filePath)) {
     try {
       const data = JSON.parse(fs.readFileSync(filePath, 'utf8'));
-      const cacheToUse = data.h4Cache || {};
+      const cacheToUse = data.h1MonthlyCache || data.h4Cache || {};
+      const anchorMs = getH1MonthAnchorMs ? getH1MonthAnchorMs() : (MONTH_ANCHOR_MS || YEAR_START_MS);
       
       const filteredCache = {};
       for (const [sym, e] of Object.entries(cacheToUse)) {
-        const isValid = e.yearStart === YEAR_START_MS && !e.failed;
+        const isValid = (e.monthAnchor === anchorMs || e.yearStart === anchorMs) && !e.failed;
         if (isValid) {
           filteredCache[sym] = e;
         }
@@ -995,10 +999,10 @@ async function bootstrap() {
         .map(([sym]) => sym);
       
       if (excluded.length > 0) {
-        log.system(`[Dashboard] Dùng h4Cache. Bỏ qua ${excluded.length} coin grid ngoài ${GRID_MIN_PCT}-${GRID_MAX_PCT}%: ` +
+        log.system(`[Dashboard] Dùng h1MonthlyCache. Bỏ qua ${excluded.length} coin grid ngoài ${GRID_MIN_PCT}-${GRID_MAX_PCT}%: ` +
           excluded.map(([sym, e]) => `${sym}(${((e.step / e.openPrice) * 100).toFixed(1)}%)`).join(', '));
       } else {
-        log.system(`[Dashboard] Dùng h4Cache. Quét ${coins.length} coin hợp lệ.`);
+        log.system(`[Dashboard] Dùng h1MonthlyCache. Quét ${coins.length} coin hợp lệ.`);
       }
     } catch (err) {
       log.warn(`[Dashboard] Lỗi đọc danh sách coin từ step_sizes.json: ${err.message}`);

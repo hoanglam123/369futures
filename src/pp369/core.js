@@ -35,8 +35,22 @@ const NEAR_LEVEL_PCT = 0.005; // 0.5% = "giá đang tiếp cận mốc — đủ
 const PROXIMITY_PCT = 0.02;  // 2% = ngưỡng lọc WebSocket — chỉ scan coin đang gần mốc
 // Quy tắc 3 lần: lần 1 = strong (+2), lần 2 = medium (+1), lần 3+ = weak (+1)
 
-// Mốc gốc H4: nến H4 đầu tiên của năm 2026 (01/01/2026 00:00:00 UTC = 07:00 VN)
-const YEAR_START_MS = Date.UTC(2026, 0, 1);
+// Cấu hình mốc nến H1 đầu tháng:
+// 'CLOSE_AT_0700': nến H1 đóng lúc 07:00 UTC+7 (mở 23:00 UTC ngày cuối tháng trước) -> Mặc định theo yêu cầu
+// 'OPEN_AT_0700': nến H1 mở lúc 07:00 UTC+7 (mở 00:00 UTC ngày mùng 1)
+const H1_MONTHLY_MODE = process.env.H1_MONTHLY_MODE || 'CLOSE_AT_0700';
+
+function getH1MonthAnchorMs(date = new Date()) {
+  const monthStartUtc = Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), 1);
+  if (H1_MONTHLY_MODE === 'OPEN_AT_0700') {
+    return monthStartUtc;
+  }
+  // Mặc định: Nến H1 đóng lúc 07:00 UTC+7 (00:00 UTC) -> openTime là 23:00 UTC ngày cuối tháng trước
+  return monthStartUtc - 3600_000;
+}
+
+const MONTH_ANCHOR_MS = getH1MonthAnchorMs();
+const YEAR_START_MS = MONTH_ANCHOR_MS; // Alias tương thích ngược cho các module cũ
 
 // ─── Lọc coin theo độ rộng grid (Sàn an toàn vật lý - Sanity Guard) ───────────
 // Sàn vật lý tối thiểu để đảm bảo đủ biên độ dao động, tránh bẫy nhiễu nến cắn SL:
@@ -226,16 +240,18 @@ function addToGridBlacklist(symbol, reason, xVal, yVal) {
 
 // ─── In-memory cache ──────────────────────────────────────────────────────────
 
-// H4 reference cache (yearly): { symbol: { yearStart, openPrice, closePrice, step, decimals, upperPrice, lowerPrice } }
-const _h4RefCache = {};
+// H1 reference cache (monthly): { symbol: { monthAnchor, monthLabel, openPrice, closePrice, step, decimals, upperPrice, lowerPrice } }
+const _h1RefCache = {};
+const _h4RefCache = _h1RefCache; // Alias tương thích ngược
+const _h1Cache = _h1RefCache;    // Alias tương thích ngược
 
-// H1 historical candle cache: { symbol: { yearStart, candles: [], cursor } } — toàn bộ H1 đã đóng từ đầu năm
+// H1 historical candle cache: { symbol: { monthAnchor, candles: [], cursor } } — nến H1 đã đóng từ đầu tháng
 const _h1HistCache = {};
 
-// H4 historical candle cache: { symbol: { yearStart, candles: [], cursor } } — toàn bộ H4 đã đóng từ đầu năm
+// H4 historical candle cache: { symbol: { monthAnchor, candles: [], cursor } } — nến H4 cho swing S/R
 const _h4HistCache = {};
 
-// D1 historical candle cache: { symbol: { yearStart, candles: [], cursor } } — toàn bộ D1 đã đóng từ đầu năm
+// D1 historical candle cache: { symbol: { monthAnchor, candles: [], cursor } } — nến D1 cho trend
 const _d1HistCache = {};
 
 // M1 current H1 period cache: { symbol: { h1Start, candles: [], cursor } } — reset mỗi khi H1 mới mở
@@ -382,11 +398,16 @@ async function fetchBinanceKlines(symbol, interval, startTimeMs, limit = 1500) {
   }
 }
 
-// Lấy nến H1 đầu tháng có cache — chỉ gọi API khi tháng mới hoặc chưa có cache
-async function fetchH1Cached(symbol) {
-  const startMs = monthStartMs();
-  const cached = _h1Cache[symbol];
-  if (cached && cached.monthStart === startMs) {
+/**
+ * Lấy nến H1 đầu tháng làm mốc gốc cho phương pháp 369.
+ * Mặc định: Nến H1 đóng lúc 07:00 UTC+7 (mở 23:00 UTC ngày cuối tháng trước).
+ * Cache in-memory + file (h1MonthlyCache section trong step_sizes.json).
+ */
+async function fetchH1Reference(symbol) {
+  const anchorMs = getH1MonthAnchorMs();
+  const currentLabel = monthLabel();
+  const cached = _h1RefCache[symbol];
+  if (cached && (cached.monthAnchor === anchorMs || cached.yearStart === anchorMs)) {
     return cached.failed ? null : cached;
   }
 
@@ -394,78 +415,93 @@ async function fetchH1Cached(symbol) {
     try {
       const content = fs.readFileSync(FILE_PATH, 'utf8');
       const data = JSON.parse(content);
-      const fileCache = data.h1Cache ?? {};
-      if (fileCache[symbol] && fileCache[symbol].monthStart === startMs) {
-        _h1Cache[symbol] = fileCache[symbol];
-        return fileCache[symbol].failed ? null : fileCache[symbol];
+      const fc = (data.h1MonthlyCache ?? {})[symbol];
+      if (fc && (fc.monthAnchor === anchorMs || fc.yearStart === anchorMs)) {
+        _h1RefCache[symbol] = fc;
+        return fc.failed ? null : fc;
       }
     } catch (err) {
-      log.warn(`[369] Lỗi đọc h1Cache từ file: ${err.message}`);
+      log.warn(`[369] Lỗi đọc h1MonthlyCache từ file: ${err.message}`);
     }
   }
 
-  // Gọi API klines 1h để lấy nến H1 đầu tháng
   let candles;
   try {
-    candles = await fetchBinanceKlines(symbol, '1h', startMs, 2);
+    candles = await fetchBinanceKlines(symbol, '1h', anchorMs, 2);
   } catch (err) {
     const status = err?.response?.status;
     if (status === 400) {
-      const entry = { monthStart: startMs, failed: true, reason: `Status ${status}` };
-      _h1Cache[symbol] = entry;
+      const entry = { monthAnchor: anchorMs, monthLabel: currentLabel, yearStart: anchorMs, failed: true, reason: `Status ${status}` };
+      _h1RefCache[symbol] = entry;
       try {
         let data = {};
-        if (fs.existsSync(FILE_PATH)) {
-          const content = fs.readFileSync(FILE_PATH, 'utf8');
-          data = JSON.parse(content);
-        }
-        if (!data.h1Cache) data.h1Cache = {};
-        data.h1Cache[symbol] = entry;
+        if (fs.existsSync(FILE_PATH)) data = JSON.parse(fs.readFileSync(FILE_PATH, 'utf8'));
+        if (!data.h1MonthlyCache) data.h1MonthlyCache = {};
+        data.h1MonthlyCache[symbol] = entry;
         fs.writeFileSync(FILE_PATH, JSON.stringify(data, null, 2), 'utf8');
-        log.warn(`[369] Đã đánh dấu lỗi ${status} cho ${symbol} vào step_sizes.json, sẽ không gọi lại nữa.`);
-      } catch (e) {
-        log.warn(`[369] Lỗi ghi file h1Cache cho ${symbol}: ${e.message}`);
-      }
+      } catch (e) { log.warn(`[369] Lỗi ghi h1MonthlyCache: ${e.message}`); }
     } else if (status === 418) {
       throw new Error('IP_BANNED_418');
     }
     return null;
   }
 
-  if (!candles || !candles.length) return null;
+  if (!candles?.length || candles[0].openTime !== anchorMs) {
+    const entry = {
+      monthAnchor: anchorMs,
+      monthLabel: currentLabel,
+      yearStart: anchorMs,
+      failed: true,
+      reason: !candles?.length ? 'Không trả về nến H1' : `Nến đầu tiên (${new Date(candles[0].openTime).toISOString()}) không trùng mốc anchor H1 ${new Date(anchorMs).toISOString()}`
+    };
+    _h1RefCache[symbol] = entry;
+    try {
+      let data = {};
+      if (fs.existsSync(FILE_PATH)) data = JSON.parse(fs.readFileSync(FILE_PATH, 'utf8'));
+      if (!data.h1MonthlyCache) data.h1MonthlyCache = {};
+      data.h1MonthlyCache[symbol] = entry;
+      fs.writeFileSync(FILE_PATH, JSON.stringify(data, null, 2), 'utf8');
+      log.system(`[369] Đã đánh dấu lỗi không có nến H1 mốc tháng cho ${symbol}.`);
+    } catch (e) { log.warn(`[369] Lỗi ghi h1MonthlyCache: ${e.message}`); }
+    return null;
+  }
 
   const first = candles[0];
-  const openPrice = first.open;
+  const openPrice  = first.open;
   const closePrice = first.close;
-  const step = getStep(openPrice);
-  const decimals = getDecimals(openPrice);
+  const step       = getStep(openPrice);
+  const decimals   = getDecimals(openPrice);
   const upperPrice = Math.max(openPrice, closePrice);
   const lowerPrice = Math.min(openPrice, closePrice);
 
-  const entry = { monthStart: startMs, openPrice, closePrice, step, decimals, upperPrice, lowerPrice };
-  _h1Cache[symbol] = entry;
-
+  const entry = {
+    monthAnchor: anchorMs,
+    monthLabel: currentLabel,
+    yearStart: anchorMs,
+    openPrice,
+    closePrice,
+    step,
+    decimals,
+    upperPrice,
+    lowerPrice,
+    candleOpenTime: new Date(first.openTime).toISOString(),
+    candleCloseTime: new Date(first.openTime + 3600000 - 1).toISOString(),
+    mode: H1_MONTHLY_MODE
+  };
+  _h1RefCache[symbol] = entry;
   try {
     let data = {};
-    if (fs.existsSync(FILE_PATH)) {
-      const content = fs.readFileSync(FILE_PATH, 'utf8');
-      data = JSON.parse(content);
-    }
-    if (!data.h1Cache) data.h1Cache = {};
-    data.h1Cache[symbol] = entry;
-
-    const dir = path.dirname(FILE_PATH);
-    if (!fs.existsSync(dir)) {
-      fs.mkdirSync(dir, { recursive: true });
-    }
+    if (fs.existsSync(FILE_PATH)) data = JSON.parse(fs.readFileSync(FILE_PATH, 'utf8'));
+    if (!data.h1MonthlyCache) data.h1MonthlyCache = {};
+    data.h1MonthlyCache[symbol] = entry;
     fs.writeFileSync(FILE_PATH, JSON.stringify(data, null, 2), 'utf8');
-    log.system(`[369] Saved H1 cache for ${symbol} to file`);
-  } catch (err) {
-    log.warn(`[369] Lỗi ghi h1Cache vào file: ${err.message}`);
-  }
+  } catch (e) { log.warn(`[369] Lỗi ghi h1MonthlyCache: ${e.message}`); }
 
   return entry;
 }
+
+const fetchH4Reference = fetchH1Reference;
+const fetchH1Cached = fetchH1Reference;
 
 // Lấy nến 1m incremental — lần đầu fetch toàn bộ, sau đó chỉ fetch nến mới
 async function fetchM1Incremental(symbol) {
@@ -515,97 +551,14 @@ async function fetchM1Incremental(symbol) {
   return cache.candles;
 }
 
-// ─── H4 Yearly Hybrid Functions ──────────────────────────────────────────────
-
-/**
- * Lấy nến H4 đầu tiên của năm 2026 làm mốc gốc.
- * Cache in-memory + file (h4Cache section trong step_sizes.json).
- */
-async function fetchH4Reference(symbol) {
-  const cached = _h4RefCache[symbol];
-  if (cached) return cached.failed ? null : cached;
-
-  if (fs.existsSync(FILE_PATH)) {
-    try {
-      const content = fs.readFileSync(FILE_PATH, 'utf8');
-      const data = JSON.parse(content);
-      const fc = (data.h4Cache ?? {})[symbol];
-      if (fc?.yearStart === YEAR_START_MS) {
-        _h4RefCache[symbol] = fc;
-        return fc.failed ? null : fc;
-      }
-    } catch (err) {
-      log.warn(`[369] Lỗi đọc h4Cache từ file: ${err.message}`);
-    }
-  }
-
-  let candles;
-  try {
-    candles = await fetchBinanceKlines(symbol, '4h', YEAR_START_MS, 2);
-  } catch (err) {
-    const status = err?.response?.status;
-    if (status === 400) {
-      const entry = { yearStart: YEAR_START_MS, failed: true, reason: `Status ${status}` };
-      _h4RefCache[symbol] = entry;
-      try {
-        let data = {};
-        if (fs.existsSync(FILE_PATH)) data = JSON.parse(fs.readFileSync(FILE_PATH, 'utf8'));
-        if (!data.h4Cache) data.h4Cache = {};
-        data.h4Cache[symbol] = entry;
-        fs.writeFileSync(FILE_PATH, JSON.stringify(data, null, 2), 'utf8');
-      } catch (e) { log.warn(`[369] Lỗi ghi h4Cache: ${e.message}`); }
-    } else if (status === 418) {
-      throw new Error('IP_BANNED_418');
-    }
-    return null;
-  }
-
-  if (!candles?.length || candles[0].openTime !== YEAR_START_MS) {
-    const entry = {
-      yearStart: YEAR_START_MS,
-      failed: true,
-      reason: !candles?.length ? 'Không trả về nến H4' : `Nến đầu tiên (${new Date(candles[0].openTime).toISOString()}) không trùng ngày 01/01/2026`
-    };
-    _h4RefCache[symbol] = entry;
-    try {
-      let data = {};
-      if (fs.existsSync(FILE_PATH)) data = JSON.parse(fs.readFileSync(FILE_PATH, 'utf8'));
-      if (!data.h4Cache) data.h4Cache = {};
-      data.h4Cache[symbol] = entry;
-      fs.writeFileSync(FILE_PATH, JSON.stringify(data, null, 2), 'utf8');
-      log.system(`[369] Đã đánh dấu lỗi không có nến H4 đầu năm 2026 cho ${symbol}.`);
-    } catch (e) { log.warn(`[369] Lỗi ghi h4Cache: ${e.message}`); }
-    return null;
-  }
-
-  const first = candles[0];
-  const openPrice  = first.open;
-  const closePrice = first.close;
-  const step       = getStep(openPrice);
-  const decimals   = getDecimals(openPrice);
-  const upperPrice = Math.max(openPrice, closePrice);
-  const lowerPrice = Math.min(openPrice, closePrice);
-
-  const entry = { yearStart: YEAR_START_MS, openPrice, closePrice, step, decimals, upperPrice, lowerPrice };
-  _h4RefCache[symbol] = entry;
-  try {
-    let data = {};
-    if (fs.existsSync(FILE_PATH)) data = JSON.parse(fs.readFileSync(FILE_PATH, 'utf8'));
-    if (!data.h4Cache) data.h4Cache = {};
-    data.h4Cache[symbol] = entry;
-    fs.writeFileSync(FILE_PATH, JSON.stringify(data, null, 2), 'utf8');
-  } catch (e) { log.warn(`[369] Lỗi ghi h4Cache: ${e.message}`); }
-
-  return entry;
-}
-
 const HIST_CACHE_FILE = path.join(process.cwd(), 'data', 'h1_history_cache.json');
 
 function loadH1HistDiskCache() {
   try {
     if (fs.existsSync(HIST_CACHE_FILE)) {
       const data = JSON.parse(fs.readFileSync(HIST_CACHE_FILE, 'utf8'));
-      if (data && data.yearStart === YEAR_START_MS && data.items) {
+      const anchorMs = getH1MonthAnchorMs();
+      if (data && (data.monthAnchor === anchorMs || data.yearStart === anchorMs) && data.items) {
         // Cắt tỉa ngay dữ liệu nến H1 đã load từ đĩa về tối đa 100 nến gần nhất (~4 ngày) để giải phóng RAM & đĩa
         for (const [sym, item] of Object.entries(data.items)) {
           if (item && Array.isArray(item.candles) && item.candles.length > 100) {
@@ -634,7 +587,8 @@ function saveH1HistDiskCache() {
         };
       }
     }
-    fs.writeFileSync(HIST_CACHE_FILE, JSON.stringify({ yearStart: YEAR_START_MS, items: prunedItems }), 'utf8');
+    const anchorMs = getH1MonthAnchorMs();
+    fs.writeFileSync(HIST_CACHE_FILE, JSON.stringify({ monthAnchor: anchorMs, yearStart: anchorMs, items: prunedItems }), 'utf8');
   } catch (err) {
     log.warn(`[369] Lỗi ghi h1_history_cache.json ra file: ${err.message}`);
   }
@@ -644,17 +598,18 @@ function saveH1HistDiskCache() {
 loadH1HistDiskCache();
 
 /**
- * Lấy toàn bộ nến H1 đã đóng từ đầu năm 2026 đến H1 hiện tại (incremental).
+ * Lấy toàn bộ nến H1 đã đóng từ mốc đầu tháng đến H1 hiện tại (incremental).
  * Chỉ gọi API khi có H1 mới đóng (mỗi giờ), cache lại memory & lưu đĩa JSON.
  */
 async function fetchH1Historical(symbol) {
   const H1_MS = 60 * 60 * 1000;
   const currentH1Start = floorToH1(Date.now());
+  const anchorMs = getH1MonthAnchorMs();
 
   let cache = _h1HistCache[symbol];
 
-  if (!cache || cache.yearStart !== YEAR_START_MS) {
-    cache = { yearStart: YEAR_START_MS, candles: [], cursor: YEAR_START_MS };
+  if (!cache || (cache.monthAnchor !== anchorMs && cache.yearStart !== anchorMs)) {
+    cache = { monthAnchor: anchorMs, yearStart: anchorMs, candles: [], cursor: anchorMs };
     _h1HistCache[symbol] = cache;
   }
 
@@ -708,15 +663,16 @@ function floorToD1(tsMs) {
 }
 
 /**
- * Lấy toàn bộ nến H4 đã đóng từ đầu năm 2026 đến H4 hiện tại (incremental).
+ * Lấy toàn bộ nến H4 đã đóng từ mốc đầu tháng đến H4 hiện tại (incremental).
  */
 async function fetchH4Historical(symbol) {
   const H4_MS = 4 * 60 * 60 * 1000;
   const currentH4Start = floorToH4(Date.now());
+  const anchorMs = getH1MonthAnchorMs();
   let cache = _h4HistCache[symbol];
 
-  if (!cache || cache.yearStart !== YEAR_START_MS) {
-    cache = { yearStart: YEAR_START_MS, candles: [], cursor: YEAR_START_MS };
+  if (!cache || (cache.monthAnchor !== anchorMs && cache.yearStart !== anchorMs)) {
+    cache = { monthAnchor: anchorMs, yearStart: anchorMs, candles: [], cursor: anchorMs };
     _h4HistCache[symbol] = cache;
   }
 
@@ -752,15 +708,16 @@ async function fetchH4Historical(symbol) {
 }
 
 /**
- * Lấy toàn bộ nến D1 đã đóng từ đầu năm 2026 đến D1 hiện tại (incremental).
+ * Lấy toàn bộ nến D1 đã đóng từ mốc đầu tháng đến D1 hiện tại (incremental).
  */
 async function fetchD1Historical(symbol) {
   const D1_MS = 24 * 60 * 60 * 1000;
   const currentD1Start = floorToD1(Date.now());
+  const anchorMs = getH1MonthAnchorMs();
   let cache = _d1HistCache[symbol];
 
-  if (!cache || cache.yearStart !== YEAR_START_MS) {
-    cache = { yearStart: YEAR_START_MS, candles: [], cursor: YEAR_START_MS };
+  if (!cache || (cache.monthAnchor !== anchorMs && cache.yearStart !== anchorMs)) {
+    cache = { monthAnchor: anchorMs, yearStart: anchorMs, candles: [], cursor: anchorMs };
     _d1HistCache[symbol] = cache;
   }
 
@@ -856,8 +813,7 @@ async function fetchHybridCandles(symbol) {
 }
 
 function monthStartMs() {
-  const now = new Date();
-  return Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1);
+  return getH1MonthAnchorMs();
 }
 
 function monthLabel() {
@@ -874,7 +830,7 @@ function floorToH1(tsMs) {
 }
 
 function yearLabel() {
-  return String(new Date().getUTCFullYear());
+  return monthLabel();
 }
 
 // ─── Đếm số lần bouncing hợp lệ giữa 2 mốc ─────────────────────────────────
@@ -944,14 +900,14 @@ function analyzeRoundtrips(candles, lowerLevel, upperLevel) {
  * @param {number|null} currentPrice - Giá hiện tại (null = dùng nến gần nhất)
  */
 async function get369Signal(symbol, currentPrice = null) {
-  const month = yearLabel(); // Dùng nhãn năm 2026 thay vì tháng
+  const month = monthLabel(); // Dùng nhãn tháng YYYY-MM
 
   // (Đã gỡ bỏ GridBlacklist và x*2 > y: Toàn bộ tín hiệu được trao cho AI Reviewer thẩm định)
   try {
-    // Lấy nến H4 đầu năm 2026 làm mốc gốc (thay H1 đầu tháng)
-    const h1 = await fetchH4Reference(symbol);
+    // Lấy nến H1 mốc đầu tháng làm mốc gốc
+    const h1 = await fetchH1Reference(symbol);
     if (!h1) {
-      return { signal: 'NONE', symbol, month, reason: 'Không lấy được nến H4 đầu năm 2026' };
+      return { signal: 'NONE', symbol, month, reason: 'Không lấy được nến H1 mốc đầu tháng' };
     }
 
     const { openPrice, closePrice, step, decimals, upperPrice, lowerPrice } = h1;
@@ -1001,7 +957,7 @@ async function get369Signal(symbol, currentPrice = null) {
     const hybridCandles = await fetchHybridCandles(symbol);
 
     if (!hybridCandles.length) {
-      return { signal: 'NONE', symbol, month, reason: 'Không lấy được nến phân tích (H4+M1)' };
+      return { signal: 'NONE', symbol, month, reason: 'Không lấy được nến phân tích (H1+M1)' };
     }
 
     const price = currentPrice ?? hybridCandles[hybridCandles.length - 1].close;
@@ -2860,14 +2816,15 @@ function getLevelCache(forceRefresh = false) {
       const content = fs.readFileSync(FILE_PATH, 'utf8');
       const data = JSON.parse(content);
 
-      const refCache = data.h4Cache || {};
+      const anchorMs = getH1MonthAnchorMs();
+      const refCache = data.h1MonthlyCache || data.h4Cache || {};
 
       for (const [symbol, entry] of Object.entries(refCache)) {
-        const isValid = entry.yearStart === YEAR_START_MS && !entry.failed;
+        const isValid = (entry.monthAnchor === anchorMs || entry.yearStart === anchorMs) && !entry.failed;
 
         if (!isValid) continue;
 
-        _h4RefCache[symbol] = entry;
+        _h1RefCache[symbol] = entry;
 
         const { upperPrice, lowerPrice, step, decimals } = entry;
         const stream = require('./stream');
@@ -2893,19 +2850,20 @@ function getLevelCache(forceRefresh = false) {
 }
 
 /**
- * Nạp nến H4 đầu năm 2026 cho danh sách symbols vào cache.
+ * Nạp nến H1 đầu tháng cho danh sách symbols vào cache.
  * Delay 200ms/coin để tránh 418 ban.
  */
-async function initH4Cache(symbols) {
+async function initH1Cache(symbols) {
+  const anchorMs = getH1MonthAnchorMs();
   const missing = [];
 
   if (fs.existsSync(FILE_PATH)) {
     try {
       const content = fs.readFileSync(FILE_PATH, 'utf8');
       const data = JSON.parse(content);
-      const h4Cache = data.h4Cache || {};
+      const h1Cache = data.h1MonthlyCache || {};
       for (const sym of symbols) {
-        if (!h4Cache[sym] || h4Cache[sym].yearStart !== YEAR_START_MS) {
+        if (!h1Cache[sym] || (h1Cache[sym].monthAnchor !== anchorMs && h1Cache[sym].yearStart !== anchorMs)) {
           missing.push(sym);
         }
       }
@@ -2917,28 +2875,30 @@ async function initH4Cache(symbols) {
   }
 
   if (missing.length === 0) {
-    log.system(`[369] initH4Cache: Tất cả ${symbols.length} coin đã có nến H4 đầu năm.`);
+    log.system(`[369] initH1Cache: Tất cả ${symbols.length} coin đã có nến H1 đầu tháng.`);
     return;
   }
 
-  log.system(`[369] initH4Cache: Cần nạp H4 cho ${missing.length}/${symbols.length} coin (delay 200ms/coin)...`);
+  log.system(`[369] initH1Cache: Cần nạp H1 đầu tháng cho ${missing.length}/${symbols.length} coin (delay 200ms/coin)...`);
 
   for (let i = 0; i < missing.length; i++) {
     const sym = missing[i];
     try {
-      await fetchH4Reference(sym);
+      await fetchH1Reference(sym);
     } catch (e) {
-      log.warn(`[369] Lỗi init H4 cho ${sym}: ${e.message}`);
+      log.warn(`[369] Lỗi init H1 cho ${sym}: ${e.message}`);
       if (e.message === 'IP_BANNED_418') {
-        log.error('[369] Bị ban IP 418 — dừng initH4Cache ngay.');
+        log.error('[369] Bị ban IP 418 — dừng initH1Cache ngay.');
         break;
       }
     }
     // 200ms delay — đủ để tránh 418
     await new Promise(r => setTimeout(r, 200));
   }
-  log.system(`[369] Hoàn tất initH4Cache.`);
+  log.system(`[369] Hoàn tất initH1Cache.`);
 }
+
+const initH4Cache = initH1Cache; // Alias tương thích ngược
 
 /**
  * Tìm Đáy/Đỉnh sóng theo mô hình Williams Fractal chuẩn 5 nến trên bất kỳ khung thời gian nào (M5, M15, H1)
@@ -2982,7 +2942,8 @@ const getRecentM15FractalSwing = getRecentFractalSwing;
 module.exports = {
   get369Signal, get369SignalsForCoins, score369Method, format369ForPrompt,
   getLevelCache, overrideLevelLastSide, PROXIMITY_PCT, getDecimals, getStep,
-  initH4Cache, YEAR_START_MS, fetchBinanceKlines, fetchH4Reference, buildLevelGrid,
+  initH1Cache, initH4Cache, getH1MonthAnchorMs, MONTH_ANCHOR_MS, YEAR_START_MS,
+  fetchBinanceKlines, fetchH1Reference, fetchH4Reference, fetchH1Cached, buildLevelGrid,
   getGridStepPct, isGridWidthValid, GRID_MIN_PCT, GRID_MIN_PCT_TOP30, GRID_MIN_PCT_TOP100: GRID_MIN_PCT_TOP30, GRID_MAX_PCT, getMinGridPct, isTop100Symbol, isTop30Symbol, getMarketCapRank,
   isSymbolInGridBlacklist, getGridBlacklistInfo, addToGridBlacklist, classifyCandleGeometry,
   getRecentFractalSwing,
