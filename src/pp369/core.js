@@ -414,10 +414,9 @@ async function fetchBinanceKlines(symbol, interval, startTimeMs, limit = 1500) {
 
 /**
  * Lấy nến H1 đầu tháng làm mốc gốc cho phương pháp 369.
- * Mặc định: Nến H1 đóng lúc 07:00 UTC+7 (mở 23:00 UTC ngày cuối tháng trước).
  * Cache in-memory + file (h1MonthlyCache section trong step_sizes.json).
  */
-async function fetchH1Reference(symbol) {
+async function fetchH1Reference(symbol, saveImmediately = true) {
   const anchorMs = getH1MonthAnchorMs();
   const currentLabel = monthLabel();
   const cached = _h1RefCache[symbol];
@@ -447,13 +446,16 @@ async function fetchH1Reference(symbol) {
     if (status === 400) {
       const entry = { monthAnchor: anchorMs, monthLabel: currentLabel, yearStart: anchorMs, failed: true, reason: `Status ${status}` };
       _h1RefCache[symbol] = entry;
-      try {
-        let data = {};
-        if (fs.existsSync(FILE_PATH)) data = JSON.parse(fs.readFileSync(FILE_PATH, 'utf8'));
-        if (!data.h1MonthlyCache) data.h1MonthlyCache = {};
-        data.h1MonthlyCache[symbol] = entry;
-        fs.writeFileSync(FILE_PATH, JSON.stringify(data, null, 2), 'utf8');
-      } catch (e) { log.warn(`[369] Lỗi ghi h1MonthlyCache: ${e.message}`); }
+      if (saveImmediately) {
+        try {
+          let data = {};
+          if (fs.existsSync(FILE_PATH)) data = JSON.parse(fs.readFileSync(FILE_PATH, 'utf8'));
+          if (!data.h1MonthlyCache) data.h1MonthlyCache = {};
+          data.h1MonthlyCache[symbol] = entry;
+          fs.writeFileSync(FILE_PATH, JSON.stringify(data, null, 2), 'utf8');
+        } catch (e) { log.warn(`[369] Lỗi ghi h1MonthlyCache: ${e.message}`); }
+      }
+      return entry;
     } else if (status === 418) {
       throw new Error('IP_BANNED_418');
     }
@@ -469,15 +471,17 @@ async function fetchH1Reference(symbol) {
       reason: !candles?.length ? 'Không trả về nến H1' : `Nến đầu tiên (${new Date(candles[0].openTime).toISOString()}) không trùng mốc anchor H1 ${new Date(anchorMs).toISOString()}`
     };
     _h1RefCache[symbol] = entry;
-    try {
-      let data = {};
-      if (fs.existsSync(FILE_PATH)) data = JSON.parse(fs.readFileSync(FILE_PATH, 'utf8'));
-      if (!data.h1MonthlyCache) data.h1MonthlyCache = {};
-      data.h1MonthlyCache[symbol] = entry;
-      fs.writeFileSync(FILE_PATH, JSON.stringify(data, null, 2), 'utf8');
-      log.system(`[369] Đã đánh dấu lỗi không có nến H1 mốc tháng cho ${symbol}.`);
-    } catch (e) { log.warn(`[369] Lỗi ghi h1MonthlyCache: ${e.message}`); }
-    return null;
+    if (saveImmediately) {
+      try {
+        let data = {};
+        if (fs.existsSync(FILE_PATH)) data = JSON.parse(fs.readFileSync(FILE_PATH, 'utf8'));
+        if (!data.h1MonthlyCache) data.h1MonthlyCache = {};
+        data.h1MonthlyCache[symbol] = entry;
+        fs.writeFileSync(FILE_PATH, JSON.stringify(data, null, 2), 'utf8');
+        log.system(`[369] Đã đánh dấu lỗi không có nến H1 mốc tháng cho ${symbol}.`);
+      } catch (e) { log.warn(`[369] Lỗi ghi h1MonthlyCache: ${e.message}`); }
+    }
+    return entry;
   }
 
   const first = candles[0];
@@ -502,13 +506,15 @@ async function fetchH1Reference(symbol) {
     candleCloseTime: new Date(first.openTime + 3600000 - 1).toISOString()
   };
   _h1RefCache[symbol] = entry;
-  try {
-    let data = {};
-    if (fs.existsSync(FILE_PATH)) data = JSON.parse(fs.readFileSync(FILE_PATH, 'utf8'));
-    if (!data.h1MonthlyCache) data.h1MonthlyCache = {};
-    data.h1MonthlyCache[symbol] = entry;
-    fs.writeFileSync(FILE_PATH, JSON.stringify(data, null, 2), 'utf8');
-  } catch (e) { log.warn(`[369] Lỗi ghi h1MonthlyCache: ${e.message}`); }
+  if (saveImmediately) {
+    try {
+      let data = {};
+      if (fs.existsSync(FILE_PATH)) data = JSON.parse(fs.readFileSync(FILE_PATH, 'utf8'));
+      if (!data.h1MonthlyCache) data.h1MonthlyCache = {};
+      data.h1MonthlyCache[symbol] = entry;
+      fs.writeFileSync(FILE_PATH, JSON.stringify(data, null, 2), 'utf8');
+    } catch (e) { log.warn(`[369] Lỗi ghi h1MonthlyCache: ${e.message}`); }
+  }
 
   return entry;
 }
@@ -2857,20 +2863,22 @@ function getLevelCache(forceRefresh = false) {
 
 /**
  * Nạp nến H1 đầu tháng cho danh sách symbols vào cache.
- * Delay 200ms/coin để tránh 418 ban.
+ * Delay 100ms/coin để an toàn IP và batch flush ra đĩa mỗi 25 coin.
  */
 async function initH1Cache(symbols) {
   const anchorMs = getH1MonthAnchorMs();
   const missing = [];
+  let fileData = {};
 
   if (fs.existsSync(FILE_PATH)) {
     try {
-      const content = fs.readFileSync(FILE_PATH, 'utf8');
-      const data = JSON.parse(content);
-      const h1Cache = data.h1MonthlyCache || {};
+      fileData = JSON.parse(fs.readFileSync(FILE_PATH, 'utf8'));
+      const h1Cache = fileData.h1MonthlyCache || {};
       for (const sym of symbols) {
         if (!h1Cache[sym] || (h1Cache[sym].monthAnchor !== anchorMs && h1Cache[sym].yearStart !== anchorMs)) {
           missing.push(sym);
+        } else {
+          _h1RefCache[sym] = h1Cache[sym];
         }
       }
     } catch (_) {
@@ -2885,12 +2893,21 @@ async function initH1Cache(symbols) {
     return;
   }
 
-  log.system(`[369] initH1Cache: Cần nạp H1 đầu tháng cho ${missing.length}/${symbols.length} coin (delay 200ms/coin)...`);
+  log.system(`[369] initH1Cache: Cần nạp H1 đầu tháng cho ${missing.length}/${symbols.length} coin (delay 100ms/coin)...`);
+
+  if (!fileData.h1MonthlyCache) fileData.h1MonthlyCache = {};
+
+  const BATCH_FLUSH_SIZE = 25;
+  let unwrittenCount = 0;
 
   for (let i = 0; i < missing.length; i++) {
     const sym = missing[i];
     try {
-      await fetchH1Reference(sym);
+      const entry = await fetchH1Reference(sym, false);
+      if (entry) {
+        fileData.h1MonthlyCache[sym] = entry;
+        unwrittenCount++;
+      }
     } catch (e) {
       log.warn(`[369] Lỗi init H1 cho ${sym}: ${e.message}`);
       if (e.message === 'IP_BANNED_418') {
@@ -2898,10 +2915,29 @@ async function initH1Cache(symbols) {
         break;
       }
     }
-    // 200ms delay — đủ để tránh 418
-    await new Promise(r => setTimeout(r, 200));
+
+    if (unwrittenCount >= BATCH_FLUSH_SIZE) {
+      try {
+        fs.writeFileSync(FILE_PATH, JSON.stringify(fileData, null, 2), 'utf8');
+        unwrittenCount = 0;
+      } catch (err) {
+        log.warn(`[369] Lỗi ghi batch h1MonthlyCache: ${err.message}`);
+      }
+    }
+
+    // 100ms delay — an toàn tuyệt đối với IP weight (Binance limit 2400)
+    await new Promise(r => setTimeout(r, 100));
   }
-  log.system(`[369] Hoàn tất initH1Cache.`);
+
+  if (unwrittenCount > 0) {
+    try {
+      fs.writeFileSync(FILE_PATH, JSON.stringify(fileData, null, 2), 'utf8');
+    } catch (err) {
+      log.warn(`[369] Lỗi ghi final h1MonthlyCache: ${err.message}`);
+    }
+  }
+
+  log.system(`[369] Hoàn tất initH1Cache cho ${missing.length} coin.`);
 }
 
 const initH4Cache = initH1Cache; // Alias tương thích ngược
