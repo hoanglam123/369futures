@@ -1261,7 +1261,7 @@ async function startAutoTrade(coins) {
         return distA - distB;
       });
 
-      for (const sym of scanNearby.slice(0, 15)) {
+      for (const sym of scanNearby.slice(0, 8)) {
         const markPrice = getMarkPrice(sym);
         enqueueSymbolSignal(client, sym, markPrice, leverageInfo, leverage, coins);
       }
@@ -1298,7 +1298,7 @@ async function startAutoTrade(coins) {
       })
       .finally(() => {
         activeSignalChecks--;
-        setTimeout(processSignalQueue, 400); // Sleep 400ms giữa các symbol để bảo đảm tốc độ và an toàn API
+        setTimeout(processSignalQueue, 600); // Sleep 600ms giữa các symbol để bảo đảm an toàn API và giãn cách weight Binance
       });
   }
 
@@ -1517,15 +1517,23 @@ async function startAutoTrade(coins) {
       const btcFlashCheck = checkBtcFlashGatekeeper(sig.signal);
       const turnoverCheck = checkTurnoverGuard(sym);
 
-      try {
-        const hasPos = await client.hasOpenPosition(sym);
-        if (hasPos) {
-          log.system(`[AutoTrade] ${sym} đang có vị thế mở — bỏ qua`);
+      if (!isShadowMode && client) {
+        try {
+          const hasPos = await client.hasOpenPosition(sym);
+          if (hasPos) {
+            log.system(`[AutoTrade] ${sym} đang có vị thế mở — bỏ qua`);
+            return;
+          }
+        } catch (e) {
+          log.warn(`[AutoTrade] Không check được vị thế ${sym}: ${_binanceErr(e)} — ngắt xử lý tín hiệu.`);
           return;
         }
-      } catch (e) {
-        log.warn(`[AutoTrade] Không check được vị thế ${sym}: ${_binanceErr(e)} — ngắt xử lý tín hiệu.`);
-        return;
+      } else if (isShadowMode) {
+        const activeShadows = typeof getActiveShadowPositions === 'function' ? getActiveShadowPositions() : {};
+        if (activeShadows[sym]) {
+          log.system(`[AutoTrade] 👻 [Shadow] ${sym} đang có vị thế Shadow mở — bỏ qua`);
+          return;
+        }
       }
 
       // Ngưỡng nảy xa trước khi đặt lệnh (Pre-entry bounce): Thích ứng theo 25% độ rộng Grid (min 0.60%, max 1.50%)
@@ -2533,10 +2541,18 @@ async function checkH1RetestSignals(client, activeSymbols, leverageInfo = {}) {
         delete lowScoreWatchlist[sym];
         continue;
       }
-      const hasPos = await client.hasOpenPosition(sym);
-      if (hasPos) {
-        delete lowScoreWatchlist[sym];
-        continue;
+      if (!isShadowMode && client) {
+        const hasPos = await client.hasOpenPosition(sym);
+        if (hasPos) {
+          delete lowScoreWatchlist[sym];
+          continue;
+        }
+      } else if (isShadowMode) {
+        const activeShadows = typeof getActiveShadowPositions === 'function' ? getActiveShadowPositions() : {};
+        if (activeShadows[sym]) {
+          delete lowScoreWatchlist[sym];
+          continue;
+        }
       }
 
       // Tải 60 nến 1M của giờ H1 vừa trôi qua

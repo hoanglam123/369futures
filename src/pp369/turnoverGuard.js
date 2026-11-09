@@ -18,7 +18,7 @@ const { log } = require('./_logger');
 // Cache Volume 24H (Futures USDT-M)
 let _volume24hCache = {};
 let _lastVol24hFetchTime = 0;
-const VOL24H_CACHE_TTL_MS = 2 * 60 * 1000; // 2 phút cập nhật 1 lần
+const VOL24H_CACHE_TTL_MS = 5 * 60 * 1000; // 5 phút cập nhật 1 lần (tiết kiệm 40 weight Binance API)
 
 // Cache Market Cap từ file data/market_cap_top.json
 let _marketCapDataCache = null;
