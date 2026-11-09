@@ -101,6 +101,7 @@ module.exports = {
   getGridBlacklistInfo:    core.getGridBlacklistInfo,
   addToGridBlacklist:      core.addToGridBlacklist,
   classifyCandleGeometry:  core.classifyCandleGeometry,
+  getRecentFractalSwing:   core.getRecentFractalSwing,
   getRecentM15FractalSwing: core.getRecentM15FractalSwing,
 
   // ── WebSocket stream ─────────────────────────────────────────────────────

@@ -2941,15 +2941,15 @@ async function initH4Cache(symbols) {
 }
 
 /**
- * Tìm Đáy/Đỉnh sóng theo mô hình Williams Fractal chuẩn 5 nến trên khung M15
- * @param {Array} m15s - Mảng nến M15 (nến cuối cùng là nến đang chạy)
+ * Tìm Đáy/Đỉnh sóng theo mô hình Williams Fractal chuẩn 5 nến trên bất kỳ khung thời gian nào (M5, M15, H1)
+ * @param {Array} klines - Mảng nến (nến cuối cùng là nến đang chạy)
  * @param {boolean} isLong - True nếu tìm Swing Low (cho lệnh LONG), False nếu tìm Swing High (cho lệnh SHORT)
  * @returns {{ price: number, candleTime: number, idx: number }|null}
  */
-function getRecentM15FractalSwing(m15s, isLong) {
-  if (!Array.isArray(m15s) || m15s.length < 6) return null;
+function getRecentFractalSwing(klines, isLong) {
+  if (!Array.isArray(klines) || klines.length < 6) return null;
   // Bỏ nến cuối cùng (nến đang hình thành chưa đóng cửa)
-  const closed = m15s.slice(0, -1);
+  const closed = klines.slice(0, -1);
   if (closed.length < 5) return null;
 
   // Mô hình Fractal 5 nến chuẩn Williams: Nến tâm idx so với 2 nến trước (idx-2, idx-1) và 2 nến sau (idx+1, idx+2)
@@ -2976,11 +2976,15 @@ function getRecentM15FractalSwing(m15s, isLong) {
   return null;
 }
 
+// Giữ getRecentM15FractalSwing để tương thích ngược 100%
+const getRecentM15FractalSwing = getRecentFractalSwing;
+
 module.exports = {
   get369Signal, get369SignalsForCoins, score369Method, format369ForPrompt,
   getLevelCache, overrideLevelLastSide, PROXIMITY_PCT, getDecimals, getStep,
   initH4Cache, YEAR_START_MS, fetchBinanceKlines, fetchH4Reference, buildLevelGrid,
   getGridStepPct, isGridWidthValid, GRID_MIN_PCT, GRID_MIN_PCT_TOP30, GRID_MIN_PCT_TOP100: GRID_MIN_PCT_TOP30, GRID_MAX_PCT, getMinGridPct, isTop100Symbol, isTop30Symbol, getMarketCapRank,
   isSymbolInGridBlacklist, getGridBlacklistInfo, addToGridBlacklist, classifyCandleGeometry,
+  getRecentFractalSwing,
   getRecentM15FractalSwing,
 };

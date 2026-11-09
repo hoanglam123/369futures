@@ -347,25 +347,42 @@ function updateShadowPrices(priceMap) {
       : ((entry - p.maxFavorablePrice) / entry) * p.leverage * 100;
     p.maxFavorableRoi = Math.max(p.maxFavorableRoi || 0, favorableRoi);
 
-    // 🌊 M15 FRACTAL WAVE TRAILING SL (Williams Fractal 5 nến):
-    // Kích hoạt khi râu nến chạm mốc 40% TP -> Quét cấu trúc đáy/đỉnh sóng M15 để dời SL
+    // 🌊 FRACTAL CASCADE TRAILING SL (M5 + M15 Williams Fractal):
+    // Kích hoạt khi râu nến chạm mốc 40% TP -> Quét cấu trúc đáy/đỉnh sóng M5 & M15 để dời SL
     if (!p.isBeTriggered && typeof p.beTriggerPrice === 'number' && p.beTriggerPrice > 0) {
       const hitBeTrigger = isLong ? (candleHigh >= p.beTriggerPrice) : (candleLow <= p.beTriggerPrice);
       if (hitBeTrigger) {
         p.isBeTriggered = true;
         const core = getCoreModule();
-        if (core && typeof core.fetchBinanceKlines === 'function' && typeof core.getRecentM15FractalSwing === 'function') {
-          core.fetchBinanceKlines(p.symbol, '15m', null, 25).then(m15s => {
-            const swing = core.getRecentM15FractalSwing(m15s, isLong);
-            if (swing && typeof swing.price === 'number') {
-              const candidateSl = isLong ? (swing.price * 0.999) : (swing.price * 1.001);
-              const isBetter = isLong ? (candidateSl > p.tierSlPrice) : (candidateSl < p.tierSlPrice);
-              if (isBetter) {
-                p.tierSlPrice = candidateSl;
-                _logger.system(`[Shadow PnL] 🌊 [M15 Fractal Trailing SL] ${p.symbol} (${p.signal}) dời SL theo sóng M15 về $${candidateSl.toFixed(4)}!`);
+        if (core && typeof core.fetchBinanceKlines === 'function') {
+          const fn = core.getRecentFractalSwing || core.getRecentM15FractalSwing;
+          if (typeof fn === 'function') {
+            Promise.all([
+              core.fetchBinanceKlines(p.symbol, '15m', null, 25),
+              core.fetchBinanceKlines(p.symbol, '5m', null, 25)
+            ]).then(([m15s, m5s]) => {
+              const m15Swing = (m15s && m15s.length >= 6) ? fn(m15s, isLong) : null;
+              const m5Swing = (m5s && m5s.length >= 6) ? fn(m5s, isLong) : null;
+              const cands = [];
+              if (m15Swing && typeof m15Swing.price === 'number') {
+                cands.push({ sl: isLong ? m15Swing.price * 0.999 : m15Swing.price * 1.001, tf: 'M15' });
               }
-            }
-          }).catch(() => {});
+              if (m5Swing && typeof m5Swing.price === 'number') {
+                cands.push({ sl: isLong ? m5Swing.price * 0.999 : m5Swing.price * 1.001, tf: 'M5' });
+              }
+              if (cands.length > 0) {
+                const best = isLong
+                  ? cands.reduce((prev, curr) => (curr.sl > prev.sl ? curr : prev))
+                  : cands.reduce((prev, curr) => (curr.sl < prev.sl ? curr : prev));
+                const candidateSl = best.sl;
+                const isBetter = isLong ? (candidateSl > p.tierSlPrice) : (candidateSl < p.tierSlPrice);
+                if (isBetter) {
+                  p.tierSlPrice = candidateSl;
+                  _logger.system(`[Shadow PnL] 🌊 [Fractal Cascade Trailing SL] ${p.symbol} (${p.signal}) dời SL theo sóng ${best.tf} về $${candidateSl.toFixed(4)}!`);
+                }
+              }
+            }).catch(() => {});
+          }
         }
       }
     }
