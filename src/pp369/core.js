@@ -2940,10 +2940,47 @@ async function initH4Cache(symbols) {
   log.system(`[369] Hoàn tất initH4Cache.`);
 }
 
+/**
+ * Tìm Đáy/Đỉnh sóng theo mô hình Williams Fractal chuẩn 5 nến trên khung M15
+ * @param {Array} m15s - Mảng nến M15 (nến cuối cùng là nến đang chạy)
+ * @param {boolean} isLong - True nếu tìm Swing Low (cho lệnh LONG), False nếu tìm Swing High (cho lệnh SHORT)
+ * @returns {{ price: number, candleTime: number, idx: number }|null}
+ */
+function getRecentM15FractalSwing(m15s, isLong) {
+  if (!Array.isArray(m15s) || m15s.length < 6) return null;
+  // Bỏ nến cuối cùng (nến đang hình thành chưa đóng cửa)
+  const closed = m15s.slice(0, -1);
+  if (closed.length < 5) return null;
+
+  // Mô hình Fractal 5 nến chuẩn Williams: Nến tâm idx so với 2 nến trước (idx-2, idx-1) và 2 nến sau (idx+1, idx+2)
+  // Quét lùi từ nến đã đóng hoàn tất gần nhất (closed.length - 3) về trước
+  for (let idx = closed.length - 3; idx >= 2; idx--) {
+    const mid = closed[idx];
+    const p2 = closed[idx - 2];
+    const p1 = closed[idx - 1];
+    const n1 = closed[idx + 1];
+    const n2 = closed[idx + 2];
+
+    if (isLong) {
+      // Swing Low: Đáy nến tâm thấp hơn hoặc bằng 2 nến trước và 2 nến sau
+      if (mid.low <= p2.low && mid.low <= p1.low && mid.low <= n1.low && mid.low <= n2.low) {
+        return { price: mid.low, candleTime: mid.openTime, idx };
+      }
+    } else {
+      // Swing High: Đỉnh nến tâm cao hơn hoặc bằng 2 nến trước và 2 nến sau
+      if (mid.high >= p2.high && mid.high >= p1.high && mid.high >= n1.high && mid.high >= n2.high) {
+        return { price: mid.high, candleTime: mid.openTime, idx };
+      }
+    }
+  }
+  return null;
+}
+
 module.exports = {
   get369Signal, get369SignalsForCoins, score369Method, format369ForPrompt,
   getLevelCache, overrideLevelLastSide, PROXIMITY_PCT, getDecimals, getStep,
   initH4Cache, YEAR_START_MS, fetchBinanceKlines, fetchH4Reference, buildLevelGrid,
   getGridStepPct, isGridWidthValid, GRID_MIN_PCT, GRID_MIN_PCT_TOP30, GRID_MIN_PCT_TOP100: GRID_MIN_PCT_TOP30, GRID_MAX_PCT, getMinGridPct, isTop100Symbol, isTop30Symbol, getMarketCapRank,
   isSymbolInGridBlacklist, getGridBlacklistInfo, addToGridBlacklist, classifyCandleGeometry,
+  getRecentM15FractalSwing,
 };

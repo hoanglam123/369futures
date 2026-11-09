@@ -1,56 +1,32 @@
 {
+  "AXS": {
+    "expiry": 1791878914502,
+    "hours": 8,
+    "reason": "SL_LOSS",
+    "updatedAt": 1791850114502
+  },
+  "SUPER": {
+    "expiry": 1793551837047,
+    "hours": 8,
+    "reason": "SL_LOSS",
+    "updatedAt": 1793523037047
+  },
+  "MON": {
+    "expiry": 1793694886870,
+    "hours": 1.5,
+    "reason": "DEFENSIVE_EARLY_CUT",
+    "updatedAt": 1793689486870
+  },
   "RLC": {
-    "expiry": 1789146843887,
-    "hours": 5,
-    "reason": "SL_NORMAL",
-    "updatedAt": 1789128843887
-  },
-  "ORDI": {
-    "expiry": 1789147809997,
-    "hours": 5,
-    "reason": "SL_NORMAL",
-    "updatedAt": 1789129809997
-  },
-  "SSV": {
-    "expiry": 1789276202611,
-    "hours": 5,
-    "reason": "SL_NORMAL",
-    "updatedAt": 1789258202611
-  },
-  "ALCH": {
-    "expiry": 1789283296230,
-    "hours": 5,
-    "reason": "SL_NORMAL",
-    "updatedAt": 1789265296230
-  },
-  "AXL": {
-    "expiry": 1789287958861,
-    "hours": 5,
-    "reason": "SL_NORMAL",
-    "updatedAt": 1789269958861
-  },
-  "TA": {
-    "expiry": 1789296006310,
-    "hours": 5,
-    "reason": "SL_NORMAL",
-    "updatedAt": 1789278006310
-  },
-  "ALGO": {
-    "expiry": 1789440815770,
+    "expiry": 1794185427684,
     "hours": 8,
     "reason": "SL_LOSS",
-    "updatedAt": 1789412015770
+    "updatedAt": 1794156627684
   },
-  "BAN": {
-    "expiry": 1789441427507,
+  "PENGU": {
+    "expiry": 1794203271321,
     "hours": 8,
     "reason": "SL_LOSS",
-    "updatedAt": 1789412627507
-  },
-  "ARB": {
-    "expiry": 1789452068524,
-    "hours": 8,
-    "reason": "SL_LOSS",
-    "updatedAt": 1789423268524
+    "updatedAt": 1794174471321
   }
 }

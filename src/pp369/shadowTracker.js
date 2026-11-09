@@ -4,6 +4,16 @@
 const fs = require('fs');
 const path = require('path');
 
+let _coreModule = null;
+function getCoreModule() {
+  if (!_coreModule) {
+    try {
+      _coreModule = require('./core');
+    } catch (_) {}
+  }
+  return _coreModule;
+}
+
 const DATA_DIR = path.join(process.cwd(), 'data');
 const SHADOW_POSITIONS_FILE = path.join(DATA_DIR, 'shadow_positions.json');
 const SHADOW_HISTORY_FILE = path.join(DATA_DIR, 'shadow_trades_history.jsonl');
@@ -150,7 +160,7 @@ function registerShadowTrade(sig, evalResult, options = {}) {
   //   }
   let beTriggerPrice = (typeof options.beTriggerPrice === 'number' && options.beTriggerPrice > 0)
     ? options.beTriggerPrice
-    : (isLong ? (entryPrice + (tierTpPrice - entryPrice) * 0.50) : (entryPrice - (entryPrice - tierTpPrice) * 0.50));
+    : (isLong ? (entryPrice + (tierTpPrice - entryPrice) * 0.40) : (entryPrice - (entryPrice - tierTpPrice) * 0.40));
 
   // 🛡️ MỨC GIÁ THỊ TRƯỜNG HIỆN TẠI VÀ TRẠNG THÁI KHỚP LỆNH LIMIT
   const currentMark = parseFloat(options.markPrice || entryPrice);
@@ -337,15 +347,26 @@ function updateShadowPrices(priceMap) {
       : ((entry - p.maxFavorablePrice) / entry) * p.leverage * 100;
     p.maxFavorableRoi = Math.max(p.maxFavorableRoi || 0, favorableRoi);
 
-    // 🛡️ BUFFER TRAILING SL (Hướng 3):
-    // Kích hoạt khi râu nến chạm mốc 50% TP -> Dời SL về Vùng đệm An toàn (-0.5% Entry)
+    // 🌊 M15 FRACTAL WAVE TRAILING SL (Williams Fractal 5 nến):
+    // Kích hoạt khi râu nến chạm mốc 40% TP -> Quét cấu trúc đáy/đỉnh sóng M15 để dời SL
     if (!p.isBeTriggered && typeof p.beTriggerPrice === 'number' && p.beTriggerPrice > 0) {
       const hitBeTrigger = isLong ? (candleHigh >= p.beTriggerPrice) : (candleLow <= p.beTriggerPrice);
       if (hitBeTrigger) {
         p.isBeTriggered = true;
-        const bufferDist = entry * 0.005; // 0.5% buffer
-        p.tierSlPrice = isLong ? Math.max(p.tierSlPrice, entry - bufferDist) : Math.min(p.tierSlPrice, entry + bufferDist);
-        _logger.system(`[Shadow PnL] 🛡️ [Buffer Trailing SL] ${p.symbol} (${p.signal}) chạm mốc 50% TP ($${p.beTriggerPrice.toFixed(4)}) / ROI +${favorableRoi.toFixed(1)}% -> Đã dời SL về Vùng đệm An toàn ($${p.tierSlPrice.toFixed(4)}, -0.5% Entry)!`);
+        const core = getCoreModule();
+        if (core && typeof core.fetchBinanceKlines === 'function' && typeof core.getRecentM15FractalSwing === 'function') {
+          core.fetchBinanceKlines(p.symbol, '15m', null, 25).then(m15s => {
+            const swing = core.getRecentM15FractalSwing(m15s, isLong);
+            if (swing && typeof swing.price === 'number') {
+              const candidateSl = isLong ? (swing.price * 0.999) : (swing.price * 1.001);
+              const isBetter = isLong ? (candidateSl > p.tierSlPrice) : (candidateSl < p.tierSlPrice);
+              if (isBetter) {
+                p.tierSlPrice = candidateSl;
+                _logger.system(`[Shadow PnL] 🌊 [M15 Fractal Trailing SL] ${p.symbol} (${p.signal}) dời SL theo sóng M15 về $${candidateSl.toFixed(4)}!`);
+              }
+            }
+          }).catch(() => {});
+        }
       }
     }
 

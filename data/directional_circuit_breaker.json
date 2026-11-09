@@ -1,20 +1,18 @@
 {
   "LONG": {
-    "losses": [
-      {
-        "symbol": "ARB",
-        "exitTime": 1789423268520,
-        "pnlUsd": -0.8711929307805517,
-        "pnlPercent": -29.03976435935172,
-        "exitType": "SL"
-      }
-    ],
+    "losses": [],
     "lockedUntil": 0,
-    "lockReason": ""
+    "lockReason": "",
+    "shadowTrades": [],
+    "extensionCount": 0,
+    "lockedAt": 0
   },
   "SHORT": {
     "losses": [],
     "lockedUntil": 0,
-    "lockReason": ""
+    "lockReason": "",
+    "shadowTrades": [],
+    "extensionCount": 0,
+    "lockedAt": 0
   }
 }

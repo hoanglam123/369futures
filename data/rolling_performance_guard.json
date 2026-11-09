@@ -1,94 +1,94 @@
 {
   "recentRealTrades": [
     {
-      "symbol": "ENS",
-      "side": "SHORT",
-      "isWin": true,
-      "pnlUsd": 0.1285,
-      "pnlPercent": 4.283333333333333,
-      "exitType": "TRAILING_SL",
-      "exitTime": 1789416768292
-    },
-    {
-      "symbol": "FF",
+      "symbol": "XAI",
       "side": "LONG",
       "isWin": false,
-      "pnlUsd": -1.4629672523961756,
-      "pnlPercent": -19.50623003194901,
+      "pnlUsd": -0.537594,
+      "pnlPercent": -13.43985,
       "exitType": "SL",
-      "exitTime": 1789416996338
+      "exitTime": 1794045148445
     },
     {
-      "symbol": "DASH",
-      "side": "SHORT",
-      "isWin": true,
-      "pnlUsd": 0.11687999,
-      "pnlPercent": 3.8447365131578946,
-      "exitType": "TRAILING_SL",
-      "exitTime": 1789418052564
-    },
-    {
-      "symbol": "SWARMS",
+      "symbol": "SAPIEN",
       "side": "LONG",
       "isWin": true,
-      "pnlUsd": 1.4094959999999999,
-      "pnlPercent": 33.800863309352515,
-      "exitType": "TP",
-      "exitTime": 1789419126905
-    },
-    {
-      "symbol": "KAVA",
-      "side": "SHORT",
-      "isWin": true,
-      "pnlUsd": 1.33386,
-      "pnlPercent": 43.16699029126214,
-      "exitType": "TP",
-      "exitTime": 1789420657304
-    },
-    {
-      "symbol": "ZEC",
-      "side": "LONG",
-      "isWin": true,
-      "pnlUsd": 0.29570144821170335,
-      "pnlPercent": 9.85671494039011,
+      "pnlUsd": 0.07296,
+      "pnlPercent": 2.28,
       "exitType": "TRAILING_SL",
-      "exitTime": 1789421773606
+      "exitTime": 1794045190513
     },
     {
-      "symbol": "ARB",
+      "symbol": "XPL",
       "side": "LONG",
       "isWin": false,
-      "pnlUsd": -0.8711929307805517,
-      "pnlPercent": -29.03976435935172,
+      "pnlUsd": -0.35351,
+      "pnlPercent": -11.59049180327869,
       "exitType": "SL",
-      "exitTime": 1789423268523
+      "exitTime": 1794063801936
     },
     {
-      "symbol": "CATI",
-      "side": "SHORT",
-      "isWin": true,
-      "pnlUsd": 0.02967998,
-      "pnlPercent": 0.9731140983606559,
-      "exitType": "TRAILING_SL",
-      "exitTime": 1789428909358
+      "symbol": "BAN",
+      "side": "LONG",
+      "isWin": false,
+      "pnlUsd": -1.5125600000000001,
+      "pnlPercent": -40.22765957446809,
+      "exitType": "SL",
+      "exitTime": 1794064245519
     },
     {
-      "symbol": "VTHO",
-      "side": "SHORT",
-      "isWin": true,
-      "pnlUsd": 0.13744329896906873,
-      "pnlPercent": 4.536082474226691,
-      "exitType": "TRAILING_SL",
-      "exitTime": 1789432191668
-    },
-    {
-      "symbol": "FF",
+      "symbol": "GMT",
       "side": "LONG",
       "isWin": true,
-      "pnlUsd": 0.22558844507847264,
-      "pnlPercent": 3.007845934379635,
+      "pnlUsd": 0.084946,
+      "pnlPercent": 2.8034983498349835,
       "exitType": "TRAILING_SL",
-      "exitTime": 1789457848294
+      "exitTime": 1794084537913
+    },
+    {
+      "symbol": "RLC",
+      "side": "LONG",
+      "isWin": false,
+      "pnlUsd": -1.50656,
+      "pnlPercent": -49.72145214521452,
+      "exitType": "SL",
+      "exitTime": 1794156627683
+    },
+    {
+      "symbol": "A",
+      "side": "LONG",
+      "isWin": true,
+      "pnlUsd": 0.3215,
+      "pnlPercent": 10.610561056105611,
+      "exitType": "TRAILING_SL",
+      "exitTime": 1794165235609
+    },
+    {
+      "symbol": "VIRTUAL",
+      "side": "LONG",
+      "isWin": true,
+      "pnlUsd": 0.10776,
+      "pnlPercent": 3.556435643564357,
+      "exitType": "TRAILING_SL",
+      "exitTime": 1794168020063
+    },
+    {
+      "symbol": "PENGU",
+      "side": "LONG",
+      "isWin": false,
+      "pnlUsd": -0.47832,
+      "pnlPercent": -15.78613861386139,
+      "exitType": "SL",
+      "exitTime": 1794174471321
+    },
+    {
+      "symbol": "AERO",
+      "side": "LONG",
+      "isWin": false,
+      "pnlUsd": -1.52279,
+      "pnlPercent": -50.25709570957096,
+      "exitType": "SL",
+      "exitTime": 1794174790074
     }
   ],
   "isStandDown": false,
