@@ -3,6 +3,10 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
+    "start": "node scripts/auto-trade.js",
+    "train:ai": "python scripts/train_ai_model.py",
+    "report:daily": "node scripts/send-daily-report.js",
+    "clean:trades": "node scripts/clean-bugged-trades.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
