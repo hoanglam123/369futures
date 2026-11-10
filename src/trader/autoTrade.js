@@ -73,6 +73,7 @@ const DEBOUNCE_MS = 5 * 60_000; // 5 phút / tín hiệu
 const COIN_REFRESH_INTERVAL_MS = 4 * 60 * 60_000; // Tái kiểm tra danh sách coin mỗi 4 giờ
 const LEVERAGE_REFRESH_INTERVAL_MS = 6 * 60 * 60_000; // Tự động cập nhật trần đòn bẩy mỗi 6 giờ
 const MIN_CONFLUENCE_SCORE = parseFloat(process.env.MIN_CONFLUENCE_SCORE || '5.0'); // Ngưỡng Confluence Score tối thiểu (mặc định 5.0đ)
+let isShadowMode = process.env.SHADOW_MODE === 'true' || !process.env.BINANCE_API_KEY || !process.env.BINANCE_SECRET;
 
 // [ARCHIVED - BE] Cơ chế Dời SL về hòa vốn (Breakeven) & Chốt lời từng phần cũ:
 // Tạm tắt để AI tự quyết định TP & SL dứt điểm cho từng lệnh, loại bỏ bẫy quét non hòa vốn (Negative Asymmetry)
@@ -786,7 +787,7 @@ async function startAutoTrade(coins) {
   // trước mọi async call để tránh cả 2 luồng (WS + Poll) cùng đặt lệnh song song
   const processingSymbols = new Set();
 
-  const isShadowMode = process.env.SHADOW_MODE === 'true' || !apiKey || !secret;
+  isShadowMode = process.env.SHADOW_MODE === 'true' || !apiKey || !secret;
   if (isShadowMode) {
     log.system(`[AutoTrade] 👻 KHỞI CHẠY CHẾ ĐỘ SHADOW TRACKER (Paper Trading) — Không vào lệnh thật trên sàn Binance.`);
     log.system(`[AutoTrade] Tự động theo dõi vị thế ảo, trailing SL M5/M15 fractal và đo đạc PnL.`);
