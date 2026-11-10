@@ -878,30 +878,20 @@ async function startAutoTrade(coins) {
     }
   });
 
-  // ── Luồng quét râu nến (Candle Wicks) cho các vị thế Shadow PnL đang chạy (mỗi 60s) ────
-  // Giúp phát hiện tức thì mọi pha quét râu cắn SL hoặc chạm TP/BE của nến 15m/1m mà tick WebSocket có thể bỏ sót
-  setInterval(async () => {
+  // ── Luồng đồng bộ giá ngầm cho các vị thế Shadow PnL đang chạy (mỗi 10s) ────
+  // Đồng bộ giá từ bộ nhớ cache WebSocket getMarkPrice (0 tốn IP weight REST API)
+  setInterval(() => {
     try {
       const activeShadows = typeof getActiveShadowPositions === 'function' ? getActiveShadowPositions() : {};
       const shadowSyms = Object.values(activeShadows).map(p => p.symbol);
-      const uniqueSyms = [...new Set(shadowSyms)];
-      for (const sym of uniqueSyms) {
-        try {
-          const klines = await fetchBinanceKlines(sym, '15m', null, 2);
-          if (klines && klines.length > 0) {
-            const curr = klines[klines.length - 1];
-            updateShadowPrices({
-              [sym]: {
-                price: curr.close,
-                high: curr.high,
-                low: curr.low
-              }
-            });
-          }
-        } catch (_) {}
+      for (const sym of shadowSyms) {
+        const mp = typeof getMarkPrice === 'function' ? getMarkPrice(sym) : null;
+        if (mp && mp > 0) {
+          updateShadowPrices({ [sym]: mp });
+        }
       }
     } catch (_) {}
-  }, 60_000);
+  }, 10_000);
 
   // ── Tái kiểm tra danh sách coin mỗi 4 giờ theo giá thị trường hiện tại ────
   setInterval(async () => {
@@ -1231,9 +1221,11 @@ async function startAutoTrade(coins) {
       }
 
       const levelCache = getLevelCache();
-      // 1. WebSocket lắng nghe biến động giá cho tất cả coin trong bán kính 1.0% + toàn bộ coin đang có vị thế/lệnh chờ
+      // 1. WebSocket lắng nghe biến động giá cho tất cả coin trong bán kính 1.0% + toàn bộ coin đang có vị thế/lệnh chờ/shadow
       const wsNearby = getNearbySymbols(activeCoinList, levelCache, 0.01);
-      const wsAllSymbols = Array.from(new Set([...wsNearby, ...activeSymbols]));
+      const activeShadows = typeof getActiveShadowPositions === 'function' ? getActiveShadowPositions() : {};
+      const shadowSyms = Object.values(activeShadows).map(p => p.symbol);
+      const wsAllSymbols = Array.from(new Set([...wsNearby, ...activeSymbols, ...shadowSyms]));
       syncWebSocketSubscriptions(wsAllSymbols);
 
       // 2. Vòng lặp Scan định kỳ chỉ xử lý các coin đang thực sự TIỆM CẬN SÁT MỐC (<= 0.5%) để tối ưu tốc độ treo LIMIT
@@ -1693,11 +1685,7 @@ async function startAutoTrade(coins) {
 
         if (currM15) {
           updateShadowPrices({
-            [sym]: {
-              price: currM15.close,
-              high: currM15.high,
-              low: currM15.low
-            }
+            [sym]: currM15.close
           });
         }
 
@@ -1948,6 +1936,29 @@ async function startAutoTrade(coins) {
 
       const side = sig.signal === 'LONG' ? 'BUY' : 'SELL';
 
+      if (isShadowMode) {
+        log.system(`[AutoTrade] 👻 [Shadow Entry] Ghi nhận lệnh ảo #${sym} (${sig.signal}) @ $${sig.targetLevel} | Đòn bẩy ${effectiveLeverage}x | SL: $${tierSetup.slPrice} | TP: $${tierSetup.tpPrice}`);
+        registerShadowTrade(sig, aiEval, {
+          markPrice,
+          marketCapRank: rank,
+          gridWidthPct: sig.gridWidthPct || gridStepPct,
+          leverage: effectiveLeverage,
+          margin: actualTradeMargin,
+          tierSlPrice: tierSetup.slPrice,
+          tierTpPrice: tierSetup.tpPrice,
+          beTriggerPrice: tierSetup.beTriggerPrice,
+          slPct: tierSetup.slPct,
+          marketMetrics,
+          signalMetrics: sig.signalMetrics || null,
+          microstructure: rawMarketData?.microstructure || null,
+          isEconomicBlackout: rawMarketData?.isEconomicBlackout
+        });
+
+        if (process.env.SEND_SHADOW_ENTRY_ALERTS === 'true') {
+          sendTelegram(`👻 <b>[Shadow Entry] #${sym} (${sig.signal})</b>\n• Mức giá: <code>$${sig.targetLevel}</code> (Đòn bẩy: <b>${effectiveLeverage}x</b> | Ký quỹ: <b>$${actualTradeMargin}</b>)\n• Mục tiêu: SL: <code>$${tierSetup.slPrice}</code> | TP: <code>$${tierSetup.tpPrice}</code>\n• Đang theo dõi ảo qua Shadow PnL Tracker!`);
+        }
+        return;
+      }
       try {
         try {
           await client.setLeverage(sym, effectiveLeverage);
@@ -2745,11 +2756,7 @@ async function checkH1RetestSignals(client, activeSymbols, leverageInfo = {}) {
 
         if (currM15) {
           updateShadowPrices({
-            [sym]: {
-              price: currM15.close,
-              high: currM15.high,
-              low: currM15.low
-            }
+            [sym]: currM15.close
           });
         }
 
@@ -2904,6 +2911,31 @@ async function checkH1RetestSignals(client, activeSymbols, leverageInfo = {}) {
       });
       if (!gatekeeperRetest.passed) {
         log.system(`[H1Retest] ⚠️ [PreLimitGatekeeper] Tạm hoãn đặt Limit Retest cho ${sym} (${signal}): ${gatekeeperRetest.reason}. Giữ lại Watchlist.`);
+        continue;
+      }
+
+      if (isShadowMode) {
+        log.system(`[H1Retest] 👻 [Shadow Retest Entry] Ghi nhận lệnh Retest ảo #${sym} (${signal}) @ $${targetLevel}`);
+        registerShadowTrade(sigForAI, aiEval, {
+          markPrice,
+          marketCapRank: rank,
+          gridWidthPct: watchData.gridWidthPct || gridStepPct,
+          leverage: effectiveLeverageRetest,
+          margin: actualTradeMarginRetest,
+          tierSlPrice: prelimRetest.slPrice,
+          tierTpPrice: prelimRetest.tpPrice,
+          beTriggerPrice: prelimRetest.beTriggerPrice,
+          slPct: prelimRetest.slPct,
+          marketMetrics: marketMetricsRetest,
+          signalMetrics: sigForAI.signalMetrics || null,
+          microstructure: rawMarketDataRetest?.microstructure || null,
+          isEconomicBlackout: rawMarketDataRetest?.isEconomicBlackout
+        });
+
+        if (process.env.SEND_SHADOW_ENTRY_ALERTS === 'true') {
+          sendTelegram(`👻 <b>[Shadow Retest Entry] #${sym} (${signal})</b>\n• Mức giá: <code>$${targetLevel}</code> (Đòn bẩy: <b>${effectiveLeverageRetest}x</b>)\n• Đang theo dõi ảo qua Shadow PnL Tracker!`);
+        }
+        delete lowScoreWatchlist[sym];
         continue;
       }
 

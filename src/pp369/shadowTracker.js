@@ -292,7 +292,7 @@ function updateShadowPrices(priceMap) {
     const entry = p.entryPrice;
 
     // ─────────────────────────────────────────────────────────────────────────────
-    // 1. NẾU LỆNH CHƯA KHỚP LIMIT: Theo dõi râu nến xem có khớp hay bị Bounce Cancel
+    // 1. NẾU LỆNH CHƯA KHỚP LIMIT: Theo dõi giá/râu nến xem có khớp hay bị Bounce Cancel
     // ─────────────────────────────────────────────────────────────────────────────
     if (!p.isFilled) {
       const canFill = isLong ? (candleLow <= entry) : (candleHigh >= entry);
@@ -329,7 +329,7 @@ function updateShadowPrices(priceMap) {
     // 2. VỊ THẾ ĐÃ KHỚP (ACTIVE): Theo dõi MFE, MAE, Breakeven, TP, SL y hệt sàn thật
     // ─────────────────────────────────────────────────────────────────────────────
 
-    // Track MFE (Max Favorable Excursion) & MAE (Max Adverse Excursion) bằng râu nến (Wicks)
+    // Track MFE (Max Favorable Excursion) & MAE (Max Adverse Excursion) theo râu nến & giá
     if (isLong) {
       if (candleHigh > p.maxFavorablePrice) p.maxFavorablePrice = candleHigh;
       if (candleLow < p.maxAdversePrice) p.maxAdversePrice = candleLow;
@@ -347,12 +347,24 @@ function updateShadowPrices(priceMap) {
       : ((entry - p.maxFavorablePrice) / entry) * p.leverage * 100;
     p.maxFavorableRoi = Math.max(p.maxFavorableRoi || 0, favorableRoi);
 
+    // Ghi nhớ cờ BE và mức SL trước khi đánh giá bước này (chống xung đột BE & SL trong cùng 1 tick/nến)
+    const wasBeTriggeredBefore = p.isBeTriggered === true;
+    const prevSlPrice = p.tierSlPrice;
+
     // 🌊 FRACTAL CASCADE TRAILING SL (M5 + M15 Williams Fractal):
-    // Kích hoạt khi râu nến chạm mốc 40% TP -> Quét cấu trúc đáy/đỉnh sóng M5 & M15 để dời SL
+    // Kích hoạt khi giá/râu nến chạm mốc 40% TP -> Kéo ngay SL về Entry (BE) làm sàn bảo vệ,
+    // rồi quét sóng M5 & M15 để nâng SL cao hơn theo lợi nhuận
     if (!p.isBeTriggered && typeof p.beTriggerPrice === 'number' && p.beTriggerPrice > 0) {
       const hitBeTrigger = isLong ? (candleHigh >= p.beTriggerPrice) : (candleLow <= p.beTriggerPrice);
       if (hitBeTrigger) {
         p.isBeTriggered = true;
+        // Khóa ngay mức bảo toàn vốn (Entry) làm điểm tựa sàn tối thiểu
+        const isBetterThanCurrent = isLong ? (entry > p.tierSlPrice) : (entry < p.tierSlPrice);
+        if (isBetterThanCurrent) {
+          p.tierSlPrice = entry;
+          _logger.system(`[Shadow PnL] ⚖️ [Breakeven Lock] ${p.symbol} (${p.signal}) chạm mốc kích hoạt BE ($${p.beTriggerPrice.toFixed(4)}) -> Đã kéo SL về Entry ($${entry.toFixed(4)}) bảo toàn vốn!`);
+        }
+
         const core = getCoreModule();
         if (core && typeof core.fetchBinanceKlines === 'function') {
           const fn = core.getRecentFractalSwing || core.getRecentM15FractalSwing;
@@ -394,22 +406,34 @@ function updateShadowPrices(priceMap) {
     const hardLossCapUSD = (p.targetLossUSD || 5.0) * 1.15;
     const unrealizedPnlUsd = (currentRoi / 100) * p.margin;
     if (unrealizedPnlUsd <= -hardLossCapUSD || currentRoi <= -55.0) {
-      resolvedOutcome = p.isBeTriggered ? 'SAVED_BE' : 'SAVED_SL';
+      resolvedOutcome = wasBeTriggeredBefore ? 'SAVED_BE' : 'SAVED_SL';
     }
 
-    // 🎯 KIỂM TRA KHỚP LỆNH THEO RÂU NẾN (WICKS) VÀ GIÁ HIỆN TẠI
+    // 🎯 KIỂM TRA KHỚP LỆNH THEO RÂU NẾN & GIÁ THỜI GIAN THỰC (REAL-TIME MARK PRICE)
     if (!resolvedOutcome) {
       if (isLong) {
         if (candleHigh >= p.tierTpPrice) {
           resolvedOutcome = 'MISSED_TP';
-        } else if (candleLow <= p.tierSlPrice) {
-          resolvedOutcome = p.isBeTriggered ? 'SAVED_BE' : 'SAVED_SL';
+        } else if (wasBeTriggeredBefore) {
+          if (candleLow <= p.tierSlPrice) {
+            resolvedOutcome = 'SAVED_BE';
+          }
+        } else {
+          if (candleLow <= prevSlPrice) {
+            resolvedOutcome = 'SAVED_SL';
+          }
         }
       } else {
         if (candleLow <= p.tierTpPrice) {
           resolvedOutcome = 'MISSED_TP';
-        } else if (candleHigh >= p.tierSlPrice) {
-          resolvedOutcome = p.isBeTriggered ? 'SAVED_BE' : 'SAVED_SL';
+        } else if (wasBeTriggeredBefore) {
+          if (candleHigh >= p.tierSlPrice) {
+            resolvedOutcome = 'SAVED_BE';
+          }
+        } else {
+          if (candleHigh >= prevSlPrice) {
+            resolvedOutcome = 'SAVED_SL';
+          }
         }
       }
     }
@@ -465,7 +489,7 @@ function updateShadowPrices(priceMap) {
     if (resolvedOutcome) {
       const exitPrice = resolvedOutcome === 'MISSED_TP' 
         ? p.tierTpPrice 
-        : (resolvedOutcome === 'SAVED_BE' ? entry : p.tierSlPrice);
+        : (resolvedOutcome === 'SAVED_BE' ? (p.tierSlPrice || entry) : p.tierSlPrice);
       _resolveShadowTrade(p, resolvedOutcome, exitPrice, currentRoi, now);
     }
   }
@@ -494,8 +518,10 @@ function _resolveShadowTrade(p, outcome, exitPrice, exitRoi, exitTimestamp) {
     finalRoi = -p.slPct * p.leverage;
     pnlUsd = (finalRoi / 100) * p.margin;
   } else if (isSavedBE) {
-    // Vùng đệm an toàn -0.5% Entry: Lỗ nhẹ tương đương -0.5% * leverage (~-16.5% ROI thay vì -50% ROI)
-    finalRoi = -0.5 * p.leverage;
+    // Nếu SL ở Entry (Hòa Vốn): ROI = 0%, PnL = 0 USD. Nếu dời về vùng đệm/sóng khác: tính theo khoảng cách thực tế giữa exitPrice và entry
+    const entry = p.entryPrice;
+    const distPct = entry > 0 ? (isLong ? (exitPrice - entry) / entry : (entry - exitPrice) / entry) * 100 : 0;
+    finalRoi = distPct * p.leverage;
     pnlUsd = (finalRoi / 100) * p.margin;
   } else if (isCancelled) {
     finalRoi = 0;
@@ -607,21 +633,6 @@ function _resolveShadowTrade(p, outcome, exitPrice, exitRoi, exitTimestamp) {
   } else {
     _logger.system(`[Shadow PnL] ⏱️ Vị thế bóng tối kết thúc: ${p.symbol} (${p.signal}) đóng tại $${exitPrice} (${outcome})`);
   }
-
-  // Gửi thông báo Telegram tức thì khi vị thế kết thúc
-  try {
-    const { sendTelegram } = require('./telegram');
-    const durStr = durationMin >= 60 ? `${(durationMin / 60).toFixed(1)}h` : `${Math.round(durationMin)}p`;
-    const pnlSign = pnlUsd >= 0 ? '+' : '';
-    const roiSign = finalRoi >= 0 ? '+' : '';
-    if (isMissedTP || outcome === 'TP') {
-      sendTelegram(`🎯 <b>[Shadow TP Chốt Lời] #${p.symbol} (${p.signal})</b>\n• Vào: <code>$${p.entryPrice}</code> ➜ Ra: <code>$${exitPrice}</code>\n• Lãi giả lập: <b>${pnlSign}$${pnlUsd.toFixed(2)} USD</b> (${roiSign}${finalRoi.toFixed(1)}%)\n• Thời gian giữ: <b>${durStr}</b>`);
-    } else if (isSavedBE || outcome === 'BE') {
-      sendTelegram(`⚖️ <b>[Shadow BE Hòa Vốn] #${p.symbol} (${p.signal})</b>\n• Vào: <code>$${p.entryPrice}</code> ➜ Ra: <code>$${exitPrice}</code>\n• PnL: <b>${pnlSign}$${pnlUsd.toFixed(2)} USD</b> (${roiSign}${finalRoi.toFixed(1)}%)\n• Đã dời SL về Entry bảo toàn vốn an toàn | Giữ: <b>${durStr}</b>`);
-    } else if (isSavedSL || outcome === 'SL') {
-      sendTelegram(`🛑 <b>[Shadow SL Cắt Lỗ] #${p.symbol} (${p.signal})</b>\n• Vào: <code>$${p.entryPrice}</code> ➜ Ra: <code>$${exitPrice}</code>\n• Lỗ giả lập: <b>-$${Math.abs(pnlUsd).toFixed(2)} USD</b> (${finalRoi.toFixed(1)}%)\n• Thời gian giữ: <b>${durStr}</b>`);
-    }
-  } catch (_) {}
 }
 
 /**
