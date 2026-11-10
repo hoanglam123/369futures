@@ -59,6 +59,7 @@ const {
   getShadowStats,
   startPeriodicRetrain,
   getRetrainStatus,
+  startDailyReportScheduler,
 } = require('../pp369');
 const { log } = require('../pp369/_logger');
 const { isSymbolInCooldown, getRemainingCooldownHours, addSymbolToCooldown } = require('./cooldownManager');
@@ -842,6 +843,9 @@ async function startAutoTrade(coins) {
 
   // ── Khởi động vòng lặp Tự học Tự động (Autonomous Retraining Loop) ──
   startPeriodicRetrain({ checkIntervalMs: 60 * 60 * 1000, minNewSamples: 20 });
+
+  // ── Khởi động Báo Cáo Tổng Kết Giao Dịch 24H qua Telegram (07:00 UTC+7 mỗi ngày) ──
+  startDailyReportScheduler();
 
   // ── Đăng ký Real-time WebSocket Price listener để cập nhật maxFavorablePrice tức thì (0ms) ──
   // Đảm bảo mọi quét râu (wick spike) ngắn dưới 1s đều được ghi nhận ngay lập tức cho Trailing SL và Shadow PnL

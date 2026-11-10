@@ -607,6 +607,21 @@ function _resolveShadowTrade(p, outcome, exitPrice, exitRoi, exitTimestamp) {
   } else {
     _logger.system(`[Shadow PnL] ⏱️ Vị thế bóng tối kết thúc: ${p.symbol} (${p.signal}) đóng tại $${exitPrice} (${outcome})`);
   }
+
+  // Gửi thông báo Telegram tức thì khi vị thế kết thúc
+  try {
+    const { sendTelegram } = require('./telegram');
+    const durStr = durationMin >= 60 ? `${(durationMin / 60).toFixed(1)}h` : `${Math.round(durationMin)}p`;
+    const pnlSign = pnlUsd >= 0 ? '+' : '';
+    const roiSign = finalRoi >= 0 ? '+' : '';
+    if (isMissedTP || outcome === 'TP') {
+      sendTelegram(`🎯 <b>[Shadow TP Chốt Lời] #${p.symbol} (${p.signal})</b>\n• Vào: <code>$${p.entryPrice}</code> ➜ Ra: <code>$${exitPrice}</code>\n• Lãi giả lập: <b>${pnlSign}$${pnlUsd.toFixed(2)} USD</b> (${roiSign}${finalRoi.toFixed(1)}%)\n• Thời gian giữ: <b>${durStr}</b>`);
+    } else if (isSavedBE || outcome === 'BE') {
+      sendTelegram(`⚖️ <b>[Shadow BE Hòa Vốn] #${p.symbol} (${p.signal})</b>\n• Vào: <code>$${p.entryPrice}</code> ➜ Ra: <code>$${exitPrice}</code>\n• PnL: <b>${pnlSign}$${pnlUsd.toFixed(2)} USD</b> (${roiSign}${finalRoi.toFixed(1)}%)\n• Đã dời SL về Entry bảo toàn vốn an toàn | Giữ: <b>${durStr}</b>`);
+    } else if (isSavedSL || outcome === 'SL') {
+      sendTelegram(`🛑 <b>[Shadow SL Cắt Lỗ] #${p.symbol} (${p.signal})</b>\n• Vào: <code>$${p.entryPrice}</code> ➜ Ra: <code>$${exitPrice}</code>\n• Lỗ giả lập: <b>-$${Math.abs(pnlUsd).toFixed(2)} USD</b> (${finalRoi.toFixed(1)}%)\n• Thời gian giữ: <b>${durStr}</b>`);
+    }
+  } catch (_) {}
 }
 
 /**

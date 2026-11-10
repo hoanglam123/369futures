@@ -28,6 +28,7 @@ const aiReviewer      = require('./aiReviewer');
 const turnoverGuard   = require('./turnoverGuard');
 const shadowTracker   = require('./shadowTracker');
 const autoRetrainer   = require('./autoRetrainer');
+const dailyReporter   = require('./dailyReporter');
 
 module.exports = {
   // ── Shadow PnL Tracker ───────────────────────────────────────────────────
@@ -132,4 +133,10 @@ module.exports = {
   sendTelegram:   telegram.sendTelegram,
   notifyBotStart: telegram.notifyBotStart,
   notifySignals:  telegram.notifySignals,
+
+  // ── Daily Performance Reporter ───────────────────────────────────────────
+  getDailyTradeStats:        dailyReporter.getDailyTradeStats,
+  formatDailyReportHtml:      dailyReporter.formatDailyReportHtml,
+  sendDailyReportTelegram:    dailyReporter.sendDailyReportTelegram,
+  startDailyReportScheduler: dailyReporter.startDailyReportScheduler,
 };
