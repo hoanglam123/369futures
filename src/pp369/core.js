@@ -638,7 +638,7 @@ async function fetchH1Historical(symbol) {
   let fetchedNew = false;
 
   while (cursor < currentH1Start) {
-    const batch = await fetchBinanceKlines(symbol, '1h', cursor, 1500);
+    const batch = await fetchBinanceKlines(symbol, '1h', cursor, 150);
     if (!batch.length) break;
 
     const closed = batch.filter(c => c.openTime < currentH1Start);
@@ -650,7 +650,7 @@ async function fetchH1Historical(symbol) {
     }
 
     fetchedNew = true;
-    if (batch.length < 1500 || closed.length < batch.length) break;
+    if (batch.length < 150 || closed.length < batch.length) break;
     cursor = batch[batch.length - 1].openTime + H1_MS;
   }
 
@@ -699,7 +699,7 @@ async function fetchH4Historical(symbol) {
 
   let cursor = cache.cursor;
   while (cursor < currentH4Start) {
-    const batch = await fetchBinanceKlines(symbol, '4h', cursor, 1500);
+    const batch = await fetchBinanceKlines(symbol, '4h', cursor, 100);
     if (!batch.length) break;
 
     const closed = batch.filter(c => c.openTime < currentH4Start);
@@ -710,7 +710,7 @@ async function fetchH4Historical(symbol) {
       cache.candles.push(...closed);
     }
 
-    if (batch.length < 1500 || closed.length < batch.length) break;
+    if (batch.length < 100 || closed.length < batch.length) break;
     cursor = batch[batch.length - 1].openTime + H4_MS;
   }
 
@@ -744,7 +744,7 @@ async function fetchD1Historical(symbol) {
 
   let cursor = cache.cursor;
   while (cursor < currentD1Start) {
-    const batch = await fetchBinanceKlines(symbol, '1d', cursor, 1500);
+    const batch = await fetchBinanceKlines(symbol, '1d', cursor, 100);
     if (!batch.length) break;
 
     const closed = batch.filter(c => c.openTime < currentD1Start);
@@ -755,7 +755,7 @@ async function fetchD1Historical(symbol) {
       cache.candles.push(...closed);
     }
 
-    if (batch.length < 1500 || closed.length < batch.length) break;
+    if (batch.length < 100 || closed.length < batch.length) break;
     cursor = batch[batch.length - 1].openTime + D1_MS;
   }
 
@@ -794,10 +794,10 @@ async function fetchM1Current(symbol) {
   const fetched = [];
   let cursor = cache.cursor;
   while (true) {
-    const batch = await fetchBinanceKlines(symbol, '1m', cursor, 1500);
+    const batch = await fetchBinanceKlines(symbol, '1m', cursor, 60);
     if (!batch.length) break;
     fetched.push(...batch);
-    if (batch.length < 1500) break;
+    if (batch.length < 60) break;
     cursor = batch[batch.length - 1].openTime + 60_000;
   }
 
