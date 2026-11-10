@@ -1214,8 +1214,11 @@ def check_and_notify_parameter_changes(old_config, new_config):
     if changes:
         now_str = new_config.get("trainedAt") or time.strftime("%Y-%m-%d %H:%M:%S")
         total_samples = new_config.get("totalSamples", 0)
+        bot_tag = os.environ.get("BOT_TAG")
+        if not bot_tag:
+            bot_tag = "[PP369 H1 Tháng]" if "h1" in BASE_DIR.lower() else "[PP369 H4]"
         msg = (
-            f"🤖 <b>[AI Training] Tự Động Cập Nhật Tham Số Mới</b>\n"
+            f"🤖 <b>{bot_tag} [AI Training] Tự Động Cập Nhật Tham Số Mới</b>\n"
             f"• Thời gian: <b>{now_str}</b>\n"
             f"• Dữ liệu học: <b>{total_samples:,} mẫu</b> (Real + Shadow)\n\n"
             f"<b>📊 Các tham số tự động thay đổi:</b>\n" +
