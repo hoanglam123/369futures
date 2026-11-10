@@ -217,30 +217,33 @@ function registerShadowTrade(sig, evalResult, options = {}) {
   const beTriggerStr = (typeof beTriggerPrice === 'number' && beTriggerPrice > 0) ? `$${beTriggerPrice.toFixed(4)}` : 'NONE';
   _logger.system(`[Shadow PnL] 👁️ Bắt đầu theo dõi VỊ THẾ BÓNG TỐI: ${sym} (${side}) @ $${entryPrice} [${fillStatusMsg}] | Đòn bẩy: ${leverage}x | Margin: $${margin} | SL: $${tierSlPrice.toFixed(4)} (-${slPct.toFixed(2)}%) | TP: $${tierTpPrice.toFixed(4)} (+${tpPct.toFixed(2)}%) | BE Trigger: ${beTriggerStr} | WinProb: ${shadowTrade.winProbability}% (Veto: ${shadowTrade.vetoCategory})`);
 
-  // Record entry in ai_trade_dataset.jsonl (marked as shadow)
-  _appendDatasetRecord({
-    type: 'ENTRY',
-    isShadow: true,
-    tradeId: shadowId,
-    orderId: shadowId,
-    symbol: sym,
-    signal: side,
-    entryPrice,
-    markPrice: currentMark,
-    timestamp: shadowTrade.entryTimestamp,
-    score: shadowTrade.score,
-    scoreReasons: shadowTrade.scoreReasons,
-    marketCapRank: shadowTrade.marketCapRank,
-    gridWidthPct: shadowTrade.gridWidthPct,
-    marketMetrics: shadowTrade.marketMetrics,
-    signalMetrics: shadowTrade.signalMetrics,
-    microstructure: shadowTrade.microstructure,
-    isEconomicBlackout: shadowTrade.isEconomicBlackout,
-    leverage: shadowTrade.leverage,
-    margin: shadowTrade.margin,
-    aiWinProbability: shadowTrade.winProbability,
-    vetoCategory: shadowTrade.vetoCategory
-  });
+  // Record entry in ai_trade_dataset.jsonl (marked as shadow, bỏ qua các coin test)
+  const isTest = /^(TEST|TWIN_)/i.test(sym);
+  if (!isTest) {
+    _appendDatasetRecord({
+      type: 'ENTRY',
+      isShadow: true,
+      tradeId: shadowId,
+      orderId: shadowId,
+      symbol: sym,
+      signal: side,
+      entryPrice,
+      markPrice: currentMark,
+      timestamp: shadowTrade.entryTimestamp,
+      score: shadowTrade.score,
+      scoreReasons: shadowTrade.scoreReasons,
+      marketCapRank: shadowTrade.marketCapRank,
+      gridWidthPct: shadowTrade.gridWidthPct,
+      marketMetrics: shadowTrade.marketMetrics,
+      signalMetrics: shadowTrade.signalMetrics,
+      microstructure: shadowTrade.microstructure,
+      isEconomicBlackout: shadowTrade.isEconomicBlackout,
+      leverage: shadowTrade.leverage,
+      margin: shadowTrade.margin,
+      aiWinProbability: shadowTrade.winProbability,
+      vetoCategory: shadowTrade.vetoCategory
+    });
+  }
 
   return shadowTrade;
 }
@@ -602,24 +605,29 @@ function _resolveShadowTrade(p, outcome, exitPrice, exitRoi, exitTimestamp) {
     }
   }
 
-  // Record to shadow history
-  _appendShadowHistory(resultRecord);
+  // Record to shadow history & dataset (bỏ qua coin test giả lập)
+  const isTest = /^(TEST|TWIN_)/i.test(p.symbol);
+  if (!isTest) {
+    _appendShadowHistory(resultRecord);
 
-  // Record EXIT to ai_trade_dataset.jsonl for AI retraining
-  _appendDatasetRecord({
-    type: 'EXIT',
-    isShadow: true,
-    tradeId: p.shadowId,
-    orderId: p.shadowId,
-    symbol: p.symbol,
-    exitPrice,
-    exitTimestamp,
-    exitType: isCancelled ? outcome : (isSavedBE ? 'BE' : (isSavedSL ? 'SL' : 'TP')),
-    pnlPercent: Math.round(finalRoi * 100) / 100,
-    pnlUsd: Math.round(pnlUsd * 100) / 100,
-    holdingDurationMinutes: Math.round(durationMin * 10) / 10,
-    isWin: isMissedTP
-  });
+    // Record EXIT to ai_trade_dataset.jsonl for AI retraining
+    _appendDatasetRecord({
+      type: 'EXIT',
+      isShadow: true,
+      tradeId: p.shadowId,
+      orderId: p.shadowId,
+      symbol: p.symbol,
+      entryPrice: p.entryPrice,
+      signal: p.signal,
+      exitPrice,
+      exitTimestamp,
+      exitType: isCancelled ? outcome : (isSavedBE ? 'BE' : (isSavedSL ? 'SL' : 'TP')),
+      pnlPercent: Math.round(finalRoi * 100) / 100,
+      pnlUsd: Math.round(pnlUsd * 100) / 100,
+      holdingDurationMinutes: Math.round(durationMin * 10) / 10,
+      isWin: isMissedTP
+    });
+  }
 
   // Log notification
   if (isCancelled) {

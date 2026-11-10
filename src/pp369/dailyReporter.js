@@ -19,6 +19,32 @@ const REAL_POSITIONS_FILE = path.join(process.cwd(), 'data', 'active_trades.json
 const STATE_FILE = path.join(process.cwd(), 'data', 'last_daily_report.json');
 
 /**
+ * Kiểm tra xem bản ghi có phải dữ liệu rác/lỗi hay không:
+ * - Coin test giả lập: TEST*, TWIN_*
+ * - Lỗi thoát BE tức thì trong <= 1 phút do xung đột râu nến trước khi cập nhật code
+ */
+function isBogusTrade(rec) {
+  if (!rec) return true;
+  const sym = String(rec.symbol || '').toUpperCase();
+  if (/^(TEST|TWIN_)/i.test(sym)) return true;
+
+  const dur = typeof rec.holdingDurationMinutes === 'number' ? rec.holdingDurationMinutes : 999;
+  const outcome = (rec.outcome || rec.exitType || '').toUpperCase();
+  const isBE = outcome === 'SAVED_BE' || outcome === 'BE' || rec.isSavedBE === true;
+
+  // Lệnh cắn BE ngay trong <= 1 phút với entryPrice ~ exitPrice là lỗi râu nến lookback cũ
+  if (isBE && dur <= 1.0) {
+    const entry = parseFloat(rec.entryPrice || 0);
+    const exit = parseFloat(rec.exitPrice || 0);
+    if (!entry || !exit || Math.abs(entry - exit) / (entry || 1) < 0.005) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+/**
  * Đọc và tổng hợp các lệnh đã đóng trong khoảng thời gian `sinceMs` (mặc định 24h qua)
  */
 function getDailyTradeStats(windowMs = 24 * 60 * 60 * 1000) {
@@ -35,6 +61,8 @@ function getDailyTradeStats(windowMs = 24 * 60 * 60 * 1000) {
       for (const line of lines) {
         try {
           const rec = JSON.parse(line);
+          if (isBogusTrade(rec)) continue; // Bỏ qua dữ liệu test và lệnh lỗi BE 0p
+
           const exitTime = rec.exitTimestamp || rec.time || 0;
           if (exitTime < startTime || exitTime > now) continue;
 
@@ -84,10 +112,24 @@ function getDailyTradeStats(windowMs = 24 * 60 * 60 * 1000) {
   if (fs.existsSync(DATASET_FILE)) {
     try {
       const lines = fs.readFileSync(DATASET_FILE, 'utf8').trim().split('\n').filter(Boolean);
+      // Xây dựng bảng tra cứu ENTRY để lấy giá vào chuẩn xác cho các lệnh EXIT bị thiếu entryPrice
+      const entryLookup = new Map();
+      for (const line of lines) {
+        try {
+          const rec = JSON.parse(line);
+          if (rec.type === 'ENTRY') {
+            if (rec.tradeId) entryLookup.set(rec.tradeId, rec);
+            if (rec.orderId) entryLookup.set(String(rec.orderId), rec);
+          }
+        } catch (_) {}
+      }
+
       for (const line of lines) {
         try {
           const rec = JSON.parse(line);
           if (rec.type !== 'EXIT') continue;
+          if (isBogusTrade(rec)) continue; // Bỏ qua dữ liệu test và lệnh lỗi BE 0p
+
           const exitTime = rec.exitTimestamp || 0;
           if (exitTime < startTime || exitTime > now) continue;
 
@@ -107,12 +149,16 @@ function getDailyTradeStats(windowMs = 24 * 60 * 60 * 1000) {
           else if (isSL) type = 'SL';
           else if (isCancelled) type = 'CANCEL';
 
+          const entryInfo = entryLookup.get(rec.tradeId) || entryLookup.get(String(rec.orderId)) || entryLookup.get(id);
+          const entryPrice = rec.entryPrice || entryInfo?.entryPrice || 0;
+          const signal = rec.signal || entryInfo?.signal || (rec.side === 'SELL' ? 'SHORT' : 'LONG');
+
           const tradeItem = {
             id,
             isShadow: rec.isShadow === true,
             symbol: rec.symbol,
-            signal: rec.signal || (rec.side === 'SELL' ? 'SHORT' : 'LONG'),
-            entryPrice: rec.entryPrice || 0,
+            signal,
+            entryPrice,
             exitPrice: rec.exitPrice || 0,
             exitTimestamp: exitTime,
             holdingDurationMinutes: rec.holdingDurationMinutes || 0,
@@ -355,3 +401,4 @@ module.exports = {
   sendDailyReportTelegram,
   startDailyReportScheduler
 };
+
