@@ -467,21 +467,23 @@ function extractSignalFeatures(reasons, score, rank, gridWidthPct, rawMarketData
   if (targetLevel && (rawMarketData?.currH1 || rawMarketData?.lastClosedH1)) {
     const c1 = rawMarketData.currH1;
     const c2 = rawMarketData.lastClosedH1;
-    const g1 = classifyCandleGeometry(c1, targetLevel, isLong, step);
-    const g2 = classifyCandleGeometry(c2, targetLevel, isLong, step);
-    if (g1 === 'PUNCTURED_DEEP' || g2 === 'PUNCTURED_DEEP') h1Geom = 'H1_PUNCTURED_DEEP';
-    else if (g1 === 'PUNCTURED_LIGHT' || g2 === 'PUNCTURED_LIGHT') h1Geom = 'H1_PUNCTURED_LIGHT';
-    else if (g1 === 'REJECT_PINBAR' || g2 === 'REJECT_PINBAR') h1Geom = 'H1_REJECT_PINBAR';
+    const g1 = classifyCandleGeometry(c1, targetLevel, isLong, step, true); // c1 live
+    const g2 = classifyCandleGeometry(c2, targetLevel, isLong, step, false); // c2 closed
+    if (g1 === 'REJECT_PINBAR' || g2 === 'REJECT_PINBAR') h1Geom = 'H1_REJECT_PINBAR';
+    else if (g2 === 'PUNCTURED_DEEP' || g1 === 'PUNCTURED_DEEP') h1Geom = 'H1_PUNCTURED_DEEP';
+    else if (g2 === 'PUNCTURED_LIGHT' || g1 === 'PUNCTURED_LIGHT') h1Geom = 'H1_PUNCTURED_LIGHT';
+    else h1Geom = 'H1_HOLD_OR_HOVER';
   }
 
   if (targetLevel && (rawMarketData?.currM15 || rawMarketData?.lastClosedM15 || rawMarketData?.lastM15)) {
     const c1 = rawMarketData.currM15 || rawMarketData.lastM15;
     const c2 = rawMarketData.lastClosedM15;
-    const g1 = classifyCandleGeometry(c1, targetLevel, isLong, step);
-    const g2 = classifyCandleGeometry(c2, targetLevel, isLong, step);
-    if (g1 === 'PUNCTURED_DEEP' || g2 === 'PUNCTURED_DEEP') m15Geom = 'M15_PUNCTURED_DEEP';
-    else if (g1 === 'PUNCTURED_LIGHT' || g2 === 'PUNCTURED_LIGHT') m15Geom = 'M15_PUNCTURED_LIGHT';
-    else if (g1 === 'REJECT_PINBAR' || g2 === 'REJECT_PINBAR') m15Geom = 'M15_REJECT_PINBAR';
+    const g1 = classifyCandleGeometry(c1, targetLevel, isLong, step, true); // c1 live
+    const g2 = classifyCandleGeometry(c2, targetLevel, isLong, step, false); // c2 closed
+    if (g1 === 'REJECT_PINBAR' || g2 === 'REJECT_PINBAR') m15Geom = 'M15_REJECT_PINBAR';
+    else if (g2 === 'PUNCTURED_DEEP' || g1 === 'PUNCTURED_DEEP') m15Geom = 'M15_PUNCTURED_DEEP';
+    else if (g2 === 'PUNCTURED_LIGHT' || g1 === 'PUNCTURED_LIGHT') m15Geom = 'M15_PUNCTURED_LIGHT';
+    else m15Geom = 'M15_HOLD_OR_HOVER';
   }
 
   features['h1_candle_geometry'] = h1Geom;
@@ -509,10 +511,15 @@ function extractSignalFeatures(reasons, score, rank, gridWidthPct, rawMarketData
     const m15RangePct = parseFloat(rawMarketData?.m15RangePct) || 0.0;
     const isSpike = m15RangePct > 1.4 && m15VolRatio >= 2.5;
 
+    // 🛡️ CHỈ COI LÀ MARUBOZU DUMP/PUMP KHI NẾN CÓ BIÊN ĐỘ ĐỦ LỚN (>= 1.2% hoặc Spike)
+    // Tránh việc nến nhỏ 0.2%-0.5% trôi êm về mốc Limit bị quy kết là Bão xả Marubozu!
+    const isRealDumpMagnitude = (m15RangePct >= 1.2) || isSpike;
+    const isRealPumpMagnitude = (m15RangePct >= 1.2) || isSpike;
+
     if (isLong) {
       if (lowerWick / totalRange >= 0.40 && !isSpike) {
         features['candle_shape'] = 'CANDLE_PINBAR_HAMMER';
-      } else if (isSpike || (close < open && (body / totalRange >= 0.70) && (targetLevel ? close <= targetLevel : true))) {
+      } else if (isRealDumpMagnitude && close < open && (body / totalRange >= 0.70) && (targetLevel ? close <= targetLevel : true)) {
         features['candle_shape'] = 'CANDLE_MARUBOZU_DUMP';
       } else {
         features['candle_shape'] = 'CANDLE_NORMAL';
@@ -523,7 +530,7 @@ function extractSignalFeatures(reasons, score, rank, gridWidthPct, rawMarketData
     } else {
       if (upperWick / totalRange >= 0.40 && !isSpike) {
         features['candle_shape'] = 'CANDLE_PINBAR_SHOOTING';
-      } else if (isSpike || (close > open && (body / totalRange >= 0.70) && (targetLevel ? close >= targetLevel : true))) {
+      } else if (isRealPumpMagnitude && close > open && (body / totalRange >= 0.70) && (targetLevel ? close >= targetLevel : true)) {
         features['candle_shape'] = 'CANDLE_MARUBOZU_PUMP';
       } else {
         features['candle_shape'] = 'CANDLE_NORMAL';
@@ -937,9 +944,9 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
       mult = Math.min(1.00, mult);
     }
 
-    // 🛡️ SANITY GUARD: Không thưởng Pinbar nếu đang ngược Trend Dow H1 & EMA
+    // 🛡️ SANITY GUARD: Giữ trần thưởng an toàn cho Pinbar tại cản PP369 (kể cả khi ngược trend Dow H1)
     if (features['trend'] === 'TREND_CONFLICT' && (val === 'CANDLE_PINBAR_HAMMER' || val === 'CANDLE_PINBAR_SHOOTING' || val === 'M15_REJECT_PINBAR' || val === 'H1_REJECT_PINBAR')) {
-      mult = 1.00;
+      mult = Math.min(mult, 1.20); // Giữ thưởng hợp lý x1.20 thay vì triệt tiêu về x1.00
     }
 
     // 🛡️ SANITY GUARD: Khống chế trần an toàn cho Pinbar (H1 tối đa x1.30, M15 tối đa x1.20, nến đơn tối đa x1.15)
@@ -1092,14 +1099,25 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
     }
 
     // 🛡️ SANITY GUARD: Bắt đỉnh/đáy ngược xu hướng mạnh (Counter-Trend vs Strong ADX)
-    // Nếu có mốc cản Price Action H4/D1 (PA_1_LEVEL, PA_2_LEVELS) hoặc nến H1 đã giữ cấu trúc/rút chân (H1_HOLD_OR_HOVER, H1_REJECT_PINBAR):
-    // Nhịp nảy kỹ thuật tại cản PP369 đạt WinRate cao trong thực nghiệm!
-    // Giữ mức phạt vừa phải x0.70 thay vì phạt gắt x0.40 dìm xác suất ảo
+    // Đối với lệnh Limit đón đầu PP369:
+    // Nếu có mốc cản Price Action hoặc nến đang giữ cấu trúc đón Limit (HOLD_OR_HOVER, REJECT_PINBAR, CANDLE_NORMAL):
+    // Và KHÔNG có bão xả lao dốc (isRunaway = false, isActiveStormAttack = false):
+    // Giữ trung tính mult = 1.00 (không phạt kép làm méo mó xác suất lệnh đón cản)!
     if (features['trend'] === 'TREND_CONFLICT' && cat === 'adx_strength' && val === 'ADX_STRONG_TREND') {
       const hasSolidSR = features['price_action'] === 'PA_1_LEVEL' || features['price_action'] === 'PA_2_LEVELS';
-      const hasH1Support = features['h1_candle_geometry'] === 'H1_HOLD_OR_HOVER' || features['h1_candle_geometry'] === 'H1_REJECT_PINBAR';
-      const effectiveCounterMult = (hasSolidSR || hasH1Support) ? Math.max(counterTrendMult, 0.70) : counterTrendMult;
-      mult = Math.min(mult, effectiveCounterMult);
+      const hasHoldingStructure = features['h1_candle_geometry'] === 'H1_HOLD_OR_HOVER' ||
+                                  features['h1_candle_geometry'] === 'H1_REJECT_PINBAR' ||
+                                  features['m15_candle_geometry'] === 'M15_HOLD_OR_HOVER' ||
+                                  features['m15_candle_geometry'] === 'M15_REJECT_PINBAR' ||
+                                  features['candle_shape'] === 'CANDLE_NORMAL' ||
+                                  features['candle_shape'] === 'CANDLE_PINBAR_HAMMER' ||
+                                  features['candle_shape'] === 'CANDLE_PINBAR_SHOOTING';
+      if ((hasSolidSR || hasHoldingStructure) && !isRunaway && !isActiveStormAttack) {
+        mult = 1.00; // Giữ trung tính 1.00, xóa bỏ hoàn toàn phạt kép khi đón cản êm đềm!
+      } else {
+        const effectiveCounterMult = (hasSolidSR || hasHoldingStructure) ? Math.max(counterTrendMult, 0.70) : counterTrendMult;
+        mult = Math.min(mult, effectiveCounterMult);
+      }
     }
 
     // 🛡️ SANITY GUARD: Khắc chế hệ số Ngược Sóng BTC (BTC_COUNTER)
@@ -1230,7 +1248,8 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
                                   (!hasRejectionConfirmation || isOpposingRunaway) &&
                                   !(isBtcAlignedSig && !isOpposingRunaway);
   const isStrongCounterTrendCondition = (features['trend'] === 'TREND_CONFLICT' || features['trend'] === 'TREND_COUNTER') &&
-                                        features['adx_strength'] === 'ADX_STRONG_TREND';
+                                        features['adx_strength'] === 'ADX_STRONG_TREND' &&
+                                        (isOpposingRunaway || features['puncture_interaction'] === 'INTERACTION_H1_M15_PUNCTURED' || features['h1_candle_geometry'] === 'H1_PUNCTURED_DEEP');
   const isOpposingWickCondition = features['wick_rejection'] === 'OPPOSING_WICK_TRAP';
   const isEconomicRedCondition = features['economic_calendar'] === 'CALENDAR_RED_DANGER';
   const isSpreadDangerCondition = features['spread_slippage'] === 'SPREAD_WIDE_DANGER';
