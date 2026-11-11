@@ -11,6 +11,7 @@ const { log } = require('./_logger');
 
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || '8974388983:AAGTEgJNmAegGPmWUgvd3Lpvtbefv-yn6pg';
 const CHAT_ID = process.env.TELEGRAM_CHAT_ID || '1663202780';
+const BOT_TAG = process.env.BOT_TAG !== undefined ? process.env.BOT_TAG : '';
 
 const API_URL = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`;
 
@@ -27,17 +28,15 @@ const axiosTelegram = axios.create({
 });
 
 /**
- * Gửi một tin nhắn Telegram (HTML parse mode).
- * @param {string} text - Nội dung tin nhắn HTML
- * @returns {Promise<void>}
+ * Gửi một tin nhắn đơn lẻ lên Telegram.
  */
-async function sendTelegram(text) {
+async function _sendSingleTelegram(messageText) {
   const maxAttempts = 3;
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
       await axiosTelegram.post(API_URL, {
         chat_id: CHAT_ID,
-        text,
+        text: messageText,
         parse_mode: 'HTML',
         disable_web_page_preview: true,
       });
@@ -46,7 +45,7 @@ async function sendTelegram(text) {
       if (err.response?.status === 400) {
         // Fallback khẩn cấp nếu dính lỗi HTML parse entity: Gửi dạng Plain Text loại bỏ thẻ HTML
         try {
-          const plainText = (text || '').replace(/<[^>]*>/g, '');
+          const plainText = (messageText || '').replace(/<[^>]*>/g, '');
           await axiosTelegram.post(API_URL, {
             chat_id: CHAT_ID,
             text: plainText,
@@ -62,9 +61,47 @@ async function sendTelegram(text) {
         continue;
       }
       const apiDesc = err.response?.data?.description ?? '(no response body)';
-      const preview = text ? text.slice(0, 300).replace(/\n/g, '↵') : '(empty)';
+      const preview = messageText ? messageText.slice(0, 300).replace(/\n/g, '↵') : '(empty)';
       log.warn(`[Telegram] Lỗi gửi tin nhắn (Thất bại sau ${maxAttempts} lần): ${err.message} | API: ${apiDesc}`);
       log.warn(`[Telegram] Nội dung bị lỗi (300 ký tự đầu): ${preview}`);
+    }
+  }
+}
+
+/**
+ * Gửi tin nhắn Telegram (HTML parse mode).
+ * Tự động chia nhỏ tin nhắn nếu vượt quá giới hạn 4096 ký tự của Telegram API.
+ * @param {string} text - Nội dung tin nhắn HTML
+ * @returns {Promise<void>}
+ */
+async function sendTelegram(text) {
+  if (!text) return;
+  const finalPrefix = BOT_TAG ? `${BOT_TAG} ` : '';
+  const messageText = (finalPrefix && !text.includes(BOT_TAG)) ? `${finalPrefix}${text}` : text;
+
+  // Giới hạn Telegram là 4096 ký tự. Chia nhỏ an toàn ở mốc 3800 ký tự theo dòng nén
+  if (messageText.length <= 3800) {
+    return await _sendSingleTelegram(messageText);
+  }
+
+  const lines = messageText.split('\n');
+  const chunks = [];
+  let currentChunk = '';
+
+  for (const line of lines) {
+    if ((currentChunk + '\n' + line).length > 3800) {
+      if (currentChunk) chunks.push(currentChunk);
+      currentChunk = line;
+    } else {
+      currentChunk = currentChunk ? (currentChunk + '\n' + line) : line;
+    }
+  }
+  if (currentChunk) chunks.push(currentChunk);
+
+  for (let i = 0; i < chunks.length; i++) {
+    await _sendSingleTelegram(chunks[i]);
+    if (i < chunks.length - 1) {
+      await new Promise(r => setTimeout(r, 500)); // Delay 500ms tránh spam rate limit
     }
   }
 }
@@ -76,27 +113,17 @@ async function sendTelegram(text) {
 async function notifyBotStart(coinCount) {
   const now = new Date().toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' });
   const text = [
-    '🚀 <b>PP369 AutoTrade đã khởi động</b>',
+    `🚀 <b>${BOT_TAG ? BOT_TAG + ' ' : ''}PP369 AutoTrade đã khởi động</b>`,
     '',
     `🕐 Thời gian: <code>${now}</code>`,
     `📊 Số mã theo dõi: <b>${coinCount}</b> coin`,
     '',
     '<i>Bot đang quét các mốc phản ứng theo phương pháp 369...</i>',
   ].join('\n');
-
-  await sendTelegram(text);
+  return sendTelegram(text);
 }
 
-/**
- * Gửi thông báo khi phát hiện tín hiệu LONG / SHORT.
- * @param {Object[]} signals - Danh sách tín hiệu từ get369Signal (signal !== 'NONE')
- */
-async function notifySignals(signals) {
-  if (!signals || !signals.length) return;
-
-  const { format369Alert } = require('./formatter');
-  const text = format369Alert(signals);
-  await sendTelegram(text);
-}
-
-module.exports = { sendTelegram, notifyBotStart, notifySignals };
+module.exports = {
+  sendTelegram,
+  notifyBotStart,
+};
