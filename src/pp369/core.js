@@ -1862,11 +1862,29 @@ async function getCachedBtcState() {
  * @param {number} [step] - Grid step
  * @returns {'PUNCTURED_DEEP' | 'PUNCTURED_LIGHT' | 'REJECT_PINBAR' | 'HOLD_OR_HOVER'}
  */
-function classifyCandleGeometry(candle, targetLevel, isLong, step) {
+/**
+ * Phân loại hình thái nến so với mốc Entry (Cản 369)
+ * @param {object} candle - Nến { open, high, low, close }
+ * @param {number} targetLevel - Mức giá Entry (Cản 369)
+ * @param {boolean} isLong - Chiều lệnh (true = LONG, false = SHORT)
+ * @param {number} [step] - Grid step
+ * @param {boolean} [isLive=false] - Nến đang chạy (chưa đóng) hay nến đã đóng
+ * @returns {'PUNCTURED_DEEP' | 'PUNCTURED_LIGHT' | 'REJECT_PINBAR' | 'HOLD_OR_HOVER'}
+ */
+function classifyCandleGeometry(candle, targetLevel, isLong, step, isLive = false) {
   if (!candle || !targetLevel || typeof candle.close !== 'number') return 'HOLD_OR_HOVER';
   const totalRange = Math.max(1e-9, candle.high - candle.low);
   const stepDist = step || (targetLevel * 0.01);
-  const deepThreshold = Math.max(stepDist * 0.10, targetLevel * 0.002);
+  
+  // Với nến đã đóng: ngưỡng đâm lụt sâu là 20% step (hoặc 0.5% giá)
+  // Với nến đang chạy (live): thị giá nhúng quanh mốc để đón limit là hoàn toàn bình thường;
+  // chỉ coi là đâm lụt sâu khi giá xả thủng cực xa (> 40% step hoặc 1.5% giá)
+  const deepThreshold = isLive
+    ? Math.max(stepDist * 0.40, targetLevel * 0.015)
+    : Math.max(stepDist * 0.20, targetLevel * 0.005);
+  const lightThreshold = isLive
+    ? Math.max(stepDist * 0.25, targetLevel * 0.008)
+    : Math.max(stepDist * 0.10, targetLevel * 0.002);
 
   if (isLong) {
     const lowerWick = Math.min(candle.open, candle.close) - candle.low;
@@ -1876,7 +1894,8 @@ function classifyCandleGeometry(candle, targetLevel, isLong, step) {
       return 'REJECT_PINBAR';
     }
     if (candle.close < targetLevel) {
-      return (targetLevel - candle.close >= deepThreshold) ? 'PUNCTURED_DEEP' : 'PUNCTURED_LIGHT';
+      if (targetLevel - candle.close >= deepThreshold) return 'PUNCTURED_DEEP';
+      if (targetLevel - candle.close >= lightThreshold) return 'PUNCTURED_LIGHT';
     }
     return 'HOLD_OR_HOVER';
   } else {
@@ -1887,7 +1906,8 @@ function classifyCandleGeometry(candle, targetLevel, isLong, step) {
       return 'REJECT_PINBAR';
     }
     if (candle.close > targetLevel) {
-      return (candle.close - targetLevel >= deepThreshold) ? 'PUNCTURED_DEEP' : 'PUNCTURED_LIGHT';
+      if (candle.close - targetLevel >= deepThreshold) return 'PUNCTURED_DEEP';
+      if (candle.close - targetLevel >= lightThreshold) return 'PUNCTURED_LIGHT';
     }
     return 'HOLD_OR_HOVER';
   }
@@ -2320,16 +2340,17 @@ async function score369Method(sig369, direction) {
       if (h1Candles && h1Candles.length >= 2) {
         const prevH1 = h1Candles[h1Candles.length - 2];
         const currH1 = h1Candles[h1Candles.length - 1];
-        const h1GeomPrev = classifyCandleGeometry(prevH1, targetLevel, isLong, step);
-        const h1GeomCurr = classifyCandleGeometry(currH1, targetLevel, isLong, step);
-        const h1Geom = (h1GeomCurr === 'PUNCTURED_DEEP' || h1GeomPrev === 'PUNCTURED_DEEP')
-          ? 'H1_PUNCTURED_DEEP'
-          : (h1GeomCurr === 'PUNCTURED_LIGHT' || h1GeomPrev === 'PUNCTURED_LIGHT')
-            ? 'H1_PUNCTURED_LIGHT'
-            : (h1GeomCurr === 'REJECT_PINBAR' || h1GeomPrev === 'REJECT_PINBAR')
-              ? 'H1_REJECT_PINBAR'
+        const h1GeomPrev = classifyCandleGeometry(prevH1, targetLevel, isLong, step, false);
+        const h1GeomCurr = classifyCandleGeometry(currH1, targetLevel, isLong, step, true);
+        const h1Geom = (h1GeomCurr === 'REJECT_PINBAR' || h1GeomPrev === 'REJECT_PINBAR')
+          ? 'H1_REJECT_PINBAR'
+          : (h1GeomPrev === 'PUNCTURED_DEEP' || h1GeomCurr === 'PUNCTURED_DEEP')
+            ? 'H1_PUNCTURED_DEEP'
+            : (h1GeomPrev === 'PUNCTURED_LIGHT' || h1GeomCurr === 'PUNCTURED_LIGHT')
+              ? 'H1_PUNCTURED_LIGHT'
               : 'H1_HOLD_OR_HOVER';
 
+        signalMetrics.h1CandleGeometry = h1Geom;
         if (h1Geom === 'H1_PUNCTURED_DEEP') {
           candleReasons.push(`🚨 H1 đóng nến lụt sâu qua Entry (Close $${currH1.close} vs Entry $${targetLevel})`);
         } else if (h1Geom === 'H1_PUNCTURED_LIGHT') {
@@ -2344,16 +2365,17 @@ async function score369Method(sig369, direction) {
       if (m15Klines && m15Klines.length >= 2) {
         const prevM15 = m15Klines[m15Klines.length - 2];
         const currM15 = m15Klines[m15Klines.length - 1];
-        const m15GeomPrev = classifyCandleGeometry(prevM15, targetLevel, isLong, step);
-        const m15GeomCurr = classifyCandleGeometry(currM15, targetLevel, isLong, step);
-        const m15Geom = (m15GeomCurr === 'PUNCTURED_DEEP' || m15GeomPrev === 'PUNCTURED_DEEP')
-          ? 'M15_PUNCTURED_DEEP'
-          : (m15GeomCurr === 'PUNCTURED_LIGHT' || m15GeomPrev === 'PUNCTURED_LIGHT')
-            ? 'M15_PUNCTURED_LIGHT'
-            : (m15GeomCurr === 'REJECT_PINBAR' || m15GeomPrev === 'REJECT_PINBAR')
-              ? 'M15_REJECT_PINBAR'
+        const m15GeomPrev = classifyCandleGeometry(prevM15, targetLevel, isLong, step, false);
+        const m15GeomCurr = classifyCandleGeometry(currM15, targetLevel, isLong, step, true);
+        const m15Geom = (m15GeomCurr === 'REJECT_PINBAR' || m15GeomPrev === 'REJECT_PINBAR')
+          ? 'M15_REJECT_PINBAR'
+          : (m15GeomPrev === 'PUNCTURED_DEEP' || m15GeomCurr === 'PUNCTURED_DEEP')
+            ? 'M15_PUNCTURED_DEEP'
+            : (m15GeomPrev === 'PUNCTURED_LIGHT' || m15GeomCurr === 'PUNCTURED_LIGHT')
+              ? 'M15_PUNCTURED_LIGHT'
               : 'M15_HOLD_OR_HOVER';
 
+        signalMetrics.m15CandleGeometry = m15Geom;
         if (m15Geom === 'M15_PUNCTURED_DEEP') {
           candleReasons.push(`🚨 M15 đóng nến lụt sâu qua Entry (Close $${currM15.close} vs Entry $${targetLevel})`);
         } else if (m15Geom === 'M15_PUNCTURED_LIGHT') {
@@ -2363,23 +2385,6 @@ async function score369Method(sig369, direction) {
         } else {
           candleReasons.push(`M15 giữ cấu trúc mốc Entry`);
         }
-
-        signalMetrics.m15CandleGeometry = m15Geom;
-      }
-
-      if (h1Candles && h1Candles.length >= 2) {
-        const prevH1 = h1Candles[h1Candles.length - 2];
-        const currH1 = h1Candles[h1Candles.length - 1];
-        const h1GeomPrev = classifyCandleGeometry(prevH1, targetLevel, isLong, step);
-        const h1GeomCurr = classifyCandleGeometry(currH1, targetLevel, isLong, step);
-        const h1Geom = (h1GeomCurr === 'PUNCTURED_DEEP' || h1GeomPrev === 'PUNCTURED_DEEP')
-          ? 'H1_PUNCTURED_DEEP'
-          : (h1GeomCurr === 'PUNCTURED_LIGHT' || h1GeomPrev === 'PUNCTURED_LIGHT')
-            ? 'H1_PUNCTURED_LIGHT'
-            : (h1GeomCurr === 'REJECT_PINBAR' || h1GeomPrev === 'REJECT_PINBAR')
-              ? 'H1_REJECT_PINBAR'
-              : 'H1_HOLD_OR_HOVER';
-        signalMetrics.h1CandleGeometry = h1Geom;
       }
     }
     if (candleReasons.length > 0) {
