@@ -1334,7 +1334,7 @@ async function startAutoTrade(coins) {
 
   function enqueueSymbolSignal(client, sym, markPrice, leverageInfo, leverage, coins) {
     if (isIpBanned()) return;
-    if (!sym || !markPrice || activeSymbols.has(sym) || processingSymbols.has(sym) || isShadowPositionActive(sym)) return;
+    if (!sym || !markPrice || activeSymbols.has(sym) || processingSymbols.has(sym) || activeTradesMetadata[sym] || isShadowPositionActive(sym)) return;
 
     if (signalCheckQueue.some(item => item.sym === sym)) return;
 
@@ -1574,15 +1574,34 @@ async function startAutoTrade(coins) {
       const btcFlashCheck = checkBtcFlashGatekeeper(sig.signal);
       const turnoverCheck = checkTurnoverGuard(sym);
 
+      // 🛡️ PENDING LIMIT MUTUAL EXCLUSION: Khóa nếu symbol đã có lệnh/vị thế trong RAM
+      if (activeTradesMetadata[sym]) {
+        log.system(`[AutoTrade] 🛑 ${sym} đang có lệnh/vị thế (${activeTradesMetadata[sym].side} @ $${activeTradesMetadata[sym].entryPrice}) trong activeTradesMetadata — bỏ qua.`);
+        activeSymbols.add(sym);
+        return;
+      }
+
       if (!isShadowMode && client) {
         try {
           const hasPos = await client.hasOpenPosition(sym);
           if (hasPos) {
-            log.system(`[AutoTrade] ${sym} đang có vị thế mở — bỏ qua`);
+            log.system(`[AutoTrade] ${sym} đang có vị thế mở trên sàn — bỏ qua`);
+            activeSymbols.add(sym);
             return;
           }
+
+          // 🛡️ PENDING LIMIT MUTUAL EXCLUSION: Kiểm tra lệnh LIMIT đang chờ trên sàn
+          const openOrders = await client.getOpenOrders(sym);
+          if (Array.isArray(openOrders) && openOrders.length > 0) {
+            const pendingOrder = openOrders.find(o => o.type === 'LIMIT' && (o.status === 'NEW' || o.status === 'PARTIALLY_FILLED'));
+            if (pendingOrder) {
+              log.system(`[AutoTrade] 🛑 ${sym} đang có lệnh LIMIT (${pendingOrder.side} @ $${pendingOrder.price}) chờ khớp trên sàn — khóa không đặt thêm lệnh mới.`);
+              activeSymbols.add(sym);
+              return;
+            }
+          }
         } catch (e) {
-          log.warn(`[AutoTrade] Không check được vị thế ${sym}: ${_binanceErr(e)} — ngắt xử lý tín hiệu.`);
+          log.warn(`[AutoTrade] Không check được vị thế/lệnh chờ ${sym}: ${_binanceErr(e)} — ngắt xử lý tín hiệu.`);
           return;
         }
       } else if (isShadowMode) {
@@ -2031,6 +2050,19 @@ async function startAutoTrade(coins) {
           }
           if (isIpBanned() || errStr.includes('IP_BAN_CIRCUIT_BREAKER')) {
             return;
+          }
+        }
+
+        if (!isShadowMode && client) {
+          // Double check ngay trước khi phát lệnh: Chặn tuyệt đối nếu đã có lệnh LIMIT chờ khớp
+          const finalCheckOrders = await client.getOpenOrders(sym).catch(() => []);
+          if (Array.isArray(finalCheckOrders)) {
+            const existingLimit = finalCheckOrders.find(o => o.type === 'LIMIT' && (o.status === 'NEW' || o.status === 'PARTIALLY_FILLED'));
+            if (existingLimit) {
+              log.system(`[AutoTrade] 🛑 [Pre-Place Guard] ${sym} vừa phát hiện lệnh LIMIT ${existingLimit.side} @ $${existingLimit.price} đang chờ — Hủy phát lệnh mới để tránh trùng/đối ứng.`);
+              activeSymbols.add(sym);
+              return;
+            }
           }
         }
 
@@ -2621,13 +2653,22 @@ async function checkH1RetestSignals(client, activeSymbols, leverageInfo = {}) {
 
     try {
       // Kiểm tra nếu đã có vị thế mở hoặc lệnh chờ -> Bỏ qua
-      if (activeSymbols && activeSymbols.has(sym)) {
+      if (activeTradesMetadata[sym] || (activeSymbols && activeSymbols.has(sym))) {
         delete lowScoreWatchlist[sym];
         continue;
       }
       if (!isShadowMode && client) {
         const hasPos = await client.hasOpenPosition(sym);
         if (hasPos) {
+          delete lowScoreWatchlist[sym];
+          continue;
+        }
+
+        // 🛡️ PENDING LIMIT MUTUAL EXCLUSION (H1 Retest): Khóa nếu symbol đã có lệnh LIMIT chờ trên sàn
+        const openOrders = await client.getOpenOrders(sym).catch(() => []);
+        if (Array.isArray(openOrders) && openOrders.some(o => o.type === 'LIMIT' && (o.status === 'NEW' || o.status === 'PARTIALLY_FILLED'))) {
+          log.system(`[H1Retest] 🛑 ${sym} đang có lệnh LIMIT chờ khớp trên sàn — bỏ qua không đặt thêm lệnh Retest.`);
+          if (activeSymbols) activeSymbols.add(sym);
           delete lowScoreWatchlist[sym];
           continue;
         }
@@ -3007,6 +3048,16 @@ async function checkH1RetestSignals(client, activeSymbols, leverageInfo = {}) {
 
       try {
         try { await client.setLeverage(sym, effectiveLeverageRetest); } catch (_) { }
+
+        if (!isShadowMode && client) {
+          const finalCheckOrders = await client.getOpenOrders(sym).catch(() => []);
+          if (Array.isArray(finalCheckOrders) && finalCheckOrders.some(o => o.type === 'LIMIT' && (o.status === 'NEW' || o.status === 'PARTIALLY_FILLED'))) {
+            log.system(`[H1Retest] 🛑 [Pre-Place Guard] ${sym} đang có lệnh LIMIT chờ khớp trên sàn — hủy đặt lệnh Retest.`);
+            if (activeSymbols) activeSymbols.add(sym);
+            delete lowScoreWatchlist[sym];
+            continue;
+          }
+        }
 
         const limitOrder = await client.placeLimit(sym, side, qty, targetLevel, dec);
         const limitId = limitOrder.orderId || limitOrder.id || 'unknown';
