@@ -283,40 +283,22 @@ function formatDailyReportHtml(stats) {
   html += `• 🛡️ Bảo toàn vốn (Win + BE): <b>${stats.winBeRate}%</b>\n`;
   html += `• ${pnlEmoji} Tổng PnL 24h: <b>${pnlSign}$${stats.totalPnlUsd.toFixed(2)} USD</b> (ROI: <b>${roiSign}${stats.totalRoiPct.toFixed(1)}%</b>)\n`;
 
-  // Chi tiết từng lệnh
-  html += `\n━━━━━━━━━━━━━━━━━━━\n`;
-  html += `📋 <b>CHI TIẾT CÁC LỆNH HOÀN TẤT:</b>\n`;
-
-  if (stats.completedTrades.length === 0) {
-    html += `<i>(Không có lệnh nào kết thúc trong 24h qua)</i>\n`;
-  } else {
-    stats.completedTrades.forEach((t, idx) => {
-      const icon = t.type === 'TP' ? '🟢' : (t.type === 'BE' ? '⚖️' : '🔴');
-      const signPnl = t.pnlUsd >= 0 ? '+' : '';
-      const signRoi = t.pnlPercent >= 0 ? '+' : '';
-      const durStr = t.holdingDurationMinutes >= 60
-        ? `${(t.holdingDurationMinutes / 60).toFixed(1)}h`
-        : `${Math.round(t.holdingDurationMinutes)}p`;
-
-      html += `${idx + 1}. ${icon} <b>${t.symbol} ${t.signal}</b> (${t.type})\n`;
-      html += `   • Vào: <code>$${t.entryPrice}</code> ➜ Ra: <code>$${t.exitPrice}</code> (${signRoi}${t.pnlPercent.toFixed(1)}%)\n`;
-      html += `   • PnL: <b>${signPnl}$${t.pnlUsd.toFixed(2)} USD</b> | Giữ: <b>${durStr}</b>\n`;
-    });
-  }
-
-  // Danh sách vị thế đang mở
+  // Danh sách vị thế đang mở (tóm tắt gọn nếu có)
   if (stats.activePositions.length > 0) {
     html += `\n━━━━━━━━━━━━━━━━━━━\n`;
     html += `👁️ <b>VỊ THẾ ĐANG CHẠY (${stats.activePositions.length} vị thế):</b>\n`;
-    stats.activePositions.forEach((p, idx) => {
+    stats.activePositions.slice(0, 10).forEach((p, idx) => {
       const statusLabel = p.isFilled ? 'Đã khớp' : 'Chờ Limit';
       const roiSign = p.unrealizedRoi >= 0 ? '+' : '';
-      html += `${idx + 1}. <b>${p.symbol} ${p.signal}</b> [${statusLabel}]\n`;
-      html += `   • Entry: <code>$${p.entryPrice}</code> | Hiện tại: <code>$${p.currentPrice}</code>\n`;
+      html += `${idx + 1}. <b>${p.symbol} ${p.signal}</b> [${statusLabel}]`;
       if (p.isFilled) {
-        html += `   • Lãi tạm tính: <b>${roiSign}${p.unrealizedRoi}%</b> (${p.leverage}x)\n`;
+        html += ` (ROI: <b>${roiSign}${p.unrealizedRoi}%</b>)`;
       }
+      html += `\n`;
     });
+    if (stats.activePositions.length > 10) {
+      html += `<i>... và ${stats.activePositions.length - 10} vị thế khác đang theo dõi.</i>\n`;
+    }
   }
 
   html += `\n━━━━━━━━━━━━━━━━━━━\n`;
