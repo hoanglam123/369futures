@@ -1326,9 +1326,15 @@ async function startAutoTrade(coins) {
   let activeSignalChecks = 0;
   const signalCheckQueue = [];
 
+  function isShadowPositionActive(sym) {
+    if (!isShadowMode || !sym) return false;
+    const activeShadows = typeof getActiveShadowPositions === 'function' ? getActiveShadowPositions() : {};
+    return Object.values(activeShadows).some(p => p.symbol === sym);
+  }
+
   function enqueueSymbolSignal(client, sym, markPrice, leverageInfo, leverage, coins) {
     if (isIpBanned()) return;
-    if (!sym || !markPrice || activeSymbols.has(sym) || processingSymbols.has(sym)) return;
+    if (!sym || !markPrice || activeSymbols.has(sym) || processingSymbols.has(sym) || isShadowPositionActive(sym)) return;
 
     if (signalCheckQueue.some(item => item.sym === sym)) return;
 
@@ -1580,8 +1586,7 @@ async function startAutoTrade(coins) {
           return;
         }
       } else if (isShadowMode) {
-        const activeShadows = typeof getActiveShadowPositions === 'function' ? getActiveShadowPositions() : {};
-        if (activeShadows[sym]) {
+        if (isShadowPositionActive(sym)) {
           log.system(`[AutoTrade] 👻 [Shadow] ${sym} đang có vị thế Shadow mở — bỏ qua`);
           return;
         }
@@ -2627,8 +2632,7 @@ async function checkH1RetestSignals(client, activeSymbols, leverageInfo = {}) {
           continue;
         }
       } else if (isShadowMode) {
-        const activeShadows = typeof getActiveShadowPositions === 'function' ? getActiveShadowPositions() : {};
-        if (activeShadows[sym]) {
+        if (isShadowPositionActive(sym)) {
           delete lowScoreWatchlist[sym];
           continue;
         }
