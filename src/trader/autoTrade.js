@@ -71,6 +71,12 @@ const LEVERAGE_REFRESH_INTERVAL_MS = 6 * 60 * 60_000; // Tự động cập nh�
 const MIN_CONFLUENCE_SCORE = parseFloat(process.env.MIN_CONFLUENCE_SCORE || '5.0'); // Ngưỡng Confluence Score tối thiểu (mặc định 5.0đ)
 let isShadowMode = process.env.SHADOW_MODE === 'true' || !process.env.BINANCE_API_KEY || !process.env.BINANCE_SECRET;
 
+function isShadowPositionActive(sym) {
+  if (!isShadowMode || !sym) return false;
+  const activeShadows = typeof getActiveShadowPositions === 'function' ? getActiveShadowPositions() : {};
+  return Object.values(activeShadows).some(p => p.symbol === sym);
+}
+
 // [ARCHIVED - BE] Cơ chế Dời SL về hòa vốn (Breakeven) & Chốt lời từng phần cũ:
 // Tạm tắt để AI tự quyết định TP & SL dứt điểm cho từng lệnh, loại bỏ bẫy quét non hòa vốn (Negative Asymmetry)
 // Code cũ:
@@ -1275,7 +1281,7 @@ async function startAutoTrade(coins) {
 
   function enqueueSymbolSignal(client, sym, markPrice, leverageInfo, leverage, coins) {
     if (isIpBanned()) return;
-    if (!sym || !markPrice || activeSymbols.has(sym) || processingSymbols.has(sym)) return;
+    if (!sym || !markPrice || activeSymbols.has(sym) || processingSymbols.has(sym) || isShadowPositionActive(sym)) return;
 
     if (signalCheckQueue.some(item => item.sym === sym)) return;
 
@@ -1527,8 +1533,7 @@ async function startAutoTrade(coins) {
           return;
         }
       } else if (isShadowMode) {
-        const activeShadows = typeof getActiveShadowPositions === 'function' ? getActiveShadowPositions() : {};
-        if (activeShadows[sym]) {
+        if (isShadowPositionActive(sym)) {
           log.system(`[AutoTrade] 👻 [Shadow] ${sym} đang có vị thế Shadow mở — bỏ qua`);
           return;
         }
@@ -2565,8 +2570,7 @@ async function checkH1RetestSignals(client, activeSymbols, leverageInfo = {}) {
           continue;
         }
       } else if (isShadowMode) {
-        const activeShadows = typeof getActiveShadowPositions === 'function' ? getActiveShadowPositions() : {};
-        if (activeShadows[sym]) {
+        if (isShadowPositionActive(sym)) {
           delete lowScoreWatchlist[sym];
           continue;
         }
