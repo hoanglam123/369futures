@@ -1783,7 +1783,7 @@ async function startAutoTrade(coins) {
         rawMarketData.marketMetrics = marketMetrics;
         rawMarketData.signalMetrics = sig.signalMetrics || null;
         try {
-          rawMarketData.microstructure = await scanMicrostructure(sym, targetLevel, prelimSetup?.tpPrice || 0, sig.signal);
+          rawMarketData.microstructure = await scanMicrostructure(sym, sig.targetLevel, prelimSetup?.tpPrice || 0, sig.signal);
         } catch (_) {}
       }
 
@@ -2844,6 +2844,7 @@ async function checkH1RetestSignals(client, activeSymbols, leverageInfo = {}) {
       }
 
       const aiEval = evaluateSignalWithAI(sigForAI, rawMarketDataRetest);
+      const currentPriceRetest = (typeof getMarkPrice === 'function' ? getMarkPrice(sym) : null) || h1Close || targetLevel;
 
       // Tiêu chí 3: Đánh giá Rủi ro Toàn diện từ Lõi AI cho Retest H1 (AI Reviewer Core)
       if (!aiEval.isApproved) {
@@ -2855,7 +2856,6 @@ async function checkH1RetestSignals(client, activeSymbols, leverageInfo = {}) {
         }
 
         // Đăng ký vị thế Shadow PnL để theo dõi kết quả thực tế trên thị trường
-        const currentPriceRetest = (typeof getMarkPrice === 'function' ? getMarkPrice(sym) : null) || h1Close || targetLevel;
         registerShadowTrade(sigForAI, aiEval, {
           markPrice: currentPriceRetest,
           marketCapRank: rank,
@@ -2921,7 +2921,7 @@ async function checkH1RetestSignals(client, activeSymbols, leverageInfo = {}) {
       if (isShadowMode) {
         log.system(`[H1Retest] 👻 [Shadow Retest Entry] Ghi nhận lệnh Retest ảo #${sym} (${signal}) @ $${targetLevel}`);
         registerShadowTrade(sigForAI, aiEval, {
-          markPrice,
+          markPrice: currentPriceRetest,
           marketCapRank: rank,
           gridWidthPct: watchData.gridWidthPct || gridStepPct,
           leverage: effectiveLeverageRetest,

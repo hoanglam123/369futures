@@ -242,6 +242,10 @@ async function loadStepSizes(forceRefresh = false) {
  */
 async function loadLeverageBrackets(symbols, apiKey, secret) {
   if (isIpBanned()) return {};
+  if (!apiKey || !secret) {
+    log.system(`[Binance] Không có BINANCE_API_KEY/SECRET — bỏ qua tải leverage brackets.`);
+    return {};
+  }
   log.system(`[Binance] Đang lấy leverage brackets cho ${symbols.length} coin...`);
 
   let allBrackets;
