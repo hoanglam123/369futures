@@ -899,6 +899,15 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
     skipForInteraction.set('volume', 'realtime_volume');
   }
 
+  // 🛡️ DE-DUPLICATE TREND & ADX STRENGTH (KHỬ PHẠT KÉP NGƯỢC XU HƯỚNG VÀ XUNG LỰC ADX):
+  // Rủi ro đi ngược xu hướng chính đã được lượng hóa đầy đủ ở feature 'trend' (TREND_CONFLICT).
+  // Chỉ báo ADX chỉ đo xung lực dao động chung của nến. Nếu tiếp tục biến adx_strength thành án phạt thứ 2 (x0.78 * x0.40 = x0.31)
+  // sẽ gây ra lỗi phạt nhân đôi (Collinearity / Double-penalty) làm tê liệt chiến lược nảy cản đón đầu PP369.
+  // Do đó, khi đã ghi nhận TREND_CONFLICT hoặc INTERACTION_TREND_FLOW_CONFLICT, adx_strength được bỏ qua để giữ đúng nguyên lý độc lập thống kê!
+  if (features['trend'] === 'TREND_CONFLICT' || features['trend'] === 'TREND_COUNTER' || riskInteraction === 'INTERACTION_TREND_FLOW_CONFLICT') {
+    skipForInteraction.set('adx_strength', 'TREND_CONFLICT');
+  }
+
   for (const [cat, val] of Object.entries(features)) {
     const key = `${cat}:${val}`;
     let mult = 1.0;
@@ -1086,10 +1095,35 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
 
     // 🛡️ SANITY GUARD: Khắc chế các yếu tố rủi ro ngược xu hướng và phân kỳ dòng tiền
     if (cat === 'risk_interaction' && val === 'INTERACTION_TREND_FLOW_CONFLICT') {
-      mult = Math.min(mult, 0.70); // Bắt buộc phạt >= 30% khi vừa ngược trend vừa lệch dòng tiền
+      const hasHoldingStructure = features['h1_candle_geometry'] === 'H1_HOLD_OR_HOVER' ||
+                                  features['h1_candle_geometry'] === 'H1_REJECT_PINBAR' ||
+                                  features['m15_candle_geometry'] === 'M15_HOLD_OR_HOVER' ||
+                                  features['m15_candle_geometry'] === 'M15_REJECT_PINBAR' ||
+                                  features['candle_shape'] === 'CANDLE_NORMAL' ||
+                                  features['candle_shape'] === 'CANDLE_PINBAR_HAMMER' ||
+                                  features['candle_shape'] === 'CANDLE_PINBAR_SHOOTING';
+      if (hasHoldingStructure && !isRunaway && !isActiveStormAttack) {
+        mult = Math.max(mult, 0.80); // Đón cản êm đềm: nới nhẹ về x0.80 thay vì phạt đè x0.70
+      } else {
+        mult = Math.min(mult, 0.70); // Bắt buộc phạt >= 30% khi vừa ngược trend vừa lệch dòng tiền trong bão
+      }
     }
     if (cat === 'trend' && val === 'TREND_CONFLICT') {
-      mult = Math.min(mult, 0.78); // Ngược xu hướng Dow/EMA không bao giờ được phép > 0.78
+      const hasHoldingStructure = features['h1_candle_geometry'] === 'H1_HOLD_OR_HOVER' ||
+                                  features['h1_candle_geometry'] === 'H1_REJECT_PINBAR' ||
+                                  features['m15_candle_geometry'] === 'M15_HOLD_OR_HOVER' ||
+                                  features['m15_candle_geometry'] === 'M15_REJECT_PINBAR' ||
+                                  features['candle_shape'] === 'CANDLE_NORMAL' ||
+                                  features['candle_shape'] === 'CANDLE_PINBAR_HAMMER' ||
+                                  features['candle_shape'] === 'CANDLE_PINBAR_SHOOTING';
+      if (hasHoldingStructure && !isRunaway && !isActiveStormAttack) {
+        // Nảy cản PP369 êm đềm: Phạt nhẹ 10-12% (x0.88 - x0.90) thay vì ép trần x0.78 dìm xác suất
+        mult = Math.min(mult, 0.90);
+        mult = Math.max(mult, 0.88);
+      } else {
+        // Có bão xả hoặc thủng mốc: Ép phạt nghiêm ngặt x0.78
+        mult = Math.min(mult, 0.78);
+      }
     }
     if (cat === 'ls_flow' && val === 'LS_DIVERGENCE') {
       mult = Math.min(mult, 0.82); // Dòng tiền phân kỳ không bao giờ được phép > 0.82
