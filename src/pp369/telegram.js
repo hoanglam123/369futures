@@ -28,14 +28,9 @@ const axiosTelegram = axios.create({
 });
 
 /**
- * Gửi một tin nhắn Telegram (HTML parse mode).
- * @param {string} text - Nội dung tin nhắn HTML
- * @returns {Promise<void>}
+ * Gửi một tin nhắn đơn lẻ lên Telegram.
  */
-async function sendTelegram(text) {
-  const finalPrefix = BOT_TAG ? `${BOT_TAG} ` : '';
-  const messageText = (finalPrefix && !text.includes(BOT_TAG)) ? `${finalPrefix}${text}` : text;
-
+async function _sendSingleTelegram(messageText) {
   const maxAttempts = 3;
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
@@ -66,9 +61,47 @@ async function sendTelegram(text) {
         continue;
       }
       const apiDesc = err.response?.data?.description ?? '(no response body)';
-      const preview = text ? text.slice(0, 300).replace(/\n/g, '↵') : '(empty)';
+      const preview = messageText ? messageText.slice(0, 300).replace(/\n/g, '↵') : '(empty)';
       log.warn(`[Telegram] Lỗi gửi tin nhắn (Thất bại sau ${maxAttempts} lần): ${err.message} | API: ${apiDesc}`);
       log.warn(`[Telegram] Nội dung bị lỗi (300 ký tự đầu): ${preview}`);
+    }
+  }
+}
+
+/**
+ * Gửi tin nhắn Telegram (HTML parse mode).
+ * Tự động chia nhỏ tin nhắn nếu vượt quá giới hạn 4096 ký tự của Telegram API.
+ * @param {string} text - Nội dung tin nhắn HTML
+ * @returns {Promise<void>}
+ */
+async function sendTelegram(text) {
+  if (!text) return;
+  const finalPrefix = BOT_TAG ? `${BOT_TAG} ` : '';
+  const messageText = (finalPrefix && !text.includes(BOT_TAG)) ? `${finalPrefix}${text}` : text;
+
+  // Giới hạn Telegram là 4096 ký tự. Chia nhỏ an toàn ở mốc 3800 ký tự theo dòng nén
+  if (messageText.length <= 3800) {
+    return await _sendSingleTelegram(messageText);
+  }
+
+  const lines = messageText.split('\n');
+  const chunks = [];
+  let currentChunk = '';
+
+  for (const line of lines) {
+    if ((currentChunk + '\n' + line).length > 3800) {
+      if (currentChunk) chunks.push(currentChunk);
+      currentChunk = line;
+    } else {
+      currentChunk = currentChunk ? (currentChunk + '\n' + line) : line;
+    }
+  }
+  if (currentChunk) chunks.push(currentChunk);
+
+  for (let i = 0; i < chunks.length; i++) {
+    await _sendSingleTelegram(chunks[i]);
+    if (i < chunks.length - 1) {
+      await new Promise(r => setTimeout(r, 500)); // Delay 500ms tránh spam rate limit
     }
   }
 }
