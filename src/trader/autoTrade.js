@@ -76,6 +76,12 @@ const LEVERAGE_REFRESH_INTERVAL_MS = 6 * 60 * 60_000; // Tự động cập nh�
 const MIN_CONFLUENCE_SCORE = parseFloat(process.env.MIN_CONFLUENCE_SCORE || '5.0'); // Ngưỡng Confluence Score tối thiểu (mặc định 5.0đ)
 let isShadowMode = process.env.SHADOW_MODE === 'true' || !process.env.BINANCE_API_KEY || !process.env.BINANCE_SECRET;
 
+function isShadowPositionActive(sym) {
+  if (!isShadowMode || !sym) return false;
+  const activeShadows = typeof getActiveShadowPositions === 'function' ? getActiveShadowPositions() : {};
+  return Object.values(activeShadows).some(p => p.symbol === sym);
+}
+
 // [ARCHIVED - BE] Cơ chế Dời SL về hòa vốn (Breakeven) & Chốt lời từng phần cũ:
 // Tạm tắt để AI tự quyết định TP & SL dứt điểm cho từng lệnh, loại bỏ bẫy quét non hòa vốn (Negative Asymmetry)
 // Code cũ:
@@ -1325,12 +1331,6 @@ async function startAutoTrade(coins) {
   const MAX_CONCURRENT_SIGNAL_CHECKS = 1;
   let activeSignalChecks = 0;
   const signalCheckQueue = [];
-
-  function isShadowPositionActive(sym) {
-    if (!isShadowMode || !sym) return false;
-    const activeShadows = typeof getActiveShadowPositions === 'function' ? getActiveShadowPositions() : {};
-    return Object.values(activeShadows).some(p => p.symbol === sym);
-  }
 
   function enqueueSymbolSignal(client, sym, markPrice, leverageInfo, leverage, coins) {
     if (isIpBanned()) return;
