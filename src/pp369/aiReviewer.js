@@ -386,8 +386,10 @@ function extractSignalFeatures(reasons, score, rank, gridWidthPct, rawMarketData
     features['btc_wave'] = sm.btcWave;
   } else if (rawMarketData?.btcWave) {
     features['btc_wave'] = rawMarketData.btcWave;
-  } else if (reasonsStr.includes('BTC thuận Dow/EMA')) {
+  } else if (reasonsStr.includes('BTC thuận')) {
     features['btc_wave'] = 'BTC_ALIGNED';
+  } else if (reasonsStr.includes('điều chỉnh lành mạnh') || reasonsStr.includes('hồi phục kỹ thuật') || reasonsStr.includes('Buy the Dip') || reasonsStr.includes('Sell the Rally')) {
+    features['btc_wave'] = 'BTC_PULLBACK_HEALTHY';
   } else if (reasonsStr.includes('BTC đi ngang/trung tính')) {
     features['btc_wave'] = 'BTC_NEUTRAL';
   } else {
@@ -768,6 +770,10 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
     'realtime_volume:VOL_SURGE': 0.95,            // Dòng tiền gia tăng
     'realtime_volume:VOL_STABLE': 1.05,           // Khối lượng bình ổn sóng êm -> Thưởng +5%
     'realtime_volume:VOL_DRY': 0.92,              // Thanh khoản cạn kiệt -> Thận trọng -8%
+    'btc_wave:BTC_ALIGNED': 1.05,
+    'btc_wave:BTC_PULLBACK_HEALTHY': 1.00,
+    'btc_wave:BTC_NEUTRAL': 1.00,
+    'btc_wave:BTC_COUNTER': 0.85,
     'btc_storm:BTC_STORM_VOLATILE': 0.43,        // BTC bão M15 > 1% -> Phạt -57%
     'btc_storm:BTC_STORM_NORMAL': 1.03,
     'btc_flash:BTC_FLASH_PUMP_ACTIVE': btcFlashMult, // Bão BTC Flash Pump từ riskPenaltyProfile
@@ -1007,6 +1013,7 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
     const isLongSig = sig.signal === 'LONG' || sig.signal === 'BUY';
     const isShortSig = sig.signal === 'SHORT' || sig.signal === 'SELL';
     const isBtcAligned = features['btc_wave'] === 'BTC_ALIGNED' ||
+                         features['btc_wave'] === 'BTC_PULLBACK_HEALTHY' ||
                          (rawMarketData?.btcFlashDump && isShortSig) ||
                          (rawMarketData?.btcFlashPump && isLongSig);
     const isRunaway = isLongSig
@@ -1154,19 +1161,24 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
       }
     }
 
-    // 🛡️ SANITY GUARD: Khắc chế hệ số Ngược Sóng BTC (BTC_COUNTER)
-    // Khi Altcoin đi ngược xu hướng chính của BTC (BTC đang có trend/đà ngược chiều):
-    // - Tuyệt đối KHÔNG ĐƯỢC nhân hệ số thưởng (> 1.0)
-    // 🛡️ SANITY GUARD: Khắc chế hệ số Ngược Sóng BTC (BTC_COUNTER)
-    // Khi Altcoin đi ngược xu hướng chính của BTC:
-    // - Nếu Altcoin thuận trend (TREND_PERFECT / TREND_M15_ALIGNED): Phạt nhẹ x0.85
-    // - Nếu Altcoin cũng ngược trend (TREND_CONFLICT): Phạt nặng x0.75
-    if (cat === 'btc_wave' && val === 'BTC_COUNTER') {
-      const isAlignedTrend = features['trend'] === 'TREND_PERFECT' || features['trend'] === 'TREND_M15_ALIGNED';
-      if (!isAlignedTrend) {
-        mult = 0.65;
-      } else {
-        mult = Math.min(mult, 0.85);
+    // 🛡️ SANITY GUARD: Phân cấp hệ số Sóng BTC (btc_wave)
+    if (cat === 'btc_wave') {
+      if (val === 'BTC_ALIGNED') {
+        mult = Math.max(mult, 1.05);
+      } else if (val === 'BTC_PULLBACK_HEALTHY' || val === 'BTC_NEUTRAL') {
+        mult = 1.00; // Hoàn toàn trung tính, không phạt nhịp chỉnh lành mạnh!
+      } else if (val === 'BTC_COUNTER') {
+        // Phân cấp rủi ro theo Vốn hóa & Cản S/R khi BTC thực sự xác nhận sóng ngược:
+        const hasSolidSR = (features['price_action'] && features['price_action'] !== 'PA_0_LEVEL') ||
+                           (features['sr_quality'] && features['sr_quality'] !== 'SR_NONE');
+        if (rank <= 30) {
+          mult = hasSolidSR ? 0.95 : 0.90; // Top 30 Bluechip: thanh khoản dày, mốc 369 giữ tốt, chỉ phạt nhẹ
+        } else if (rank <= 150) {
+          mult = hasSolidSR ? 0.90 : 0.80; // Midcap
+        } else {
+          // Lowcap (> 150): Phạt nặng để phòng ngừa nguy cơ xả tháo cống cạn thanh khoản
+          mult = hasSolidSR ? 0.75 : 0.65;
+        }
       }
     }
 
@@ -1199,7 +1211,9 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
   // 🌊 MARKET REGIME FLEXIBILITY (Co giãn linh hoạt theo nhịp thở thị trường do AI quyết định)
   if (features['btc_wave'] === 'BTC_ALIGNED') {
     threshold -= 0.5;
-  } else if (features['btc_wave'] === 'BTC_COUNTER' || features['btc_flash'] !== 'BTC_FLASH_NORMAL') {
+  } else if (features['btc_wave'] === 'BTC_COUNTER') {
+    threshold += (rank > 150 ? 2.0 : 1.0);
+  } else if (features['btc_flash'] !== 'BTC_FLASH_NORMAL') {
     threshold += 2.0;
   }
 
@@ -1276,6 +1290,7 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
     ? (features['candle_shape'] === 'CANDLE_MARUBOZU_DUMP')
     : (features['candle_shape'] === 'CANDLE_MARUBOZU_PUMP');
   const isBtcAlignedSig = features['btc_wave'] === 'BTC_ALIGNED' ||
+                          features['btc_wave'] === 'BTC_PULLBACK_HEALTHY' ||
                           (rawMarketData?.btcFlashDump && (sig.signal === 'SHORT' || sig.signal === 'SELL')) ||
                           (rawMarketData?.btcFlashPump && (sig.signal === 'LONG' || sig.signal === 'BUY'));
   const isExtremeStormCondition = (features['h1_volatility'] === 'H1_EXTREME_STORM_PUMP_DUMP' || features['m15_volatility'] === 'M15_EXTREME_STORM') &&
@@ -1300,8 +1315,15 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
         vetoCategory = features['btc_flash'];
         reasonText = `[AI VETO BÃO BTC FLASH] Phát hiện ${features['btc_flash']} ngược chiều lệnh kéo xác suất ${winProb.toFixed(1)}% < ${threshold}%! [Rank #${rank}] (${factorSummary})`;
       } else if (features['btc_wave'] === 'BTC_COUNTER' && features['trend'] === 'TREND_CONFLICT') {
-        vetoCategory = 'BTC_COUNTER_TREND_CONFLICT';
-        reasonText = `[AI VETO NGƯỢC SÓNG KÉP BTC] Altcoin ngược xu hướng và đi ngược đà sóng BTC kéo xác suất ${winProb.toFixed(1)}% < ${threshold}%! [Rank #${rank}] (${factorSummary})`;
+        // 🛡️ VETO THÔNG MINH PHÂN CẤP:
+        // Khi cả BTC và Altcoin đều ngược trend, CHỈ VETO khi là Lowcap (> 150) hoặc không có cản S/R bảo vệ!
+        const hasSolidSR = (features['price_action'] && features['price_action'] !== 'PA_0_LEVEL') ||
+                           (features['sr_quality'] && features['sr_quality'] !== 'SR_NONE');
+        const isHighRiskTarget = rank > 150 || !hasSolidSR;
+        if (isHighRiskTarget) {
+          vetoCategory = 'BTC_COUNTER_TREND_CONFLICT';
+          reasonText = `[AI VETO NGƯỢC SÓNG KÉP BTC] Altcoin Low-cap/thiếu cản ngược xu hướng trong khi BTC xác nhận sóng giảm kéo xác suất ${winProb.toFixed(1)}% < ${threshold}%! [Rank #${rank}] (${factorSummary})`;
+        }
       } else if (isStrongCounterTrendCondition) {
         vetoCategory = 'COUNTER_STRONG_TREND_DANGER';
         reasonText = `[AI VETO CẢN TÀU XU HƯỚNG] Tín hiệu ngược xu hướng trong khi xung lực xu hướng đối lập quá mạnh (TREND_CONFLICT + ADX_STRONG_TREND) kéo xác suất ${winProb.toFixed(1)}% < ${threshold}%! [Rank #${rank}] (${factorSummary})`;
