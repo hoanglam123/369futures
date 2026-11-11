@@ -522,6 +522,8 @@ async function fetchH1Reference(symbol, saveImmediately = true) {
 const fetchH4Reference = fetchH1Reference;
 const fetchH1Cached = fetchH1Reference;
 
+const _m1Cache = {};
+
 // Lấy nến 1m incremental — lần đầu fetch toàn bộ, sau đó chỉ fetch nến mới
 async function fetchM1Incremental(symbol) {
   const startMs = monthStartMs();
@@ -2492,10 +2494,11 @@ async function score369Method(sig369, direction) {
       }
 
       // 6.1 Phân tích cản H4
+      let matchesH4 = [];
       if (h4Candles.length > 0) {
         const { highs: h4Highs, lows: h4Lows } = findSwingPoints(h4Candles, 4, 4);
         const searchListH4 = isLong ? h4Lows : h4Highs;
-        const matchesH4 = searchListH4.filter(price => Math.abs(price - targetLevel) <= maxDev);
+        matchesH4 = searchListH4.filter(price => Math.abs(price - targetLevel) <= maxDev);
         if (matchesH4.length >= 2) {
           paScore += 0.4;
           paReasons.push(`H4: ${matchesH4.length} cản cũ (+0.4đ)`);
@@ -2523,7 +2526,7 @@ async function score369Method(sig369, direction) {
       }
 
       // Ghi nhận signalMetrics cho Tiêu chí 6: Price Action S/R
-      const h4MatchesCount = typeof matchesH4 !== 'undefined' ? matchesH4.length : 0;
+      const h4MatchesCount = matchesH4.length;
       const d1MatchesCount = matchesD1.length;
       signalMetrics.h4SrCount = h4MatchesCount;
       signalMetrics.d1SrCount = d1MatchesCount;
