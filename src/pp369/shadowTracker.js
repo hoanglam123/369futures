@@ -160,7 +160,7 @@ function registerShadowTrade(sig, evalResult, options = {}) {
   //   }
   let beTriggerPrice = (typeof options.beTriggerPrice === 'number' && options.beTriggerPrice > 0)
     ? options.beTriggerPrice
-    : (isLong ? (entryPrice + (tierTpPrice - entryPrice) * 0.40) : (entryPrice - (entryPrice - tierTpPrice) * 0.40));
+    : (isLong ? (entryPrice + (tierTpPrice - entryPrice) * 0.35) : (entryPrice - (entryPrice - tierTpPrice) * 0.35));
 
   // 🛡️ MỨC GIÁ THỊ TRƯỜNG HIỆN TẠI VÀ TRẠNG THÁI KHỚP LỆNH LIMIT
   const currentMark = parseFloat(options.markPrice || entryPrice);
@@ -374,21 +374,40 @@ function updateShadowPrices(priceMap) {
           if (typeof fn === 'function') {
             Promise.all([
               core.fetchBinanceKlines(p.symbol, '15m', null, 25),
-              core.fetchBinanceKlines(p.symbol, '5m', null, 25)
-            ]).then(([m15s, m5s]) => {
+              core.fetchBinanceKlines(p.symbol, '5m', null, 25),
+              core.fetchBinanceKlines(p.symbol, '1m', null, 25)
+            ]).then(([m15s, m5s, m1s]) => {
               const m15Swing = (m15s && m15s.length >= 6) ? fn(m15s, isLong) : null;
               const m5Swing = (m5s && m5s.length >= 6) ? fn(m5s, isLong) : null;
-              const cands = [];
+              
+              // 1. Ưu tiên M15/M5 trong vùng có lãi
+              const higherCands = [];
               if (m15Swing && typeof m15Swing.price === 'number') {
-                cands.push({ sl: isLong ? m15Swing.price * 0.999 : m15Swing.price * 1.001, tf: 'M15' });
+                const sl = isLong ? m15Swing.price * 0.999 : m15Swing.price * 1.001;
+                if (isLong ? sl >= entry : sl <= entry) higherCands.push({ sl, tf: 'M15' });
               }
               if (m5Swing && typeof m5Swing.price === 'number') {
-                cands.push({ sl: isLong ? m5Swing.price * 0.999 : m5Swing.price * 1.001, tf: 'M5' });
+                const sl = isLong ? m5Swing.price * 0.999 : m5Swing.price * 1.001;
+                if (isLong ? sl >= entry : sl <= entry) higherCands.push({ sl, tf: 'M5' });
               }
-              if (cands.length > 0) {
-                const best = isLong
-                  ? cands.reduce((prev, curr) => (curr.sl > prev.sl ? curr : prev))
-                  : cands.reduce((prev, curr) => (curr.sl < prev.sl ? curr : prev));
+              
+              let best = null;
+              if (higherCands.length > 0) {
+                best = isLong
+                  ? higherCands.reduce((prev, curr) => (curr.sl > prev.sl ? curr : prev))
+                  : higherCands.reduce((prev, curr) => (curr.sl < prev.sl ? curr : prev));
+              } else {
+                // 2. Không đủ M5/M15 -> Quét M1 thông minh trong vùng có lãi
+                const m1Swing = (m1s && m1s.length >= 6) ? fn(m1s, isLong) : null;
+                if (m1Swing && typeof m1Swing.price === 'number') {
+                  const slM1 = isLong ? m1Swing.price * 0.999 : m1Swing.price * 1.001;
+                  if (isLong ? slM1 >= entry : slM1 <= entry) {
+                    best = { sl: slM1, tf: 'M1' };
+                  }
+                }
+              }
+
+              if (best) {
                 const candidateSl = best.sl;
                 const isBetter = isLong ? (candidateSl > p.tierSlPrice) : (candidateSl < p.tierSlPrice);
                 if (isBetter) {
