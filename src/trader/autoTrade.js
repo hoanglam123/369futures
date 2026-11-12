@@ -14,6 +14,7 @@ const path = require('path');
 const fs = require('fs');
 const { createClient, loadStepSizes, loadLeverageBrackets, calcQuantity, getSymbolTickSizeSync } = require('./binance');
 const { isIpBanned } = require('./circuitBreaker');
+const { notifySignals, sendTelegram } = require('../pp369/telegram');
 const {
   get369Signal,
   getLevelCache,
@@ -29,9 +30,7 @@ const {
   getRecentM15FractalSwing,
   updatePricesRest,
   syncWebSocketSubscriptions,
-  notifySignals,
   onPriceUpdate,
-  sendTelegram,
   score369Method,
   isGridWidthValid,
   getMinGridPct,
@@ -82,7 +81,7 @@ function isShadowPositionActive(sym) {
 // Code cũ:
 //   const ENABLE_TRAILING_BE = process.env.ENABLE_TRAILING_BE !== 'false';
 //   const ENABLE_PARTIAL_TP = process.env.ENABLE_PARTIAL_TP !== 'false';
-const ENABLE_TRAILING_BE = true; // Kích hoạt M15 Fractal Wave Trailing SL: Dời SL bám theo Đáy/Đỉnh sóng Williams Fractal 5 nến trên M15 khi đạt ngưỡng kích hoạt (>= 40% TP)
+const ENABLE_TRAILING_BE = true; // Kích hoạt M15 Fractal Wave Trailing SL: Dời SL bám theo Đáy/Đỉnh sóng Williams Fractal 5 nến trên M15/M5/M1 khi đạt ngưỡng kích hoạt (>= 35% TP)
 const ENABLE_PARTIAL_TP = false;  // Tắt chốt 50% non: Chốt trọn vẹn 100% tại mốc TP tối ưu của AI
 const ENABLE_TREND_RUNNER = process.env.ENABLE_TREND_RUNNER !== 'false';
 // Cấu hình AI Hủy Limit Sớm (Pre-Fill Cancel: Hủy lệnh LIMIT nếu dòng tiền Taker/sổ lệnh suy yếu trước khi khớp)
@@ -606,10 +605,10 @@ function calculateTierSLTP(symbol, side, entryPrice, h4Ref, tickSize, maxExchang
   //   if (finalTpDist > beDistRaw) {
   //     beTriggerPrice = (side === 'LONG' || side === 'BUY') ? (entryPrice + beDistRaw) : (entryPrice - beDistRaw);
   //   }
-  // 🌊 M15 FRACTAL WAVE TRAILING SL: Ngưỡng kích hoạt khi giá đi được 40% quãng đường tới TP
-  // Khi giá chạm mốc này, bot bắt đầu quét cấu trúc nến M15 theo mô hình Williams Fractal 5 nến để dời SL bám đáy/đỉnh sóng
+  // 🌊 M15 FRACTAL WAVE TRAILING SL: Ngưỡng kích hoạt khi giá đi được 35% quãng đường tới TP
+  // Khi giá chạm mốc này, bot bắt đầu quét cấu trúc nến M15/M5/M1 theo mô hình Williams Fractal để dời SL bám đáy/đỉnh sóng
   const isLongSide = (side === 'LONG' || side === 'BUY');
-  const fractalTriggerDist = finalTpDist * 0.40;
+  const fractalTriggerDist = finalTpDist * 0.35;
   const beTriggerPrice = isLongSide ? (entryPrice + fractalTriggerDist) : (entryPrice - fractalTriggerDist);
 
   // 🛡️ TỶ LỆ R:R THỰC TẾ: Không chặn cứng R:R < 1.0 ở đây, giao quyền toàn diện cho AI Reviewer thẩm định qua EV
@@ -2083,7 +2082,11 @@ async function startAutoTrade(coins) {
         sig.margin = actualTradeMargin;
         sig.tierSlPrice = tierSetup.slPrice;
         sig.tierTpPrice = tierSetup.tpPrice;
-        notifySignals([sig]).catch(() => { });
+        if (typeof notifySignals === 'function') {
+          notifySignals([sig]).catch((err) => {
+            log.warn(`[AutoTrade] Lỗi notifySignals cho ${sym}: ${err.message}`);
+          });
+        }
         logSignal369(sig);
 
         log.system(
@@ -3060,6 +3063,48 @@ async function checkH1RetestSignals(client, activeSymbols, leverageInfo = {}) {
   }
 }
 
+/**
+ * Đóng vị thế thật bằng lệnh MARKET với cơ chế chống lệnh trùng lặp và chống mở vị thế ngược (Race Condition Guard):
+ * 1. Khóa sym vào justClosedByBot để tránh notifyRealClose bắn thông báo trùng lặp
+ * 2. Hủy toàn bộ lệnh mở (TP/SL sàn & Algo) trước khi bắn Market để tránh exchange SL khớp cùng miligiây
+ * 3. Bắn lệnh Market với reduceOnly: true (chống mở vị thế ngược nếu sàn đã cắn SL trước)
+ * 4. Xóa cache vị thế sàn và dọn dẹp RAM state ngay lập tức
+ */
+async function closeRealPositionMarket(client, sym, oppositeSide, absAmt, openAlgoOrders = [], reasonLabel = 'CloseMarket') {
+  justClosedByBot.add(sym);
+
+  // 1. Hủy ngay tất cả lệnh mở (TP/SL sàn) và lệnh Algo
+  client.cancelAllOpenOrders(sym).catch(() => {});
+  if (Array.isArray(openAlgoOrders)) {
+    for (const algo of openAlgoOrders) {
+      client.cancelAlgoOrder(sym, algo.algoId || algo.orderId).catch(() => {});
+    }
+  }
+
+  // 2. Bắn lệnh Market đóng vị thế với reduceOnly: true
+  try {
+    await client.placeMarket(sym, oppositeSide, absAmt, true);
+  } catch (mErr) {
+    const errCode = mErr.response?.data?.code || mErr.code;
+    if (errCode === -2022) {
+      log.system(`[AutoTrade] [${reasonLabel}] Vị thế ${sym} đã được sàn đóng trước đó (ReduceOnly). Hoàn tất thoát lệnh an toàn.`);
+    } else {
+      throw mErr;
+    }
+  }
+
+  // 3. Xóa cache vị thế sàn và dọn dẹp state trong RAM ngay lập tức
+  if (typeof client.invalidatePositionCache === 'function') {
+    client.invalidatePositionCache();
+  }
+  if (activeTradesMetadata[sym]) {
+    delete activeTradesMetadata[sym];
+    saveActiveTradesMetadata();
+  }
+  lastActivePositions.delete(sym);
+  partialClosedSymbols.delete(sym);
+}
+
 let isCheckingTrailingSL = false;
 
 async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymbols) {
@@ -3566,12 +3611,7 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
                   `Lún sâu >= 70% SL + Nến M15 đóng thủng cản + CVD xả gia tốc ${cvdOpposingPct}% (ROI ${roi.toFixed(2)}%, Lỗ -$${Math.abs(unrealizedPnlUsd).toFixed(2)} USDT) -> Cắt Non Market khẩn cấp!`
                 );
                 try {
-                  justClosedByBot.add(sym);
-                  await client.placeMarket(sym, oppositeSide, absAmt);
-                  client.cancelAllOpenOrders(sym).catch(() => {});
-                  for (const algo of openAlgoOrders) {
-                    client.cancelAlgoOrder(sym, algo.algoId || algo.orderId).catch(() => {});
-                  }
+                  await closeRealPositionMarket(client, sym, oppositeSide, absAmt, openAlgoOrders, 'Defensive Early Cut');
                   await sendTelegram(
                     `🚨 <b>[AutoTrade] Cắt Non Phòng Thủ - Giai Đoạn 2 (Defensive Early Cut)</b>\n` +
                     `• Coin: <b>#${sym} (${isLong ? 'LONG' : 'SHORT'})</b>\n` +
@@ -3661,12 +3701,7 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
             `đã giữ ${holdingHours.toFixed(1)}h (>= 6h - 1.5 nến H4) và giá đang lình xình quanh Entry (ROI ${roi.toFixed(2)}%, PnL $${unrealizedPnlUsd.toFixed(2)}) -> đóng Market giải phóng margin!`
           );
           try {
-            justClosedByBot.add(sym);
-            await client.placeMarket(sym, oppositeSide, absAmt);
-            client.cancelAllOpenOrders(sym).catch(() => {});
-            for (const algo of openAlgoOrders) {
-              client.cancelAlgoOrder(sym, algo.algoId || algo.orderId).catch(() => {});
-            }
+            await closeRealPositionMarket(client, sym, oppositeSide, absAmt, openAlgoOrders, 'Stale Position Exit');
             await sendTelegram(
               `⏱️ <b>[AutoTrade] Thoát Vị Thế Ứ đọng Quá 6 Giờ (Stale Position Exit)</b>\n` +
               `• Coin: <b>#${sym} (${isLong ? 'LONG' : 'SHORT'})</b>\n` +
@@ -3735,13 +3770,7 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
 
         log.system(`[AutoTrade] 🚨 [Hard Max Loss Guard] Kích hoạt cho ${sym}: Lỗ thả nổi $${unrealizedPnlUsd.toFixed(2)} (${roi.toFixed(2)}%) chạm ngưỡng trần -$${hardLossCapUSD.toFixed(2)} USDT. Cắt lỗ MARKET ngay lập tức!`);
         try {
-          justClosedByBot.add(sym);
-          await client.placeMarket(sym, oppositeSide, absAmt);
-          // 🧹 Hủy sạch tất cả các lệnh còn dư trên sàn (chống cắn lại phần dư của lệnh limit)
-          client.cancelAllOpenOrders(sym).catch(() => {});
-          for (const algo of openAlgoOrders) {
-            client.cancelAlgoOrder(sym, algo.algoId || algo.orderId).catch(() => {});
-          }
+          await closeRealPositionMarket(client, sym, oppositeSide, absAmt, openAlgoOrders, 'Hard Max Loss Guard');
           await sendTelegram(`🚨 <b>[Hard Max Loss Guard] Cắt Lỗ Khẩn Cấp</b>\n• Coin: <b>${sym} (${isLong ? 'LONG' : 'SHORT'})</b>\n• Lỗ chặn tại: <b>$${unrealizedPnlUsd.toFixed(2)} USDT (${roi.toFixed(2)}%)</b>`);
           if (meta) {
             const holdingDurationMinutes = (Date.now() - (meta.time || Date.now())) / 60000;
@@ -3831,7 +3860,7 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
               closeQty = formatQuantity(sym, halfAmt);
               if (closeQty > 0) {
                 try {
-                  await client.placeMarket(sym, oppositeSide, closeQty);
+                  await client.placeMarket(sym, oppositeSide, closeQty, true);
                   partialClosedSymbols.add(sym);
                   if (meta) {
                     meta.isPartialClosed = true;
@@ -3906,13 +3935,7 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
         const exitLabel = meta?.isTrendRunner ? 'Trend Runner TP2 (Full Win)' : (meta?.isDefensiveBeActive ? 'Thoát Hiểm Hòa Vốn (Giai Đoạn 1)' : (meta?.isPanicEscape ? 'Thoát Hiểm Entry' : (meta?.isH1Failed ? 'Hòa Vốn Entry' : 'Take Profit')));
         log.system(`[AutoTrade] [Virtual TP - ${exitLabel}] Kích hoạt cho ${sym}: Giá $${markPrice} chạm mốc $${targetTpPriceExact.toFixed(5)} (ROI ~${roi.toFixed(2)}%). Đóng vị thế MARKET.`);
         try {
-          justClosedByBot.add(sym);
-          await client.placeMarket(sym, oppositeSide, absAmt);
-          // 🧹 Hủy sạch tất cả các lệnh còn dư trên sàn (chống cắn lại phần dư của lệnh limit)
-          client.cancelAllOpenOrders(sym).catch(() => {});
-          for (const algo of openAlgoOrders) {
-            client.cancelAlgoOrder(sym, algo.algoId || algo.orderId).catch(() => {});
-          }
+          await closeRealPositionMarket(client, sym, oppositeSide, absAmt, openAlgoOrders, `Virtual TP - ${exitLabel}`);
           const winIcon = meta?.isTrendRunner ? '🏆' : (meta?.isDefensiveBeActive ? '🛡️' : '🎯');
           const winExtra = meta?.isTrendRunner ? '\n• 🏆 <b>Đã ăn trọn con sóng dài của thị trường!</b>' : (meta?.isDefensiveBeActive ? '\n• 🛡️ <b>Đón nhịp giật râu thoát hàng thành công, bảo toàn vốn LỖ = 0!</b>' : '');
           await sendTelegram(`${winIcon} <b>${exitLabel} (Virtual)</b>\n• Coin: <b>${sym}</b>\n• Giá chạm: <b>$${markPrice}</b> (Target: $${targetTpPriceExact.toFixed(5)})\n• ROI đạt: <b>${roi.toFixed(2)}%</b>${winExtra}`);
@@ -4021,7 +4044,7 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
           const estRealizedPnl = (roi / 100) * ((meta?.margin || 0) * 0.5);
           log.system(`[AutoTrade] 🎯 [Partial TP] ${sym} chạm mốc kích hoạt ($${trailTriggerPriceExact} / ROI +${roi.toFixed(2)}%): Chốt 50% vị thế (qty = ${closeQty}, lãi ước tính +$${estRealizedPnl.toFixed(2)} USDT)`);
           try {
-            await client.placeMarket(sym, oppositeSide, closeQty);
+            await client.placeMarket(sym, oppositeSide, closeQty, true);
             partialClosedSymbols.add(sym);
             if (meta) {
               meta.isPartialClosed = true;
@@ -4048,48 +4071,91 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
         }
       }
 
-      // 🌊 QUÉT CẤU TRÚC SÓNG FRACTAL BẬC THANG (CASCADE M5 + M15) KHI ĐẠT NGƯỠNG KÍCH HOẠT (>= 40% TP)
-      // M5 làm cầu nối phản ứng nhanh trong 10-30 phút đầu, M15 gồng sóng lớn dài hạn
+      // 🌊 QUÉT CẤU TRÚC SÓNG FRACTAL BẬC THANG (CASCADE M5 + M15 + M1 SMART) & KHÓA HÒA VỐN (>= 35% TP)
+      // Mốc sàn tối thiểu bất biến: Phải từ Entry hòa vốn (+/- beBuffer) trở lên, tuyệt đối cấm dịch SL về âm tiền
+      const minLockPrice = isLong
+        ? Number((entryPrice + beBuffer).toFixed(8))
+        : Number((entryPrice - beBuffer).toFixed(8));
+
       if (ENABLE_TRAILING_BE && (isTrailTriggerReached || meta?.isBeTriggered)) {
         if (meta && !meta.isBeTriggered) {
           meta.isBeTriggered = true;
+          // ⚖️ Khóa Hòa Vốn tức thì (Breakeven Lock) làm chốt chặn bảo vệ vốn ban đầu
+          const currentSl = meta.fractalSlPrice || targetSlPriceExact;
+          const isBetterThanCurrent = isLong ? (minLockPrice > currentSl) : (minLockPrice < currentSl);
+          if (isBetterThanCurrent) {
+            meta.fractalSlPrice = minLockPrice;
+            meta.fractalTf = 'BE_LOCK';
+            log.system(`[AutoTrade] ⚖️ [Breakeven Lock] ${sym} (${isLong ? 'LONG' : 'SHORT'}) chạm ngưỡng 35% TP -> Khóa SL hòa vốn tức thì @ $${minLockPrice.toFixed(5)} bảo toàn vốn!`);
+          }
           saveActiveTradesMetadata();
         }
 
         const nowMs = Date.now();
-        // Quét nến M5 & M15 tối thiểu mỗi 30 giây để tìm đáy/đỉnh sóng fractal mới nhất
+        // Quét nến Fractal tối thiểu mỗi 30 giây để tìm đáy/đỉnh sóng mới nhất
         if (meta && (!meta._lastFractalCheckTime || (nowMs - meta._lastFractalCheckTime >= 30_000))) {
           meta._lastFractalCheckTime = nowMs;
           try {
-            // Tải song song cả 2 khung nến M15 và M5 (được RAM cache bảo vệ)
-            const [m15s, m5s] = await Promise.all([
+            // Tải song song cả 3 khung nến M15, M5 và M1 (được RAM cache bảo vệ)
+            const [m15s, m5s, m1s] = await Promise.all([
               fetchBinanceKlines(sym, '15m', null, 25),
-              fetchBinanceKlines(sym, '5m', null, 25)
+              fetchBinanceKlines(sym, '5m', null, 25),
+              fetchBinanceKlines(sym, '1m', null, 25)
             ]);
 
             const fn = getRecentFractalSwing || getRecentM15FractalSwing;
             const m15Swing = (m15s && m15s.length >= 6) ? fn(m15s, isLong) : null;
             const m5Swing = (m5s && m5s.length >= 6) ? fn(m5s, isLong) : null;
 
-            const candidates = [];
+            // 1. ƯU TIÊN SỐ 1: Khung M15 và M5 (Gồng sóng lớn dài hạn)
+            // 🛡️ BỘ LỌC CÓ LÃI BẤT BIẾN: Chỉ chấp nhận Fractal M5/M15 nếu nằm trong vùng CÓ LÃI (>= minLockPrice cho LONG, <= minLockPrice cho SHORT)
+            const higherTfCandidates = [];
             if (m15Swing && typeof m15Swing.price === 'number') {
               const slPrice = isLong ? (m15Swing.price * 0.999) : (m15Swing.price * 1.001);
-              candidates.push({ sl: slPrice, tf: 'M15', pivotPrice: m15Swing.price });
+              const isProfitable = isLong ? (slPrice >= minLockPrice) : (slPrice <= minLockPrice);
+              if (isProfitable) {
+                higherTfCandidates.push({ sl: slPrice, tf: 'M15', pivotPrice: m15Swing.price });
+              }
             }
             if (m5Swing && typeof m5Swing.price === 'number') {
               const slPrice = isLong ? (m5Swing.price * 0.999) : (m5Swing.price * 1.001);
-              candidates.push({ sl: slPrice, tf: 'M5', pivotPrice: m5Swing.price });
+              const isProfitable = isLong ? (slPrice >= minLockPrice) : (slPrice <= minLockPrice);
+              if (isProfitable) {
+                higherTfCandidates.push({ sl: slPrice, tf: 'M5', pivotPrice: m5Swing.price });
+              }
             }
 
-            if (candidates.length > 0) {
-              // Chọn mốc TỐT NHẤT:
-              // - LONG: Chọn mốc SL CAO NHẤT (khóa lãi sâu nhất hoặc giảm thiểu rủi ro tốt nhất)
-              // - SHORT: Chọn mốc SL THẤP NHẤT
-              const bestCand = isLong
-                ? candidates.reduce((prev, curr) => (curr.sl > prev.sl ? curr : prev))
-                : candidates.reduce((prev, curr) => (curr.sl < prev.sl ? curr : prev));
+            let bestCand = null;
+            if (higherTfCandidates.length > 0) {
+              // Có Fractal M5/M15 hợp lệ trong vùng có lãi -> Chọn mốc khóa lãi sâu nhất
+              bestCand = isLong
+                ? higherTfCandidates.reduce((prev, curr) => (curr.sl > prev.sl ? curr : prev))
+                : higherTfCandidates.reduce((prev, curr) => (curr.sl < prev.sl ? curr : prev));
+            } else {
+              // 2. ƯU TIÊN SỐ 2: Khi KHÔNG ĐỦ nến Fractal M5 (hoặc M5 chưa có đỉnh/đáy trong vùng lãi)
+              // Kích hoạt Bộ lọc Fractal M1 thông minh làm cầu nối phản ứng nhanh
+              const m1Swing = (m1s && m1s.length >= 6) ? fn(m1s, isLong) : null;
+              if (m1Swing && typeof m1Swing.price === 'number') {
+                const slPriceM1 = isLong ? (m1Swing.price * 0.999) : (m1Swing.price * 1.001);
+                // 🛡️ BỘ LỌC FRACTAL M1 THÔNG MINH:
+                // Chỉ nhận mốc M1 nếu mốc đó đã nằm sâu trong vùng CÓ LÃI (>= minLockPrice cho LONG, <= minLockPrice cho SHORT)
+                const isProfitableM1 = isLong ? (slPriceM1 >= minLockPrice) : (slPriceM1 <= minLockPrice);
+                if (isProfitableM1) {
+                  bestCand = { sl: slPriceM1, tf: 'M1', pivotPrice: m1Swing.price };
+                }
+              }
 
+              // 3. FALLBACK: Nếu cả M5 và M1 đều chưa có Fractal trong vùng có lãi -> Kéo SL về Entry hòa vốn
+              if (!bestCand) {
+                bestCand = { sl: minLockPrice, tf: 'BE_LOCK', pivotPrice: entryPrice };
+              }
+            }
+
+            if (bestCand) {
               const candidateSl = bestCand.sl;
+              // 🛡️ CHỐT CHẶN BÁNH CÓC 1 CHIỀU (ONE-WAY RATCHET):
+              // candidateSl phải tốt hơn mốc SL hiện tại (meta.fractalSlPrice hoặc targetSlPriceExact)
+              // Tuyệt đối cấm dịch ngược SL về phía bất lợi hoặc âm tiền!
               const currentSlLevel = meta.fractalSlPrice || targetSlPriceExact;
               const isBetterSl = isLong ? (candidateSl > currentSlLevel) : (candidateSl < currentSlLevel);
 
@@ -4101,7 +4167,10 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
                 meta.fractalSlPrice = candidateSl;
                 meta.fractalTf = bestCand.tf;
                 saveActiveTradesMetadata();
-                log.system(`[AutoTrade] 🌊 [Fractal Cascade Trailing SL] ${sym} (${isLong ? 'LONG' : 'SHORT'}): Xác nhận ${isLong ? 'Đáy Sóng (Swing Low)' : 'Đỉnh Sóng (Swing High)'} ${bestCand.tf} @ $${bestCand.pivotPrice.toFixed(5)} -> Cập nhật Fractal SL = $${candidateSl.toFixed(5)} (SL trước: $${prevSlVal.toFixed(5)})`);
+                const actionLabel = bestCand.tf === 'BE_LOCK'
+                  ? `Khóa Hòa Vốn Entry @ $${candidateSl.toFixed(5)} (Chờ nến Fractal M5)`
+                  : `Xác nhận ${isLong ? 'Đáy Sóng (Swing Low)' : 'Đỉnh Sóng (Swing High)'} ${bestCand.tf} @ $${bestCand.pivotPrice.toFixed(5)} -> Cập nhật Fractal SL = $${candidateSl.toFixed(5)}`;
+                log.system(`[AutoTrade] 🌊 [Fractal Cascade Trailing SL] ${sym} (${isLong ? 'LONG' : 'SHORT'}): ${actionLabel} (SL trước: $${prevSlVal.toFixed(5)})`);
               }
             }
           } catch (err) {
@@ -4184,9 +4253,12 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
           if (!alreadyMoved && !betterOrEqualExists) {
             const isProfitLocked = currentSlPct > 0;
             const tfLabel = meta?.fractalTf || 'M15';
+            const isBeLock = meta?.fractalTf === 'BE_LOCK';
             const levelLabel = isRunnerSlValid
               ? `Runner Khóa Lãi (+${currentSlPct}%)`
-              : (isProfitLocked ? `Khóa Lãi Sóng ${tfLabel} (+${currentSlPct}%)` : `Bám Đáy/Đỉnh Sóng ${tfLabel} (${currentSlPct}%)`);
+              : (isBeLock
+                ? `Khóa Hòa Vốn Entry (+${currentSlPct}%)`
+                : (isProfitLocked ? `Khóa Lãi Sóng ${tfLabel} (+${currentSlPct}%)` : `Bám Đáy/Đỉnh Sóng ${tfLabel} (${currentSlPct}%)`));
             log.system(`[AutoTrade] 🌊 [Fractal Cascade Trailing SL] ${sym} ${levelLabel} -> Dịch SL trên sàn về $${targetSlStr} (ROI ~${currentSlPct}%) [Đỉnh ROI: +${roi.toFixed(2)}%]`);
 
             // 🧹 Hủy sạch các lệnh LIMIT Entry còn treo dư (chống khớp lại phần dư khi giá hồi về Entry)
@@ -4218,14 +4290,18 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
               // Gửi thông báo Telegram (Khóa Lãi Sóng Cascade / Bám Sóng Cascade)
               const telegramTitle = isRunnerSlValid
                 ? `🚀 <b>[AutoTrade] Khóa Lãi Trend Runner (+${currentSlPct}%)</b>`
-                : (isProfitLocked
-                  ? `🚀 <b>[AutoTrade] Khóa Lãi Sóng ${tfLabel} Fractal (+${currentSlPct}%)</b>`
-                  : `🛡️ <b>[AutoTrade] Nâng SL Bám Đáy/Đỉnh Sóng ${tfLabel} Fractal (${currentSlPct}%)</b>`);
+                : (isBeLock
+                  ? `⚖️ <b>[AutoTrade] Khóa Hòa Vốn Entry (+${currentSlPct}%)</b>`
+                  : (isProfitLocked
+                    ? `🚀 <b>[AutoTrade] Khóa Lãi Sóng ${tfLabel} Fractal (+${currentSlPct}%)</b>`
+                    : `🛡️ <b>[AutoTrade] Nâng SL Bám Đáy/Đỉnh Sóng ${tfLabel} Fractal (${currentSlPct}%)</b>`));
               const partialNotice = isRunnerSlValid
                 ? `• Đã khóa chặt mốc bảo hiểm lợi nhuận, tiếp tục gồng 50% còn lại về đích TP2!`
-                : (isProfitLocked
-                  ? `• Đã khóa chặt mức lãi tối thiểu theo cấu trúc sóng ${tfLabel}, tiếp tục gồng về Full TP!`
-                  : `• SL đã được nâng bám sát đáy/đỉnh sóng ${tfLabel} gần nhất (giảm thiểu rủi ro), giữ nguyên vị thế tiếp tục gồng về Full TP!`);
+                : (isBeLock
+                  ? `• Đã dời SL về mốc Entry bảo toàn vốn (Lỗ = 0), sẵn sàng theo dõi nến Fractal M5/M1 để khóa lãi tiếp theo!`
+                  : (isProfitLocked
+                    ? `• Đã khóa chặt mức lãi tối thiểu theo cấu trúc sóng ${tfLabel}, tiếp tục gồng về Full TP!`
+                    : `• SL đã được nâng bám sát đáy/đỉnh sóng ${tfLabel} gần nhất (giảm thiểu rủi ro), giữ nguyên vị thế tiếp tục gồng về Full TP!`));
               sendTelegram(
                 `${telegramTitle}\n` +
                 `• Coin: <b>#${sym} (${isLong ? 'LONG' : 'SHORT'})</b>\n` +
@@ -4254,13 +4330,7 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
           const typeLabel = isRunnerSlValid ? 'Trailing SL Runner' : (canApplyTrailingSl ? 'M15 Fractal Trailing SL' : 'Stop Loss');
           log.system(`[AutoTrade] [Virtual ${typeLabel}] Kích hoạt cho ${sym}: Giá ${markPrice} chạm/vượt mốc $${targetSlStr}. Đóng vị thế bằng lệnh MARKET.`);
           try {
-            justClosedByBot.add(sym);
-            await client.placeMarket(sym, oppositeSide, absAmt);
-            // 🧹 Hủy sạch tất cả các lệnh còn dư trên sàn (chống cắn lại phần dư của lệnh limit)
-            client.cancelAllOpenOrders(sym).catch(() => {});
-            for (const algo of openAlgoOrders) {
-              client.cancelAlgoOrder(sym, algo.algoId || algo.orderId).catch(() => {});
-            }
+            await closeRealPositionMarket(client, sym, oppositeSide, absAmt, openAlgoOrders, `Virtual ${typeLabel}`);
             await sendTelegram(`🛡️ <b>${typeLabel} (Virtual)</b>\n• Coin: <b>${sym}</b>\n• ROI đạt: <b>${roi.toFixed(2)}%</b>`);
             // ── Record trade exit for AI Dataset ──
             if (meta) {

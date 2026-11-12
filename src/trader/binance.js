@@ -358,15 +358,33 @@ function createClient(apiKey, secret) {
 
     /**
      * Đặt lệnh MARKET — execute ngay tại giá hiện tại.
+     * @param {string} symbol - Không có USDT
+     * @param {string} side - 'BUY' | 'SELL'
+     * @param {number} qty - Số lượng
+     * @param {boolean} [reduceOnly=false] - Nếu true, lệnh chỉ giảm vị thế hiện tại, không mở vị thế mới
      */
-    placeMarket(symbol, side, qty) {
-      return _post('/fapi/v1/order', {
+    placeMarket(symbol, side, qty, reduceOnly = false) {
+      _posCache = null;
+      _posCacheTime = 0;
+      const params = {
         symbol: `${symbol}USDT`,
         side,
         type: 'MARKET',
         quantity: qty,
         positionSide: 'BOTH',
-      }, apiKey, secret);
+      };
+      if (reduceOnly) {
+        params.reduceOnly = 'true';
+      }
+      return _post('/fapi/v1/order', params, apiKey, secret);
+    },
+
+    /**
+     * Xóa cache vị thế để lần gọi tiếp theo bắt buộc lấy dữ liệu tươi từ Binance REST API.
+     */
+    invalidatePositionCache() {
+      _posCache = null;
+      _posCacheTime = 0;
     },
 
     /**
