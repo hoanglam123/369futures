@@ -959,6 +959,22 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
       mult = Math.min(1.00, mult);
     }
 
+    // 🛡️ SANITY GUARD: S/R Price Action (Sửa lỗi không có cản được cộng điểm):
+    // 1. Không có cản (PA_0_LEVEL / SR_NONE) tuyệt đối cấm cộng thưởng (> 1.00), tối đa chỉ là trung tính x1.00!
+    if (cat === 'price_action' && val === 'PA_0_LEVEL') {
+      mult = Math.min(mult, 1.00);
+    }
+    if (cat === 'sr_quality' && val === 'SR_NONE') {
+      mult = Math.min(mult, 1.00);
+    }
+    // 2. Có cản thực tế bảo trợ (PA_1_LEVEL đến PA_4_LEVELS, SR_DAILY_D1) tối thiểu phải là trung tính x1.00 (không bị phạt oan do lỗi mẫu dataset)
+    if (cat === 'price_action' && val !== 'PA_0_LEVEL') {
+      mult = Math.max(mult, 1.00);
+    }
+    if (cat === 'sr_quality' && val !== 'SR_NONE') {
+      mult = Math.max(mult, 1.00);
+    }
+
     // 🛡️ SANITY GUARD: Giữ trần thưởng an toàn cho Pinbar tại cản PP369 (kể cả khi ngược trend Dow H1)
     if (features['trend'] === 'TREND_CONFLICT' && (val === 'CANDLE_PINBAR_HAMMER' || val === 'CANDLE_PINBAR_SHOOTING' || val === 'M15_REJECT_PINBAR' || val === 'H1_REJECT_PINBAR')) {
       mult = Math.min(mult, 1.20); // Giữ thưởng hợp lý x1.20 thay vì triệt tiêu về x1.00

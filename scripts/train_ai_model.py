@@ -942,7 +942,14 @@ def train_and_export_model():
         "ls_flow:LS_NEUTRAL": (1.00, 1.05),
         "ls_flow:LS_DIVERGENCE": (0.50, 0.85),
         "adx_strength:ADX_NORMAL": (1.00, 1.05),
-        "price_action:PA_0_LEVEL": (0.95, 1.05),  # Thực nghiệm N=1825 WinProb 51.84% ~ trung tính, không phạt định kiến
+        "price_action:PA_0_LEVEL": (0.95, 1.00),  # Không có cản tối đa là trung tính 1.00, cấm tuyệt đối > 1.00
+        "price_action:PA_1_LEVEL": (1.00, 1.10),
+        "price_action:PA_2_LEVELS": (1.00, 1.15),
+        "price_action:PA_3_LEVELS": (1.00, 1.20),
+        "price_action:PA_4_LEVELS": (1.00, 1.25),
+        "sr_quality:SR_NONE": (0.95, 1.00),
+        "sr_quality:SR_H4_ONLY": (1.00, 1.15),
+        "sr_quality:SR_DAILY_D1_INCLUDED": (1.00, 1.25),
         "btc_wave:BTC_ALIGNED": (1.00, 1.30),
         "btc_wave:BTC_COUNTER": (0.65, 0.85),
         "h1_volatility:H1_ULTRA_COMPRESSED": (1.00, 1.30),

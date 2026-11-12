@@ -68,7 +68,8 @@ async function updatePricesRest() {
 async function syncWebSocketSubscriptions(nearbySymbols) {
   if (!_ws || _ws.readyState !== WebSocket.OPEN) return;
 
-  const targetSymbols = new Set(nearbySymbols);
+  const targetSymbols = new Set(nearbySymbols || []);
+  targetSymbols.add('BTC'); // Luôn luôn duy trì stream BTC 24/7 để phục vụ real-time 0ms BTC Flash Guard
   const toSubscribe = [];
   const toUnsubscribe = [];
 
@@ -224,7 +225,7 @@ function onPriceUpdate(cb) {
  * Khởi động stream.
  */
 function start369Stream(symbols) {
-  _symbols = symbols || [];
+  _symbols = symbols ? Array.from(new Set([...symbols, 'BTC'])) : ['BTC'];
   _stopped = false;
 
   if (_ws && _ws.readyState === WebSocket.OPEN) {
