@@ -32,7 +32,7 @@ const { createServer: createDashboard, broadcastWs } = require('./src/dashboard/
 const REQUIRED_ENV = ['TELEGRAM_BOT_TOKEN', 'TELEGRAM_CHAT_ID'];
 const missing = REQUIRED_ENV.filter((key) => !process.env[key]);
 
-const hasAiKey = !!(process.env.CLAUDE_API_KEY || process.env.ANTHROPIC_API_KEY || process.env.GEMINI_API_KEY);
+const hasAiKey = !!(process.env.CLAUDE_API_KEY || process.env.ANTHROPIC_API_KEY || process.env.ANTHROPIC_AUTH_TOKEN || process.env.GEMINI_API_KEY);
 if (!hasAiKey) {
   missing.push('CLAUDE_API_KEY (hoặc GEMINI_API_KEY)');
 }

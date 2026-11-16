@@ -11,20 +11,27 @@ const GEMINI_MODELS = [
   'gemini-2.5-flash-lite',  // Fallback cuối
 ];
 
-const CLAUDE_MODELS = process.env.CLAUDE_MODEL
-  ? [process.env.CLAUDE_MODEL]
+const configuredModel = process.env.CLAUDE_MODEL
+  || process.env.ANTHROPIC_MODEL
+  || process.env.ANTHROPIC_DEFAULT_SONNET_MODEL;
+
+const CLAUDE_MODELS = configuredModel
+  ? [configuredModel, 'claude-sonnet-5', 'claude-haiku-4-5', 'claude-opus-5']
   : [
       'claude-sonnet-5',
-      'claude-sonnet-5-5',
-      'claude-opus-5',
       'claude-haiku-4-5',
+      'claude-opus-5',
+      'claude-sonnet-5-5',
       'claude-3-5-sonnet-20241022',
       'claude-3-5-haiku-20241022',
       'claude-3-haiku-20240307',
     ];
 
 function getAiConfig() {
-  const claudeKey = process.env.CLAUDE_API_KEY || process.env.ANTHROPIC_API_KEY;
+  const claudeKey = process.env.CLAUDE_API_KEY
+    || process.env.ANTHROPIC_API_KEY
+    || process.env.ANTHROPIC_AUTH_TOKEN;
+
   const geminiKey = process.env.GEMINI_API_KEY;
   const forcedProvider = process.env.AI_PROVIDER ? process.env.AI_PROVIDER.toLowerCase() : null;
 
@@ -35,11 +42,15 @@ function getAiConfig() {
     else provider = 'gemini';
   }
 
+  const rawBaseUrl = process.env.CLAUDE_BASE_URL
+    || process.env.ANTHROPIC_BASE_URL
+    || '';
+
   return {
     provider,
     claudeKey,
     geminiKey,
-    claudeBaseUrl: (process.env.CLAUDE_BASE_URL || '').replace(/\/+$/, ''),
+    claudeBaseUrl: rawBaseUrl.replace(/\/+$/, ''),
   };
 }
 
@@ -683,6 +694,7 @@ async function callClaude(prompt, maxTokens, aiConfig) {
           {
             headers: {
               'x-api-key': claudeKey,
+              'Authorization': `Bearer ${claudeKey}`,
               'anthropic-version': '2023-06-01',
               'content-type': 'application/json',
             },
