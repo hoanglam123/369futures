@@ -1,0 +1,13 @@
+app = "crypto-bot-noti"
+primary_region = "sin"  # Singapore - gần VN nhất
+
+[build]
+
+[env]
+  NODE_ENV = "production"
+  TZ = "Asia/Ho_Chi_Minh"
+
+[[vm]]
+  memory = "256mb"
+  cpu_kind = "shared"
+  cpus = 1

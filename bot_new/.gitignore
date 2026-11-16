@@ -1,0 +1,11 @@
+.env
+node_modules/
+*.log
+.DS_Store
+data/
+.claude/settings.local.json
+src/strategies/*.zip
+
+accounts/**/*.env
+accounts/**/.env
+

@@ -1,0 +1,27 @@
+{
+  "name": "news-noti",
+  "version": "1.0.0",
+  "description": "Bot gửi bản tin thị trường crypto hàng ngày lên Telegram với phân tích AI",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "node --watch index.js",
+    "run-now": "node index.js --run-now"
+  },
+  "keywords": [
+    "crypto",
+    "telegram",
+    "bot",
+    "ai",
+    "claude"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@napi-rs/canvas": "^1.0.0",
+    "axios": "^1.7.7",
+    "dotenv": "^16.4.5",
+    "node-cron": "^3.0.3",
+    "ws": "^8.21.0"
+  }
+}
