@@ -5,11 +5,8 @@ const { getNextFundingInfo } = require('../collectors/fundingRates');
 const { log } = require('./logger');
 
 // Thứ tự ưu tiên: mới nhất → cũ nhất (fallback tự động nếu model lỗi/quota)
-// Bỏ qua: gemini-2.5-pro (free tier 0/0)
 const GEMINI_MODELS = [
-  'gemini-3.5-flash',       // Mới nhất, RPD 20/ngày
-  'gemini-3.1-flash-lite',  // RPD cao nhất (500/ngày)
-  'gemini-3-flash',         // Fallback
+  'gemini-3.1-flash-lite',  // RPD cao nhất (500/ngày), phản hồi siêu tốc
   'gemini-2.5-flash',       // Fallback
   'gemini-2.5-flash-lite',  // Fallback cuối
 ];
@@ -606,9 +603,25 @@ ${hasFunding ? `<b>💸 Funding Arbitrage</b>
 
   const aiConfig = getAiConfig();
   if (aiConfig.provider === 'claude') {
-    return await callClaude(prompt, 4096, aiConfig);
+    try {
+      return await callClaude(prompt, 4096, aiConfig);
+    } catch (err) {
+      if (aiConfig.geminiKey) {
+        log.warn(`Claude thất bại [${err.message}] — Tự động fallback sang Google Gemini...`);
+        return await callGemini(prompt, 4096, aiConfig.geminiKey);
+      }
+      throw err;
+    }
   } else {
-    return await callGemini(prompt, 4096, aiConfig.geminiKey);
+    try {
+      return await callGemini(prompt, 4096, aiConfig.geminiKey);
+    } catch (err) {
+      if (aiConfig.claudeKey) {
+        log.warn(`Gemini thất bại [${err.message}] — Tự động fallback sang Anthropic Claude...`);
+        return await callClaude(prompt, 4096, aiConfig);
+      }
+      throw err;
+    }
   }
 }
 
@@ -691,9 +704,9 @@ async function callClaude(prompt, maxTokens, aiConfig) {
       lastError = new Error(`Claude [${model}] lỗi [${status}]: ${detail}`);
       log.warn(`Claude [${model}] thất bại [${status}], thử model tiếp theo — ${detail}`);
 
-      // Nếu dùng custom base URL và native Messages API bị 404, tự động fallback sang OpenAI-compatible
-      if (status === 404 && rootBaseUrl && !isOpenAiFormat) {
-        log.warn(`Claude endpoint /v1/messages bị 404, thử fallback sang /v1/chat/completions (OpenAI format)...`);
+      // Nếu dùng custom base URL và native Messages API bị lỗi, tự động fallback sang OpenAI-compatible
+      if (rootBaseUrl && !isOpenAiFormat) {
+        log.warn(`Claude endpoint /v1/messages bị lỗi [${status}], thử fallback sang /v1/chat/completions (OpenAI format)...`);
         try {
           const fallbackEndpoint = `${rootBaseUrl}/v1/chat/completions`;
           const res = await axios.post(
@@ -816,11 +829,29 @@ Dùng HTML Telegram: chỉ <b>, <i>, <code>. Không dùng markdown, không xuố
 
   const aiConfig = getAiConfig();
   if (aiConfig.provider === 'claude') {
-    const res = await callClaude(prompt, 512, aiConfig);
-    return res.analysis;
+    try {
+      const res = await callClaude(prompt, 512, aiConfig);
+      return res.analysis;
+    } catch (err) {
+      if (aiConfig.geminiKey) {
+        log.warn(`Claude thất bại [${err.message}] — Tự động fallback sang Google Gemini...`);
+        const res = await callGemini(prompt, 512, aiConfig.geminiKey);
+        return res.analysis;
+      }
+      throw err;
+    }
   } else {
-    const res = await callGemini(prompt, 512, aiConfig.geminiKey);
-    return res.analysis;
+    try {
+      const res = await callGemini(prompt, 512, aiConfig.geminiKey);
+      return res.analysis;
+    } catch (err) {
+      if (aiConfig.claudeKey) {
+        log.warn(`Gemini thất bại [${err.message}] — Tự động fallback sang Anthropic Claude...`);
+        const res = await callClaude(prompt, 512, aiConfig);
+        return res.analysis;
+      }
+      throw err;
+    }
   }
 }
 
