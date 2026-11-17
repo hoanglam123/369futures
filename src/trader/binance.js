@@ -332,8 +332,9 @@ function createClient(apiKey, secret) {
      * @param {number} qty      - Số lượng đã quantize
      * @param {number} price    - Giá limit
      * @param {number} decimals - Số decimal của price trên Binance
+     * @param {boolean} [reduceOnly=false] - Nếu true, chỉ giảm vị thế (dùng cho Limit TP)
      */
-    placeLimit(symbol, side, qty, price, decimals) {
+    placeLimit(symbol, side, qty, price, decimals, reduceOnly = false) {
       const tickSize = getSymbolTickSizeSync(symbol);
 
       let finalPriceStr;
@@ -345,7 +346,7 @@ function createClient(apiKey, secret) {
         finalPriceStr = price.toFixed(decimals);
       }
 
-      return _post('/fapi/v1/order', {
+      const params = {
         symbol: `${symbol}USDT`,
         side,
         type: 'LIMIT',
@@ -353,7 +354,26 @@ function createClient(apiKey, secret) {
         price: finalPriceStr,
         timeInForce: 'GTC',
         positionSide: 'BOTH',
-      }, apiKey, secret);
+      };
+      if (reduceOnly) {
+        params.reduceOnly = 'true';
+      }
+
+      return _post('/fapi/v1/order', params, apiKey, secret);
+    },
+
+    /**
+     * Lấy thông tin trạng thái 1 lệnh cụ thể theo orderId.
+     */
+    getOrder(symbol, orderId) {
+      return _get('/fapi/v1/order', { symbol: `${symbol}USDT`, orderId }, apiKey, secret);
+    },
+
+    /**
+     * Lấy thông tin trạng thái 1 lệnh Algo cụ thể theo algoId.
+     */
+    getAlgoOrder(symbol, algoId) {
+      return _get('/fapi/v1/algoOrder', { symbol: `${symbol}USDT`, algoId }, apiKey, secret);
     },
 
     /**

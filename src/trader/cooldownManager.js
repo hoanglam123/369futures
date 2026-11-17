@@ -98,7 +98,7 @@ function addSymbolToCooldown(sym, hours = null, reason = 'SL_NORMAL') {
     } else if (r.includes('PANIC') || r.includes('EMERGENCY')) {
       effHours = 8.0;
     } else {
-      effHours = 5.0; // SL bình thường do biến động ngắn hạn
+      effHours = 6.0; // Cooldown Guard 6h chuẩn Roadmap chống Revenge Trading
     }
   }
 

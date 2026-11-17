@@ -29,6 +29,7 @@ const turnoverGuard   = require('./turnoverGuard');
 const shadowTracker   = require('./shadowTracker');
 const autoRetrainer   = require('./autoRetrainer');
 const dailyReporter   = require('./dailyReporter');
+const confluenceScorer = require('./confluenceScorer');
 
 module.exports = {
   // ── Shadow PnL Tracker ───────────────────────────────────────────────────
@@ -97,6 +98,11 @@ module.exports = {
   getMinGridPct:         core.getMinGridPct,
   isTop100Symbol:        core.isTop100Symbol,
   isTop30Symbol:         core.isTop30Symbol,
+  isTop50Symbol:         confluenceScorer.isTop50Symbol,
+  scoreSetup:            confluenceScorer.scoreSetup,
+  checkHardFilters:      confluenceScorer.checkHardFilters,
+  calcMaxLeverage:       confluenceScorer.calcMaxLeverage,
+  calcTAFromKlines:      confluenceScorer.calcTAFromKlines,
   getMarketCapRank:      core.getMarketCapRank,
   isSymbolInGridBlacklist: core.isSymbolInGridBlacklist,
   getGridBlacklistInfo:    core.getGridBlacklistInfo,
@@ -104,6 +110,10 @@ module.exports = {
   classifyCandleGeometry:  core.classifyCandleGeometry,
   getRecentFractalSwing:   core.getRecentFractalSwing,
   getRecentM15FractalSwing: core.getRecentM15FractalSwing,
+  fetchH1Historical:       core.fetchH1Historical,
+  fetchH4Historical:       core.fetchH4Historical,
+  findSwingPoints:         core.findSwingPoints,
+  calculateATR:            core.calculateATR,
 
   // ── WebSocket stream ─────────────────────────────────────────────────────
   start369Stream:   stream.start369Stream,

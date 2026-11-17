@@ -22,4 +22,4 @@ data/shadow_trades_history.jsonl
 data/ai_evaluations.jsonl
 data/skipped_signals.jsonl
 __pycache__/
-*.pyc
+*.pycdata/sl_cooldown.json

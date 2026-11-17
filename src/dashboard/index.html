@@ -1,0 +1,1166 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>AI Trading Dashboard</title>
+<link rel="icon" type="image/jpeg" href="/favicon.jpg"/>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+:root{--bg:#0d1117;--card:#161b22;--card2:#1c2128;--border:#30363d;--text:#c9d1d9;--muted:#8b949e;--green:#3fb950;--red:#f85149;--blue:#58a6ff;--yellow:#e3b341;--purple:#bc8cff;--orange:#f0883e}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,sans-serif;font-size:14px;line-height:1.5;min-height:100vh}
+a{color:var(--blue);text-decoration:none}
+
+/* ── Header ── */
+header{border-bottom:1px solid var(--border);padding:10px 20px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:rgba(13,17,23,.95);backdrop-filter:blur(8px);z-index:100}
+header h1{font-size:16px;font-weight:700;color:#e6edf3;white-space:nowrap}header h1 span{color:var(--blue)}
+.hdr-right{display:flex;align-items:center;gap:8px;flex-shrink:0;flex-wrap:nowrap}
+.pill{padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600;border:1px solid;white-space:nowrap}
+.pill-green{background:rgba(63,185,80,.12);color:var(--green);border-color:rgba(63,185,80,.3)}
+.pill-red{background:rgba(248,81,73,.12);color:var(--red);border-color:rgba(248,81,73,.3);display:none}
+.pill-yellow{background:rgba(227,179,65,.12);color:var(--yellow);border-color:rgba(227,179,65,.3)}
+.refresh-btn{background:transparent;border:1px solid var(--border);color:var(--muted);padding:4px 10px;border-radius:6px;cursor:pointer;font-size:12px;transition:all .15s}
+.refresh-btn:hover{border-color:var(--blue);color:var(--blue)}
+.last-upd{font-size:11px;color:var(--muted)}
+
+/* ── Tabs ── */
+.tabs{display:flex;border-bottom:1px solid var(--border);padding:0 20px;background:var(--bg);position:sticky;top:41px;z-index:99;overflow-x:auto;scrollbar-width:none}
+.tabs::-webkit-scrollbar{display:none}
+.tab{padding:9px 14px;cursor:pointer;font-size:13px;color:var(--muted);border-bottom:2px solid transparent;white-space:nowrap;user-select:none;transition:color .15s}
+.tab:hover{color:var(--text)}.tab.active{color:var(--blue);border-bottom-color:var(--blue);font-weight:600}
+
+/* ── Layout ── */
+main{max-width:1300px;margin:0 auto;padding:18px 20px}
+.tab-content{display:none}.tab-content.active{display:block}
+section{margin-bottom:24px}
+h2{font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;margin-bottom:10px;display:flex;align-items:center;gap:6px}
+h2 .cnt{font-weight:400;text-transform:none}
+
+/* ── Cards ── */
+.stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px}
+.card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:13px 15px}
+.card .lbl{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px}
+.card .val{font-size:22px;font-weight:700;line-height:1.2}
+.card .sub{font-size:11px;color:var(--muted);margin-top:3px}
+.pos{color:var(--green)}.neg{color:var(--red)}.neu{color:var(--text)}.blue{color:var(--blue)}.yellow{color:var(--yellow)}.purple{color:var(--purple)}.orange{color:var(--orange)}
+@keyframes price-up{0%{background:rgba(63,185,80,.35);border-radius:3px}100%{background:transparent}}
+@keyframes price-dn{0%{background:rgba(248,81,73,.35);border-radius:3px}100%{background:transparent}}
+.pfup{animation:price-up .65s ease-out}.pfdn{animation:price-dn .65s ease-out}
+
+/* ── Health chips ── */
+.health-row{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px}
+.hchip{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:6px 12px;display:flex;align-items:center;gap:7px;font-size:12px}
+.hchip .dot{width:7px;height:7px;border-radius:50%;background:var(--green);flex-shrink:0}
+.hchip.warn .dot{background:var(--yellow)}.hchip.err .dot{background:var(--red)}
+.hchip strong{color:var(--text)}.hchip span{color:var(--muted)}
+
+/* ── Charts row ── */
+.charts-grid{display:grid;grid-template-columns:2fr 1fr 1fr;gap:12px}
+@media(max-width:900px){.charts-grid{grid-template-columns:1fr}}
+.chart-card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:14px 16px}
+.chart-card canvas{max-height:200px}
+.chart-title{font-size:11px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px}
+
+/* ── Two col ── */
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media(max-width:700px){.two-col{grid-template-columns:1fr}}
+
+/* ── Table ── */
+.tbl-wrap{background:var(--card);border:1px solid var(--border);border-radius:10px;overflow:auto}
+table{width:100%;border-collapse:collapse;min-width:500px}
+th{font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;padding:8px 12px;text-align:left;border-bottom:1px solid var(--border);white-space:nowrap;background:var(--card)}
+td{padding:7px 12px;border-bottom:1px solid #21262d;font-size:12px;white-space:nowrap}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:#1c2128}
+.empty{text-align:center;padding:24px;color:var(--muted);font-style:italic;font-size:13px;min-width:0}
+
+/* ── Badge ── */
+.badge{display:inline-block;font-size:10px;font-weight:700;padding:2px 6px;border-radius:4px;letter-spacing:.2px}
+.bl{background:rgba(63,185,80,.12);color:var(--green);border:1px solid rgba(63,185,80,.25)}
+.bs{background:rgba(248,81,73,.12);color:var(--red);border:1px solid rgba(248,81,73,.25)}
+.btp{background:rgba(63,185,80,.12);color:var(--green);border:1px solid rgba(63,185,80,.2)}
+.bsl{background:rgba(248,81,73,.12);color:var(--red);border:1px solid rgba(248,81,73,.2)}
+.brev{background:rgba(88,166,255,.1);color:var(--blue);border:1px solid rgba(88,166,255,.2)}
+.bmc{background:rgba(240,136,62,.1);color:#f0883e;border:1px solid rgba(240,136,62,.2)}
+.bbe{background:rgba(56,189,162,.12);color:#38bda2;border:1px solid rgba(56,189,162,.2)}
+
+/* ── Monitor badges ── */
+.mon-row{display:flex;gap:4px;margin-top:3px}
+.mon{font-size:10px;padding:1px 5px;border-radius:3px;font-weight:600;white-space:nowrap;cursor:default}
+.mon-bn{background:rgba(63,185,80,.12);color:var(--green);border:1px solid rgba(63,185,80,.25)}
+.mon-cs{background:rgba(139,148,158,.08);color:var(--muted);border:1px solid rgba(139,148,158,.2)}
+
+/* ── Progress bar ── */
+.pbar-wrap{width:100%;background:#21262d;border-radius:4px;height:6px;position:relative;overflow:hidden}
+.pbar{height:100%;border-radius:4px;transition:width .3s}
+.pbar.profit{background:var(--green)}.pbar.loss{background:var(--red)}
+.pbar-labels{display:flex;justify-content:space-between;font-size:10px;color:var(--muted);margin-top:2px}
+
+/* ── Market cards ── */
+.market-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
+.mcard{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:16px}
+.mcard .coin{font-size:13px;font-weight:700;color:var(--muted);margin-bottom:4px}
+.mcard .price{font-size:28px;font-weight:800;letter-spacing:-.5px}
+.mcard .meta{font-size:11px;color:var(--muted);margin-top:4px}
+.mcard .change{font-size:14px;font-weight:700}
+.fg-arc{position:relative;width:120px;height:60px;margin:0 auto 8px}
+.fg-arc canvas{display:block}
+.fg-val{text-align:center;font-size:32px;font-weight:800}
+.fg-lbl{text-align:center;font-size:12px;color:var(--muted);margin-top:2px}
+
+/* ── Log viewer ── */
+.log-toolbar{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;align-items:center}
+.log-toolbar select{background:var(--card);border:1px solid var(--border);color:var(--text);padding:4px 8px;border-radius:6px;font-size:12px}
+.cat-btn{background:transparent;border:1px solid var(--border);color:var(--muted);padding:3px 9px;border-radius:6px;cursor:pointer;font-size:11px;font-weight:600;transition:all .15s}
+.cat-btn:hover,.cat-btn.on{background:var(--card2);color:var(--blue);border-color:var(--blue)}
+.log-search{background:var(--card2);border:1px solid var(--border);color:var(--text);padding:4px 10px;border-radius:6px;font-size:12px;outline:none;width:180px}
+.log-search:focus{border-color:var(--blue)}
+.log-box{background:#090d12;border:1px solid var(--border);border-radius:10px;padding:10px;height:500px;overflow-y:auto;font-family:'Cascadia Code','Fira Code',Consolas,monospace;font-size:12px;line-height:1.65}
+.log-box::-webkit-scrollbar{width:5px}.log-box::-webkit-scrollbar-thumb{background:#30363d;border-radius:3px}
+.log-line{display:flex;gap:7px;padding:1px 0;border-radius:3px}
+.log-line:hover{background:#111820}
+.ll-time{color:#3d4450;flex-shrink:0;width:58px;font-size:11px}
+.ll-cat{flex-shrink:0;width:72px;font-size:10px;font-weight:700}
+.ll-msg{color:var(--text);word-break:break-word;overflow-wrap:anywhere;flex:1;min-width:0}
+.ll-data{color:#3d4450;font-size:11px;word-break:break-word;overflow-wrap:anywhere;min-width:0}
+mark{background:rgba(227,179,65,.25);color:var(--yellow);border-radius:2px;padding:0 1px}
+.cat-SYSTEM{color:var(--muted)}.cat-TRADE{color:var(--green)}.cat-AI{color:var(--purple)}.cat-PRICE{color:var(--blue)}.cat-FUNDING{color:var(--orange)}.cat-TELEGRAM{color:#79c0ff}.cat-WARN{color:var(--yellow)}.cat-ERROR{color:var(--red)}
+.auto-refresh{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--muted);cursor:pointer;user-select:none;margin-left:auto}
+.auto-refresh input{accent-color:var(--blue)}
+
+/* ── Watched coins ── */
+.watched-card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:14px 16px}
+.watched-group{margin-bottom:12px}
+.watched-group:last-child{margin-bottom:0}
+.watched-group-label{font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px}
+.coin-chips{display:flex;flex-wrap:wrap;gap:6px}
+.coin-chip{padding:3px 10px;border-radius:6px;font-size:12px;font-weight:700;cursor:default;letter-spacing:.3px}
+.chip-fixed {background:rgba(88,166,255,.12);color:var(--blue);border:1px solid rgba(88,166,255,.25)}
+.chip-tier2 {background:rgba(163,113,247,.12);color:#a371f7;border:1px solid rgba(163,113,247,.25)}
+.chip-liquid{background:rgba(63,185,80,.1);color:var(--green);border:1px solid rgba(63,185,80,.2)}
+.chip-gainer{background:rgba(240,136,62,.12);color:var(--orange);border:1px solid rgba(240,136,62,.25)}
+.watched-footer{margin-top:10px;font-size:11px;color:var(--muted);display:flex;gap:16px;flex-wrap:wrap}
+.watched-footer span{display:flex;align-items:center;gap:4px}
+
+/* ── PP369 strength ── */
+.sbar{display:inline-flex;gap:2px;vertical-align:middle}
+.sbar span{width:7px;height:12px;border-radius:2px;background:#21262d}
+.sbar span.L{background:var(--green)}.sbar span.S{background:var(--red)}
+
+/* ── Responsive ── */
+@media(max-width:768px){
+  /* Log line: time+cat thu nhỏ, msg xuống dòng riêng khi cần */
+  .log-line{flex-wrap:wrap;align-items:baseline;min-width:0}
+  .ll-time{width:48px;font-size:10px}
+  .ll-cat{width:62px}
+  .ll-msg{flex-basis:0;min-width:0}
+  .ll-data{flex-basis:100%;padding-left:112px;font-size:10px}
+  .log-search{width:120px}
+  .auto-refresh{margin-left:0}
+}
+@media(max-width:600px){
+  main{padding:10px}
+  .card .val{font-size:18px}
+  .mcard .price{font-size:22px}
+  /* Header compact — 1 dòng */
+  header{padding:8px 12px}
+  header h1{font-size:13px}
+  .last-upd{display:none}
+  .pill{padding:1px 6px;font-size:10px}
+  .refresh-btn{padding:3px 8px;font-size:11px}
+  .hdr-right{gap:5px}
+  /* Tabs compact */
+  .tabs{padding:0 8px}
+  .tab{padding:8px 10px;font-size:12px}
+  /* Toolbar compact */
+  .log-toolbar{gap:4px}
+  .cat-btn{padding:2px 6px;font-size:10px}
+  .log-toolbar select{font-size:11px;padding:3px 6px}
+  .log-search{width:100px}
+  .log-box{height:420px;font-size:11px;line-height:1.55;padding:8px}
+  /* Log line: stack thành 2 dòng trên màn nhỏ */
+  .ll-time{width:44px;font-size:10px}
+  .ll-cat{width:58px;font-size:9px}
+  .ll-msg{flex-basis:0;min-width:0}
+  .ll-data{padding-left:104px;font-size:10px}
+  /* Stats grid 2 cột thay vì auto-fit */
+  .stats-grid{grid-template-columns:repeat(2,1fr)}
+  /* Charts stack */
+  .charts-grid{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>⚡ <span>AI Trading</span> Dashboard</h1>
+  <div class="hdr-right">
+    <span class="pill pill-green" id="hOnline">● Online</span>
+    <span class="pill pill-red" id="hErr"></span>
+    <span class="pill pill-yellow" id="hActive" style="display:none"></span>
+    <span class="last-upd" id="lastUpd">—</span>
+    <span id="wsDot" title="WebSocket: đang kết nối..." style="width:7px;height:7px;border-radius:50%;background:var(--yellow);display:inline-block;flex-shrink:0"></span>
+    <button class="refresh-btn" onclick="loadAll()" title="Refresh">↻</button>
+  </div>
+</header>
+
+<nav class="tabs" id="tabNav">
+  <div class="tab active" data-tab="overview">📊 Tổng quan</div>
+  <div class="tab" data-tab="market">🌐 Thị trường</div>
+  <div class="tab" data-tab="trades">⚡ Lệnh AI</div>
+  <div class="tab" data-tab="funding" style="display:none">💰 Funding</div>
+  <div class="tab" data-tab="signals">📡 PP369</div>
+  <div class="tab" data-tab="logs">📋 Nhật ký</div>
+</nav>
+
+<main>
+
+<!-- ══ OVERVIEW ══ -->
+<div class="tab-content active" id="tab-overview">
+  <section>
+    <div class="health-row" id="healthRow"></div>
+    <div class="stats-grid" id="statsGrid"></div>
+  </section>
+
+  <section id="watchedSection">
+    <h2>👁 Coin đang được theo dõi <span class="cnt" id="watchedCount"></span></h2>
+    <div class="watched-card" id="watchedCard"></div>
+  </section>
+  <section>
+    <div class="charts-grid">
+      <div class="chart-card"><div class="chart-title">Cumulative PnL</div><canvas id="pnlChart"></canvas></div>
+      <div class="chart-card"><div class="chart-title">Win / Loss</div><canvas id="donutChart"></canvas></div>
+      <div class="chart-card"><div class="chart-title">Thời gian giữ</div><canvas id="durChart"></canvas></div>
+    </div>
+  </section>
+  <section>
+    <h2>📅 PnL theo ngày (30 ngày gần nhất)</h2>
+    <div class="chart-card"><canvas id="dayChart"></canvas></div>
+  </section>
+  <section>
+    <h2>🏆 Hiệu suất theo coin</h2>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>Symbol</th><th>Tổng</th><th>Win</th><th>Loss</th><th>Win Rate</th><th>PnL tổng</th></tr></thead>
+        <tbody id="symBody"><tr><td colspan="6" class="empty">Chưa có dữ liệu</td></tr></tbody>
+      </table>
+    </div>
+  </section>
+</div>
+
+<!-- ══ MARKET ══ -->
+<div class="tab-content" id="tab-market">
+  <section>
+    <div class="market-grid" id="marketCards"></div>
+  </section>
+  <section>
+    <h2>💸 Top Funding Rates (Binance Perp)</h2>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>#</th><th>Symbol</th><th>Funding Rate/8h</th><th>Annualized</th><th>Chiều</th></tr></thead>
+        <tbody id="fundRateBody"><tr><td colspan="5" class="empty">Đang tải...</td></tr></tbody>
+      </table>
+    </div>
+  </section>
+</div>
+
+<!-- ══ TRADES ══ -->
+<div class="tab-content" id="tab-trades">
+  <section>
+    <h2>⚡ Lệnh đang theo dõi <span class="cnt" id="activeCount">(0)</span></h2>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>Symbol</th><th>Side</th><th>Lev</th><th>Entry</th><th>Giá hiện tại</th><th>Unrealized PnL</th><th>TP/SL Progress</th><th>TP</th><th>TP1 (+10%vốn)</th><th>TP2 (1:1 R:R)</th><th>SL</th><th>Liq</th><th>Mở từ</th></tr></thead>
+        <tbody id="activeBody"><tr><td colspan="13" class="empty">Không có lệnh đang theo dõi</td></tr></tbody>
+      </table>
+    </div>
+  </section>
+  <section>
+    <h2>📋 Lịch sử lệnh <span class="cnt" id="histCount">(0)</span></h2>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>Đóng lúc</th><th>Symbol</th><th>Side</th><th>Lev</th><th>KQ</th><th>PnL vốn</th><th>PnL tài khoản</th><th>Giá vào</th><th>Giá đóng</th><th>Giữ</th><th>TP1</th><th>TP2</th></tr></thead>
+        <tbody id="histBody"><tr><td colspan="12" class="empty">Chưa có lịch sử</td></tr></tbody>
+      </table>
+    </div>
+  </section>
+</div>
+
+<!-- ══ FUNDING ══ -->
+<div class="tab-content" id="tab-funding">
+  <section><div class="stats-grid" id="fundingStats"></div></section>
+  <section>
+    <h2>💰 Vị thế đang mở <span class="cnt" id="fundActiveCount">(0)</span></h2>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>Symbol</th><th>Chiều</th><th>Rate/8h</th><th>Vào lúc</th><th>Thanh toán tiếp</th></tr></thead>
+        <tbody id="fundActiveBody"><tr><td colspan="5" class="empty">Không có vị thế</td></tr></tbody>
+      </table>
+    </div>
+  </section>
+  <section>
+    <h2>📋 Lịch sử funding <span class="cnt" id="fundHistCount">(0)</span></h2>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>Đóng lúc</th><th>Symbol</th><th>Chiều</th><th>Rate/8h</th><th>KQ</th><th>PnL ròng</th></tr></thead>
+        <tbody id="fundHistBody"><tr><td colspan="6" class="empty">Chưa có lịch sử</td></tr></tbody>
+      </table>
+    </div>
+  </section>
+</div>
+
+<!-- ══ PP369 ══ -->
+<div class="tab-content" id="tab-signals">
+  <section>
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap">
+      <h2 style="margin-bottom:0">📡 Tín hiệu PP369 <span class="cnt" id="sigCount">(0)</span></h2>
+      <label style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--muted);cursor:pointer;user-select:none">
+        <input type="checkbox" id="sigDedup" style="accent-color:var(--blue)" checked>
+        Chỉ tín hiệu mới nhất/coin
+      </label>
+    </div>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr>
+          <th>Thời gian</th><th>Symbol</th><th>Tháng</th><th>Tín hiệu</th>
+          <th>Lần</th><th>Sức mạnh</th>
+          <th>H1 Open</th><th>H1 Close</th>
+          <th>Entry (target)</th><th>Điều kiện</th>
+          <th>Giá tín hiệu</th><th>% từ H1 Open</th>
+        </tr></thead>
+        <tbody id="sigBody"><tr><td colspan="12" class="empty">Chưa có tín hiệu PP369</td></tr></tbody>
+      </table>
+    </div>
+  </section>
+</div>
+
+<!-- ══ LOGS ══ -->
+<div class="tab-content" id="tab-logs">
+  <section>
+    <div class="log-toolbar">
+      <select id="logDate"></select>
+      <select id="logLines">
+        <option value="200">200 dòng</option>
+        <option value="300" selected>300 dòng</option>
+        <option value="500">500 dòng</option>
+        <option value="1000">1000 dòng</option>
+      </select>
+      <button class="cat-btn on" data-cat="">TẤT CẢ</button>
+      <button class="cat-btn" data-cat="SYSTEM">SYSTEM</button>
+      <button class="cat-btn" data-cat="TRADE">TRADE</button>
+      <button class="cat-btn" data-cat="AI">AI</button>
+      <button class="cat-btn" data-cat="PRICE">PRICE</button>
+      <button class="cat-btn" data-cat="FUNDING">FUNDING</button>
+      <button class="cat-btn" data-cat="WARN">WARN</button>
+      <button class="cat-btn" data-cat="ERROR">ERROR</button>
+      <input class="log-search" id="logSearch" placeholder="🔍 Tìm kiếm..."/>
+      <label class="auto-refresh"><input type="checkbox" id="autoRefLog" checked> Auto 10s</label>
+    </div>
+    <div class="log-box" id="logBox"><span style="color:var(--muted)">Đang tải...</span></div>
+  </section>
+</div>
+
+</main>
+
+<!-- ══ Dialog: Set TP/SL for manual trades ══ -->
+<dialog id="dlgTPSL" style="background:var(--card);color:var(--text);border:1px solid var(--border);border-radius:12px;padding:20px 24px;min-width:300px;outline:none">
+  <h3 style="margin-bottom:14px;font-size:14px;font-weight:700">⚙ Đặt TP/SL — <span id="dlgSym" style="color:var(--blue)"></span></h3>
+  <input type="hidden" id="dlgId">
+  <div style="display:flex;flex-direction:column;gap:10px">
+    <label style="font-size:11px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.5px">TP (Giá chốt lời)
+      <input type="number" id="dlgTP" step="any" placeholder="để trống = không đổi" style="width:100%;margin-top:4px;background:var(--card2);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:6px;font-size:13px;outline:none;display:block">
+    </label>
+    <label style="font-size:11px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.5px">TP1 (1:1 Risk:Reward)
+      <input type="number" id="dlgTP1" step="any" placeholder="để trống = không đổi" style="width:100%;margin-top:4px;background:var(--card2);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:6px;font-size:13px;outline:none;display:block">
+    </label>
+    <label style="font-size:11px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.5px">TP2
+      <input type="number" id="dlgTP2" step="any" placeholder="để trống = không đổi" style="width:100%;margin-top:4px;background:var(--card2);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:6px;font-size:13px;outline:none;display:block">
+    </label>
+    <label style="font-size:11px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.5px">SL (Giá cắt lỗ)
+      <input type="number" id="dlgSL" step="any" placeholder="để trống = không đổi" style="width:100%;margin-top:4px;background:var(--card2);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:6px;font-size:13px;outline:none;display:block">
+    </label>
+  </div>
+  <p style="font-size:10px;color:var(--muted);margin-top:10px">Bot sẽ dùng giá này để theo dõi TP/SL real-time.</p>
+  <div style="display:flex;gap:8px;margin-top:14px;justify-content:flex-end">
+    <button onclick="$('dlgTPSL').close()" style="background:transparent;border:1px solid var(--border);color:var(--muted);padding:6px 14px;border-radius:6px;cursor:pointer;font-size:12px">Hủy</button>
+    <button id="dlgSaveBtn" onclick="saveTPSL()" style="background:rgba(88,166,255,.15);border:1px solid rgba(88,166,255,.3);color:var(--blue);padding:6px 14px;border-radius:6px;cursor:pointer;font-size:12px;font-weight:600">Lưu</button>
+  </div>
+</dialog>
+
+<script>
+const TAKER_FEE = 0.0004;
+const charts = {};
+let activeTab = 'overview';
+let logFilter = '';
+let logAutoTimer = null;
+let logLines = [];    // raw parsed lines for client-side search
+let pp369Ctx = {};
+
+// ── Tiny utils ───────────────────────────────────────────────────────────────
+const $ = id => document.getElementById(id);
+const get = url => fetch(url).then(r => r.json()).catch(() => null);
+const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+
+function fmt(n, d=2) {
+  if (n == null || isNaN(n)) return '—';
+  return (n >= 0 ? '+' : '-') + Math.abs(n).toFixed(d) + '%';
+}
+function fmtP(p) {
+  if (p == null) return '—';
+  if (p >= 10000) return p.toLocaleString('en-US', {maximumFractionDigits:0});
+  if (p >= 1000)  return p.toLocaleString('en-US', {maximumFractionDigits:1});
+  return parseFloat(p.toPrecision(5)).toString();
+}
+function fmtD(ms) {
+  if (!ms) return '—';
+  const h = Math.floor(ms/3600000), m = Math.floor(ms%3600000/60000);
+  return h > 0 ? `${h}h${m}m` : `${m}m`;
+}
+function fmtT(iso, short=false) {
+  if (!iso) return '—';
+  const opts = short
+    ? {timeZone:'Asia/Ho_Chi_Minh',hour:'2-digit',minute:'2-digit'}
+    : {timeZone:'Asia/Ho_Chi_Minh',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'};
+  return new Date(iso).toLocaleString('vi-VN', opts);
+}
+function ago(iso) {
+  if (!iso) return '—';
+  const ms = Date.now() - new Date(iso).getTime(), h = Math.floor(ms/3600000), m = Math.floor(ms%3600000/60000);
+  return h > 48 ? Math.floor(h/24)+'d' : h > 0 ? `${h}h${m}m` : `${m}m`;
+}
+function clr(v) { return v == null ? 'neu' : v >= 0 ? 'pos' : 'neg'; }
+function sideBadge(d) { return d==='LONG'?'<span class="badge bl">LONG</span>':'<span class="badge bs">SHORT</span>'; }
+function hitBadge(t) {
+  const er = t.exitReason, res = t.result, h = t.hit;
+  if (er==='tp'   || h==='TP')                     return '<span class="badge btp">✅ TP</span>';
+  if ((er==='sl'  || h==='SL') && t.tp1Hit && res==='breakeven') return '<span class="badge bbe">🤝 HÒA</span><span class="badge btp" style="padding:1px 4px;font-size:11px">TP1</span>';
+  if (er==='sl'   || h==='SL')                     return '<span class="badge bsl">❌ SL</span>';
+  if (er==='manual_close' || h==='manual_close') {
+    if (t.wasReversed) {
+      if (res==='win')  return '<span class="badge brev">🔁✅ REV</span><span class="badge bmc" style="padding:1px 4px;font-size:11px">✋</span>';
+      if (res==='loss') return '<span class="badge brev">🔁❌ REV</span><span class="badge bmc" style="padding:1px 4px;font-size:11px">✋</span>';
+      return '<span class="badge brev">🔁 REV</span><span class="badge bmc" style="padding:1px 4px;font-size:11px">✋</span>';
+    }
+    if (res==='win')  return '<span class="badge bmc">✋✅ TC</span>';
+    if (res==='loss') return '<span class="badge bmc">✋❌ TC</span>';
+    return '<span class="badge bmc">✋❓ TC</span>';
+  }
+  if (h==='REV_WIN'  || (er==='reversed' && res==='win'))  return '<span class="badge brev">🔁✅ REV</span>';
+  if (h==='REV_LOSS' || (er==='reversed' && res==='loss')) return '<span class="badge brev">🔁❌ REV</span>';
+  return '<span class="badge brev">🔁 REV</span>';
+}
+function mkChart(id, type, data, opts) {
+  const c = $(id);
+  if (!c) return;
+  if (charts[id]) charts[id].destroy();
+  charts[id] = new Chart(c.getContext('2d'), { type, data, options: { responsive:true, maintainAspectRatio:true, ...opts } });
+  return charts[id];
+}
+
+// ── Tabs ─────────────────────────────────────────────────────────────────────
+document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => {
+  document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(x=>x.classList.remove('active'));
+  t.classList.add('active');
+  activeTab = t.dataset.tab;
+  $(`tab-${activeTab}`).classList.add('active');
+  if (activeTab === 'logs') loadLogs();
+  if (activeTab === 'market') loadMarket();
+  if (activeTab === 'signals') loadSignals();
+}));
+
+// ── Watched Coins ─────────────────────────────────────────────────────────────
+async function loadWatchedCoins() {
+  const d = await get('/api/watched-coins');
+  if (!d) return;
+
+  let fixed   = Array.isArray(d.fixed)   ? d.fixed   : [];
+  let tier2   = Array.isArray(d.tier2)   ? d.tier2   : [];
+  let liquid  = Array.isArray(d.liquid)  ? d.liquid  : [];
+  let gainers = Array.isArray(d.gainers) ? d.gainers : [];
+  const allSymbols = Array.isArray(d.symbols) ? d.symbols : [];
+  const total = allSymbols.length || fixed.length;
+
+  $('watchedCount').textContent = `(${total} coin)`;
+
+  // Nếu breakdown rỗng nhưng symbols có data → hiện tất cả làm fixed
+  if (!fixed.length && !tier2.length && !liquid.length && !gainers.length && allSymbols.length) {
+    fixed = allSymbols;
+  }
+
+  const updStr = d.updatedAt
+    ? `Cập nhật ${ago(d.updatedAt)} trước${d.source === 'startup' ? ' — chờ job chạy để có full list' : ''}`
+    : '';
+
+  const groups = [
+    { label: `🚀 Fixed (${fixed.length})`, chips: fixed, cls: 'chip-fixed' },
+    { label: `💎 Large cap (${tier2.length})`, chips: tier2, cls: 'chip-tier2' },
+    { label: `💧 Liquid cao (${liquid.length})`, chips: liquid, cls: 'chip-liquid' },
+    { label: `🚀 Gainers (${gainers.length})`, chips: gainers, cls: 'chip-gainer' },
+  ].filter(g => g.chips.length > 0);
+
+  $('watchedCard').innerHTML = groups.map(g => `
+    <div class="watched-group">
+      <div class="watched-group-label">${g.label}</div>
+      <div class="coin-chips">${g.chips.map(c => `<span class="coin-chip ${g.cls}">${c}</span>`).join('')}</div>
+    </div>
+  `).join('') + (updStr ? `<div class="watched-footer"><span>🕐 ${updStr}</span></div>` : '');
+}
+
+// ── Health ────────────────────────────────────────────────────────────────────
+async function loadHealth() {
+  const h = await get('/api/health');
+  if (!h) return;
+
+  $('hErr').style.display = h.errorCount > 0 ? 'inline-block' : 'none';
+  $('hErr').textContent = `⚠ ${h.errorCount} lỗi`;
+  $('hActive').style.display = h.activeTrades > 0 ? 'inline-block' : 'none';
+  $('hActive').textContent = `⚡ ${h.activeTrades} lệnh mở`;
+
+  $('healthRow').innerHTML = [
+    { l:'Bot', v:'Online', cls:'', dot:true },
+    { l:'Lệnh AI mở', v:h.activeTrades, cls:'', dot:false },
+    { l:'Funding mở', v:h.fundingActive, cls:'', dot:false },
+    { l:'Log cuối', v:h.lastLog ? ago(h.lastLog)+' trước' : '—', cls:!h.lastLog?'warn':'', dot:true },
+    { l:'TRADE hôm nay', v:h.tradeCount, cls:'', dot:false },
+    { l:'AI hôm nay', v:h.aiCount, cls:'', dot:false },
+    { l:'WARN hôm nay', v:h.warnCount, cls:h.warnCount>10?'warn':'', dot:false },
+    { l:'ERROR hôm nay', v:h.errorCount, cls:h.errorCount>0?'err':'', dot:false },
+  ].map(c=>`<div class="hchip ${c.cls}">${c.dot?'<span class="dot"></span>':''}<strong>${c.v}</strong><span>${c.l}</span></div>`).join('');
+}
+
+// ── Stats + Charts ────────────────────────────────────────────────────────────
+async function loadOverview() {
+  const [stats, chartData, analytics] = await Promise.all([
+    get('/api/stats'), get('/api/chart'), get('/api/analytics')
+  ]);
+  if (stats) renderStats(stats);
+  if (chartData) renderPnlChart(chartData);
+  if (stats) renderDonut(stats);
+  if (analytics) renderAnalytics(analytics);
+}
+
+function renderStats(s) {
+  const total = s.totalTrades ?? 0;
+  const wr = s.winRate ?? 0;
+  const pnl = s.totalPnlPct ?? 0;
+  const pf  = s.profitFactor;
+  $('statsGrid').innerHTML = [
+    { l:'Tổng lệnh', v:total, cls:'blue', sub:(()=>{ const be=s.breakeven??Math.max(0,total-(s.wins??0)-(s.losses??0)); return `✅ ${s.wins??0}  ❌ ${s.losses??0}${be>0?`  🤝 ${be}`:''}`;})() },
+    { l:'Win Rate', v:total>0?wr.toFixed(1)+'%':'—', cls:wr>=60?'pos':wr>=45?'yellow':'neg',
+      sub:(() => { const n=s.currentStreak??0; return n>0?`${s.streakType==='win'?'🔥':'❄️'} ${n} ${s.streakType==='win'?'thắng':'thua'} liên tiếp`:'—'; })() },
+    { l:'PnL tích lũy', v:total>0?fmt(pnl):'—', cls:clr(pnl), sub:s.avgPnl!=null?`TB ${fmt(s.avgPnl)}/lệnh`:'—' },
+    { l:'Profit Factor', v:pf!=null?pf.toFixed(2):'—', cls:pf>=2?'pos':pf>=1?'yellow':'neg', sub:s.avgDuration>0?`TB giữ ${s.avgDuration}h`:'—' },
+    { l:'Best Trade', v:s.bestTrade?fmt(s.bestTrade.pnlPct):'—', cls:'pos', sub:s.bestTrade?`${s.bestTrade.symbol} ${s.bestTrade.direction}`:'—' },
+    { l:'Worst Trade', v:s.worstTrade?fmt(s.worstTrade.pnlPct):'—', cls:'neg', sub:s.worstTrade?`${s.worstTrade.symbol} ${s.worstTrade.direction}`:'—' },
+  ].map(c=>`<div class="card"><div class="lbl">${c.l}</div><div class="val ${c.cls}">${c.v}</div><div class="sub">${c.sub}</div></div>`).join('');
+}
+
+function renderPnlChart(data) {
+  if (!data.length) { $('pnlChart').parentElement.innerHTML='<div class="chart-title">Cumulative PnL</div><div style="text-align:center;padding:30px;color:var(--muted);font-style:italic">Chưa có dữ liệu</div>'; return; }
+  const labels = data.map(d => new Date(d.date).toLocaleDateString('vi-VN',{month:'2-digit',day:'2-digit'}));
+  const values = data.map(d => d.cum);
+  const ptClr  = values.map((v,i) => i===0?(v>=0?'#3fb950':'#f85149'):(v>=values[i-1]?'#3fb950':'#f85149'));
+  mkChart('pnlChart','line',
+    { labels, datasets:[{ data:values, borderColor:'#58a6ff', backgroundColor:'rgba(88,166,255,.07)', pointBackgroundColor:ptClr, pointRadius:3, pointHoverRadius:5, tension:.3, fill:true }]},
+    { plugins:{ legend:{display:false}, tooltip:{
+        backgroundColor:'#1c2128',borderColor:'#30363d',borderWidth:1,titleColor:'#c9d1d9',bodyColor:'#8b949e',
+        callbacks:{ label:ctx=>{ const d=data[ctx.dataIndex]; const p=d.pnl!=null?(d.pnl>=0?'+':'')+d.pnl.toFixed(2)+'%':'—'; const lbl=d.exitReason==='tp'?'TP':d.exitReason==='sl'?'SL':d.exitReason==='reversed'?'REV':d.exitReason==='manual_close'?'TC':(d.hit||'?'); return [`${d.symbol} (${lbl}) → ${p}`,`Cộng dồn: ${(d.cum>=0?'+':'')+d.cum.toFixed(2)}%`]; }}
+      }},
+      scales:{
+        x:{grid:{color:'#21262d'},ticks:{color:'#8b949e',maxTicksLimit:12,font:{size:10}}},
+        y:{grid:{color:'#21262d'},ticks:{color:'#8b949e',font:{size:10},callback:v=>(v>=0?'+':'')+v.toFixed(1)+'%'}}
+      }
+    }
+  );
+}
+
+function renderDonut(s) {
+  const wins = s.wins ?? 0, losses = s.losses ?? 0, revs = (s.totalTrades ?? 0) - wins - losses;
+  if (!s.totalTrades) return;
+  mkChart('donutChart','doughnut',
+    { labels:['Win','Loss','Reversed'], datasets:[{ data:[wins, losses, Math.max(0,revs)], backgroundColor:['rgba(63,185,80,.7)','rgba(248,81,73,.7)','rgba(88,166,255,.4)'], borderColor:['#3fb950','#f85149','#58a6ff'], borderWidth:1 }]},
+    { cutout:'68%', plugins:{ legend:{labels:{color:'#8b949e',font:{size:11}}},
+        tooltip:{ backgroundColor:'#1c2128',borderColor:'#30363d',borderWidth:1,bodyColor:'#c9d1d9' }}
+    }
+  );
+}
+
+function renderAnalytics(a) {
+  // Duration chart
+  if (a.duration?.length) {
+    mkChart('durChart','bar',
+      { labels:a.duration.map(d=>d.label), datasets:[{ data:a.duration.map(d=>d.count), backgroundColor:'rgba(88,166,255,.6)', borderColor:'#58a6ff', borderWidth:1 }]},
+      { plugins:{ legend:{display:false}, tooltip:{backgroundColor:'#1c2128',borderColor:'#30363d',borderWidth:1,bodyColor:'#c9d1d9'} },
+        scales:{ x:{grid:{color:'#21262d'},ticks:{color:'#8b949e',font:{size:10}}}, y:{grid:{color:'#21262d'},ticks:{color:'#8b949e',font:{size:10},stepSize:1}} }
+      }
+    );
+  }
+
+  // PnL by day
+  const days = (a.byDay || []).slice(-30);
+  if (days.length) {
+    mkChart('dayChart','bar',
+      { labels:days.map(d=>d.day.slice(5)), datasets:[{ data:days.map(d=>d.pnl), backgroundColor:days.map(d=>d.pnl>=0?'rgba(63,185,80,.65)':'rgba(248,81,73,.65)'), borderColor:days.map(d=>d.pnl>=0?'#3fb950':'#f85149'), borderWidth:1 }]},
+      { plugins:{ legend:{display:false}, tooltip:{ backgroundColor:'#1c2128',borderColor:'#30363d',borderWidth:1,bodyColor:'#c9d1d9',
+          callbacks:{ label:ctx=>{ const d=days[ctx.dataIndex]; return [`PnL: ${fmt(d.pnl)}`,`✅ ${d.wins}  ❌ ${d.losses}`]; } }
+        }},
+        scales:{ x:{grid:{color:'#21262d'},ticks:{color:'#8b949e',maxTicksLimit:20,font:{size:10}}},
+                 y:{grid:{color:'#21262d'},ticks:{color:'#8b949e',font:{size:10},callback:v=>(v>=0?'+':'')+v.toFixed(1)+'%'}} }
+      }
+    );
+  }
+
+  // By symbol table
+  const tb = $('symBody');
+  if (!a.bySymbol?.length) { tb.innerHTML='<tr><td colspan="6" class="empty">Chưa có dữ liệu</td></tr>'; return; }
+  tb.innerHTML = a.bySymbol.map(s => {
+    const wr = s.winRate != null ? s.winRate.toFixed(1)+'%' : '—';
+    const wrCls = s.winRate >= 60 ? 'pos' : s.winRate >= 45 ? 'yellow' : 'neg';
+    return `<tr>
+      <td><strong>${s.symbol}</strong></td>
+      <td>${s.total}</td>
+      <td class="pos">${s.wins}</td>
+      <td class="neg">${s.losses}</td>
+      <td class="${wrCls}">${wr}</td>
+      <td class="${clr(s.pnl)}">${fmt(s.pnl)}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ── Market ────────────────────────────────────────────────────────────────────
+async function loadMarket() {
+  const data = await get('/api/market');
+  if (!data) return;
+
+  // BTC / ETH cards + Fear & Greed
+  const fgColor = v => v >= 75 ? '#3fb950' : v >= 55 ? '#a8d471' : v >= 45 ? '#e3b341' : v >= 25 ? '#f0883e' : '#f85149';
+  const fgLabel = v => v >= 75 ? 'Extreme Greed' : v >= 55 ? 'Greed' : v >= 45 ? 'Neutral' : v >= 25 ? 'Fear' : 'Extreme Fear';
+
+  function tickerCard(coin, d) {
+    if (!d) return `<div class="mcard"><div class="coin">${coin}</div><div class="price" style="color:var(--muted)">N/A</div></div>`;
+    const cc = d.change >= 0 ? 'pos' : 'neg';
+    const vol = d.volume >= 1e9 ? (d.volume/1e9).toFixed(1)+'B' : (d.volume/1e6).toFixed(0)+'M';
+    return `<div class="mcard">
+      <div class="coin">${coin}/USDT <span style="font-size:11px;font-weight:400;color:var(--muted)">(24h)</span></div>
+      <div class="price ${cc}">$${fmtP(d.price)}</div>
+      <div style="margin-top:6px;display:flex;gap:12px;align-items:center">
+        <span class="change ${cc}">${fmt(d.change,2)}</span>
+        <span class="meta">H: $${fmtP(d.high)}</span>
+        <span class="meta">L: $${fmtP(d.low)}</span>
+      </div>
+      <div class="meta" style="margin-top:4px">Vol: $${vol}</div>
+    </div>`;
+  }
+
+  const fg = data.fearGreed;
+  const fgCard = fg ? `<div class="mcard" style="text-align:center">
+    <div class="coin" style="margin-bottom:8px">Fear & Greed Index</div>
+    <div class="fg-val" style="color:${fgColor(fg.value)}">${fg.value}</div>
+    <div class="fg-lbl" style="color:${fgColor(fg.value)};font-weight:600;font-size:13px">${fgLabel(fg.value)}</div>
+    <div style="margin-top:8px;background:#21262d;border-radius:6px;height:8px;overflow:hidden">
+      <div style="height:100%;width:${fg.value}%;background:${fgColor(fg.value)};border-radius:6px;transition:width .5s"></div>
+    </div>
+    <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--muted);margin-top:3px"><span>Fear</span><span>Greed</span></div>
+  </div>` : '';
+
+  $('marketCards').innerHTML = tickerCard('BTC', data.btc) + tickerCard('ETH', data.eth) + fgCard;
+
+  // Funding rates table
+  const rows = (data.topFunding || []);
+  const tb = $('fundRateBody');
+  if (!rows.length) { tb.innerHTML='<tr><td colspan="5" class="empty">Không có dữ liệu</td></tr>'; return; }
+  tb.innerHTML = rows.map((r, i) => {
+    const ann = (r.rate * 3 * 365).toFixed(1); // 3 lần/ngày × 365
+    const cls = r.rate > 0 ? 'pos' : 'neg';
+    const side = r.rate > 0 ? '<span class="badge bs">SHORT có lợi</span>' : '<span class="badge bl">LONG có lợi</span>';
+    return `<tr>
+      <td style="color:var(--muted)">${i+1}</td>
+      <td><strong>${r.symbol}</strong></td>
+      <td class="${cls}" style="font-weight:600">${fmt(r.rate,4)}</td>
+      <td class="${cls}">${ann}%/năm</td>
+      <td>${side}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ── Active Trades (with live P&L) ─────────────────────────────────────────────
+let _cachedTrades = [];
+let _cachedPnlMap = {};
+
+function renderActiveTrades(active, pnlMap, tb) {
+  tb = tb || $('activeBody');
+  if (!tb) return;
+  if (!active.length) { tb.innerHTML='<tr><td colspan="13" class="empty">Không có lệnh đang theo dõi</td></tr>'; return; }
+
+  tb.innerHTML = active.map(t => {
+    const lv = pnlMap[t.id] || pnlMap[t.symbol] || {};
+    const unrealized = lv.unrealizedPct;
+    const progress   = lv.progress ?? 50;
+    const lev  = t.leverage ? `×${t.leverage}` : '—';
+    const isManual = !!t.manualEntry;
+    const status = t.entryFilled
+      ? `<span style="color:var(--green)">● Filled</span>`
+      : `<span style="color:var(--yellow)">⏳ Pending</span>`;
+
+    const monitorRow = t.entryFilled ? (() => {
+      const tpTitle = t.binanceTpOrderId
+        ? `TP order #${t.binanceTpOrderId} trên Binance — WS sẽ bắt khi fill`
+        : 'TP: bot theo dõi giá client-side, không có order trên Binance';
+      const slTitle = t.binanceSlOrderId
+        ? `SL order #${t.binanceSlOrderId} trên Binance — WS sẽ bắt khi fill`
+        : 'SL: bot theo dõi giá client-side, không có order trên Binance';
+      const tpBadge = t.binanceTpOrderId
+        ? `<span class="mon mon-bn" title="${tpTitle}">TP 🔗</span>`
+        : `<span class="mon mon-cs" title="${tpTitle}">TP 👁</span>`;
+      const slBadge = t.binanceSlOrderId
+        ? `<span class="mon mon-bn" title="${slTitle}">SL 🔗</span>`
+        : `<span class="mon mon-cs" title="${slTitle}">SL 👁</span>`;
+      return `<div class="mon-row">${tpBadge}${slBadge}</div>`;
+    })() : '';
+
+    const pbarColor = unrealized == null ? '#58a6ff' : unrealized >= 0 ? '#3fb950' : '#f85149';
+    const pbar = `<div class="pbar-wrap"><div class="pbar" data-pbar="${t.id}" style="width:${progress}%;background:${pbarColor}"></div></div>
+      <div class="pbar-labels"><span class="neg">SL</span><span class="pos">TP</span></div>`;
+
+    const tip = isManual ? ' title="Lệnh thủ công — nhấn ⚙ để nhập TP/SL"' : '';
+    function fmtCell(val) {
+      if (val != null) return fmtP(val);
+      return isManual ? `<span style="color:var(--muted);cursor:help"${tip}>—</span>` : '—';
+    }
+    function fmtTpCell(price, hit) {
+      if (price == null) return isManual ? `<span style="color:var(--muted);cursor:help"${tip}>—</span>` : '—';
+      if (hit) return `<span title="Đã chạm" style="color:var(--green);white-space:nowrap">✅ <span style="color:var(--muted)">${fmtP(price)}</span></span>`;
+      return fmtP(price);
+    }
+
+    const manualBadge = isManual
+      ? ' <span class="badge" style="font-size:9px;background:rgba(139,148,158,.1);color:var(--muted);border-color:var(--border)">M</span>'
+      : '';
+    const confBadge = t.confluenceScore != null
+      ? ` <span title="Confluence score: ${t.confluenceScore}" style="font-size:9px;font-weight:700;padding:1px 5px;border-radius:4px;background:rgba(240,136,62,.12);color:var(--orange);border:1px solid rgba(240,136,62,.25)">${t.confluenceScore}</span>`
+      : '';
+    const editBtn = '';
+
+    const slShield = t.slMovedToBreakeven
+      ? ' <span title="SL đã dời về +1% lãi — vị thế an toàn" style="cursor:help">🛡</span>'
+      : '';
+    const slCell = t.slPrice != null
+      ? fmtP(t.slPrice) + slShield
+      : (isManual ? `<span style="color:var(--muted);cursor:help"${tip}>—</span>` : '—');
+
+    let liqCell = '—';
+    if (t.entryPrice && t.leverage) {
+      const liqPrice = t.direction === 'LONG'
+        ? t.entryPrice * (1 - 1/t.leverage + 0.005)
+        : t.entryPrice * (1 + 1/t.leverage - 0.005);
+      liqCell = `<span style="color:var(--red);font-size:11px" title="Giá thanh lý ước tính (isolated)">${fmtP(liqPrice)}</span>`;
+    }
+
+    return `<tr>
+      <td><strong>${t.symbol}</strong>${manualBadge}${confBadge}${editBtn}</td>
+      <td>${sideBadge(t.direction)}</td>
+      <td>${lev}</td>
+      <td>${fmtP(t.entryPrice)}</td>
+      <td data-price="${t.id}">${lv.currentPrice ? fmtP(lv.currentPrice) : '<span style="color:var(--muted)">—</span>'}</td>
+      <td data-pnl="${t.id}" class="${clr(unrealized)}" style="font-weight:600">${unrealized != null ? fmt(unrealized,2) : '—'}</td>
+      <td style="min-width:100px">${pbar}</td>
+      <td>${fmtCell(t.targetPrice)}</td>
+      <td>${fmtTpCell(t.tp1Price, t.tp1Hit)}</td>
+      <td>${fmtTpCell(t.tp2Price, t.tp2Hit)}</td>
+      <td>${slCell}</td>
+      <td>${liqCell}</td>
+      <td style="color:var(--muted)">${ago(t.recommendedAt)} ${status}${monitorRow}</td>
+    </tr>`;
+  }).join('');
+}
+
+async function loadTrades() {
+  const [all, livePnl] = await Promise.all([get('/api/trades'), get('/api/live-pnl')]);
+  _cachedTrades = (all || []).filter(t => t.status === 'active');
+  _cachedPnlMap = {};
+  (livePnl || []).forEach(l => { _cachedPnlMap[l.id || l.symbol] = l; });
+  $('activeCount').textContent = `(${_cachedTrades.length})`;
+  renderActiveTrades(_cachedTrades, _cachedPnlMap);
+}
+
+async function loadHistory() {
+  const history = await get('/api/history');
+  if (!history) return;
+  $('histCount').textContent = `(${history.length})`;
+  const tb = $('histBody');
+  if (!history.length) { tb.innerHTML='<tr><td colspan="12" class="empty">Chưa có lịch sử</td></tr>'; return; }
+  tb.innerHTML = history.map(t => {
+    const pnl = t.pnlPct, lev = t.leverage;
+    let acct = '—';
+    if (pnl != null && lev) { const net = pnl*lev - lev*TAKER_FEE*2*100; acct=`<span class="${clr(net)}">${fmt(net)}</span>`; }
+    else if (pnl != null)   { acct=`<span class="${clr(pnl)}">${fmt(pnl)}</span>`; }
+    const timeCell = t.wasReversed && t.reversedAt
+      ? `<div style="line-height:1.6"><div style="color:var(--border);font-size:10px">REV ${fmtT(t.reversedAt)}</div><div style="color:var(--muted);font-size:11px">${fmtT(t.closedAt)}</div></div>`
+      : `<span style="color:var(--muted);font-size:11px">${fmtT(t.closedAt)}</span>`;
+    return `<tr>
+      <td>${timeCell}</td>
+      <td><strong>${t.symbol}</strong></td>
+      <td>${sideBadge(t.direction)}</td>
+      <td>${lev?`×${lev}`:'—'}</td>
+      <td>${hitBadge(t)}</td>
+      <td class="${clr(pnl)}">${fmt(pnl)}</td>
+      <td>${acct}</td>
+      <td style="color:var(--muted)">${fmtP(t.entryPrice)}</td>
+      <td style="color:var(--muted)">${fmtP(t.closePrice)}</td>
+      <td style="color:var(--muted)">${fmtD(t.durationMs)}</td>
+      <td>${t.tp1Hit?'<span class="pos">✓</span>':'<span style="color:var(--border)">—</span>'}</td>
+      <td>${t.tp2Hit?'<span class="pos">✓</span>':'<span style="color:var(--border)">—</span>'}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ── Funding ────────────────────────────────────────────────────────────────────
+async function loadFunding() {
+  const [stats, actives, hist] = await Promise.all([
+    get('/api/funding/stats'), get('/api/funding/trades'), get('/api/funding/history')
+  ]);
+  const s = stats || {};
+  const total = s.total ?? 0;
+  $('fundingStats').innerHTML = [
+    { l:'Tổng lệnh', v:total, cls:'blue', sub:`✅ ${s.wins??0}  ❌ ${s.losses??0}` },
+    { l:'Win Rate', v:total>0?((s.wins??0)/total*100).toFixed(1)+'%':'—', cls:'pos', sub:'—' },
+    { l:'PnL ròng', v:s.totalNetPct!=null?fmt(s.totalNetPct):'—', cls:clr(s.totalNetPct??null), sub:'Sau phí' },
+    { l:'Best', v:s.bestTrade?fmt(s.bestTrade.netPct):'—', cls:'pos', sub:s.bestTrade?.symbol??'—' },
+  ].map(c=>`<div class="card"><div class="lbl">${c.l}</div><div class="val ${c.cls}">${c.v}</div><div class="sub">${c.sub}</div></div>`).join('');
+
+  const aa = actives || [];
+  $('fundActiveCount').textContent = `(${aa.length})`;
+  const atb = $('fundActiveBody');
+  if (!aa.length) { atb.innerHTML='<tr><td colspan="5" class="empty">Không có vị thế</td></tr>'; }
+  else atb.innerHTML = aa.map(t => `<tr>
+    <td><strong>${t.symbol}</strong></td>
+    <td>${t.side==='SHORT_FUTURES'?'<span class="badge bs">SHORT Fut</span>':'<span class="badge bl">LONG Fut</span>'}</td>
+    <td>${t.fundingRate!=null?fmt(t.fundingRate*100,4):'—'}</td>
+    <td style="color:var(--muted)">${fmtT(t.enteredAt)}</td>
+    <td style="color:var(--muted)">${t.nextPaymentAt?fmtT(t.nextPaymentAt):'—'}</td>
+  </tr>`).join('');
+
+  const hh = hist || [];
+  $('fundHistCount').textContent = `(${hh.length})`;
+  const htb = $('fundHistBody');
+  if (!hh.length) { htb.innerHTML='<tr><td colspan="6" class="empty">Chưa có lịch sử</td></tr>'; }
+  else htb.innerHTML = hh.map(t => `<tr>
+    <td style="color:var(--muted);font-size:11px">${fmtT(t.closedAt??t.settledAt)}</td>
+    <td><strong>${t.symbol}</strong></td>
+    <td>${t.side==='SHORT_FUTURES'?'<span class="badge bs">SHORT</span>':'<span class="badge bl">LONG</span>'}</td>
+    <td>${t.fundingRate!=null?fmt(t.fundingRate*100,4):'—'}</td>
+    <td>${t.result==='win'?'<span class="badge btp">✅</span>':'<span class="badge bsl">❌</span>'}</td>
+    <td class="${clr(t.netPct??null)}">${t.netPct!=null?fmt(t.netPct):'—'}</td>
+  </tr>`).join('');
+}
+
+// ── PP369 ─────────────────────────────────────────────────────────────────────
+function renderSigTable(sigs) {
+  const tb = $('sigBody');
+  if (!sigs?.length) { tb.innerHTML='<tr><td colspan="12" class="empty">Chưa có tín hiệu PP369</td></tr>'; return; }
+
+  // Map strength string → số bar (3 bar tối đa)
+  function strNum(s) { return s === 'strong' ? 3 : s === 'medium' ? 2 : s === 'weak' ? 1 : (Number(s) || 0); }
+  function strBadge(s, isLong) {
+    const n = strNum(s);
+    const bars = Array.from({length:3},(_,i)=>`<span class="${i<n?(isLong?'L':'S'):''}"></span>`).join('');
+    const label = s === 'strong' ? '<span class="pos" style="font-size:10px">●●●</span>'
+                : s === 'medium' ? '<span class="yellow" style="font-size:10px">●●</span>'
+                : s === 'weak'   ? '<span class="neg" style="font-size:10px">●</span>'
+                : '<span style="color:var(--muted);font-size:10px">—</span>';
+    return `<div class="sbar">${bars}</div>${label}`;
+  }
+
+  tb.innerHTML = sigs.map(s => {
+    const isLong = s.signal === 'LONG';
+    const badge  = isLong ? '<span class="badge bl">LONG</span>' : '<span class="badge bs">SHORT</span>';
+    const ts     = s.ts ? new Date(s.ts).toLocaleString('vi-VN',{timeZone:'Asia/Ho_Chi_Minh',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}) : '—';
+
+    // Ưu tiên h1Open/h1Close lưu trong signal (đúng tháng), fallback sang ctx tháng hiện tại
+    const mc         = pp369Ctx[s.symbol];
+    const h1OpenVal  = s.h1Open  ?? mc?.h1Open;
+    const h1CloseVal = s.h1Close ?? mc?.h1Close;
+    const h1Open     = h1OpenVal  ? fmtP(h1OpenVal)  : '—';
+    const h1Close    = h1CloseVal ? fmtP(h1CloseVal) : '—';
+    // Nguồn h1 data: badge nhỏ để user biết dữ liệu từ đâu
+    const h1Src = s.h1Open ? '' : (mc ? '<span title="Dữ liệu tháng hiện tại" style="color:var(--muted);font-size:9px">~</span>' : '');
+
+    // % từ H1 Open tính theo giá tín hiệu so với H1 Open đúng tháng
+    let pctFromOpen = '—';
+    if (h1OpenVal && s.price) {
+      const pct = (s.price - h1OpenVal) / h1OpenVal * 100;
+      pctFromOpen = `<span class="${clr(pct)}">${fmt(pct,2)}</span>`;
+    }
+
+    const h1Tooltip = (h1OpenVal || mc) ? `title="H1 đầu tháng ${s.month??''}\nOpen: ${h1OpenVal??'?'}  Close: ${h1CloseVal??'?'}"` : '';
+
+    return `<tr>
+      <td style="color:var(--muted);font-size:11px">${ts}</td>
+      <td><strong class="${isLong?'pos':'neg'}">${s.symbol}</strong></td>
+      <td style="color:var(--muted);font-size:11px">${s.month??'—'}</td>
+      <td>${badge}</td>
+      <td style="text-align:center">${s.lan ?? ((s.touchCount??0)+1)}</td>
+      <td>${strBadge(s.strength, isLong)}</td>
+      <td ${h1Tooltip} style="color:var(--blue);cursor:${h1Tooltip?'help':'default'}">${h1Open}${h1Src}</td>
+      <td ${h1Tooltip} style="color:var(--purple);cursor:${h1Tooltip?'help':'default'}">${h1Close}${h1Src}</td>
+      <td style="color:${isLong?'var(--green)':'var(--red)'};font-weight:600">${s.targetLevel!=null?fmtP(s.targetLevel):'—'}</td>
+      <td style="color:var(--muted)">${s.condLevel!=null?fmtP(s.condLevel):'—'}</td>
+      <td style="color:var(--muted)">${s.price!=null?fmtP(s.price):'—'}</td>
+      <td>${pctFromOpen}</td>
+    </tr>`;
+  }).join('');
+}
+
+async function loadSignals() {
+  const [sigs, ctx] = await Promise.all([get('/api/signals'), get('/api/pp369-context')]);
+  pp369Ctx = ctx || {};
+  const all = sigs || [];
+  $('sigCount').textContent = `(${all.length})`;
+
+  const dedup = $('sigDedup')?.checked ?? true;
+  let display = all;
+  if (dedup) {
+    // Giữ tín hiệu mới nhất theo (symbol, signal, targetLevel)
+    // all đã được sort mới nhất lên đầu
+    const seen = new Set();
+    display = all.filter(s => {
+      const key = `${s.symbol}|${s.signal}|${s.targetLevel}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }
+
+  renderSigTable(display);
+}
+
+// ── Logs ─────────────────────────────────────────────────────────────────────
+async function initLogDates() {
+  const dates = await get('/api/log-dates');
+  if (!dates?.length) return;
+  $('logDate').innerHTML = dates.map(d=>`<option value="${d}">${d}</option>`).join('');
+}
+
+async function loadLogs() {
+  const date  = $('logDate').value;
+  const n     = $('logLines').value;
+  if (!date) return;
+  const url   = `/api/logs?date=${date}&lines=${n}${logFilter?'&filter='+logFilter:''}`;
+  const data  = await get(url);
+  if (!data) return;
+  logLines = data.lines || [];
+  renderLogs();
+}
+
+function renderLogs() {
+  const box    = $('logBox');
+  const query  = $('logSearch').value.trim().toLowerCase();
+  const wasBot = box.scrollHeight - box.scrollTop - box.clientHeight < 100;
+
+  const filtered = query
+    ? logLines.filter(l => (l.message||l.raw||'').toLowerCase().includes(query) || (l.cat||'').toLowerCase().includes(query))
+    : logLines;
+
+  if (!filtered.length) {
+    box.innerHTML = `<span style="color:var(--muted)">Không có log${query?' khớp với "'+esc(query)+'"':''}</span>`;
+    return;
+  }
+
+  function highlight(text) {
+    if (!query) return esc(text);
+    const idx = text.toLowerCase().indexOf(query);
+    if (idx < 0) return esc(text);
+    return esc(text.slice(0, idx)) + '<mark>' + esc(text.slice(idx, idx+query.length)) + '</mark>' + esc(text.slice(idx+query.length));
+  }
+
+  box.innerHTML = filtered.map(l => {
+    if (!l.cat) return `<div class="log-line"><span class="ll-msg" style="color:var(--muted)">${highlight(l.raw||'')}</span></div>`;
+    const dataStr = l.data ? ` <span class="ll-data">${esc(JSON.stringify(l.data))}</span>` : '';
+    return `<div class="log-line"><span class="ll-time">${l.time}</span><span class="ll-cat cat-${l.cat}">[${l.cat}]</span><span class="ll-msg">${highlight(l.message)}</span>${dataStr}</div>`;
+  }).join('');
+
+  if (wasBot || !logFilter) box.scrollTop = box.scrollHeight;
+}
+
+// ── Log controls ──────────────────────────────────────────────────────────────
+document.querySelectorAll('.cat-btn').forEach(b => b.addEventListener('click', () => {
+  document.querySelectorAll('.cat-btn').forEach(x=>x.classList.remove('on'));
+  b.classList.add('on');
+  logFilter = b.dataset.cat;
+  loadLogs();
+}));
+$('logSearch').addEventListener('input', renderLogs);
+$('logDate').addEventListener('change', loadLogs);
+$('logLines').addEventListener('change', loadLogs);
+$('autoRefLog').addEventListener('change', e => {
+  clearInterval(logAutoTimer);
+  if (e.target.checked) logAutoTimer = setInterval(() => { if (activeTab === 'logs') loadLogs(); }, 10_000);
+});
+logAutoTimer = setInterval(() => { if (activeTab === 'logs') loadLogs(); }, 10_000);
+
+// ── Load All ─────────────────────────────────────────────────────────────────
+async function loadAll() {
+  const now = new Date().toLocaleString('vi-VN',{timeZone:'Asia/Ho_Chi_Minh',hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  $('lastUpd').textContent = `↻ ${now}`;
+
+  await Promise.all([
+    loadHealth(),
+    loadWatchedCoins(),
+    loadOverview(),
+    loadTrades(),
+    loadHistory(),
+    loadFunding(),
+    // market & signals load on-demand when tab is opened, but also refresh silently
+    (activeTab === 'market'  ? loadMarket()  : get('/api/market')),
+    (activeTab === 'signals' ? loadSignals() : get('/api/signals')),
+    (activeTab === 'logs'    ? loadLogs()    : null),
+  ]);
+
+  $('lastUpd').textContent = `${now}`;
+}
+
+// ── TP/SL Dialog ─────────────────────────────────────────────────────────────
+function openEditTPSL(id, sym, tp, tp1, tp2, sl) {
+  $('dlgId').value  = id;
+  $('dlgSym').textContent = sym;
+  $('dlgTP').value  = tp  != null ? tp  : '';
+  $('dlgTP1').value = tp1 != null ? tp1 : '';
+  $('dlgTP2').value = tp2 != null ? tp2 : '';
+  $('dlgSL').value  = sl  != null ? sl  : '';
+  $('dlgTPSL').showModal();
+}
+
+async function saveTPSL() {
+  const id  = $('dlgId').value;
+  const tp  = $('dlgTP').value.trim();
+  const tp1 = $('dlgTP1').value.trim();
+  const tp2 = $('dlgTP2').value.trim();
+  const sl  = $('dlgSL').value.trim();
+
+  const params = new URLSearchParams({ id });
+  if (tp  !== '') params.set('targetPrice', tp);
+  if (tp1 !== '') params.set('tp1Price', tp1);
+  if (tp2 !== '') params.set('tp2Price', tp2);
+  if (sl  !== '') params.set('slPrice', sl);
+
+  const btn = $('dlgSaveBtn');
+  btn.textContent = 'Đang lưu...';
+  btn.disabled = true;
+
+  const result = await get(`/api/trades/update?${params}`);
+  btn.textContent = 'Lưu';
+  btn.disabled = false;
+
+  if (result?.ok) {
+    $('dlgTPSL').close();
+    await loadTrades();
+  } else {
+    alert('Lỗi: ' + (result?.error || 'Không thể lưu — kiểm tra log bot'));
+  }
+}
+
+// ── Boot ─────────────────────────────────────────────────────────────────────
+// Re-render PP369 khi toggle dedup (DOM đã ready tại đây)
+const _sigDedupEl = $('sigDedup');
+if (_sigDedupEl) _sigDedupEl.addEventListener('change', () => loadSignals());
+
+// Xóa block DOMContentLoaded không cần thiết nếu còn
+(async () => {
+  await initLogDates();
+  await loadAll();
+  setInterval(loadAll, 60_000);
+  setInterval(() => {
+    const el = document.getElementById('lastUpd');
+    if (el && !el.textContent.startsWith('↻'))
+      el.textContent = new Date().toLocaleString('vi-VN',{timeZone:'Asia/Ho_Chi_Minh',hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  }, 1000);
+})();
+
+// ── WebSocket realtime ────────────────────────────────────────────────────────
+let _ws = null;
+let _wsReconnTimer = null;
+
+function wsSetDot(state) {
+  const dot = $('wsDot');
+  if (!dot) return;
+  if (state === 'ok')   { dot.style.background = 'var(--green)';  dot.title = 'WebSocket: realtime'; }
+  if (state === 'wait') { dot.style.background = 'var(--yellow)'; dot.title = 'WebSocket: đang kết nối...'; }
+  if (state === 'err')  { dot.style.background = 'var(--red)';    dot.title = 'WebSocket: mất kết nối — đang thử lại...'; }
+}
+
+function wsConnect() {
+  clearTimeout(_wsReconnTimer);
+  const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+  _ws = new WebSocket(`${proto}//${location.host}`);
+
+  _ws.onopen = () => wsSetDot('ok');
+
+  _ws.onmessage = (evt) => {
+    let msg;
+    try { msg = JSON.parse(evt.data); } catch { return; }
+
+    if (msg.type === 'price' && Array.isArray(msg.data)) {
+      for (const item of msg.data) {
+        // Giá hiện tại
+        const priceEl = document.querySelector(`[data-price="${item.id}"]`);
+        if (priceEl && item.currentPrice != null) {
+          const _prev = _cachedPnlMap[item.id]?.currentPrice;
+          if (_prev != null && item.currentPrice !== _prev) {
+            priceEl.classList.remove('pfup','pfdn');
+            void priceEl.offsetWidth;
+            priceEl.classList.add(item.currentPrice > _prev ? 'pfup' : 'pfdn');
+          }
+          priceEl.textContent = fmtP(item.currentPrice);
+        }
+
+        // PnL
+        const pnlEl = document.querySelector(`[data-pnl="${item.id}"]`);
+        if (pnlEl && item.unrealizedPct != null) {
+          pnlEl.textContent = fmt(item.unrealizedPct, 2);
+          pnlEl.className = item.unrealizedPct >= 0 ? 'pos' : 'neg';
+          pnlEl.style.fontWeight = '600';
+        }
+
+        // Progress bar
+        const pbarEl = document.querySelector(`[data-pbar="${item.id}"]`);
+        if (pbarEl && item.progress != null) {
+          pbarEl.style.width = item.progress + '%';
+          pbarEl.style.background = item.unrealizedPct == null ? '#58a6ff'
+            : item.unrealizedPct >= 0 ? '#3fb950' : '#f85149';
+        }
+
+        // Sync cache để re-render sau này dùng đúng giá
+        const cached = _cachedPnlMap[item.id];
+        if (cached) {
+          cached.currentPrice  = item.currentPrice;
+          cached.unrealizedPct = item.unrealizedPct;
+          cached.progress      = item.progress;
+        } else {
+          _cachedPnlMap[item.id] = item;
+        }
+      }
+    }
+
+    if (msg.type === 'trades' && Array.isArray(msg.data)) {
+      _cachedTrades = msg.data;
+      $('activeCount').textContent = `(${msg.data.length})`;
+      // Re-render bảng với pnlMap hiện có (giá đã update in-place)
+      const tb = $('activeBody');
+      if (tb) renderActiveTrades(msg.data, _cachedPnlMap, tb);
+    }
+  };
+
+  _ws.onclose = () => {
+    wsSetDot('err');
+    _wsReconnTimer = setTimeout(wsConnect, 5000);
+  };
+
+  _ws.onerror = () => _ws.close();
+}
+
+wsConnect();
+</script>
+</body>
+</html>

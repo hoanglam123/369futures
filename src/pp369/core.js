@@ -89,6 +89,14 @@ function isTop30Symbol(symbol) {
   return rank <= 30;
 }
 
+function isTop50Symbol(symbol) {
+  if (!symbol) return false;
+  const cleanSym = symbol.toUpperCase().replace(/USDT$/, '');
+  if (['BTC', 'ETH', 'BNB', 'SOL', 'XRP', 'DOGE', 'ADA', 'NEAR', 'SUI', 'LINK', 'AVAX'].includes(cleanSym)) return true;
+  const rank = getMarketCapRank(cleanSym);
+  return rank <= 50;
+}
+
 function getTop100SymbolsSync() {
   const now = Date.now();
   if (_top100SymbolsCache && (now - _top100CacheTime < 60 * 60 * 1000)) {
@@ -3031,8 +3039,12 @@ module.exports = {
   get369Signal, get369SignalsForCoins, score369Method, format369ForPrompt,
   getLevelCache, overrideLevelLastSide, PROXIMITY_PCT, getDecimals, getStep,
   initH4Cache, YEAR_START_MS, fetchBinanceKlines, fetchH4Reference, buildLevelGrid,
-  getGridStepPct, isGridWidthValid, GRID_MIN_PCT, GRID_MIN_PCT_TOP30, GRID_MIN_PCT_TOP100: GRID_MIN_PCT_TOP30, GRID_MAX_PCT, getMinGridPct, isTop100Symbol, isTop30Symbol, getMarketCapRank,
+  getGridStepPct, isGridWidthValid, GRID_MIN_PCT, GRID_MIN_PCT_TOP30, GRID_MIN_PCT_TOP100: GRID_MIN_PCT_TOP30, GRID_MAX_PCT, getMinGridPct, isTop100Symbol, isTop30Symbol, isTop50Symbol, getMarketCapRank,
   isSymbolInGridBlacklist, getGridBlacklistInfo, addToGridBlacklist, classifyCandleGeometry,
   getRecentFractalSwing,
   getRecentM15FractalSwing,
+  fetchH1Historical,
+  fetchH4Historical,
+  findSwingPoints,
+  calculateATR,
 };
