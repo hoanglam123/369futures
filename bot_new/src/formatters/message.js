@@ -605,6 +605,13 @@ function sanitizeAiHtml(text) {
 
   let s = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
 
+  // ── Loại bỏ vùng suy luận nháp nội bộ (<thinking>...</thinking>) ─────────────
+  s = s.replace(/<thinking>[\s\S]*?<\/thinking>/gi, '');
+  s = s.replace(/<scratchpad>[\s\S]*?<\/scratchpad>/gi, '');
+
+  // ── Loại bỏ khối JSON machine execution để Telegram giữ nguyên bản tin sạch đẹp
+  s = s.replace(/```(?:json)?\s*\{[\s\S]*?"trades"[\s\S]*?\}\s*```/gi, '');
+
   // ── Phase A: Extract code blocks into placeholders ───────────────────────────
   // Protects code content from markdown processing and escapes dangerous chars.
   // Uses null-byte markers that cannot appear in normal AI output.
@@ -769,5 +776,6 @@ module.exports = {
   formatPrice,
   formatPercent,
   escapeHtml,
-  formatDateTime
+  formatDateTime,
+  sanitizeAiHtml,
 };

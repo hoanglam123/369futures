@@ -285,62 +285,161 @@ function calcPnl(entryPrice, closePrice, direction, leverage) {
 // ─── Parse AI output ──────────────────────────────────────────────────────────
 
 /**
- * Parse format: COIN | LONG/SHORT | Vào: $X | Target: $Y (+Z%) | SL: $W (-V%) | Đòn bẩy: Nx
- * Phần "| Đòn bẩy: Nx" là tuỳ chọn — backward compatible.
+ * Trích xuất lệnh từ phản hồi AI:
+ * Ưu tiên 1: Parse khối JSON có cấu trúc (Structured Output - deterministic & zero-hallucination).
+ * Ưu tiên 2: Fallback sang Regex bóc tách text (hỗ trợ backward-compatible với format legacy).
+ * Bước cuối: Sanity check số học cứng (Price Geometry + tự tính 100% tỷ lệ % targetPct và slPct).
  */
 function parseTrades(aiText) {
-  const plain = aiText.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
-  const regex = /(\w+)\s*\|\s*(LONG|SHORT)\s*\|\s*V[àa]o:\s*\$([0-9,\.]+)\s*\|\s*Target:\s*\$([0-9,\.]+)\s*\(\+?([0-9\.]+)%\)\s*\|\s*SL:\s*\$([0-9,\.]+)\s*\(-?([0-9\.]+)%\)(?:\s*\|\s*Đòn bẩy:\s*([0-9]+)x)?/gi;
-  const trades = [];
-  let match;
-  while ((match = regex.exec(plain)) !== null) {
-    const entry  = parseFloat(match[3].replace(/,/g, ''));
-    const target = parseFloat(match[4].replace(/,/g, ''));
-    const sl     = parseFloat(match[6].replace(/,/g, ''));
-    if (!entry || !target || !sl) continue;
-    const leverage = match[8] ? parseInt(match[8], 10) : null;
+  if (!aiText) return [];
 
-    // Tìm confluence score + confidence trong 300 ký tự TRƯỚC dòng lệnh
-    const before = plain.slice(Math.max(0, match.index - 300), match.index);
-    const confM  = before.match(/Confluence:\s*(\d+)\s*[đd]\s*[\|·]\s*Tin\s*c[aậ]y:\s*(\d+)%/i);
-    const confluenceScore = confM ? parseInt(confM[1]) : null;
-    const confidence      = confM ? parseInt(confM[2]) : null;
+  const rawTrades = [];
 
-    // Tìm "Lý do:" trong 600 ký tự SAU dòng lệnh (trước setup tiếp theo hoặc ⛔)
-    const after  = plain.slice(match.index + match[0].length, match.index + match[0].length + 600);
-    const reasonM = after.match(/L[yý]\s*do[:\s]+([^▸⛔🎯✅\n]{10,})/i);
-    // Cắt tại word boundary (không cắt giữa từ), tối đa 200 ký tự
-    const rawReason = reasonM ? reasonM[1].replace(/\s+/g, ' ').trim() : null;
-    const reason = rawReason
-      ? (rawReason.length <= 200 ? rawReason : rawReason.slice(0, 200).replace(/\s\S*$/, '') + '…')
-      : null;
+  // ── Ưu tiên 1: Parse từ khối JSON có cấu trúc ──────────────────────────────
+  try {
+    let jsonStr = null;
+    const jsonBlockM = aiText.match(/```(?:json)?\s*(\{[\s\S]*?"trades"[\s\S]*?\})\s*```/i);
+    if (jsonBlockM) {
+      jsonStr = jsonBlockM[1];
+    } else {
+      const rawObjM = aiText.match(/\{\s*"trades"\s*:\s*\[[\s\S]*?\]\s*\}/);
+      if (rawObjM) {
+        jsonStr = rawObjM[0];
+      }
+    }
 
-    trades.push({
-      id:            `${match[1].toUpperCase()}_${match[2].toUpperCase()}_${Date.now()}`,
-      symbol:        match[1].toUpperCase(),
-      direction:     match[2].toUpperCase(),
-      entryPrice:    entry,
-      targetPrice:   target,
-      targetPct:     parseFloat(match[5]),
-      slPrice:       sl,
-      slPct:         parseFloat(match[7]),
-      leverage,
-      confluenceScore,
-      confidence,
-      reason,
-      entryFilled:   false,
-      recommendedAt: new Date(),
-      status: 'active',
-    });
+    if (jsonStr) {
+      const parsed = JSON.parse(jsonStr);
+      if (Array.isArray(parsed.trades) && parsed.trades.length > 0) {
+        for (const item of parsed.trades) {
+          const symbol    = item.symbol ? String(item.symbol).toUpperCase().replace(/[^A-Z0-9]/g, '') : null;
+          const direction = item.direction ? String(item.direction).toUpperCase().trim() : null;
+          const entry     = parseFloat(item.entryPrice ?? item.entry);
+          const target    = parseFloat(item.targetPrice ?? item.tp ?? item.target);
+          const sl        = parseFloat(item.slPrice ?? item.sl);
+          const leverage  = item.leverage ? parseInt(item.leverage, 10) : null;
+          const score     = item.confluenceScore != null ? parseInt(item.confluenceScore, 10) : (item.score != null ? parseInt(item.score, 10) : null);
+          const conf      = item.confidence != null ? parseInt(item.confidence, 10) : null;
+          const reason    = item.reason ? String(item.reason).slice(0, 250).trim() : null;
+
+          if (!symbol || !direction || isNaN(entry) || isNaN(target) || isNaN(sl)) continue;
+          if (direction !== 'LONG' && direction !== 'SHORT') continue;
+
+          rawTrades.push({
+            id:              `${symbol}_${direction}_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+            symbol,
+            direction,
+            entryPrice:      entry,
+            targetPrice:     target,
+            slPrice:         sl,
+            leverage,
+            confluenceScore: score,
+            confidence:      conf,
+            reason,
+            entryFilled:     false,
+            recommendedAt:   new Date(),
+            status:          'active',
+            source:          'json',
+          });
+        }
+        if (rawTrades.length > 0) {
+          log.ai(`parseTrades: trích xuất thành công ${rawTrades.length} lệnh từ khối JSON có cấu trúc`);
+        }
+      }
+    }
+  } catch (jsonErr) {
+    log.warn(`parseTrades: không parse được JSON block (${jsonErr.message}) — fallback sang Regex`);
   }
 
-  log.ai(`parseTrades: tìm thấy ${trades.length} lệnh`, trades.map(t => ({
+  // ── Ưu tiên 2: Fallback sang Regex bóc tách text ───────────────────────────
+  if (rawTrades.length === 0) {
+    const plain = aiText.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
+    // Regex hỗ trợ: Vào:, Vao:, Entry:, Giá vào:, dấu $ tuỳ chọn, dấu ngoặc % tuỳ chọn
+    const regex = /(\w+)\s*\|\s*(LONG|SHORT)\s*\|\s*(?:V[àa]o|Entry|Gi[áa]\s*v[àa]o):\s*\$?([0-9,\.]+)\s*\|\s*Target:\s*\$?([0-9,\.]+)(?:\s*\(\+?([0-9\.]+)%\))?\s*\|\s*SL:\s*\$?([0-9,\.]+)(?:\s*\(-?([0-9\.]+)%\))?(?:\s*\|\s*Đòn bẩy:\s*([0-9]+)x)?/gi;
+    let match;
+    while ((match = regex.exec(plain)) !== null) {
+      const entry  = parseFloat(match[3].replace(/,/g, ''));
+      const target = parseFloat(match[4].replace(/,/g, ''));
+      const sl     = parseFloat(match[6].replace(/,/g, ''));
+      if (!entry || !target || !sl) continue;
+      const leverage = match[8] ? parseInt(match[8], 10) : null;
+
+      // Tìm confluence score + confidence trong 300 ký tự TRƯỚC dòng lệnh
+      const before = plain.slice(Math.max(0, match.index - 300), match.index);
+      const confM  = before.match(/Confluence:\s*(\d+)\s*[đd]\s*[\|·]\s*Tin\s*c[aậ]y:\s*(\d+)%/i);
+      const confluenceScore = confM ? parseInt(confM[1], 10) : null;
+      const confidence      = confM ? parseInt(confM[2], 10) : null;
+
+      // Tìm "Lý do:" trong 600 ký tự SAU dòng lệnh (trước setup tiếp theo hoặc ⛔)
+      const after  = plain.slice(match.index + match[0].length, match.index + match[0].length + 600);
+      const reasonM = after.match(/L[yý]\s*do[:\s]+([^▸⛔🎯✅\n]{10,})/i);
+      const rawReason = reasonM ? reasonM[1].replace(/\s+/g, ' ').trim() : null;
+      const reason = rawReason
+        ? (rawReason.length <= 200 ? rawReason : rawReason.slice(0, 200).replace(/\s\S*$/, '') + '…')
+        : null;
+
+      rawTrades.push({
+        id:            `${match[1].toUpperCase()}_${match[2].toUpperCase()}_${Date.now()}`,
+        symbol:        match[1].toUpperCase(),
+        direction:     match[2].toUpperCase(),
+        entryPrice:    entry,
+        targetPrice:   target,
+        slPrice:       sl,
+        leverage,
+        confluenceScore,
+        confidence,
+        reason,
+        entryFilled:   false,
+        recommendedAt: new Date(),
+        status:        'active',
+        source:        'regex',
+      });
+    }
+  }
+
+  // ── Bước 3: Sanity check số học cứng (Price Geometry & Deterministic Math) ──
+  const validTrades = [];
+  for (const t of rawTrades) {
+    if (t.entryPrice <= 0 || t.targetPrice <= 0 || t.slPrice <= 0) {
+      log.warn(`[REJECT_TRADE] ${t.symbol} ${t.direction}: Mức giá phải > 0 (Entry: ${t.entryPrice}, TP: ${t.targetPrice}, SL: ${t.slPrice})`);
+      continue;
+    }
+
+    // Kiểm tra tính hợp lệ hình học (Price Geometry) để chặn đứng ảo giác nghịch đảo của LLM
+    if (t.direction === 'LONG') {
+      if (t.slPrice >= t.entryPrice) {
+        log.warn(`[CRITICAL_AI_HALLUCINATION] ${t.symbol} LONG bị ngược SL: SL (${t.slPrice}) >= Entry (${t.entryPrice}) → HỦY LỆNH`);
+        continue;
+      }
+      if (t.targetPrice <= t.entryPrice) {
+        log.warn(`[CRITICAL_AI_HALLUCINATION] ${t.symbol} LONG bị ngược TP: TP (${t.targetPrice}) <= Entry (${t.entryPrice}) → HỦY LỆNH`);
+        continue;
+      }
+    } else if (t.direction === 'SHORT') {
+      if (t.slPrice <= t.entryPrice) {
+        log.warn(`[CRITICAL_AI_HALLUCINATION] ${t.symbol} SHORT bị ngược SL: SL (${t.slPrice}) <= Entry (${t.entryPrice}) → HỦY LỆNH`);
+        continue;
+      }
+      if (t.targetPrice >= t.entryPrice) {
+        log.warn(`[CRITICAL_AI_HALLUCINATION] ${t.symbol} SHORT bị ngược TP: TP (${t.targetPrice}) >= Entry (${t.entryPrice}) → HỦY LỆNH`);
+        continue;
+      }
+    }
+
+    // Tự tính toán lại 100% phần trăm biến động toán học thực tế (không tin text AI sinh ra)
+    t.targetPct = parseFloat(((Math.abs(t.targetPrice - t.entryPrice) / t.entryPrice) * 100).toFixed(2));
+    t.slPct     = parseFloat(((Math.abs(t.entryPrice - t.slPrice) / t.entryPrice) * 100).toFixed(2));
+
+    validTrades.push(t);
+  }
+
+  log.ai(`parseTrades: tìm thấy ${validTrades.length} lệnh hợp lệ (nguồn: ${validTrades.map(t => `${t.symbol}:${t.source}`).join(', ') || 'none'})`, validTrades.map(t => ({
     symbol: t.symbol, direction: t.direction,
     entry: t.entryPrice, tp: t.targetPrice, sl: t.slPrice, leverage: t.leverage,
-    score: t.confluenceScore, reason: t.reason?.slice(0, 60),
+    score: t.confluenceScore, source: t.source, reason: t.reason?.slice(0, 60),
   })));
 
-  return trades;
+  return validTrades;
 }
 
 // ─── Trade management ─────────────────────────────────────────────────────────

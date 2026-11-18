@@ -480,6 +480,30 @@ function buildActiveTradesText(activeTrades) {
   return lines.join('\n');
 }
 
+// ─── System Prompt cố định (Guardrails & Trading Philosophy) ─────────────────
+
+const SYSTEM_PROMPT = `Bạn là quant trader kỳ cựu với hơn 10 năm kinh nghiệm phái sinh crypto (Binance Futures).
+Nhiệm vụ: Đánh giá dữ liệu định lượng đã được hệ thống code tính sẵn và đưa ra quyết định giao dịch có kỷ luật cao nhất.
+
+NGUYÊN TẮC CỐT LÕI (BẤT BIẾN):
+1. CHẤT LƯỢNG HƠN SỐ LƯỢNG: 0 lệnh tốt hơn 1 lệnh thua. Chỉ vào lệnh khi xác suất thắng cao và tỷ lệ Lợi nhuận/Rủi ro (R:R) vượt trội.
+2. KHÔNG TỰ TÍNH LẠI ĐIỂM: Số điểm Confluence trong <confluence_scores> đã được thuật toán code tính toán chính xác 100%. Tuân thủ nghiêm ngặt verdict:
+   - DISQUALIFIED, NO_SETUP (<5đ), CAUTIOUS (5-6đ): TUYỆT ĐỐI KHÔNG khuyến nghị mở lệnh mới.
+   - CONFIDENT (7-8đ): Xem xét vào lệnh nếu R:R ≥ 1:1.5 và SL ≥ 1.5x ATR.
+   - BEST_OPPORTUNITY (≥9đ): Ưu tiên cao nhất, R:R ≥ 1:2 và SL ≥ 1.5x - 2x ATR.
+3. QUY TẮC ATR VÀ STOP LOSS (BẢO VỆ VỐN):
+   - SL phải đặt sau các mốc Hỗ trợ/Kháng cự (S/R) và BẮT BUỘC khoảng cách |Entry - SL| ≥ 1.5x ATR. Không bao giờ đặt SL quá gần entry trong phạm vi nhiễu động ATR vì sẽ bị stop-hunt quét râu.
+   - Nếu đặt SL đúng chuẩn ≥ 1.5x ATR mà khiến R:R < 1:1.5 đối với TP hợp lý → LOẠI BỎ coin đó ngay lập tức, không gượng ép vào lệnh.
+4. TÍNH CHÍNH XÁC CỦA LỆNH:
+   - Lệnh LONG: Bắt buộc Stop Loss < Entry Price < Target Price.
+   - Lệnh SHORT: Bắt buộc Stop Loss > Entry Price > Target Price.
+   - Đòn bẩy (Leverage): Lấy đúng giá trị MaxLev từ bảng điểm, tuyệt đối không tự nâng leverage.
+
+⚠️ FORMAT BẮT BUỘC (HTML Telegram):
+- Chỉ dùng: <b>, <i>, <code>
+- KHÔNG dùng: <p>, <br>, <div>, <ul>, <li>, <h1>-<h6>, markdown (**, ##, --)
+- Xuống dòng = newline thực, mỗi dòng ≤ 42 ký tự`;
+
 // ─── Gọi Gemini API ──────────────────────────────────────────────────────────
 
 async function analyzeMarket(marketData, { activeTrades = [], recentHistoryText = '', scoresText = '', signals369Text = '' } = {}) {
@@ -503,63 +527,36 @@ async function analyzeMarket(marketData, { activeTrades = [], recentHistoryText 
   const utcHour = new Date().getUTCHours();
   const next = getNextFundingInfo();
 
-  const prompt = `Bạn là quant trader chuyên nghiệp với hơn 10 năm kinh nghiệm futures crypto.
-VAI TRÒ: Điểm confluence đã được CODE tính sẵn (xem bên dưới). Nhiệm vụ của bạn là:
-  1. Viết tổng quan thị trường
-  2. Với setup CONFIDENT/BEST_OPPORTUNITY: xác nhận entry/TP/SL từ dữ liệu S/R + ATR, viết phân tích narrative
-  3. KHÔNG tự tính lại điểm — số liệu đã chính xác từ code
-  4. Chất lượng hơn số lượng — 0 lệnh tốt hơn 1 lệnh tệ
-
-⚠️ FORMAT BẮT BUỘC (HTML Telegram):
-- Chỉ dùng: <b>, <i>, <code>
-- KHÔNG dùng: <p>, <br>, <div>, <ul>, <li>, <h1>-<h6>, markdown (**, ##, --)
-- Xuống dòng = newline thực, mỗi dòng ≤ 42 ký tự
-
-━━━━━━━━━━━━━━━━
-DỮ LIỆU THỊ TRƯỜNG
-━━━━━━━━━━━━━━━━
+  const prompt = `<market_overview>
 ${marketSummary}
 ${fundingSummary}
-${hasTA ? taSummary : ''}
-${hasWhale ? whaleSummary : ''}
 ${hasDerivatives ? derivativesSummary : ''}
 ${hasOnchain ? onchainSummary : ''}
 ${hasSocial ? socialSummary : ''}
 ${recentHistoryText}
-${activeTradesText}
 Giờ UTC hiện tại: ${utcHour}:xx (lưu ý: 0-7h UTC = thanh khoản thấp)
+</market_overview>
 
-━━━━━━━━━━━━━━━━
-ĐIỂM TÍN HIỆU (ĐÃ TÍNH BỞI CODE — KHÔNG TÍNH LẠI)
-━━━━━━━━━━━━━━━━
+${hasTA ? `<technical_analysis>\n${taSummary}\n</technical_analysis>` : ''}
+${hasWhale ? `<whale_flow>\n${whaleSummary}\n</whale_flow>` : ''}
+${hasActive ? `<active_positions>\n${activeTradesText}\n</active_positions>` : ''}
+
+<confluence_scores>
 ${scoresText || '(không có dữ liệu TA để tính điểm)'}
 ${signals369Text ? `\n${signals369Text}` : ''}
+</confluence_scores>
 
-━━━━━━━━━━━━━━━━
-HƯỚNG DẪN RA QUYẾT ĐỊNH
-━━━━━━━━━━━━━━━━
-Dùng verdict từ bảng điểm trên:
-DISQUALIFIED → KHÔNG khuyến nghị, giải thích ngắn lý do
-NO_SETUP (<5đ) → KHÔNG khuyến nghị, nêu điều kiện còn thiếu
-CAUTIOUS (5-6đ) → KHÔNG khuyến nghị — tỷ lệ thắng không đủ cao, chờ thêm xác nhận
-CONFIDENT (7-8đ, ~70%) → Vào lệnh bình thường, SL tối thiểu 1.5x ATR, R:R ≥ 1:1.5
-BEST_OPPORTUNITY (≥9đ, ≥85%) → Ưu tiên cao nhất, SL 2x ATR, R:R ≥ 1:2
+<decision_instructions>
+QUY TẮC PHÂN TÍCH:
+1. Mở thẻ <thinking> để nháp và tính toán trước khi viết output:
+   - Rà soát các coin đạt chuẩn điểm (Tier 1 ≥ 7đ, Tier 2 / Altcoin ≥ 8đ).
+   - Đo khoảng cách ATR (1.5x ATR) và xác định vị trí S/R thực tế.
+   - Tính toán R:R thực tế = |Target - Entry| / |Entry - SL|. Nếu R:R < 1.5 → loại bỏ, không ép lệnh.
+   - Kiểm tra logic giá: LONG (SL < Entry < TP), SHORT (SL > Entry > TP).
+2. Sau thẻ </thinking>, viết nội dung theo đúng cấu trúc Telegram HTML bên dưới.
+3. Ở CUỐI CÙNG, BẮT BUỘC xuất thêm khối JSON (bọc trong \`\`\`json) để bot tự động trích xuất và thực thi lệnh.
 
-ENTRY/TP/SL (xác nhận từ S/R + ATR trong dữ liệu TA):
-- Entry: ưu tiên S/R 4H ±0.3%; nếu 4H trùng 1D (±0.5%) = vùng entry mạnh nhất
-- SL: sau S/R đối diện gần nhất; BẮT BUỘC ≥ 1.5x ATR (KHÔNG được dưới mức này dù tín hiệu mạnh đến đâu — dưới 1.5x ATR là vùng noise, sẽ bị stop-hunt)
-- TP: chọn S/R có touch count cao nhất; nếu TP/SL < 1.5 sau khi đặt SL đúng chỗ → BỎ coin đó, không ép R:R
-- Đảo chiều: chỉ khi BEST_OPPORTUNITY chiều ngược + đã giữ lệnh cũ ≥ 8h
-
-Regime market (trong TA data):
-- TRENDING_UP: ưu tiên LONG, tín hiệu SHORT cần điểm cao hơn 1đ
-- TRENDING_DOWN: ưu tiên SHORT, tín hiệu LONG cần điểm cao hơn 1đ
-- RANGING: cả 2 chiều hợp lệ, entry tại extremes (oversold/overbought)
-- VOLATILE: giảm size 30-50%, SL rộng hơn 1.5x ATR
-
-━━━━━━━━━━━━━━━━
-OUTPUT BẮT BUỘC
-━━━━━━━━━━━━━━━━
+CẤU TRÚC TELEGRAM HTML BẮT BUỘC:
 
 <b>📊 Tổng quan thị trường</b>
 • Xu hướng: [1 câu ngắn]
@@ -573,7 +570,6 @@ ${hasTA ? '• BTC: [TĂNG/GIẢM/SIDEWAY] — [lý do ngắn từ TA]' : ''}
 <b>🎯 Lệnh giao dịch</b> <i>(R:R ≥ 1:2, max 5% vốn)</i>
 
 Đòn bẩy: dùng MaxLev từ bảng điểm — đã tính từ ATR thực tế, KHÔNG được vượt quá.
-(MaxLev thấp = ATR cao = coin biến động mạnh = SL dễ bị stop-hunt nếu leverage cao)
 
 ${hasActive ? `[Với mỗi lệnh đang theo dõi, TRƯỚC TIÊN viết:]
 ✅ <b>GIỮ LỆNH [COIN] [DIRECTION]</b> — [1 câu lý do]
@@ -610,26 +606,47 @@ ${hasFunding ? `<b>💸 Funding Arbitrage</b>
 ⛔ <b>Không đủ rate để khuyến nghị funding kỳ này</b>
 (rate cao nhất: [X.XXXX%]/8h — thấp hơn ngưỡng 0.10%)` : ''}
 
-<i>⚠️ Tham khảo, không phải lời khuyên đầu tư. Mỗi lệnh ≤5% vốn. Luôn đặt SL.</i>`;
+<i>⚠️ Tham khảo, không phải lời khuyên đầu tư. Mỗi lệnh ≤5% vốn. Luôn đặt SL.</i>
+
+ĐỊNH DẠNG KHỐI JSON MACHINE-READABLE (ĐẶT Ở CUỐI CÙNG):
+\`\`\`json
+{
+  "trades": [
+    {
+      "symbol": "BTC",
+      "direction": "LONG",
+      "entryPrice": 91500.0,
+      "targetPrice": 94500.0,
+      "slPrice": 89800.0,
+      "leverage": 15,
+      "confluenceScore": 8,
+      "confidence": 75,
+      "reason": "Breakout cản 4H kèm Whale taker buy volume lớn"
+    }
+  ]
+}
+\`\`\`
+(Nếu không có lệnh nào đạt chuẩn vào lệnh, để "trades": [])
+</decision_instructions>`;
 
   const aiConfig = getAiConfig();
   if (aiConfig.provider === 'claude') {
     try {
-      return await callClaude(prompt, 4096, aiConfig);
+      return await callClaude(prompt, 4096, aiConfig, SYSTEM_PROMPT);
     } catch (err) {
       if (aiConfig.geminiKey) {
         log.warn(`Claude thất bại [${err.message}] — Tự động fallback sang Google Gemini...`);
-        return await callGemini(prompt, 4096, aiConfig.geminiKey);
+        return await callGemini(prompt, 4096, aiConfig.geminiKey, SYSTEM_PROMPT);
       }
       throw err;
     }
   } else {
     try {
-      return await callGemini(prompt, 4096, aiConfig.geminiKey);
+      return await callGemini(prompt, 4096, aiConfig.geminiKey, SYSTEM_PROMPT);
     } catch (err) {
       if (aiConfig.claudeKey) {
         log.warn(`Gemini thất bại [${err.message}] — Tự động fallback sang Anthropic Claude...`);
-        return await callClaude(prompt, 4096, aiConfig);
+        return await callClaude(prompt, 4096, aiConfig, SYSTEM_PROMPT);
       }
       throw err;
     }
@@ -637,7 +654,7 @@ ${hasFunding ? `<b>💸 Funding Arbitrage</b>
 }
 
 // ─── Gọi Claude API (Hỗ trợ Anthropic Native & OpenAI-compatible proxy) ───────
-async function callClaude(prompt, maxTokens, aiConfig) {
+async function callClaude(prompt, maxTokens, aiConfig, systemPrompt = '') {
   const { claudeKey, claudeBaseUrl } = aiConfig;
   if (!claudeKey) throw new Error('Thiếu CLAUDE_API_KEY (hoặc ANTHROPIC_API_KEY) trong file .env');
 
@@ -656,13 +673,19 @@ async function callClaude(prompt, maxTokens, aiConfig) {
         const endpoint = claudeBaseUrl && claudeBaseUrl.endsWith('/chat/completions')
           ? claudeBaseUrl
           : `${rootBaseUrl}/v1/chat/completions`;
+        const messages = [];
+        if (systemPrompt) {
+          messages.push({ role: 'system', content: systemPrompt });
+        }
+        messages.push({ role: 'user', content: prompt });
+
         const res = await axios.post(
           endpoint,
           {
             model,
             max_tokens: maxTokens,
             temperature: 0.2,
-            messages: [{ role: 'user', content: prompt }],
+            messages,
           },
           {
             headers: {
@@ -683,14 +706,19 @@ async function callClaude(prompt, maxTokens, aiConfig) {
           ? `${rootBaseUrl}/v1/messages`
           : 'https://api.anthropic.com/v1/messages';
 
+        const payload = {
+          model,
+          max_tokens: maxTokens,
+          temperature: 0.2,
+          messages: [{ role: 'user', content: prompt }],
+        };
+        if (systemPrompt) {
+          payload.system = systemPrompt;
+        }
+
         const res = await axios.post(
           endpoint,
-          {
-            model,
-            max_tokens: maxTokens,
-            temperature: 0.2,
-            messages: [{ role: 'user', content: prompt }],
-          },
+          payload,
           {
             headers: {
               'x-api-key': claudeKey,
@@ -721,13 +749,19 @@ async function callClaude(prompt, maxTokens, aiConfig) {
         log.warn(`Claude endpoint /v1/messages bị lỗi [${status}], thử fallback sang /v1/chat/completions (OpenAI format)...`);
         try {
           const fallbackEndpoint = `${rootBaseUrl}/v1/chat/completions`;
+          const messages = [];
+          if (systemPrompt) {
+            messages.push({ role: 'system', content: systemPrompt });
+          }
+          messages.push({ role: 'user', content: prompt });
+
           const res = await axios.post(
             fallbackEndpoint,
             {
               model,
               max_tokens: maxTokens,
               temperature: 0.2,
-              messages: [{ role: 'user', content: prompt }],
+              messages,
             },
             {
               headers: {
@@ -753,14 +787,29 @@ async function callClaude(prompt, maxTokens, aiConfig) {
 }
 
 // ─── Gọi Gemini API ──────────────────────────────────────────────────────────
-async function callGemini(prompt, maxTokens, apiKey) {
+async function callGemini(prompt, maxTokens, apiKey, systemPrompt = '') {
   if (!apiKey) throw new Error('Thiếu GEMINI_API_KEY trong file .env');
   let lastError;
   for (const model of GEMINI_MODELS) {
     let response;
     try {
+      const payload = {
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: {
+          maxOutputTokens: maxTokens,
+          temperature: 0.2,
+          thinkingConfig: { thinkingBudget: 0 },
+        },
+      };
+      if (systemPrompt) {
+        payload.systemInstruction = { parts: [{ text: systemPrompt }] };
+      }
       response = await axios.post(
         `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+        payload,
+        { timeout: 60000 }
+      );
+    } catch (err) {
         {
           contents: [{ parts: [{ text: prompt }] }],
           generationConfig: {
