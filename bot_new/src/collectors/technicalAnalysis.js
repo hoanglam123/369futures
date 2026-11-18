@@ -1,5 +1,7 @@
 'use strict';
 
+const fs = require('fs');
+const path = require('path');
 const axios = require('axios');
 
 const BINANCE   = 'https://fapi.binance.com';
@@ -8,22 +10,116 @@ const HEADERS   = { 'User-Agent': 'crypto-news-bot/1.0' };
 const BAR_MAP   = { '1h': '1H', '4h': '4H', '1d': '1D', '1w': '1W' }; // OKX format
 const STABLECOINS = new Set(['USDT','USDC','BUSD','DAI','TUSD','FDUSD','USDP','FRAX','USDD','GUSD','PYUSD','USDS','USDE','USDX','SUSD']);
 
-// ─── Klines: Binance Futures trước, OKX fallback ─────────────────────────────
+// ─── Shared Disk Persistence với bot-h4 (data/*_history_cache.json) ───────────
 
-async function getKlines(symbol, interval, limit) {
-  // Binance interval: 1h / 4h / 1d / 1w (lowercase)
+function resolveDataDir() {
+  const candidates = [
+    path.resolve(__dirname, '../../../data'), // từ bot_new/src/collectors/ lên root/data
+    path.resolve(process.cwd(), 'data'),      // từ CWD/data
+    path.resolve(__dirname, '../../data'),    // bot_new/data
+  ];
+  for (const dir of candidates) {
+    if (fs.existsSync(dir)) return dir;
+  }
+  return candidates[0];
+}
+
+const DATA_DIR = resolveDataDir();
+
+const CACHE_CONFIGS = {
+  '1h': { file: path.join(DATA_DIR, 'h1_history_cache.json'), maxKeep: 100, intervalMs: 60 * 60 * 1000 },
+  '4h': { file: path.join(DATA_DIR, 'h4_history_cache.json'), maxKeep: 200, intervalMs: 4 * 60 * 60 * 1000 },
+  '1d': { file: path.join(DATA_DIR, 'd1_history_cache.json'), maxKeep: 120, intervalMs: 24 * 60 * 60 * 1000 },
+  '1w': { file: path.join(DATA_DIR, 'w1_history_cache.json'), maxKeep: 52,  intervalMs: 7 * 24 * 60 * 60 * 1000 },
+};
+
+const _sharedDiskCaches = { '1h': {}, '4h': {}, '1d': {}, '1w': {} };
+
+function loadSharedDiskCache(interval) {
+  const cfg = CACHE_CONFIGS[interval];
+  if (!cfg) return;
+  try {
+    if (fs.existsSync(cfg.file)) {
+      const raw = JSON.parse(fs.readFileSync(cfg.file, 'utf8'));
+      const items = raw.items || raw;
+      if (items && typeof items === 'object') {
+        for (const [sym, item] of Object.entries(items)) {
+          if (item && Array.isArray(item.candles) && item.candles.length > 0) {
+            _sharedDiskCaches[interval][sym] = {
+              candles: item.candles.slice(-cfg.maxKeep).map(toBotNewCandle),
+              cursor: item.candles[item.candles.length - 1].openTime ?? item.candles[item.candles.length - 1].t,
+            };
+          }
+        }
+      }
+    }
+  } catch (_) {}
+}
+
+function toBotNewCandle(k) {
+  const t = k.t ?? k.openTime;
+  const o = k.o ?? k.open;
+  const h = k.h ?? k.high;
+  const l = k.l ?? k.low;
+  const c = k.c ?? k.close;
+  const v = k.v ?? k.volume;
+  return {
+    t, o, h, l, c, v,
+    openTime: t,
+    open: o,
+    high: h,
+    low: l,
+    close: c,
+    volume: v,
+  };
+}
+
+// Tự động nạp toàn bộ cache nến đã lưu từ đĩa
+['1h', '4h', '1d', '1w'].forEach(loadSharedDiskCache);
+
+const _saveTimeouts = {};
+function scheduleSaveDiskCache(interval) {
+  const cfg = CACHE_CONFIGS[interval];
+  if (!cfg || _saveTimeouts[interval]) return;
+  _saveTimeouts[interval] = setTimeout(() => {
+    _saveTimeouts[interval] = null;
+    try {
+      if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
+      const prunedItems = {};
+      for (const [sym, item] of Object.entries(_sharedDiskCaches[interval])) {
+        if (item && Array.isArray(item.candles) && item.candles.length > 0) {
+          prunedItems[sym] = {
+            candles: item.candles.slice(-cfg.maxKeep),
+            cursor: item.candles[item.candles.length - 1].openTime ?? item.candles[item.candles.length - 1].t,
+          };
+        }
+      }
+      fs.writeFileSync(cfg.file, JSON.stringify({ items: prunedItems }), 'utf8');
+    } catch (_) {}
+  }, 1000);
+}
+
+function floorToInterval(tsMs, intervalMs) {
+  return Math.floor(tsMs / intervalMs) * intervalMs;
+}
+
+// ─── Klines trực tiếp: Binance Futures trước, OKX fallback ───────────────────
+
+async function fetchKlinesDirect(symbol, interval, limit, startTimeMs = null) {
   const bnInterval = interval.toLowerCase();
+  const cleanSym = symbol.replace(/USDT$/, '');
 
   // 1. Binance Futures klines (ưu tiên)
   try {
+    const params = { symbol: `${cleanSym}USDT`, interval: bnInterval, limit: Math.min(limit, 1500) };
+    if (startTimeMs != null) params.startTime = startTimeMs;
     const { data } = await axios.get(`${BINANCE}/fapi/v1/klines`, {
-      params: { symbol: `${symbol}USDT`, interval: bnInterval, limit: Math.min(limit, 1500) },
+      params,
       headers: HEADERS,
       timeout: 12000,
     });
     if (Array.isArray(data) && data.length > 0) {
-      // Binance trả về tăng dần (oldest first), format: [openTime, o, h, l, c, vol, ...]
-      return data.map(k => ({
+      return data.map(k => toBotNewCandle({
         t: k[0], o: parseFloat(k[1]), h: parseFloat(k[2]),
         l: parseFloat(k[3]), c: parseFloat(k[4]), v: parseFloat(k[5]),
       }));
@@ -31,16 +127,96 @@ async function getKlines(symbol, interval, limit) {
   } catch { /* fall through to OKX */ }
 
   // 2. OKX fallback
-  const { data } = await axios.get(`${OKX}/api/v5/market/candles`, {
-    params: { instId: `${symbol}-USDT-SWAP`, bar: BAR_MAP[interval] || interval, limit: Math.min(limit, 300) },
-    headers: HEADERS,
-    timeout: 12000,
-  });
-  // OKX trả về mới nhất trước → đảo lại thành tăng dần
-  return (data.data ?? []).reverse().map(k => ({
-    t: parseInt(k[0]), o: parseFloat(k[1]), h: parseFloat(k[2]),
-    l: parseFloat(k[3]), c: parseFloat(k[4]), v: parseFloat(k[5]),
-  }));
+  try {
+    const params = { instId: `${cleanSym}-USDT-SWAP`, bar: BAR_MAP[interval] || interval, limit: Math.min(limit, 300) };
+    if (startTimeMs != null) params.after = startTimeMs;
+    const { data } = await axios.get(`${OKX}/api/v5/market/candles`, {
+      params,
+      headers: HEADERS,
+      timeout: 12000,
+    });
+    return (data.data ?? []).reverse().map(k => toBotNewCandle({
+      t: parseInt(k[0]), o: parseFloat(k[1]), h: parseFloat(k[2]),
+      l: parseFloat(k[3]), c: parseFloat(k[4]), v: parseFloat(k[5]),
+    }));
+  } catch {
+    return [];
+  }
+}
+
+// ─── Klines thông minh: Ưu tiên đĩa máy chủ, chỉ lấy nến thiếu (Incremental) ──
+
+async function getKlines(symbol, interval, limit) {
+  const bnInterval = interval.toLowerCase();
+  const cleanSym = (symbol || '').toUpperCase().replace(/USDT$/, '');
+  const cfg = CACHE_CONFIGS[bnInterval];
+
+  if (!cfg) {
+    return fetchKlinesDirect(cleanSym, bnInterval, limit);
+  }
+
+  const currentIntervalStart = floorToInterval(Date.now(), cfg.intervalMs);
+  let cached = _sharedDiskCaches[bnInterval][cleanSym];
+
+  // 1. Nếu chưa có trên đĩa máy chủ: Tải 1 lần và lưu ngay vào đĩa
+  if (!cached || !Array.isArray(cached.candles) || cached.candles.length === 0) {
+    const raw = await fetchKlinesDirect(cleanSym, bnInterval, Math.max(limit, cfg.maxKeep));
+    if (raw && raw.length > 0) {
+      const closed = raw.filter(c => c.t < currentIntervalStart);
+      _sharedDiskCaches[bnInterval][cleanSym] = {
+        candles: closed.slice(-cfg.maxKeep),
+        cursor: closed.length > 0 ? closed[closed.length - 1].t : 0,
+      };
+      scheduleSaveDiskCache(bnInterval);
+      return raw.slice(-limit);
+    }
+    return raw || [];
+  }
+
+  // 2. Nếu đã có trên đĩa: kiểm tra nến đóng gần nhất
+  const candles = cached.candles;
+  const lastTime = candles[candles.length - 1].t;
+
+  // Nếu nến chu kỳ trước đã có đủ -> 0 API calls (0ms, 0 IP Weight)
+  if (lastTime + cfg.intervalMs >= currentIntervalStart) {
+    return candles.slice(-limit);
+  }
+
+  // 3. Thiếu một vài nến (do bot tắt hoặc sang chu kỳ mới): CHỈ LẤY ĐÚNG SỐ NẾN THIẾU
+  const missingFrom = lastTime + cfg.intervalMs;
+  const missingCount = Math.max(1, Math.ceil((currentIntervalStart - missingFrom) / cfg.intervalMs));
+
+  if (missingCount >= cfg.maxKeep) {
+    const raw = await fetchKlinesDirect(cleanSym, bnInterval, Math.max(limit, cfg.maxKeep));
+    if (raw && raw.length > 0) {
+      const closed = raw.filter(c => c.t < currentIntervalStart);
+      _sharedDiskCaches[bnInterval][cleanSym] = {
+        candles: closed.slice(-cfg.maxKeep),
+        cursor: closed.length > 0 ? closed[closed.length - 1].t : 0,
+      };
+      scheduleSaveDiskCache(bnInterval);
+      return raw.slice(-limit);
+    }
+    return raw || [];
+  }
+
+  // Lấy đúng số nến thiếu (1 request nhẹ)
+  try {
+    const missingBatch = await fetchKlinesDirect(cleanSym, bnInterval, missingCount + 5, missingFrom);
+    if (missingBatch && missingBatch.length > 0) {
+      const closedNew = missingBatch.filter(c => c.t < currentIntervalStart && c.t > lastTime);
+      if (closedNew.length > 0) {
+        candles.push(...closedNew);
+        if (candles.length > cfg.maxKeep) {
+          _sharedDiskCaches[bnInterval][cleanSym].candles = candles.slice(-cfg.maxKeep);
+        }
+        _sharedDiskCaches[bnInterval][cleanSym].cursor = candles[candles.length - 1].t;
+        scheduleSaveDiskCache(bnInterval);
+      }
+    }
+  } catch (_) {}
+
+  return _sharedDiskCaches[bnInterval][cleanSym].candles.slice(-limit);
 }
 
 async function getOI(symbol) {

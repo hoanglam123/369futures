@@ -11,6 +11,11 @@ const {
   YEAR_START_MS,
 } = require('../src/pp369/core');
 
+let getKlinesNew = null;
+try {
+  getKlinesNew = require('../bot_new/src/collectors/technicalAnalysis').getKlines;
+} catch (_) {}
+
 async function main() {
   console.log('================================================================');
   console.log('🚀 CÔNG CỤ NẠP NẾN LỊCH SỬ TRƯỚC (PRELOAD KLINES) CHO BOT-H4');
@@ -72,20 +77,24 @@ async function main() {
 
     try {
       const t0 = Date.now();
-      const [h1, h4, d1] = await Promise.all([
+      const promises = [
         fetchH1Historical(sym),
         fetchH4Historical(sym),
         fetchD1Historical(sym),
-      ]);
+      ];
+      if (typeof getKlinesNew === 'function') {
+        promises.push(getKlinesNew(sym, '1w', 52).catch(() => []));
+      }
+      const [h1, h4, d1, w1 = []] = await Promise.all(promises);
       const elapsed = Date.now() - t0;
 
       const isSkipped = elapsed < 15; // Nếu < 15ms chứng tỏ lấy 100% từ disk cache
       if (isSkipped) {
         skippedCount++;
-        process.stdout.write(`${prefix} ⚡ Đã có sẵn trên đĩa (H1:${h1.length}, H4:${h4.length}, D1:${d1.length}) [${elapsed}ms]\n`);
+        process.stdout.write(`${prefix} ⚡ Đã có sẵn trên đĩa (H1:${h1.length}, H4:${h4.length}, D1:${d1.length}, W1:${w1.length}) [${elapsed}ms]\n`);
       } else {
         successCount++;
-        process.stdout.write(`${prefix} ✓ Nạp thành công (H1:${h1.length}, H4:${h4.length}, D1:${d1.length}) [${elapsed}ms]\n`);
+        process.stdout.write(`${prefix} ✓ Nạp thành công (H1:${h1.length}, H4:${h4.length}, D1:${d1.length}, W1:${w1.length}) [${elapsed}ms]\n`);
         // Giãn cách nhẹ để giữ IP Weight cực thấp
         await new Promise(r => setTimeout(r, 80));
       }
@@ -113,6 +122,7 @@ async function main() {
     'data/h1_history_cache.json',
     'data/h4_history_cache.json',
     'data/d1_history_cache.json',
+    'data/w1_history_cache.json',
   ];
 
   console.log('\n📂 Kích thước file cache trên máy:');
