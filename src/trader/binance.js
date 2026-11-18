@@ -310,9 +310,32 @@ function calcQuantity(symbol, notional, price) {
 function createClient(apiKey, secret) {
   let _posCache = null;
   let _posCacheTime = 0;
+  let _balanceCache = null;
+  let _balanceCacheTime = 0;
   const _appliedLeverageCache = new Map();
 
   return {
+    /**
+     * Lấy số dư khả dụng USDT từ Binance Futures (RAM cache 30s)
+     */
+    async getBalance() {
+      const now = Date.now();
+      if (_balanceCache !== null && (now - _balanceCacheTime < 30000)) {
+        return _balanceCache;
+      }
+      try {
+        const balances = await _get('/fapi/v2/balance', {}, apiKey, secret);
+        const usdt = (Array.isArray(balances) ? balances : []).find(b => b.asset === 'USDT');
+        const avail = parseFloat(usdt?.availableBalance || usdt?.balance || '0');
+        _balanceCache = avail;
+        _balanceCacheTime = now;
+        return avail;
+      } catch (err) {
+        log.warn(`[Binance] getBalance failed: ${err.message}`);
+        return _balanceCache !== null ? _balanceCache : 0;
+      }
+    },
+
     /**
      * Set đòn bẩy cho 1 symbol trước khi đặt lệnh (có cache chống gọi trùng API).
      */

@@ -10,9 +10,10 @@ const API_SECRET     = process.env.BINANCE_API_SECRET || '';
 const TRADE_ENABLED  = process.env.TRADE_ENABLED === 'true';
 const TRADE_SIZE_PCT    = parseFloat(process.env.TRADE_SIZE_PCT  || '5');
 const TRADE_MAX_USDT    = parseFloat(process.env.TRADE_MAX_USDT  || '200');
-const MIN_NOTIONAL_USDT = 10;   // Lệnh tối thiểu $10
-const BALANCE_THRESHOLD = 100;  // Ngưỡng balance: trên $100 dùng %, dưới $100 dùng flat
-const FLAT_TRADE_USDT   = 20;   // Flat $20/lệnh khi balance ≤ $100
+const TRADE_MIN_USDT    = parseFloat(process.env.TRADE_MIN_USDT  || '5');
+const MIN_NOTIONAL_USDT = parseFloat(process.env.MIN_NOTIONAL_USDT || '5');   // Lệnh tối thiểu $5
+const BALANCE_THRESHOLD = parseFloat(process.env.BALANCE_THRESHOLD || '0');  // Ngưỡng balance: mặc định 0 để luôn tính % (lãi kép)
+const FLAT_TRADE_USDT   = parseFloat(process.env.FLAT_TRADE_USDT || '20');   // Fallback flat khi không dùng %
 
 // Cache thông tin precision của từng symbol (tránh gọi exchangeInfo lặp lại)
 const symbolInfoCache = new Map();
@@ -103,18 +104,29 @@ function _invalidateBalanceCache() {
 }
 
 // Tính số lượng coin cần mua/bán
-// - Balance > $100: dùng TRADE_SIZE_PCT% (tối đa TRADE_MAX_USDT)
-// - Balance ≤ $100: flat FLAT_TRADE_USDT$/lệnh (không vượt quá balance)
+// - Dùng TRADE_SIZE_PCT % balance (tự động tăng dần theo lãi kép khi balance tăng)
+// - Capped trong [TRADE_MIN_USDT, TRADE_MAX_USDT]
 async function calcQty(symbol, entryPrice, leverage, info) {
   const balance = await getUsdtBalance();
   let sizeUsdt;
-  if (balance > BALANCE_THRESHOLD) {
-    sizeUsdt = Math.min(balance * TRADE_SIZE_PCT / 100, TRADE_MAX_USDT);
+  if (balance > BALANCE_THRESHOLD && TRADE_SIZE_PCT > 0) {
+    const rawSize = (balance * TRADE_SIZE_PCT) / 100;
+    sizeUsdt = Math.min(Math.max(rawSize, TRADE_MIN_USDT), TRADE_MAX_USDT, balance);
   } else {
     sizeUsdt = Math.min(FLAT_TRADE_USDT, balance);
   }
-  if (sizeUsdt < MIN_NOTIONAL_USDT) return { qty: 0, sizeUsdt, balance };
-  const rawQty  = (sizeUsdt * leverage) / entryPrice;
+  const minNotional = info?.minNotional || MIN_NOTIONAL_USDT;
+  let notional = sizeUsdt * leverage;
+  if (notional < minNotional) {
+    // Tự nâng nhẹ sizeUsdt để thỏa mãn sàn Binance nếu số dư cho phép
+    sizeUsdt = Math.min(Math.ceil((minNotional / leverage) * 100) / 100, balance);
+    notional = sizeUsdt * leverage;
+    if (notional < minNotional) {
+      log.warn(`calcQty: số dư $${balance} không đủ thỏa mãn minNotional $${minNotional} cho ${symbol}`);
+      return { qty: 0, sizeUsdt, balance };
+    }
+  }
+  const rawQty  = notional / entryPrice;
   // Dùng floor theo stepSize thay vì round-to-nearest (toFixed) để tránh -1111
   const step    = info.stepSize || Math.pow(10, -info.quantityPrecision);
   const floored = Math.floor(rawQty / step) * step;

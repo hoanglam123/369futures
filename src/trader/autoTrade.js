@@ -840,6 +840,36 @@ function evadeRoundNumber(price, isLong) {
  * - Chốt chặn R:R >= 1.5: Đo khoảng cách TP / SL, nếu < 1.48 => VETO HỦY KÈO.
  * - Mốc Breakeven 35%: Khi giá đi được 35% tới TP, dời SL về Entry +- 1% phí (Risk-Free).
  */
+async function getDynamicMargin(isTier1, clientInstance = null) {
+  const tier1Pct = parseFloat(process.env.TRADE_SIZE_PCT_TIER1 || process.env.TRADE_SIZE_PCT || '0');
+  const tier2Pct = parseFloat(process.env.TRADE_SIZE_PCT_TIER2 || (tier1Pct > 0 ? tier1Pct : '0'));
+  const effPct = isTier1 ? tier1Pct : tier2Pct;
+
+  const tier1Fallback = parseFloat(process.env.TRADE_AMOUNT_TIER1 || process.env.TRADE_AMOUNT || '20');
+  const tier2Fallback = parseFloat(process.env.TRADE_AMOUNT_TIER2 || '10');
+  const fallbackMargin = isTier1 ? tier1Fallback : tier2Fallback;
+
+  if (effPct <= 0) {
+    return fallbackMargin;
+  }
+
+  try {
+    const cl = clientInstance || (typeof client !== 'undefined' ? client : null);
+    let balance = 0;
+    if (cl && typeof cl.getBalance === 'function') {
+      balance = await cl.getBalance();
+    }
+    if (balance && balance > 0) {
+      const minMargin = parseFloat(process.env.TRADE_MIN_USDT || '5.0');
+      const maxMargin = parseFloat(process.env.TRADE_MAX_USDT || (isTier1 ? '100.0' : '50.0'));
+      const calcMargin = (balance * effPct) / 100.0;
+      return parseFloat(Math.min(Math.max(calcMargin, minMargin), maxMargin).toFixed(2));
+    }
+  } catch (_) {}
+
+  return fallbackMargin;
+}
+
 async function calculateTierSLTP(
   symbol,
   side,
@@ -851,16 +881,19 @@ async function calculateTierSLTP(
   tpRatio = 1.5,
   rank = null,
   gridWidthPct = null,
-  customKlines = null
+  customKlines = null,
+  customMargin = null
 ) {
   const isLong = (side === 'LONG' || side === 'BUY');
   const coinRank = (typeof rank === 'number' && !isNaN(rank)) ? rank : (getMarketCapRank ? getMarketCapRank(symbol) : 999);
   const isTier1 = (symbol === 'BTC' || symbol === 'ETH' || coinRank <= 50);
 
-  // Ký quỹ chuẩn hóa: $20 cho Tier 1 (Top 50), $10 cho Tier 2 (Ngoài Top 50)
+  // Ký quỹ chuẩn hóa: Ưu tiên customMargin (tính động theo % balance nếu có)
   const tier1Margin = parseFloat(process.env.TRADE_AMOUNT_TIER1 || process.env.TRADE_AMOUNT || '20');
   const tier2Margin = parseFloat(process.env.TRADE_AMOUNT_TIER2 || '10');
-  const standardMargin = isTier1 ? tier1Margin : tier2Margin;
+  const standardMargin = (typeof customMargin === 'number' && customMargin > 0)
+    ? customMargin
+    : (isTier1 ? tier1Margin : tier2Margin);
 
   const minSlPct = isTier1 ? 1.3 : 1.8;
   const decimals = h4Ref?.decimals || getDecimals(entryPrice);
@@ -1836,9 +1869,7 @@ async function startAutoTrade(coins) {
       // ── TẦNG 1: PHÂN TẦNG DANH MỤC & QUY MÔ VỐN (Tier 1 vs Tier 2) ──
       const isTier1 = isTop50Symbol(sym);
       const rank = getMarketCapRank ? getMarketCapRank(sym) : 999;
-      const tradeAmount = isTier1
-        ? parseFloat(process.env.TRADE_AMOUNT_TIER1 || process.env.TRADE_AMOUNT || '20.0')
-        : parseFloat(process.env.TRADE_AMOUNT_TIER2 || '10.0');
+      const tradeAmount = await getDynamicMargin(isTier1, client);
       const minRequiredScore = isTier1
         ? parseFloat(process.env.MIN_CONFLUENCE_SCORE_TIER1 || process.env.MIN_CONFLUENCE_SCORE || '7.0')
         : parseFloat(process.env.MIN_CONFLUENCE_SCORE_TIER2 || '8.0');
@@ -2337,7 +2368,7 @@ async function startAutoTrade(coins) {
       const tickSize = getEffectiveTickSize(sym, sig.targetLevel);
       const maxAllowed = leverageInfo[sym] ?? leverage;
       const baseTargetLossUSD = parseFloat(process.env.MAX_LOSS_PER_TRADE_USD || '3.0');
-      const prelimSetup = await calculateTierSLTP(sym, sig.signal, sig.targetLevel, h4Ref, tickSize, maxAllowed, baseTargetLossUSD, 1.5, rank, sig.gridWidthPct);
+      const prelimSetup = await calculateTierSLTP(sym, sig.signal, sig.targetLevel, h4Ref, tickSize, maxAllowed, baseTargetLossUSD, 1.5, rank, sig.gridWidthPct, null, tradeAmount);
       if (!prelimSetup.valid) {
         log.system(`[AutoTrade] ⚠️ Bỏ qua ${sym} (${sig.signal}): ${prelimSetup.reason} — Không đạt chuẩn R:R >= 1.5.`);
         return;
@@ -2499,7 +2530,7 @@ async function startAutoTrade(coins) {
       const targetLossUSD = riskProfile.targetLossUSD;
       const tpRatio = riskProfile.tpRatio;
 
-      const tierSetup = await calculateTierSLTP(sym, sig.signal, sig.targetLevel, h4Ref, tickSize, maxAllowed, targetLossUSD, tpRatio, rank, sig.gridWidthPct);
+      const tierSetup = await calculateTierSLTP(sym, sig.signal, sig.targetLevel, h4Ref, tickSize, maxAllowed, targetLossUSD, tpRatio, rank, sig.gridWidthPct, null, tradeAmount);
       if (!tierSetup.valid) {
         log.system(`[AutoTrade] ⏭️ ${sym} (${sig.signal}) bỏ qua: ${tierSetup.reason}`);
         return;
@@ -3334,9 +3365,7 @@ async function checkH1RetestSignals(client, activeSymbols, leverageInfo = {}) {
       // ── AI Reviewer Machine Learning Offline (Retest H1) ──
       const isTier1Retest = isTop50Symbol(sym);
       const rank = watchData.marketCapRank || (getMarketCapRank ? getMarketCapRank(sym) : 999);
-      const tradeAmountRetest = isTier1Retest
-        ? parseFloat(process.env.TRADE_AMOUNT_TIER1 || process.env.TRADE_AMOUNT || '20.0')
-        : parseFloat(process.env.TRADE_AMOUNT_TIER2 || '10.0');
+      const tradeAmountRetest = await getDynamicMargin(isTier1Retest, client);
       const minRequiredScoreRetest = isTier1Retest
         ? parseFloat(process.env.MIN_CONFLUENCE_SCORE_TIER1 || process.env.MIN_CONFLUENCE_SCORE || '7.0')
         : parseFloat(process.env.MIN_CONFLUENCE_SCORE_TIER2 || '8.0');
@@ -3425,7 +3454,7 @@ async function checkH1RetestSignals(client, activeSymbols, leverageInfo = {}) {
       const tickSizeRetest = getEffectiveTickSize(sym, targetLevel);
       const maxAllowedRetest = (leverageInfo && leverageInfo[sym]) ?? getLeverageCached(sym) ?? 20;
       const baseLossRetest = parseFloat(process.env.MAX_LOSS_PER_TRADE_USD || '3.0');
-      const prelimRetest = await calculateTierSLTP(sym, signal, targetLevel, h4RefRetest, tickSizeRetest, maxAllowedRetest, baseLossRetest, 1.5, rank, watchData.gridWidthPct || gridStepPct);
+      const prelimRetest = await calculateTierSLTP(sym, signal, targetLevel, h4RefRetest, tickSizeRetest, maxAllowedRetest, baseLossRetest, 1.5, rank, watchData.gridWidthPct || gridStepPct, null, tradeAmountRetest);
       if (!prelimRetest.valid) {
         log.system(`[AutoTrade (Retest H1)] ⚠️ Bỏ qua ${sym} (${signal}): ${prelimRetest.reason} — Không đạt chuẩn R:R >= 1.5.`);
         delete lowScoreWatchlist[sym];
@@ -3497,7 +3526,7 @@ async function checkH1RetestSignals(client, activeSymbols, leverageInfo = {}) {
       const targetLossUSDRetest = riskProfileRetest.targetLossUSD;
       const tpRatioRetest = riskProfileRetest.tpRatio;
 
-      const tierSetupRetest = await calculateTierSLTP(sym, signal, targetLevel, h4RefRetest, tickSizeRetest, maxAllowedRetest, targetLossUSDRetest, tpRatioRetest, rank, watchData.gridWidthPct || gridStepPct);
+      const tierSetupRetest = await calculateTierSLTP(sym, signal, targetLevel, h4RefRetest, tickSizeRetest, maxAllowedRetest, targetLossUSDRetest, tpRatioRetest, rank, watchData.gridWidthPct || gridStepPct, null, tradeAmountRetest);
       if (!tierSetupRetest.valid) {
         log.system(`[H1Retest] ⏭️ ${sym} (${signal}) bỏ qua: ${tierSetupRetest.reason}`);
         delete lowScoreWatchlist[sym];
