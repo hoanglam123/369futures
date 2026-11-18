@@ -710,33 +710,33 @@ function scoreSetup(symbol, direction, ta, whaleData, derivatives, fundingRates,
 
   // 3. Giờ UTC thấp thanh khoản (0:00 - 7:00 UTC)
   const utcHour = new Date().getUTCHours();
-  const timePenalty = (utcHour >= 0 && utcHour < 7) ? -1.0 : 0;
-  const timeReasons = timePenalty ? [`UTC ${utcHour}h thanh khoản thấp (-1.0)`] : [];
+  const timePenalty = (utcHour >= 0 && utcHour < 7) ? -1 : 0;
+  const timeReasons = timePenalty ? [`UTC ${utcHour}h thanh khoản thấp (-1)`] : [];
 
-  // 4. BTC Headwind penalty: LONG altcoin khi BTC đang TRENDING_DOWN → -1.0đ đến -2.0đ
+  // 4. BTC headwind: LONG altcoin khi BTC đang TRENDING_DOWN → -1 (áp dụng cả ETH)
   let btcPenalty = 0;
   const btcReasons = [];
   if (direction === 'LONG' && cleanSym !== 'BTC' && btcTA) {
     const btcRsi1d = btcTA.rsi?.['1d'] ?? 50;
     if (btcTA.regime === 'TRENDING_DOWN' && btcRsi1d > 35) {
-      btcPenalty = -1.5;
-      btcReasons.push(`BTC TRENDING_DOWN (RSI1D=${btcRsi1d.toFixed(0)}) — headwind LONG altcoin (-1.5)`);
+      btcPenalty = -1;
+      btcReasons.push(`BTC TRENDING_DOWN (RSI1D=${btcRsi1d.toFixed(0)}) — headwind LONG altcoin (-1)`);
     }
   }
 
-  // Tổng điểm thô (0.0 - 10.0đ)
-  const rawTotal = (
-    taResult.score + whaleResult.score + derivResult.score +
-    sentResult.score + result369.score + timePenalty + btcPenalty
+  // Tổng điểm (chuẩn bot-new: Math.max(0, sum), không kẹp trần 10.0, số nguyên)
+  const total = Math.max(0,
+    taResult.score + whaleResult.score + derivResult.score + sentResult.score +
+    result369.score + timePenalty + btcPenalty
   );
-  const total = Number(Math.max(0, Math.min(10.0, rawTotal)).toFixed(1));
 
   // Phân cấp Verdict và Độ tin cậy chuẩn Bot-New
   let verdict, confidence;
-  if (total < 5.0)        { verdict = 'NO_SETUP';         confidence = 0;  }
-  else if (total < 7.0)   { verdict = 'CAUTIOUS';         confidence = 55; }
-  else if (total < 9.0)   { verdict = 'CONFIDENT';        confidence = 70; }
-  else                    { verdict = 'BEST_OPPORTUNITY'; confidence = 85; }
+  if (total < 5)        { verdict = 'NO_SETUP';         confidence = 0;  }
+  else if (total <= 6)  { verdict = 'CAUTIOUS';         confidence = 55; }
+  else if (total <= 8)  { verdict = 'CONFIDENT';        confidence = 70; }
+  else if (total <= 10) { verdict = 'BEST_OPPORTUNITY'; confidence = 85; }
+  else                  { verdict = 'BEST_OPPORTUNITY'; confidence = 90; }
 
   const maxLeverage = calcMaxLeverage(ta, verdict, cleanSym);
 
