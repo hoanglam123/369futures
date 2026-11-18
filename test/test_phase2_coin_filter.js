@@ -162,29 +162,29 @@ runTest('Tầng 3: Deterministic Confluence Scorer chấm điểm chính xác', 
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// TEST 7: Chốt chặn điểm cứng (Hard Score Gate): Tier 1 (7.0đ) vs Tier 2 (8.5đ)
+// TEST 7: Chốt chặn điểm cứng (Hard Score Gate): Tier 1 (7.0đ) vs Tier 2 (8.0đ)
 // ─────────────────────────────────────────────────────────────────────────────
 runTest('Tầng 3 & 4: Hard Score Gate VETO lệnh điểm thấp trước khi tới AI', () => {
   // Điểm 6.2đ: Cả Tier 1 và Tier 2 đều phải VETO
   const scoreLow = 6.2;
   const isTier1PassLow = scoreLow >= 7.0;
-  const isTier2PassLow = scoreLow >= 8.5;
+  const isTier2PassLow = scoreLow >= 8.0;
   assert.strictEqual(isTier1PassLow, false, 'Score 6.2đ phải bị VETO ở Tier 1');
   assert.strictEqual(isTier2PassLow, false, 'Score 6.2đ phải bị VETO ở Tier 2');
 
   // Điểm 7.4đ: Tier 1 Top 50 ĐƯỢC PHÉP, nhưng Tier 2 Altcoin BỊ VETO!
   const scoreMid = 7.4;
   const isTier1PassMid = scoreMid >= 7.0;
-  const isTier2PassMid = scoreMid >= 8.5;
+  const isTier2PassMid = scoreMid >= 8.0;
   assert.strictEqual(isTier1PassMid, true, 'Score 7.4đ phải ĐẠT CHUẨN cho Tier 1 Top 50');
-  assert.strictEqual(isTier2PassMid, false, 'Score 7.4đ phải BỊ VETO cho Tier 2 Altcoin (yêu cầu >= 8.5đ)');
+  assert.strictEqual(isTier2PassMid, false, 'Score 7.4đ phải BỊ VETO cho Tier 2 Altcoin (yêu cầu >= 8.0đ)');
 
-  // Điểm 8.8đ: Cả Tier 1 và Tier 2 đều ĐẠT CHUẨN!
-  const scoreHigh = 8.8;
+  // Điểm 8.2đ: Cả Tier 1 và Tier 2 đều ĐẠT CHUẨN!
+  const scoreHigh = 8.2;
   const isTier1PassHigh = scoreHigh >= 7.0;
-  const isTier2PassHigh = scoreHigh >= 8.5;
-  assert.strictEqual(isTier1PassHigh, true, 'Score 8.8đ phải ĐẠT CHUẨN cho Tier 1');
-  assert.strictEqual(isTier2PassHigh, true, 'Score 8.8đ phải ĐẠT CHUẨN cho Tier 2');
+  const isTier2PassHigh = scoreHigh >= 8.0;
+  assert.strictEqual(isTier1PassHigh, true, 'Score 8.2đ phải ĐẠT CHUẨN cho Tier 1');
+  assert.strictEqual(isTier2PassHigh, true, 'Score 8.2đ phải ĐẠT CHUẨN cho Tier 2');
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
