@@ -1242,6 +1242,30 @@ async function startAutoTrade(coins) {
   // trước mọi async call để tránh cả 2 luồng (WS + Poll) cùng đặt lệnh song song
   const processingSymbols = new Set();
 
+  // ── REVERSAL SIGNAL & ACTIVE POSITION TRACKING (Đồng bộ cơ chế với bot-new) ──
+  const MIN_SCORE_REVERSAL = parseInt(process.env.MIN_SCORE_REVERSAL || '9', 10);
+  const REVERSAL_ALERT_COOLDOWN_MS = parseInt(process.env.REVERSAL_ALERT_COOLDOWN_MS || String(30 * 60 * 1000), 10);
+  const reversalAlertCooldown = {}; // sym -> timestamp
+  const activePositionsMap = new Map(); // sym -> { direction: 'LONG' | 'SHORT', positionAmt, entryPrice }
+  const activeOrdersMap = new Map(); // sym -> 'LONG' | 'SHORT'
+
+  function getActiveTradeDirection(sym) {
+    if (activePositionsMap.has(sym)) {
+      return activePositionsMap.get(sym).direction;
+    }
+    if (activeOrdersMap.has(sym)) {
+      return activeOrdersMap.get(sym);
+    }
+    const meta = activeTradesMetadata[sym];
+    if (meta?.side) {
+      return (meta.side === 'BUY' || meta.side === 'LONG') ? 'LONG' : 'SHORT';
+    }
+    if (activeSymbols.has(sym)) {
+      return 'UNKNOWN';
+    }
+    return null;
+  }
+
   isShadowMode = process.env.SHADOW_MODE === 'true' || !apiKey || !secret;
   if (!isShadowMode && (!apiKey || !secret)) {
     throw new Error('Thiếu BINANCE_API_KEY hoặc BINANCE_SECRET trong .env');
@@ -1307,6 +1331,12 @@ async function startAutoTrade(coins) {
         meta.isFilled = true;
         meta.entryPrice = fillData.avgPrice || meta.entryPrice;
         meta.fillTime = Date.now();
+        activeOrdersMap.delete(sym);
+        activePositionsMap.set(sym, {
+          direction: (meta.side === 'BUY' || meta.side === 'LONG') ? 'LONG' : 'SHORT',
+          positionAmt: fillData.qty || meta.qty,
+          entryPrice: meta.entryPrice
+        });
         saveActiveTradesMetadata();
 
         // Đặt cặp lệnh bảo vệ kép Dual Bracket (Limit TP & Stop Market SL) trực tiếp lên sàn
@@ -1337,6 +1367,10 @@ async function startAutoTrade(coins) {
         log.system(`[AutoTrade] 🎯 Lệnh TP Limit khớp cho ${sym}! Tự động dọn dẹp SL đối ứng...`);
         await autoCleanOppositeOrder({ client, sym, filledType: 'TP', meta });
         delete activeTradesMetadata[sym];
+        delete reversalAlertCooldown[sym];
+        activeOrdersMap.delete(sym);
+        activePositionsMap.delete(sym);
+        activeSymbols.delete(sym);
         saveActiveTradesMetadata();
         sendTelegram(`🎯 <b>[AutoTrade] Chốt Lời Thành Công!</b>\n• Coin: <b>#${sym}</b>\n• Giá TP: <b>$${fillData.avgPrice}</b>`).catch(() => {});
       }
@@ -1346,6 +1380,10 @@ async function startAutoTrade(coins) {
         await autoCleanOppositeOrder({ client, sym, filledType: 'SL', meta });
         addSymbolToCooldown(sym, 6.0, 'SL_NORMAL');
         delete activeTradesMetadata[sym];
+        delete reversalAlertCooldown[sym];
+        activeOrdersMap.delete(sym);
+        activePositionsMap.delete(sym);
+        activeSymbols.delete(sym);
         saveActiveTradesMetadata();
         sendTelegram(`🛑 <b>[AutoTrade] Dừng Lỗ Vị Thế</b>\n• Coin: <b>#${sym}</b>\n• Giá SL: <b>$${fillData.avgPrice}</b>\n• Kích hoạt Cooldown 6h bảo vệ vốn`).catch(() => {});
       }
@@ -1480,10 +1518,31 @@ async function startAutoTrade(coins) {
       ...openOrders.map(o => o.symbol.replace('USDT', ''))
     ]);
 
+    for (const p of openPos) {
+      const amt = parseFloat(p.positionAmt);
+      if (amt !== 0) {
+        const sym = p.symbol.replace('USDT', '');
+        activePositionsMap.set(sym, {
+          direction: amt > 0 ? 'LONG' : 'SHORT',
+          positionAmt: amt,
+          entryPrice: parseFloat(p.entryPrice),
+          unrealizedPnl: parseFloat(p.unRealizedProfit)
+        });
+      }
+    }
+    for (const o of openOrders) {
+      const sym = o.symbol.replace('USDT', '');
+      activeOrdersMap.set(sym, o.side === 'BUY' ? 'LONG' : 'SHORT');
+    }
+
     let cleanedCount = 0;
     for (const sym of Object.keys(activeTradesMetadata)) {
       if (!activeExchangeSymbols.has(sym)) {
         delete activeTradesMetadata[sym];
+        delete reversalAlertCooldown[sym];
+        activeOrdersMap.delete(sym);
+        activePositionsMap.delete(sym);
+        activeSymbols.delete(sym);
         cleanedCount++;
       }
     }
@@ -1755,11 +1814,28 @@ async function startAutoTrade(coins) {
         }
 
         activeSymbols.clear();
+        activePositionsMap.clear();
+        activeOrdersMap.clear();
+
         for (const p of currentPos) {
-          activeSymbols.add(p.symbol.replace('USDT', ''));
+          const amt = parseFloat(p.positionAmt);
+          if (amt !== 0) {
+            const sym = p.symbol.replace('USDT', '');
+            activeSymbols.add(sym);
+        activeOrdersMap.set(sym, side === 'BUY' ? 'LONG' : 'SHORT');
+            activePositionsMap.set(sym, {
+              direction: amt > 0 ? 'LONG' : 'SHORT',
+              positionAmt: amt,
+              entryPrice: parseFloat(p.entryPrice),
+              unrealizedPnl: parseFloat(p.unRealizedProfit)
+            });
+          }
         }
         for (const o of remainingOrders) {
-          activeSymbols.add(o.symbol.replace('USDT', ''));
+          const sym = o.symbol.replace('USDT', '');
+          activeSymbols.add(sym);
+        activeOrdersMap.set(sym, side === 'BUY' ? 'LONG' : 'SHORT');
+          activeOrdersMap.set(sym, o.side === 'BUY' ? 'LONG' : 'SHORT');
         }
         for (const o of currentAlgoOrders) {
           activeSymbols.add(o.symbol.replace('USDT', ''));
@@ -1823,7 +1899,28 @@ async function startAutoTrade(coins) {
 
   function enqueueSymbolSignal(client, sym, markPrice, leverageInfo, leverage, coins) {
     if (isIpBanned()) return;
-    if (!sym || !markPrice || activeSymbols.has(sym) || processingSymbols.has(sym) || activeTradesMetadata[sym] || isShadowPositionActive(sym)) return;
+    if (!sym || !markPrice || processingSymbols.has(sym) || isShadowPositionActive(sym)) return;
+
+    // Nếu symbol đang active: chỉ cho phép enqueue nếu tiệm cận mốc NGƯỢC CHIỀU và chưa dính cooldown đảo chiều
+    const activeDir = getActiveTradeDirection(sym);
+    if (activeDir) {
+      if (activeDir === 'UNKNOWN') return;
+      const now = Date.now();
+      if ((reversalAlertCooldown[sym] || 0) + REVERSAL_ALERT_COOLDOWN_MS > now) {
+        return; // Đã cảnh báo đảo chiều trong 30p qua → bỏ qua
+      }
+
+      // Kiểm tra xem có đang ở mốc đối diện không
+      const levelCache = getLevelCache();
+      const levels = levelCache ? levelCache[sym] : null;
+      if (levels?.longEntry && levels?.shortEntry) {
+        const nearTol = markPrice * 0.005; // 0.5%
+        const nearLong = Math.abs(markPrice - levels.longEntry) <= nearTol;
+        const nearShort = Math.abs(levels.shortEntry - markPrice) <= nearTol;
+        const isOppositeNear = (activeDir === 'LONG' && nearShort) || (activeDir === 'SHORT' && nearLong);
+        if (!isOppositeNear) return; // Đang ở mốc cùng chiều hoặc ở giữa → bỏ qua
+      }
+    }
 
     if (signalCheckQueue.some(item => item.sym === sym)) return;
 
@@ -1848,12 +1945,80 @@ async function startAutoTrade(coins) {
       });
   }
 
+  async function handleReversalSignal(sym, activeDir, sig, markPrice) {
+    try {
+      let taSymbol = null;
+      let btcTA = null;
+      let fundingMap = {};
+      let onDemand = { whaleData: null, derivatives: null, fearGreed: null };
+
+      try {
+        [taSymbol, btcTA, fundingMap, onDemand] = await Promise.all([
+          getSymbolTA(sym),
+          getBtcTA(),
+          getBinanceFundingRates(),
+          getOnDemandMarketData(sym)
+        ]);
+      } catch (e) {
+        log.warn(`[AutoTrade] Lỗi nạp dữ liệu on-demand đảo chiều cho ${sym}: ${e.message}`);
+      }
+
+      const fundingRate = fundingMap ? fundingMap[sym] : null;
+      const whaleData = onDemand?.whaleData || null;
+      const derivatives = onDemand?.derivatives || null;
+      const fearGreed = onDemand?.fearGreed || null;
+
+      // Chấm điểm Confluence Scorer cho setup ngược chiều
+      const scoreRes = scoreSetup(sym, sig.signal, taSymbol, whaleData, derivatives, fundingRate, fearGreed, null, btcTA, sig);
+      const score = scoreRes.total;
+      const reasons = scoreRes.reasons || [];
+      const verdict = scoreRes.verdict || '';
+      const confidence = scoreRes.confidence || 0;
+
+      log.system(`[AutoTrade] 🔍 [Check Đảo Chiều] ${sym}: Đang có ${activeDir} | Tín hiệu ${sig.signal} @ $${sig.targetLevel} đạt ${score.toFixed(1)}đ [${verdict}] (Cần >= ${MIN_SCORE_REVERSAL}đ)`);
+
+      if (score >= MIN_SCORE_REVERSAL) {
+        reversalAlertCooldown[sym] = Date.now();
+
+        const activeIcon = activeDir === 'LONG' ? '🟢 LONG' : '🔴 SHORT';
+        const revIcon = sig.signal === 'LONG' ? '🟢 LONG' : '🔴 SHORT';
+        const reasonLines = (reasons || []).slice(0, 5)
+          .map(r => `  • ${String(r).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}`)
+          .join('\n');
+
+        const msg =
+          `🔁 <b>[CẢNH BÁO ĐẢO CHIỀU] — #${sym}</b>\n` +
+          `━━━━━━━━━━━━━━━━\n` +
+          `📤 <b>Vị thế đang giữ:</b> ${activeIcon} trên sàn\n` +
+          `📥 <b>Tín hiệu đối diện:</b> ${revIcon} tại <code>$${sig.targetLevel}</code> (Giá hiện tại: <code>$${markPrice}</code>)\n` +
+          `⭐ <b>Điểm Confluence:</b> <b>${score.toFixed(1)}đ</b> [${verdict}] · Độ tin cậy: <b>${confidence}%</b>\n` +
+          `━━━━━━━━━━━━━━━━\n` +
+          (reasonLines ? `🧠 <b>Căn cứ hợp lưu:</b>\n${reasonLines}\n━━━━━━━━━━━━━━━━\n` : '') +
+          `⚠️ <b>Khuyến nghị:</b>\n` +
+          `Nếu đang giữ lệnh ${activeIcon} trên sàn, hãy chủ động cân nhắc chốt lời hoặc đóng vị thế để bảo toàn vốn.\n\n` +
+          `<i>🤖 Bot <b>KHÔNG</b> tự đặt lệnh ${revIcon} và <b>KHÔNG</b> tự hủy lệnh ${activeIcon} trên sàn.</i>`;
+
+        sendTelegram(msg).catch(err => {
+          log.warn(`[AutoTrade] Không thể gửi cảnh báo đảo chiều Telegram cho ${sym}: ${err.message}`);
+        });
+
+        log.system(`[AutoTrade] 🔁 [ĐÃ GỬI CẢNH BÁO ĐẢO CHIỀU] ${sym}: ${activeDir} → ${sig.signal} (${score.toFixed(1)}đ >= ${MIN_SCORE_REVERSAL}đ)`);
+      } else {
+        log.system(`[AutoTrade] 🛑 [Bỏ qua Đảo Chiều] ${sym}: Tín hiệu ${sig.signal} chỉ đạt ${score.toFixed(1)}đ < ${MIN_SCORE_REVERSAL}đ → Bỏ qua`);
+      }
+    } catch (err) {
+      log.warn(`[AutoTrade] Lỗi trong handleReversalSignal cho ${sym}: ${err.message}`);
+    }
+  }
+
   async function processSymbolSignal(client, sym, markPrice, leverageInfo, leverage, coins) {
     if (isIpBanned()) return;
-    if (!sym || !markPrice || activeSymbols.has(sym) || processingSymbols.has(sym)) return;
+    if (!sym || !markPrice || processingSymbols.has(sym)) return;
     // Khóa symbol ngay lập tức — trước mọi await — để chặn duplicate từ Luồng 1 + Luồng 2
     processingSymbols.add(sym);
     try {
+      const activeDir = getActiveTradeDirection(sym);
+      if (activeDir === 'UNKNOWN') return;
 
       let sig;
       try {
@@ -1873,6 +2038,24 @@ async function startAutoTrade(coins) {
           }
         }
         return;
+      }
+
+      // ── CHỐT CHẶN VỊ THẾ ACTIVE: XỬ LÝ LỆNH CÙNG CHIỀU VS ĐẢO CHIỀU ──
+      if (activeDir) {
+        if (sig.signal === activeDir) {
+          // Cùng chiều: Đang có lệnh/vị thế active → Bỏ qua ngay lập tức, không vào lệnh trùng
+          return;
+        }
+
+        // Ngược chiều: Tín hiệu đảo chiều!
+        const now = Date.now();
+        if (now - (reversalAlertCooldown[sym] || 0) < REVERSAL_ALERT_COOLDOWN_MS) {
+          return; // Vẫn trong cooldown cảnh báo 30 phút → bỏ qua
+        }
+
+        // Chấm điểm và cảnh báo đảo chiều
+        await handleReversalSignal(sym, activeDir, sig, markPrice);
+        return; // LUÔN RETURN — Tuyệt đối không đặt lệnh mới và không hủy lệnh cũ trên Binance!
       }
 
       // ── TẦNG 1: PHÂN TẦNG DANH MỤC & QUY MÔ VỐN (Tier 1 vs Tier 2) ──
@@ -2141,6 +2324,7 @@ async function startAutoTrade(coins) {
             if (pendingOrder) {
               log.system(`[AutoTrade] 🛑 ${sym} đang có lệnh LIMIT (${pendingOrder.side} @ $${pendingOrder.price}) chờ khớp trên sàn — khóa không đặt thêm lệnh mới.`);
               activeSymbols.add(sym);
+              activeOrdersMap.set(sym, pendingOrder.side === 'BUY' ? 'LONG' : 'SHORT');
               return;
             }
           }
@@ -2607,6 +2791,7 @@ async function startAutoTrade(coins) {
             if (existingLimit) {
               log.system(`[AutoTrade] 🛑 [Pre-Place Guard] ${sym} vừa phát hiện lệnh LIMIT ${existingLimit.side} @ $${existingLimit.price} đang chờ — Hủy phát lệnh mới để tránh trùng/đối ứng.`);
               activeSymbols.add(sym);
+              activeOrdersMap.set(sym, existingLimit.side === 'BUY' ? 'LONG' : 'SHORT');
               return;
             }
           }
@@ -2621,6 +2806,7 @@ async function startAutoTrade(coins) {
         }
 
         activeSymbols.add(sym);
+        activeOrdersMap.set(sym, side === 'BUY' ? 'LONG' : 'SHORT');
 
         const isCounter = (sig.signalMetrics?.trend === 'TREND_CONFLICT' || sig.signalMetrics?.trend === 'TREND_COUNTER');
 
@@ -2677,7 +2863,8 @@ async function startAutoTrade(coins) {
         });
 
         _markFired(sig);
-        activeSymbols.add(sym); // 🛡️ BẢO VỆ LOCAL RAM: Khóa symbol ngay khi đặt lệnh thành công, không phụ thuộc REST sync 418
+        activeSymbols.add(sym);
+        activeOrdersMap.set(sym, side === 'BUY' ? 'LONG' : 'SHORT'); // 🛡️ BẢO VỆ LOCAL RAM: Khóa symbol ngay khi đặt lệnh thành công, không phụ thuộc REST sync 418
         sig.aiEval = aiEval;
         sig.leverage = effectiveLeverage;
         sig.margin = actualTradeMargin;
@@ -2743,7 +2930,7 @@ async function startAutoTrade(coins) {
 
   onPriceUpdate((sym, price) => {
     if (isIpBanned()) return;
-    if (!activeCoinSet.has(sym) || activeSymbols.has(sym)) return;
+    if (!activeCoinSet.has(sym)) return;
 
     // 🛡️ COOLDOWN GUARD: Chỉ cho phép enqueueSymbolSignal tối đa 1 lần mỗi 15 giây cho từng coin
     const now = Date.now();
@@ -2757,10 +2944,22 @@ async function startAutoTrade(coins) {
     const nearLong = Math.abs(price - levels.longEntry) <= nearTol;
     const nearShort = Math.abs(levels.shortEntry - price) <= nearTol;
 
-    if (nearLong || nearShort) {
-      symbolSignalCooldown[sym] = now; // Ghi nhận thời điểm check
-      enqueueSymbolSignal(client, sym, price, leverageInfo, leverage, coins);
+    const activeDir = getActiveTradeDirection(sym);
+    if (activeDir) {
+      if (activeDir === 'UNKNOWN') return;
+      // Nếu đang giữ LONG, chỉ quan tâm khi chạm mốc SHORT (đảo chiều)
+      // Nếu đang giữ SHORT, chỉ quan tâm khi chạm mốc LONG (đảo chiều)
+      const isOppositeNear = (activeDir === 'LONG' && nearShort) || (activeDir === 'SHORT' && nearLong);
+      if (!isOppositeNear) return;
+
+      // Kiểm tra cooldown cảnh báo đảo chiều
+      if ((reversalAlertCooldown[sym] || 0) + REVERSAL_ALERT_COOLDOWN_MS > now) return;
+    } else {
+      if (!nearLong && !nearShort) return;
     }
+
+    symbolSignalCooldown[sym] = now; // Ghi nhận thời điểm check
+    enqueueSymbolSignal(client, sym, price, leverageInfo, leverage, coins);
   });
 
   // Luồng 2: Quét Polling dự phòng 30s
@@ -3611,6 +3810,7 @@ async function checkH1RetestSignals(client, activeSymbols, leverageInfo = {}) {
         const limitId = limitOrder.orderId || limitOrder.id || 'unknown';
 
         if (activeSymbols) activeSymbols.add(sym);
+        if (activeOrdersMap) activeOrdersMap.set(sym, side === 'BUY' ? 'LONG' : 'SHORT');
 
         log.system(`[H1Retest] ✓ Đã đặt thành công lệnh LIMIT Retest H1 cho ${sym} ${side} ${qty} @ $${targetLevel} (orderId=${limitId})`);
 
