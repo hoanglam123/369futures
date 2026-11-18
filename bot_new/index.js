@@ -13,7 +13,7 @@
  *   node index.js --backtest → Phân tích klines Binance cho lệnh active (bot offline cả ngày)
  */
 
-require('dotenv').config();
+require('dotenv').config({ override: true });
 
 const cron = require('node-cron');
 const { runJob, run369AlertScan } = require('./src/job');
