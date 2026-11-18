@@ -609,53 +609,83 @@ async function fetchH4Reference(symbol) {
   return entry;
 }
 
-const HIST_CACHE_FILE = path.join(process.cwd(), 'data', 'h1_history_cache.json');
+// ─── LƯU TRỮ VÀ TÁI SỬ DỤNG CACHE NẾN TRÊN ĐĨA MÁY CHỦ (SERVER DISK PERSISTENCE) ──────
+const HIST_CACHE_FILE_H1 = path.join(process.cwd(), 'data', 'h1_history_cache.json');
+const HIST_CACHE_FILE_H4 = path.join(process.cwd(), 'data', 'h4_history_cache.json');
+const HIST_CACHE_FILE_D1 = path.join(process.cwd(), 'data', 'd1_history_cache.json');
 
-function loadH1HistDiskCache() {
+function loadDiskCache(filePath, maxKeep, targetMap) {
   try {
-    if (fs.existsSync(HIST_CACHE_FILE)) {
-      const data = JSON.parse(fs.readFileSync(HIST_CACHE_FILE, 'utf8'));
-      if (data && data.yearStart === YEAR_START_MS && data.items) {
-        // Cắt tỉa ngay dữ liệu nến H1 đã load từ đĩa về tối đa 100 nến gần nhất (~4 ngày) để giải phóng RAM & đĩa
-        for (const [sym, item] of Object.entries(data.items)) {
-          if (item && Array.isArray(item.candles) && item.candles.length > 100) {
-            item.candles = item.candles.slice(-100);
+    if (fs.existsSync(filePath)) {
+      const data = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+      const items = data.items || data;
+      if (items && typeof items === 'object') {
+        for (const [sym, item] of Object.entries(items)) {
+          if (item && Array.isArray(item.candles) && item.candles.length > 0) {
+            const pruned = item.candles.length > maxKeep ? item.candles.slice(-maxKeep) : item.candles;
+            targetMap[sym] = {
+              yearStart: YEAR_START_MS,
+              candles: pruned,
+              cursor: pruned[pruned.length - 1].openTime,
+            };
           }
         }
-        Object.assign(_h1HistCache, data.items);
       }
     }
   } catch (err) {
-    log.warn(`[369] Lỗi đọc h1_history_cache.json từ file: ${err.message}`);
+    log.warn(`[369] Lỗi nạp cache từ file ${path.basename(filePath)}: ${err.message}`);
   }
+}
+
+const _saveTimeouts = {};
+function scheduleSaveDiskCache(type, filePath, maxKeep, sourceMap) {
+  if (_saveTimeouts[type]) return;
+  _saveTimeouts[type] = setTimeout(() => {
+    _saveTimeouts[type] = null;
+    try {
+      const dir = path.dirname(filePath);
+      if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+      const prunedItems = {};
+      for (const [sym, item] of Object.entries(sourceMap)) {
+        if (item && Array.isArray(item.candles) && item.candles.length > 0) {
+          prunedItems[sym] = {
+            yearStart: YEAR_START_MS,
+            candles: item.candles.slice(-maxKeep),
+            cursor: item.candles[item.candles.length - 1].openTime,
+          };
+        }
+      }
+      fs.writeFileSync(filePath, JSON.stringify({ yearStart: YEAR_START_MS, items: prunedItems }), 'utf8');
+    } catch (err) {
+      log.warn(`[369] Lỗi ghi ${path.basename(filePath)} ra đĩa: ${err.message}`);
+    }
+  }, 1000);
 }
 
 function saveH1HistDiskCache() {
-  try {
-    const dir = path.dirname(HIST_CACHE_FILE);
-    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-    // Tự động cắt tỉa toàn bộ items về tối đa 100 nến trước khi ghi ra đĩa JSON
-    const prunedItems = {};
-    for (const [sym, item] of Object.entries(_h1HistCache)) {
-      if (item) {
-        prunedItems[sym] = {
-          ...item,
-          candles: Array.isArray(item.candles) ? item.candles.slice(-100) : []
-        };
-      }
-    }
-    fs.writeFileSync(HIST_CACHE_FILE, JSON.stringify({ yearStart: YEAR_START_MS, items: prunedItems }), 'utf8');
-  } catch (err) {
-    log.warn(`[369] Lỗi ghi h1_history_cache.json ra file: ${err.message}`);
+  scheduleSaveDiskCache('H1', HIST_CACHE_FILE_H1, 100, _h1HistCache);
+}
+
+function loadAllKlinesDiskCache() {
+  loadDiskCache(HIST_CACHE_FILE_H1, 100, _h1HistCache);
+  loadDiskCache(HIST_CACHE_FILE_H4, 75, _h4HistCache);
+  loadDiskCache(HIST_CACHE_FILE_D1, 45, _d1HistCache);
+  const h1Count = Object.keys(_h1HistCache).length;
+  const h4Count = Object.keys(_h4HistCache).length;
+  const d1Count = Object.keys(_d1HistCache).length;
+  if (h1Count > 0 || h4Count > 0 || d1Count > 0) {
+    log.system(`[369] ✓ Đã nạp cache nến từ đĩa máy chủ: ${h1Count} coin H1, ${h4Count} coin H4, ${d1Count} coin D1.`);
   }
 }
 
-// Tự động load cache từ đĩa ngay khi module khởi động
-loadH1HistDiskCache();
+// Tự động nạp toàn bộ cache nến từ đĩa ngay khi module khởi động
+loadAllKlinesDiskCache();
 
 /**
- * Lấy toàn bộ nến H1 đã đóng từ đầu năm 2026 đến H1 hiện tại (incremental).
- * Chỉ gọi API khi có H1 mới đóng (mỗi giờ), cache lại memory & lưu đĩa JSON.
+ * Lấy nến H1 đã đóng (incremental).
+ * - Nếu đã có trên đĩa và đủ nến mới: 0 requests (0ms, 0 weight).
+ * - Nếu bị thiếu vài nến (do bot tắt): CHỈ GỌI ĐÚNG SỐ NẾN BỊ THIẾU.
+ * - Nếu coin hoàn toàn mới: gọi 1 lần 100 nến và lưu ngay vào đĩa máy chủ.
  */
 async function fetchH1Historical(symbol) {
   const H1_MS = 60 * 60 * 1000;
@@ -663,55 +693,59 @@ async function fetchH1Historical(symbol) {
 
   let cache = _h1HistCache[symbol];
 
-  // Khởi tạo nhanh (1 call duy nhất): Nếu chưa có cache hoặc cache rỗng, tải ngay 100 nến H1 gần nhất
-  // Thay vì chạy while-loop từ đầu năm 2026 (7700 giờ = 52 calls -> gây nghẽn 429 Rate Limit)
-  if (!cache || cache.yearStart !== YEAR_START_MS || !Array.isArray(cache.candles) || cache.candles.length === 0) {
+  // 1. Trường hợp hoàn toàn chưa có cache trên đĩa (Coin mới gặp lần đầu tiên):
+  if (!cache || !Array.isArray(cache.candles) || cache.candles.length === 0) {
     const raw = await fetchBinanceKlines(symbol, '1h', null, 105);
     const closed = (raw || []).filter(c => c.openTime < currentH1Start).slice(-100);
     cache = {
       yearStart: YEAR_START_MS,
       candles: closed,
-      cursor: closed.length > 0 ? closed[closed.length - 1].openTime + H1_MS : currentH1Start
+      cursor: closed.length > 0 ? closed[closed.length - 1].openTime + H1_MS : currentH1Start,
     };
     _h1HistCache[symbol] = cache;
-    if (closed.length > 0) saveH1HistDiskCache();
+    if (closed.length > 0) {
+      scheduleSaveDiskCache('H1', HIST_CACHE_FILE_H1, 100, _h1HistCache);
+    }
     return cache.candles;
   }
 
-  if (cache.cursor >= currentH1Start) return cache.candles; // Không có H1 mới nào
+  // 2. Trường hợp đã có cache: kiểm tra nến cuối cùng
+  const lastClosedTime = cache.candles.length > 0 ? cache.candles[cache.candles.length - 1].openTime : 0;
+  if (lastClosedTime + H1_MS >= currentH1Start) {
+    // Đã có nến của giờ vừa đóng -> Hoàn toàn không cần gọi sàn (0 API calls, 0 weight)
+    return cache.candles;
+  }
 
-  let cursor = cache.cursor;
-  let fetchedNew = false;
+  // 3. Thiếu một vài nến do bot bị tắt: CHỈ LẤY ĐÚNG CÁC NẾN BỊ THIẾU
+  const missingFrom = lastClosedTime + H1_MS;
+  const missingCount = Math.max(1, Math.ceil((currentH1Start - missingFrom) / H1_MS));
 
-  while (cursor < currentH1Start) {
-    const batch = await fetchBinanceKlines(symbol, '1h', cursor, 150);
-    if (!batch.length) break;
-
-    const closed = batch.filter(c => c.openTime < currentH1Start);
-    if (cache.candles.length > 0) {
-      const lastTime = cache.candles[cache.candles.length - 1].openTime;
-      cache.candles.push(...closed.filter(c => c.openTime > lastTime));
-    } else {
-      cache.candles.push(...closed);
+  if (missingCount >= 100) {
+    // Nếu tắt quá lâu (> 4 ngày), tải 1 lần 100 nến mới nhất
+    const raw = await fetchBinanceKlines(symbol, '1h', null, 105);
+    const closed = (raw || []).filter(c => c.openTime < currentH1Start).slice(-100);
+    if (closed.length > 0) {
+      cache.candles = closed;
+      cache.cursor = closed[closed.length - 1].openTime + H1_MS;
+      scheduleSaveDiskCache('H1', HIST_CACHE_FILE_H1, 100, _h1HistCache);
     }
-
-    fetchedNew = true;
-    if (batch.length < 150 || closed.length < batch.length) break;
-    cursor = batch[batch.length - 1].openTime + H1_MS;
+    return cache.candles;
   }
 
-  if (cache.candles.length > 0) {
-    cache.cursor = cache.candles[cache.candles.length - 1].openTime + H1_MS;
-  }
-
-  // Tối ưu RAM (Sliding Window): Chỉ giữ tối đa 100 nến H1 gần nhất (~4 ngày).
-  // Đủ 100% cho cấu trúc Dow H1 3 ngày + EMA50 + ADX, giải phóng 90% bộ nhớ.
-  if (cache.candles.length > 100) {
-    cache.candles = cache.candles.slice(-100);
-  }
-
-  if (fetchedNew) {
-    saveH1HistDiskCache();
+  // Chỉ lấy đúng số nến thiếu (1 call duy nhất)
+  try {
+    const batch = await fetchBinanceKlines(symbol, '1h', missingFrom, Math.min(missingCount + 5, 100));
+    const closedNew = (batch || []).filter(c => c.openTime < currentH1Start && c.openTime > lastClosedTime);
+    if (closedNew.length > 0) {
+      cache.candles.push(...closedNew);
+      if (cache.candles.length > 100) {
+        cache.candles = cache.candles.slice(-100);
+      }
+      cache.cursor = cache.candles[cache.candles.length - 1].openTime + H1_MS;
+      scheduleSaveDiskCache('H1', HIST_CACHE_FILE_H1, 100, _h1HistCache);
+    }
+  } catch (err) {
+    log.warn(`[369] Lỗi lấy nến H1 thiếu cho ${symbol}: ${err.message}`);
   }
 
   return cache.candles;
@@ -728,104 +762,136 @@ function floorToD1(tsMs) {
 }
 
 /**
- * Lấy toàn bộ nến H4 đã đóng từ đầu năm 2026 đến H4 hiện tại (incremental).
+ * Lấy nến H4 đã đóng (incremental).
+ * - Nếu đã có trên đĩa và đủ nến mới: 0 requests (0ms, 0 weight).
+ * - Nếu bị thiếu vài nến: CHỈ GỌI ĐÚNG SỐ NẾN H4 BỊ THIẾU.
+ * - Nếu coin hoàn toàn mới: gọi 1 lần 75 nến và lưu ngay vào đĩa máy chủ.
  */
 async function fetchH4Historical(symbol) {
   const H4_MS = 4 * 60 * 60 * 1000;
   const currentH4Start = floorToH4(Date.now());
+
   let cache = _h4HistCache[symbol];
 
-  // Khởi tạo nhanh (1 call duy nhất): Tải 80 nến H4 gần nhất thay vì 20 calls từ đầu năm
-  if (!cache || cache.yearStart !== YEAR_START_MS || !Array.isArray(cache.candles) || cache.candles.length === 0) {
+  // 1. Chưa có cache trên đĩa:
+  if (!cache || !Array.isArray(cache.candles) || cache.candles.length === 0) {
     const raw = await fetchBinanceKlines(symbol, '4h', null, 80);
     const closed = (raw || []).filter(c => c.openTime < currentH4Start).slice(-75);
     cache = {
       yearStart: YEAR_START_MS,
       candles: closed,
-      cursor: closed.length > 0 ? closed[closed.length - 1].openTime + H4_MS : currentH4Start
+      cursor: closed.length > 0 ? closed[closed.length - 1].openTime + H4_MS : currentH4Start,
     };
     _h4HistCache[symbol] = cache;
+    if (closed.length > 0) {
+      scheduleSaveDiskCache('H4', HIST_CACHE_FILE_H4, 75, _h4HistCache);
+    }
     return cache.candles;
   }
 
-  if (cache.cursor >= currentH4Start) return cache.candles;
+  // 2. Đã có cache: kiểm tra nến cuối
+  const lastClosedTime = cache.candles.length > 0 ? cache.candles[cache.candles.length - 1].openTime : 0;
+  if (lastClosedTime + H4_MS >= currentH4Start) {
+    // Đã có nến mới nhất -> 0 calls
+    return cache.candles;
+  }
 
-  let cursor = cache.cursor;
-  while (cursor < currentH4Start) {
-    const batch = await fetchBinanceKlines(symbol, '4h', cursor, 100);
-    if (!batch.length) break;
+  // 3. Thiếu nến H4 do bot bị tắt: CHỈ LẤY ĐÚNG SỐ NẾN THIẾU
+  const missingFrom = lastClosedTime + H4_MS;
+  const missingCount = Math.max(1, Math.ceil((currentH4Start - missingFrom) / H4_MS));
 
-    const closed = batch.filter(c => c.openTime < currentH4Start);
-    if (cache.candles.length > 0) {
-      const lastTime = cache.candles[cache.candles.length - 1].openTime;
-      cache.candles.push(...closed.filter(c => c.openTime > lastTime));
-    } else {
-      cache.candles.push(...closed);
+  if (missingCount >= 75) {
+    const raw = await fetchBinanceKlines(symbol, '4h', null, 80);
+    const closed = (raw || []).filter(c => c.openTime < currentH4Start).slice(-75);
+    if (closed.length > 0) {
+      cache.candles = closed;
+      cache.cursor = closed[closed.length - 1].openTime + H4_MS;
+      scheduleSaveDiskCache('H4', HIST_CACHE_FILE_H4, 75, _h4HistCache);
     }
-
-    if (batch.length < 100 || closed.length < batch.length) break;
-    cursor = batch[batch.length - 1].openTime + H4_MS;
+    return cache.candles;
   }
 
-  if (cache.candles.length > 0) {
-    cache.cursor = cache.candles[cache.candles.length - 1].openTime + H4_MS;
-  }
-
-  // Tối ưu RAM (Sliding Window): Chỉ giữ tối đa 75 nến H4 gần nhất (~12.5 ngày) cho cản Swing.
-  if (cache.candles.length > 75) {
-    cache.candles = cache.candles.slice(-75);
+  try {
+    const batch = await fetchBinanceKlines(symbol, '4h', missingFrom, Math.min(missingCount + 5, 80));
+    const closedNew = (batch || []).filter(c => c.openTime < currentH4Start && c.openTime > lastClosedTime);
+    if (closedNew.length > 0) {
+      cache.candles.push(...closedNew);
+      if (cache.candles.length > 75) {
+        cache.candles = cache.candles.slice(-75);
+      }
+      cache.cursor = cache.candles[cache.candles.length - 1].openTime + H4_MS;
+      scheduleSaveDiskCache('H4', HIST_CACHE_FILE_H4, 75, _h4HistCache);
+    }
+  } catch (err) {
+    log.warn(`[369] Lỗi lấy nến H4 thiếu cho ${symbol}: ${err.message}`);
   }
 
   return cache.candles;
 }
 
 /**
- * Lấy toàn bộ nến D1 đã đóng từ đầu năm 2026 đến D1 hiện tại (incremental).
+ * Lấy nến D1 đã đóng (incremental).
+ * - Nếu đã có trên đĩa và đủ nến mới: 0 requests (0ms, 0 weight).
+ * - Nếu bị thiếu vài nến: CHỈ GỌI ĐÚNG SỐ NẾN D1 BỊ THIẾU.
+ * - Nếu coin hoàn toàn mới: gọi 1 lần 45 nến và lưu ngay vào đĩa máy chủ.
  */
 async function fetchD1Historical(symbol) {
   const D1_MS = 24 * 60 * 60 * 1000;
   const currentD1Start = floorToD1(Date.now());
+
   let cache = _d1HistCache[symbol];
 
-  // Khởi tạo nhanh (1 call duy nhất): Tải 50 nến D1 gần nhất thay vì 4 calls từ đầu năm
-  if (!cache || cache.yearStart !== YEAR_START_MS || !Array.isArray(cache.candles) || cache.candles.length === 0) {
+  // 1. Chưa có cache trên đĩa:
+  if (!cache || !Array.isArray(cache.candles) || cache.candles.length === 0) {
     const raw = await fetchBinanceKlines(symbol, '1d', null, 50);
     const closed = (raw || []).filter(c => c.openTime < currentD1Start).slice(-45);
     cache = {
       yearStart: YEAR_START_MS,
       candles: closed,
-      cursor: closed.length > 0 ? closed[closed.length - 1].openTime + D1_MS : currentD1Start
+      cursor: closed.length > 0 ? closed[closed.length - 1].openTime + D1_MS : currentD1Start,
     };
     _d1HistCache[symbol] = cache;
+    if (closed.length > 0) {
+      scheduleSaveDiskCache('D1', HIST_CACHE_FILE_D1, 45, _d1HistCache);
+    }
     return cache.candles;
   }
 
-  if (cache.cursor >= currentD1Start) return cache.candles;
+  // 2. Đã có cache: kiểm tra nến cuối
+  const lastClosedTime = cache.candles.length > 0 ? cache.candles[cache.candles.length - 1].openTime : 0;
+  if (lastClosedTime + D1_MS >= currentD1Start) {
+    // Đã có nến mới nhất -> 0 calls
+    return cache.candles;
+  }
 
-  let cursor = cache.cursor;
-  while (cursor < currentD1Start) {
-    const batch = await fetchBinanceKlines(symbol, '1d', cursor, 100);
-    if (!batch.length) break;
+  // 3. Thiếu nến D1 do bot bị tắt: CHỈ LẤY ĐÚNG SỐ NẾN THIẾU
+  const missingFrom = lastClosedTime + D1_MS;
+  const missingCount = Math.max(1, Math.ceil((currentD1Start - missingFrom) / D1_MS));
 
-    const closed = batch.filter(c => c.openTime < currentD1Start);
-    if (cache.candles.length > 0) {
-      const lastTime = cache.candles[cache.candles.length - 1].openTime;
-      cache.candles.push(...closed.filter(c => c.openTime > lastTime));
-    } else {
-      cache.candles.push(...closed);
+  if (missingCount >= 45) {
+    const raw = await fetchBinanceKlines(symbol, '1d', null, 50);
+    const closed = (raw || []).filter(c => c.openTime < currentD1Start).slice(-45);
+    if (closed.length > 0) {
+      cache.candles = closed;
+      cache.cursor = closed[closed.length - 1].openTime + D1_MS;
+      scheduleSaveDiskCache('D1', HIST_CACHE_FILE_D1, 45, _d1HistCache);
     }
-
-    if (batch.length < 100 || closed.length < batch.length) break;
-    cursor = batch[batch.length - 1].openTime + D1_MS;
+    return cache.candles;
   }
 
-  if (cache.candles.length > 0) {
-    cache.cursor = cache.candles[cache.candles.length - 1].openTime + D1_MS;
-  }
-
-  // Tối ưu RAM (Sliding Window): Chỉ giữ tối đa 45 nến D1 gần nhất (~1.5 tháng).
-  if (cache.candles.length > 45) {
-    cache.candles = cache.candles.slice(-45);
+  try {
+    const batch = await fetchBinanceKlines(symbol, '1d', missingFrom, Math.min(missingCount + 5, 50));
+    const closedNew = (batch || []).filter(c => c.openTime < currentD1Start && c.openTime > lastClosedTime);
+    if (closedNew.length > 0) {
+      cache.candles.push(...closedNew);
+      if (cache.candles.length > 45) {
+        cache.candles = cache.candles.slice(-45);
+      }
+      cache.cursor = cache.candles[cache.candles.length - 1].openTime + D1_MS;
+      scheduleSaveDiskCache('D1', HIST_CACHE_FILE_D1, 45, _d1HistCache);
+    }
+  } catch (err) {
+    log.warn(`[369] Lỗi lấy nến D1 thiếu cho ${symbol}: ${err.message}`);
   }
 
   return cache.candles;
@@ -3071,6 +3137,7 @@ module.exports = {
   getRecentM15FractalSwing,
   fetchH1Historical,
   fetchH4Historical,
+  fetchD1Historical,
   findSwingPoints,
   calculateATR,
 };
