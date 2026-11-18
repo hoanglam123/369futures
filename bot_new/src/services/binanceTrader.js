@@ -94,7 +94,12 @@ async function getUsdtBalance() {
   }
   const balances = await api('GET', '/fapi/v2/balance');
   const usdt = (Array.isArray(balances) ? balances : []).find(b => b.asset === 'USDT');
-  _balanceCache = { value: parseFloat(usdt?.availableBalance || '0'), fetchedAt: now };
+  const avail = parseFloat(usdt?.availableBalance || '0');
+  const isFirst = _balanceCache.fetchedAt === 0;
+  _balanceCache = { value: avail, fetchedAt: now };
+  if (isFirst && API_KEY) {
+    log.system(`[BinanceTrader] 💼 Binance Account bot-new: Key=***${API_KEY.slice(-4)} | Available Balance: $${avail.toFixed(2)} USDT`);
+  }
   return _balanceCache.value;
 }
 

@@ -100,7 +100,7 @@ const DEBOUNCE_MS = 5 * 60_000; // 5 phút / tín hiệu
 const COIN_REFRESH_INTERVAL_MS = 4 * 60 * 60_000; // Tái kiểm tra danh sách coin mỗi 4 giờ
 const LEVERAGE_REFRESH_INTERVAL_MS = 6 * 60 * 60_000; // Tự động cập nhật trần đòn bẩy mỗi 6 giờ
 const MIN_CONFLUENCE_SCORE = parseFloat(process.env.MIN_CONFLUENCE_SCORE || '5.0'); // Ngưỡng Confluence Score tối thiểu (mặc định 5.0đ)
-let isShadowMode = process.env.SHADOW_MODE === 'true' || !process.env.BINANCE_API_KEY || !process.env.BINANCE_SECRET;
+let isShadowMode = process.env.SHADOW_MODE === 'true' || !process.env.BINANCE_API_KEY || !(process.env.BINANCE_SECRET || process.env.BINANCE_API_SECRET);
 
 function isShadowPositionActive(sym) {
   if (!isShadowMode || !sym) return false;
@@ -1225,7 +1225,7 @@ function checkPreLimitTacticalGatekeeper({ sym, signal, targetLevel, markPrice, 
 
 async function startAutoTrade(coins) {
   const apiKey = process.env.BINANCE_API_KEY;
-  const secret = process.env.BINANCE_SECRET;
+  const secret = process.env.BINANCE_SECRET || process.env.BINANCE_API_SECRET;
   const amount = parseFloat(process.env.TRADE_AMOUNT || '30');
   const leverage = parseInt(process.env.LEVERAGE || '10', 10);
   const orderType = (process.env.ORDER_TYPE || 'LIMIT').toUpperCase();
@@ -1459,6 +1459,15 @@ async function startAutoTrade(coins) {
 
   const client = isShadowMode ? null : createClient(apiKey, secret);
   globalTradeClient = client;
+
+  if (client) {
+    try {
+      const initBalance = await client.getBalance();
+      log.system(`[AutoTrade] 💼 Binance Account bot-h4: Key=***${apiKey.slice(-4)} | Available Balance: $${initBalance.toFixed(2)} USDT`);
+    } catch (err) {
+      log.warn(`[AutoTrade] Không thể lấy balance ban đầu: ${err.message}`);
+    }
+  }
 
   // ── Đồng bộ hóa trạng thái vị thế/lệnh chờ với sàn khi bot khởi động lại (Startup Reconciliation) ──
   try {

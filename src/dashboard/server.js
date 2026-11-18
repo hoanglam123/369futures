@@ -63,7 +63,7 @@ let _binanceClient = null;
 function getBinanceClient() {
   if (!_binanceClient) {
     const apiKey = process.env.BINANCE_API_KEY;
-    const secret = process.env.BINANCE_SECRET;
+    const secret = process.env.BINANCE_SECRET || process.env.BINANCE_API_SECRET;
     if (apiKey && secret) {
       try {
         const { createClient } = require('../trader/binance');
