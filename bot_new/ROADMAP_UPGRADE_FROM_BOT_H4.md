@@ -205,7 +205,7 @@ flowchart TD
     C -->|BƯỚC 3: Confluence Scorer 0 - 10đ| D{"Chốt chặn điểm:\nTier 1 &ge; 7.0đ\nTier 2 &ge; 8.5đ"}
     D -- Không đạt --> E["Loại bỏ / Lưu Log"]
     D -- "Đạt chuẩn (10-20 mã)" --> F["Sắp xếp Confluence Score giảm dần\nCHỈ CHỌN TOP 1 (HOẶC TOP 2) CAO NHẤT"]
-    F --> G["Thuật toán calculateTierSLTP (Toán học 100%):\n- SL: Quét Swing H1/H4 kẹp biên ATR 1.2x-2x\n- TP: Đo Grid 50% & khóa cứng R:R &ge; 1.5\n- Đòn bẩy an toàn chống cháy tài khoản"]
+    F --> G["Thuật toán calculateTierSLTP (Toán học 100%):\n- SL: Quét Swing H1/H4 kẹp biên ATR 1.2x-2x\n- TP: Tính trực tiếp từ khoảng cách SL theo chuẩn R:R &ge; 1.5\n- Đòn bẩy an toàn chống cháy tài khoản"]
     G --> H{"Kiểm tra AI Token Guard:\n1. Coin có trong Cooldown 30p?\n2. Đã gọi gần đây?"}
     H -- "Trong Cooldown 30p" --> I["Tái sử dụng nhận định cũ (0 Token)"]
     H -- "Setup mới hợp lệ" --> J["AI Risk Gatekeeper (Gemini/Claude):\nPrompt siêu nhẹ Compact JSON (~180 tokens)\nChỉ trả về: APPROVE / REJECT (0.8s)"]
@@ -222,7 +222,10 @@ Thay vì để AI tự nhẩm, **code thuật toán tự động tính toán ch�
   - Kẹp biên thích ứng 3 tầng theo biến động $ATR(14, 4h)$: Tối thiểu $1.2\text{x} \text{ ATR}$, tối đa $2.0\text{x} \text{ ATR}$ (trần an toàn $3.5\%$).
   - Thuật toán né nam châm số tròn tâm lý (`evadeRoundNumber`) và làm tròn bảo thủ theo đúng `tickSize` của Binance.
 - **Take Profit (TP)**:
-  - Tự động đo khoảng cách bước sóng Grid 369 ($50\%$ bước sóng) và **khóa cứng chốt chặn $R:R \ge 1.5$** (nếu $R:R < 1.48 \rightarrow$ VETO hủy kèo ngay lập tức).
+  - **Tính toán trực tiếp 100% từ Stop Loss (SL)**: Khoảng cách chốt lời TP được xác định trực tiếp từ khoảng cách SL theo công thức chuẩn quản trị rủi ro:
+    $$\text{TargetTpDist} = \text{slDist} \times \text{targetRR} \quad (\text{với } \text{targetRR} \ge 1.5)$$
+  - Luôn bảo đảm tỷ lệ Lời/Lỗ chuẩn $R:R \ge 1.5$ (hoặc tùy biến $1:2$). Làm tròn bảo thủ theo đúng bước giá `tickSize` của Binance.
+  - Nếu sau khi tính toán mà tỷ lệ $R:R < 1.48 \rightarrow$ VETO hủy kèo ngay lập tức để bảo toàn vốn.
 - **Đòn bẩy (Leverage)**:
   - Tự động tính toán theo trần thanh lý an toàn (Liquidation Front-Running Guard):
     $$\text{MaxSafeLev} = \frac{1}{1.5 \times \text{SL\%} + \text{MMR}}$$
