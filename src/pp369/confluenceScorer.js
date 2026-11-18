@@ -731,11 +731,11 @@ function scoreSetup(symbol, direction, ta, whaleData, derivatives, fundingRates,
   );
   const total = Number(Math.max(0, Math.min(10.0, rawTotal)).toFixed(1));
 
-  // Phân cấp Verdict và Độ tin cậy
+  // Phân cấp Verdict và Độ tin cậy chuẩn Bot-New
   let verdict, confidence;
   if (total < 5.0)        { verdict = 'NO_SETUP';         confidence = 0;  }
   else if (total < 7.0)   { verdict = 'CAUTIOUS';         confidence = 55; }
-  else if (total < 8.5)   { verdict = 'CONFIDENT';        confidence = 70; }
+  else if (total < 9.0)   { verdict = 'CONFIDENT';        confidence = 70; }
   else                    { verdict = 'BEST_OPPORTUNITY'; confidence = 85; }
 
   const maxLeverage = calcMaxLeverage(ta, verdict, cleanSym);

@@ -1828,7 +1828,8 @@ async function startAutoTrade(coins) {
       const tradeAmount = isTier1
         ? parseFloat(process.env.TRADE_AMOUNT_TIER1 || process.env.TRADE_AMOUNT || '20.0')
         : parseFloat(process.env.TRADE_AMOUNT_TIER2 || '10.0');
-      const minRequiredScore = isTier1 ? 7.0 : 8.5;
+      const baseMinScore = parseFloat(process.env.MIN_CONFLUENCE_SCORE || '7.0');
+      const minRequiredScore = isTier1 ? baseMinScore : Math.max(baseMinScore, 8.5);
       const rankTierLabel = isTier1 ? `Tier 1 Top 50 (Rank #${rank})` : `Tier 2 Altcoin (Rank #${rank})`;
 
       const gridStepPct = (sig.step / sig.targetLevel) * 100;
@@ -3331,7 +3332,8 @@ async function checkH1RetestSignals(client, activeSymbols, leverageInfo = {}) {
       const tradeAmountRetest = isTier1Retest
         ? parseFloat(process.env.TRADE_AMOUNT_TIER1 || process.env.TRADE_AMOUNT || '20.0')
         : parseFloat(process.env.TRADE_AMOUNT_TIER2 || '10.0');
-      const minRequiredScoreRetest = isTier1Retest ? 7.0 : 8.5;
+      const baseMinScoreRetest = parseFloat(process.env.MIN_CONFLUENCE_SCORE || '7.0');
+      const minRequiredScoreRetest = isTier1Retest ? baseMinScoreRetest : Math.max(baseMinScoreRetest, 8.5);
 
       if (typeof watchData.score === 'number' && watchData.score < minRequiredScoreRetest) {
         log.system(`[AutoTrade (Retest H1)] 🛑 ${sym} (${signal}): Score ${watchData.score}đ < ${minRequiredScoreRetest}đ — Bỏ qua khỏi Watchlist.`);
