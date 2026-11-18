@@ -980,7 +980,15 @@ async function calculateTierSLTP(
   // Cải tiến 1: Bảo Vệ Giá Cháy (Liquidation Front-Running Guard) & Trần Đòn Bẩy
   const mmr = 0.01;
   const maxSafeLevForLiq = 1.0 / (1.5 * (finalSlPct / 100.0) + mmr);
-  const rawLevAtr = Math.max(1, Math.floor(5.5 / Math.max(1.0, atrPct)));
+
+  // Bậc thang ATR chuẩn hóa (đồng bộ 100% với Confluence Scorer & bot-new)
+  let rawLevAtr;
+  if (!atrPct || atrPct <= 0) rawLevAtr = 3;
+  else if (atrPct < 0.8)      rawLevAtr = 10;
+  else if (atrPct < 1.5)      rawLevAtr = 7;
+  else if (atrPct < 2.5)      rawLevAtr = 5;
+  else if (atrPct < 4.0)      rawLevAtr = 3;
+  else                         rawLevAtr = 2;
 
   const hardCeilingLev = (symbol === 'BTC' || symbol === 'ETH')
     ? 10
