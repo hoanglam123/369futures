@@ -8,6 +8,7 @@
 
 const axios    = require('axios');
 const FormData = require('form-data');
+const { log }  = require('./logger');
 
 // Giới hạn ký tự Telegram cho mỗi tin nhắn
 const TELEGRAM_MAX_LENGTH = 4096;
@@ -88,6 +89,18 @@ function getChatId(override = null) {
   return chatId;
 }
 
+function validateTelegramConfig() {
+  const token = process.env.TELEGRAM_BOT_TOKEN;
+  const chatId = process.env.TELEGRAM_CHAT_ID;
+  if (!token || !chatId) return;
+  const botId = token.split(':')[0];
+  if (String(chatId).trim() === String(botId).trim()) {
+    log.error(`[Telegram] ❌ CẤU HÌNH SAI: TELEGRAM_CHAT_ID="${chatId}" trong file .env đang trùng với Bot ID! Telegram cấm Bot gửi tin nhắn cho chính nó. Vui lòng mở file .env trên VPS sửa TELEGRAM_CHAT_ID thành Chat ID cá nhân của bạn (ví dụ: 1663202780) hoặc Channel/Group ID.`);
+  }
+}
+
+validateTelegramConfig();
+
 /**
  * Gửi một tin nhắn HTML lên Telegram
  * Tự động cắt bớt nếu nội dung quá dài
@@ -120,6 +133,9 @@ async function sendMessage(text, extra = {}, chatId = null) {
   } catch (err) {
     const detail = err.response?.data?.description ?? err.message;
     const status = err.response?.status ?? 'N/A';
+    if (status === 403 && typeof detail === 'string' && detail.includes("the bot can't send messages to the bot")) {
+      log.error(`[Telegram] ❌ CẤU HÌNH SAI: TELEGRAM_CHAT_ID (${resolvedChatId}) đang là ID của Bot! Vui lòng vào file .env trên VPS đổi TELEGRAM_CHAT_ID thành User ID của bạn (ví dụ: 1663202780) hoặc Channel/Group ID.`);
+    }
     throw new Error(`Telegram API lỗi [${status}]: ${detail}`);
   }
 

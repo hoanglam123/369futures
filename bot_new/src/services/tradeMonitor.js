@@ -1894,7 +1894,7 @@ function getActiveTrades() {
   return activeTrades.filter(t => t.status === 'active');
 }
 
-async function sendActiveTradesSummary() {
+async function sendActiveTradesSummary(chatId = null) {
   const active = activeTrades.filter(t => t.status === 'active');
   if (!active.length) return;
 
@@ -1934,7 +1934,7 @@ async function sendActiveTradesSummary() {
   lines.push(`<i>🤖 Bot tự động alert khi chạm TP/SL</i>`);
 
   try {
-    await sendMessages([lines.join('\n')]);
+    await sendMessages([lines.join('\n')], 1500, chatId);
     log.telegram(`Gửi trade summary (${active.length} lệnh) thành công`);
   } catch (e) {
     log.error('Không thể gửi trade summary', { error: e.message });

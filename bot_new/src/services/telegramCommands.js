@@ -73,7 +73,7 @@ async function fetchUpdates() {
 
 // ─── Command handlers ─────────────────────────────────────────────────────────
 
-async function handleStatus() {
+async function handleStatus(args, chatId) {
   const active = getActiveTrades();
   const now    = new Date().toLocaleString('vi-VN', { timeZone: TIMEZONE });
 
@@ -96,95 +96,101 @@ async function handleStatus() {
   msg += `${DIVIDER}\n`;
   msg += `<i>Lịch: 0h • 4h • 8h • 12h • 16h • 20h</i>`;
 
-  await sendMessage(msg);
+  await sendMessage(msg, {}, chatId);
 }
 
-async function handleTrades() {
+async function handleTrades(args, chatId) {
   const active = getActiveTrades();
   if (!active.length) {
     await sendMessage(
       `📋 <b>Không có lệnh nào đang theo dõi</b>\n` +
-      `<i>AI sẽ tìm lệnh mới trong bản tin tiếp theo</i>`
+      `<i>AI sẽ tìm lệnh mới trong bản tin tiếp theo</i>`,
+      {},
+      chatId
     );
     return;
   }
-  await sendActiveTradesSummary();
+  await sendActiveTradesSummary(chatId);
 }
 
-async function handleStats() {
-  await sendMessage(buildDetailedReport());
+async function handleStats(args, chatId) {
+  await sendMessage(buildDetailedReport(), {}, chatId);
 }
 
-async function handleRunNow() {
+async function handleRunNow(args, chatId) {
   if (!runJobFn) {
-    await sendMessage('❌ Không thể chạy job ngay lúc này');
+    await sendMessage('❌ Không thể chạy job ngay lúc này', {}, chatId);
     return;
   }
   if (isJobRunning()) {
-    await sendMessage('⏳ <b>Job đang chạy rồi</b> — vui lòng chờ bản tin hiện tại xong');
+    await sendMessage('⏳ <b>Job đang chạy rồi</b> — vui lòng chờ bản tin hiện tại xong', {}, chatId);
     return;
   }
   await sendMessage(
     `🔄 <b>Đang chạy phân tích thị trường...</b>\n` +
-    `<i>Bạn sẽ nhận bản tin trong vài phút</i>`
+    `<i>Bạn sẽ nhận bản tin trong vài phút</i>`,
+    {},
+    chatId
   );
   try {
     await runJobFn();
   } catch (e) {
-    await sendMessage(`❌ Job lỗi: <code>${e.message.slice(0, 300)}</code>`);
+    await sendMessage(`❌ Job lỗi: <code>${e.message.slice(0, 300)}</code>`, {}, chatId);
   }
 }
 
-async function handleReport() {
+async function handleReport(args, chatId) {
   const active = getActiveTrades();
   if (active.length > 0) {
-    await sendMessage(`🔍 <b>Đang kiểm tra ${active.length} lệnh...</b>`);
+    await sendMessage(`🔍 <b>Đang kiểm tra ${active.length} lệnh...</b>`, {}, chatId);
     await checkActiveTrades().catch(e => log.warn('Không thể kiểm tra giá', { error: e.message }));
   }
   const report = buildDetailedReport();
-  await sendMessages([report]);
+  await sendMessages([report], 1500, chatId);
   if (active.length > 0) {
-    await sendActiveTradesSummary().catch(() => {});
+    await sendActiveTradesSummary(chatId).catch(() => {});
   }
-  await sendMessages([buildFundingStatsMessage()]).catch(() => {});
+  await sendMessages([buildFundingStatsMessage()], 1500, chatId).catch(() => {});
 }
 
-async function handleFunding() {
-  await sendMessage(`⏳ <b>Đang lấy funding rates...</b>`);
+async function handleFunding(args, chatId) {
+  await sendMessage(`⏳ <b>Đang lấy funding rates...</b>`, {}, chatId);
   try {
     const funding = await getFundingRates();
     const section = buildFundingSection(funding);
     if (!section.trim()) {
-      await sendMessage(`📊 <b>Funding Rate</b>\n<i>Không có dữ liệu funding đáng chú ý lúc này</i>`);
+      await sendMessage(`📊 <b>Funding Rate</b>\n<i>Không có dữ liệu funding đáng chú ý lúc này</i>`, {}, chatId);
       return;
     }
-    await sendMessages([section]);
+    await sendMessages([section], 1500, chatId);
   } catch (e) {
-    await sendMessage(`❌ Lỗi lấy funding rate: <code>${e.message.slice(0, 200)}</code>`);
+    await sendMessage(`❌ Lỗi lấy funding rate: <code>${e.message.slice(0, 200)}</code>`, {}, chatId);
   }
 }
 
-async function handleBacktest() {
+async function handleBacktest(args, chatId) {
   const active = getActiveTrades();
   if (!active.length) {
-    await sendMessage(`📋 <b>Không có lệnh active</b>\n<i>Backtest không có gì để làm</i>`);
+    await sendMessage(`📋 <b>Không có lệnh active</b>\n<i>Backtest không có gì để làm</i>`, {}, chatId);
     return;
   }
   await sendMessage(
     `⏳ <b>Đang chạy backtest ${active.length} lệnh...</b>\n` +
-    `<i>Tải klines Binance, vui lòng chờ vài giây</i>`
+    `<i>Tải klines Binance, vui lòng chờ vài giây</i>`,
+    {},
+    chatId
   );
   try {
     const { checked, closed } = await runBacktest();
     const report = buildDetailedReport();
-    await sendMessages([report]);
+    await sendMessages([report], 1500, chatId);
     log.system(`Backtest (Telegram): ${closed}/${checked} lệnh tìm thấy kết quả`);
   } catch (e) {
-    await sendMessage(`❌ Backtest lỗi: <code>${e.message.slice(0, 300)}</code>`);
+    await sendMessage(`❌ Backtest lỗi: <code>${e.message.slice(0, 300)}</code>`, {}, chatId);
   }
 }
 
-async function handleHelp() {
+async function handleHelp(args, chatId) {
   let msg = `🤖 <b>Crypto Bot — Danh sách lệnh</b>\n${DIVIDER}\n`;
   msg += `/status   — Trạng thái bot &amp; giờ bản tin tiếp theo\n`;
   msg += `/trades   — Danh sách lệnh đang theo dõi\n`;
@@ -194,33 +200,36 @@ async function handleHelp() {
   msg += `/backtest — Phân tích klines khi bot offline\n`;
   msg += `/funding  — Funding rate thị trường realtime\n`;
   msg += `/sync     — Đồng bộ vị thế thủ công từ Binance\n`;
+  msg += `/forcesync — Tắt Safety Brake đồng bộ cưỡng bức\n`;
   msg += `/help     — Danh sách lệnh này`;
-  await sendMessage(msg);
+  await sendMessage(msg, {}, chatId);
 }
 
-async function handleSync() {
-  await sendMessage(`🔄 <b>Đang đồng bộ vị thế từ Binance...</b>`);
+async function handleSync(args, chatId) {
+  await sendMessage(`🔄 <b>Đang đồng bộ vị thế từ Binance...</b>`, {}, chatId);
   try {
     await syncManualPositions();
     const active = getActiveTrades();
     await sendMessage(
       `✅ <b>Đồng bộ hoàn tất</b>\n` +
-      `Hiện đang theo dõi <b>${active.length}</b> lệnh.`
+      `Hiện đang theo dõi <b>${active.length}</b> lệnh.`,
+      {},
+      chatId
     );
   } catch (e) {
-    await sendMessage(`❌ Sync lỗi: <code>${e.message.slice(0, 300)}</code>`);
+    await sendMessage(`❌ Sync lỗi: <code>${e.message.slice(0, 300)}</code>`, {}, chatId);
   }
 }
 
-async function handleForceSync() {
+async function handleForceSync(args, chatId) {
   forceSyncBrakeOverride();
-  await sendMessage(`⚠️ <b>Force sync — safety brake tắt 1 lần</b>\nĐang đồng bộ...`);
+  await sendMessage(`⚠️ <b>Force sync — safety brake tắt 1 lần</b>\nĐang đồng bộ...`, {}, chatId);
   try {
     await syncManualPositions('forcesync');
     const active = getActiveTrades();
-    await sendMessage(`✅ <b>Force sync hoàn tất</b>\nĐang theo dõi <b>${active.length}</b> lệnh.`);
+    await sendMessage(`✅ <b>Force sync hoàn tất</b>\nĐang theo dõi <b>${active.length}</b> lệnh.`, {}, chatId);
   } catch (e) {
-    await sendMessage(`❌ Force sync lỗi: <code>${e.message.slice(0, 300)}</code>`);
+    await sendMessage(`❌ Force sync lỗi: <code>${e.message.slice(0, 300)}</code>`, {}, chatId);
   }
 }
 
@@ -244,8 +253,10 @@ async function pollOnce() {
   for (const update of updates) {
     offset = update.update_id + 1;
 
-    const text = (update.message?.text ?? update.channel_post?.text)?.trim();
+    const msgObj = update.message ?? update.channel_post;
+    const text = msgObj?.text?.trim();
     if (!text) continue;
+    const senderChatId = msgObj?.chat?.id;
 
     // Hỗ trợ /command@botname và /command ARGS
     const parts = text.trim().split(/\s+/);
@@ -254,13 +265,13 @@ async function pollOnce() {
     const handler = COMMANDS[cmd];
     if (!handler) continue;
 
-    log.telegram(`Lệnh nhận được: ${cmd}${args ? ' ' + args : ''}`);
+    log.telegram(`Lệnh nhận được: ${cmd}${args ? ' ' + args : ''} (chatId=${senderChatId})`);
     try {
-      await handler(args);
+      await handler(args, senderChatId);
     } catch (e) {
       log.error(`Command ${cmd} lỗi`, { error: e.message });
       try {
-        await sendMessage(`❌ Lỗi xử lý lệnh: <code>${e.message.slice(0, 200)}</code>`);
+        await sendMessage(`❌ Lỗi xử lý lệnh: <code>${e.message.slice(0, 200)}</code>`, {}, senderChatId);
       } catch {}
     }
   }

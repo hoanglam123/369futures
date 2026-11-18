@@ -25,16 +25,37 @@ function sign(qs) {
   return crypto.createHmac('sha256', API_SECRET).update(qs).digest('hex');
 }
 
+let timeOffset = 0;
+
+async function syncTimeOffset() {
+  try {
+    const t0 = Date.now();
+    const res = await axios.get(`${BASE_URL}/fapi/v1/time`, { timeout: 5000 });
+    const t1 = Date.now();
+    const serverTime = res.data.serverTime;
+    timeOffset = Math.round(serverTime - (t0 + t1) / 2);
+  } catch {}
+}
+
+syncTimeOffset().catch(() => {});
+setInterval(() => syncTimeOffset().catch(() => {}), 3 * 60 * 1000);
+
 // Gọi Binance Futures API (signed request)
-async function api(method, path, params = {}) {
-  const allParams = { ...params, timestamp: Date.now(), recvWindow: 5000 };
+async function api(method, path, params = {}, attempt = 0) {
+  const timestamp = Date.now() + timeOffset;
+  const allParams = { ...params, timestamp, recvWindow: 30000 };
   const qs  = new URLSearchParams(allParams).toString();
   const url = `${BASE_URL}${path}?${qs}&signature=${sign(qs)}`;
   try {
     const { data } = await axios({ method, url, headers: { 'X-MBX-APIKEY': API_KEY }, timeout: 10000 });
     return data;
   } catch (err) {
+    const code = err.response?.data?.code;
     const msg = err.response?.data?.msg || err.message;
+    if ((code === -1021 || (typeof msg === 'string' && msg.includes('recvWindow'))) && attempt < 2) {
+      await syncTimeOffset();
+      return await api(method, path, params, attempt + 1);
+    }
     throw new Error(`Binance API [${method} ${path}]: ${msg}`);
   }
 }
