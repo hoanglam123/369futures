@@ -1266,6 +1266,52 @@ async function startAutoTrade(coins) {
     return null;
   }
 
+  // ── PENDING REVERSAL ENTRY LIFECYCLE (Đồng bộ triệt để với bot-new) ──
+  const PENDING_REVERSALS_PATH = path.join(process.cwd(), 'data', 'pending_reversals.json');
+  let pendingReversals = {};
+  try {
+    if (fs.existsSync(PENDING_REVERSALS_PATH)) {
+      pendingReversals = JSON.parse(fs.readFileSync(PENDING_REVERSALS_PATH, 'utf8'));
+    }
+  } catch (_) { pendingReversals = {}; }
+
+  function savePendingReversals() {
+    try {
+      fs.writeFileSync(PENDING_REVERSALS_PATH, JSON.stringify(pendingReversals, null, 2), 'utf8');
+    } catch (_) {}
+  }
+
+  function fmtPrice(p) {
+    if (p == null || isNaN(p)) return '—';
+    const num = Number(p);
+    if (num >= 1000) return num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    if (num >= 1) return num.toFixed(4);
+    return num.toFixed(6);
+  }
+
+  function activatePendingReversalIfAny(sym) {
+    if (pendingReversals[sym] && pendingReversals[sym].status === 'waiting_old_close') {
+      const rev = pendingReversals[sym];
+      rev.status = 'pending_entry';
+      rev.activatedAt = Date.now();
+      savePendingReversals();
+
+      const dirIcon = rev.direction === 'LONG' ? '🟢 LONG' : '🔴 SHORT';
+      sendTelegram(
+        `⏳ <b>[ĐẢO CHIỀU — KÍCH HOẠT HÀNG CHỜ] — #${sym} ${dirIcon} ⚡x${rev.leverage}</b>\n` +
+        `━━━━━━━━━━━━━━━━\n` +
+        `Đã ghi nhận vị thế cũ được đóng trên sàn!\n` +
+        `💰 Entry mục tiêu: <code>$${fmtPrice(rev.entryPrice)}</code>\n` +
+        `🎯 Chốt lời (TP):   <code>$${fmtPrice(rev.tpPrice)}</code>\n` +
+        `🛑 Cắt lỗ (SL):     <code>$${fmtPrice(rev.slPrice)}</code>\n` +
+        `━━━━━━━━━━━━━━━━\n` +
+        `<i>🤖 Bot đang rà soát giá: chỉ vào lệnh MARKET khi giá về đúng vùng entry (không đuổi giá xấu) và chưa chạm SL.</i>`
+      ).catch(() => {});
+
+      log.system(`[AutoTrade] ⏳ [Đảo Chiều Kích Hoạt Hàng Chờ] ${sym} ${rev.direction} — Vị thế cũ đã đóng, bắt đầu rà soát entry`);
+    }
+  }
+
   isShadowMode = process.env.SHADOW_MODE === 'true' || !apiKey || !secret;
   if (!isShadowMode && (!apiKey || !secret)) {
     throw new Error('Thiếu BINANCE_API_KEY hoặc BINANCE_SECRET trong .env');
@@ -1373,6 +1419,7 @@ async function startAutoTrade(coins) {
         activeSymbols.delete(sym);
         saveActiveTradesMetadata();
         sendTelegram(`🎯 <b>[AutoTrade] Chốt Lời Thành Công!</b>\n• Coin: <b>#${sym}</b>\n• Giá TP: <b>$${fillData.avgPrice}</b>`).catch(() => {});
+        activatePendingReversalIfAny(sym);
       }
       // Kiểm tra nếu SL Stop-Market khớp
       else if (meta.slOrderId && String(fillData.orderId) === String(meta.slOrderId)) {
@@ -1386,6 +1433,7 @@ async function startAutoTrade(coins) {
         activeSymbols.delete(sym);
         saveActiveTradesMetadata();
         sendTelegram(`🛑 <b>[AutoTrade] Dừng Lỗ Vị Thế</b>\n• Coin: <b>#${sym}</b>\n• Giá SL: <b>$${fillData.avgPrice}</b>\n• Kích hoạt Cooldown 6h bảo vệ vốn`).catch(() => {});
+        activatePendingReversalIfAny(sym);
       }
     });
   }
@@ -1543,6 +1591,7 @@ async function startAutoTrade(coins) {
         activeOrdersMap.delete(sym);
         activePositionsMap.delete(sym);
         activeSymbols.delete(sym);
+        activatePendingReversalIfAny(sym);
         cleanedCount++;
       }
     }
@@ -1822,7 +1871,6 @@ async function startAutoTrade(coins) {
           if (amt !== 0) {
             const sym = p.symbol.replace('USDT', '');
             activeSymbols.add(sym);
-        activeOrdersMap.set(sym, side === 'BUY' ? 'LONG' : 'SHORT');
             activePositionsMap.set(sym, {
               direction: amt > 0 ? 'LONG' : 'SHORT',
               positionAmt: amt,
@@ -1834,11 +1882,17 @@ async function startAutoTrade(coins) {
         for (const o of remainingOrders) {
           const sym = o.symbol.replace('USDT', '');
           activeSymbols.add(sym);
-        activeOrdersMap.set(sym, side === 'BUY' ? 'LONG' : 'SHORT');
           activeOrdersMap.set(sym, o.side === 'BUY' ? 'LONG' : 'SHORT');
         }
         for (const o of currentAlgoOrders) {
           activeSymbols.add(o.symbol.replace('USDT', ''));
+        }
+
+        // Kích hoạt hàng chờ đảo chiều nếu vị thế cũ đã đóng trên Binance
+        for (const sym of Object.keys(pendingReversals)) {
+          if (pendingReversals[sym]?.status === 'waiting_old_close' && !activePositionsMap.has(sym)) {
+            activatePendingReversalIfAny(sym);
+          }
         }
       } catch (e) {
         log.warn(`[AutoTrade] Lỗi đồng bộ activeSymbols: ${_binanceErr(e)}`);
@@ -1887,6 +1941,9 @@ async function startAutoTrade(coins) {
         const markPrice = getMarkPrice(sym);
         enqueueSymbolSignal(client, sym, markPrice, leverageInfo, leverage, coins);
       }
+
+      // Rà soát hàng chờ Đảo Chiều (Pending Reversal Auto-Entry)
+      await checkPendingReversalAutoEntry();
     } catch (err) {
       log.warn(`[AutoTrade] Lỗi trong chu kỳ scan: ${err.message}`);
     }
@@ -1980,6 +2037,43 @@ async function startAutoTrade(coins) {
       if (score >= MIN_SCORE_REVERSAL) {
         reversalAlertCooldown[sym] = Date.now();
 
+        // Tính toán thông số TP/SL động và lưu vào hàng chờ Đảo Chiều (Pending Reversal)
+        let tierSetup = null;
+        try {
+          const rank = getMarketCapRank ? getMarketCapRank(sym) : 999;
+          const h4Ref = await fetchH4Reference(sym);
+          const tickSize = getEffectiveTickSize(sym, sig.targetLevel);
+          const maxAllowed = leverageInfo[sym]?.maxLeverage || 10;
+          const tradeAmount = await getDynamicMargin(isTop50Symbol(sym), client);
+          tierSetup = await calculateTierSLTP(sym, sig.signal, sig.targetLevel, h4Ref, tickSize, maxAllowed, 3.0, 1.5, rank, sig.gridWidthPct, null, tradeAmount);
+        } catch (_) {}
+
+        const step = sig.step || getStep(sig.targetLevel);
+        const slPrice = tierSetup?.valid ? tierSetup.slPrice : (sig.signal === 'LONG' ? sig.targetLevel - step : sig.targetLevel + step);
+        const tpPrice = tierSetup?.valid ? tierSetup.tpPrice : (sig.signal === 'LONG' ? sig.targetLevel + step * 1.5 : sig.targetLevel - step * 1.5);
+        const leverage = tierSetup?.leverage || 10;
+        const margin = tierSetup?.margin || 10;
+
+        pendingReversals[sym] = {
+          symbol: sym,
+          direction: sig.signal,
+          entryPrice: sig.targetLevel,
+          slPrice: slPrice,
+          tpPrice: tpPrice,
+          beTriggerPrice: tierSetup?.beTriggerPrice || null,
+          step: step,
+          gridWidthPct: sig.gridWidthPct || ((step / sig.targetLevel) * 100),
+          leverage: leverage,
+          margin: margin,
+          score: score,
+          scoreReasons: reasons,
+          confidence: confidence,
+          status: 'waiting_old_close', // Chờ đóng lệnh cũ trên sàn
+          savedAt: Date.now(),
+          activatedAt: null,
+        };
+        savePendingReversals();
+
         const activeIcon = activeDir === 'LONG' ? '🟢 LONG' : '🔴 SHORT';
         const revIcon = sig.signal === 'LONG' ? '🟢 LONG' : '🔴 SHORT';
         const reasonLines = (reasons || []).slice(0, 5)
@@ -1996,18 +2090,167 @@ async function startAutoTrade(coins) {
           (reasonLines ? `🧠 <b>Căn cứ hợp lưu:</b>\n${reasonLines}\n━━━━━━━━━━━━━━━━\n` : '') +
           `⚠️ <b>Khuyến nghị:</b>\n` +
           `Nếu đang giữ lệnh ${activeIcon} trên sàn, hãy chủ động cân nhắc chốt lời hoặc đóng vị thế để bảo toàn vốn.\n\n` +
+          `⏳ <b>Đã lưu vào hàng chờ Đảo Chiều:</b> Khi bạn đóng vị thế cũ, bot sẽ tự động rà soát để vào lệnh MARKET khi giá thỏa mãn điều kiện (không đuổi giá xấu và chưa chạm SL).\n\n` +
           `<i>🤖 Bot <b>KHÔNG</b> tự đặt lệnh ${revIcon} và <b>KHÔNG</b> tự hủy lệnh ${activeIcon} trên sàn.</i>`;
 
         sendTelegram(msg).catch(err => {
           log.warn(`[AutoTrade] Không thể gửi cảnh báo đảo chiều Telegram cho ${sym}: ${err.message}`);
         });
 
-        log.system(`[AutoTrade] 🔁 [ĐÃ GỬI CẢNH BÁO ĐẢO CHIỀU] ${sym}: ${activeDir} → ${sig.signal} (${score.toFixed(1)}đ >= ${MIN_SCORE_REVERSAL}đ)`);
+        log.system(`[AutoTrade] 🔁 [ĐÃ GỬI CẢNH BÁO ĐẢO CHIỀU & LƯU HÀNG CHỜ] ${sym}: ${activeDir} → ${sig.signal} (${score.toFixed(1)}đ >= ${MIN_SCORE_REVERSAL}đ)`);
       } else {
         log.system(`[AutoTrade] 🛑 [Bỏ qua Đảo Chiều] ${sym}: Tín hiệu ${sig.signal} chỉ đạt ${score.toFixed(1)}đ < ${MIN_SCORE_REVERSAL}đ → Bỏ qua`);
       }
     } catch (err) {
       log.warn(`[AutoTrade] Lỗi trong handleReversalSignal cho ${sym}: ${err.message}`);
+    }
+  }
+
+  // ── RÀ SOÁT TỰ ĐỘNG VÀO LỆNH ĐẢO CHIỀU (Check Pending Auto-Entry giống bot-new) ──
+  async function checkPendingReversalAutoEntry() {
+    const activePending = Object.entries(pendingReversals).filter(([_, r]) => r && r.status === 'pending_entry');
+    if (!activePending.length) return;
+
+    const REVERSAL_ENTRY_EXPIRY_MS = parseInt(process.env.REVERSAL_ENTRY_EXPIRY_MS || String(4 * 3600 * 1000), 10);
+    const now = Date.now();
+
+    for (const [sym, rev] of activePending) {
+      // 1. Kiểm tra hết hạn: Quá 4 tiếng không về entry -> Tự hủy
+      if (now - (rev.activatedAt || rev.savedAt) > REVERSAL_ENTRY_EXPIRY_MS) {
+        log.system(`[AutoTrade] ⏰ [HẾT HẠN ĐẢO CHIỀU] ${sym} ${rev.direction} quá 4h không về vùng entry -> Hủy setup`);
+        delete pendingReversals[sym];
+        savePendingReversals();
+        sendTelegram(
+          `⏰ <b>[HẾT HẠN ĐẢO CHIỀU] — #${sym} ${rev.direction === 'LONG' ? '🟢 LONG' : '🔴 SHORT'}</b>\n` +
+          `━━━━━━━━━━━━━━━━\n` +
+          `💰 Entry mục tiêu: <code>$${fmtPrice(rev.entryPrice)}</code>\n` +
+          `⌛ Đã chờ 4h nhưng giá không về vùng entry.\n` +
+          `━━━━━━━━━━━━━━━━\n` +
+          `<i>🤖 Bot tự hủy setup này để tránh vào lệnh muộn khi thị trường đã thay đổi.</i>`
+        ).catch(() => {});
+        continue;
+      }
+
+      const currentPrice = getMarkPrice(sym);
+      if (!currentPrice || currentPrice <= 0) continue;
+
+      const isLong = rev.direction === 'LONG';
+
+      // 2. Chốt chặn kiểm soát giá khắt khe (GIỐNG BOT-NEW)
+      // Điều kiện 1: Giá KHÔNG ĐƯỢC XẤU HƠN entry
+      if (isLong && currentPrice > rev.entryPrice * 1.001) continue; // LONG: giá phải <= entry
+      if (!isLong && currentPrice < rev.entryPrice * 0.999) continue; // SHORT: giá phải >= entry (không đuổi giá rơi sâu)
+
+      // Điều kiện 2: Giá chưa được chạm/vượt SL
+      if (isLong && currentPrice <= rev.slPrice) continue;
+      if (!isLong && currentPrice >= rev.slPrice) continue;
+
+      // 3. Kiểm tra balance
+      if (!isShadowMode && client) {
+        let balance = 0;
+        try {
+          balance = await client.getBalance();
+        } catch (_) {}
+        if (balance < (rev.margin || 10)) {
+          log.warn(`[AutoTrade] Reversal auto-entry: ${sym} không đủ balance ($${balance.toFixed(2)} < $${rev.margin})`);
+          continue;
+        }
+      }
+
+      // 4. Thực thi vào lệnh MARKET trên sàn
+      try {
+        const effectiveLev = rev.leverage || 10;
+        if (!isShadowMode && client) {
+          try { await client.setLeverage(sym, effectiveLev); } catch (_) {}
+        }
+
+        const currentNotional = (rev.margin || 10) * effectiveLev;
+        const { qty } = calcQuantity(sym, currentNotional, currentPrice);
+        if (qty <= 0) {
+          log.warn(`[AutoTrade] Reversal auto-entry: ${sym} quantity <= 0`);
+          continue;
+        }
+
+        const side = isLong ? 'BUY' : 'SELL';
+        let order;
+        if (!isShadowMode && client) {
+          order = await client.placeMarket(sym, side, qty);
+          if (!order) continue;
+        } else {
+          order = { orderId: `shadow_rev_${Date.now()}`, status: 'FILLED' };
+        }
+
+        activeSymbols.add(sym);
+        activePositionsMap.set(sym, {
+          direction: rev.direction,
+          positionAmt: isLong ? qty : -qty,
+          entryPrice: currentPrice
+        });
+
+        const posGridPct = (rev.step / currentPrice) * 100;
+        activeTradesMetadata[sym] = {
+          score: rev.score,
+          isCounterTrend: false,
+          entryPrice: currentPrice,
+          side,
+          gridWidthPct: rev.gridWidthPct || posGridPct,
+          gridStepPct: posGridPct,
+          step: rev.step || getStep(currentPrice),
+          orderId: order.orderId ?? null,
+          isFilled: true,
+          hasNotifiedFill: true,
+          fillTime: Date.now(),
+          maxFavorablePrice: currentPrice,
+          time: Date.now(),
+          markPrice: currentPrice,
+          scoreReasons: rev.scoreReasons,
+          leverage: effectiveLev,
+          margin: rev.margin,
+          tierSlPrice: rev.slPrice,
+          tierTpPrice: rev.tpPrice,
+          beTriggerPrice: rev.beTriggerPrice,
+        };
+        saveActiveTradesMetadata();
+
+        // Đặt Dual Bracket (TP Limit & SL Stop Market) trực tiếp lên sàn Binance
+        if (!isShadowMode && client && rev.tpPrice && rev.slPrice) {
+          await placeDualBracket({
+            client,
+            sym,
+            side,
+            qty,
+            entryPrice: currentPrice,
+            targetPrice: rev.tpPrice,
+            slPrice: rev.slPrice,
+            meta: activeTradesMetadata[sym]
+          });
+          saveActiveTradesMetadata();
+        }
+
+        delete pendingReversals[sym];
+        savePendingReversals();
+
+        const dirIcon = isLong ? '🟢 LONG' : '🔴 SHORT';
+        const improvePct = isLong
+          ? ((rev.entryPrice - currentPrice) / rev.entryPrice * 100).toFixed(2)
+          : ((currentPrice - rev.entryPrice) / rev.entryPrice * 100).toFixed(2);
+        const improveText = Number(improvePct) > 0 ? `  <i>(giá tốt hơn entry ban đầu ${improvePct}%)</i>` : '';
+
+        sendTelegram(
+          `🚀 <b>[VÀO LỆNH ĐẢO CHIỀU THÀNH CÔNG] — #${sym} ${dirIcon} ⚡x${effectiveLev}</b>\n` +
+          `━━━━━━━━━━━━━━━━\n` +
+          `💹 Khớp MARKET tại: <code>$${fmtPrice(currentPrice)}</code>${improveText}\n` +
+          `🎯 Chốt lời (TP):   <code>$${fmtPrice(rev.tpPrice)}</code>\n` +
+          `🛑 Cắt lỗ (SL):     <code>$${fmtPrice(rev.slPrice)}</code>\n` +
+          `💰 Ký quỹ:         <b>$${rev.margin}</b> | Qty: <b>${qty}</b>\n` +
+          `━━━━━━━━━━━━━━━━\n` +
+          `<i>🤖 Đã tự động đặt cặp lệnh bảo vệ kép Dual Bracket (TP/SL) trên Binance!</i>`
+        ).catch(() => {});
+
+        log.system(`[AutoTrade] 🚀 [ĐẢO CHIỀU MARKET FILL] ${sym} ${side} ${qty} @ $${currentPrice}`);
+      } catch (err) {
+        log.warn(`[AutoTrade] Lỗi thực thi reversal auto-entry cho ${sym}: ${err.message}`);
+      }
     }
   }
 
@@ -2931,6 +3174,11 @@ async function startAutoTrade(coins) {
   onPriceUpdate((sym, price) => {
     if (isIpBanned()) return;
     if (!activeCoinSet.has(sym)) return;
+
+    // ⚡ Kích hoạt rà soát tức thì (0ms) nếu coin này đang trong hàng chờ vào lệnh đảo chiều
+    if (pendingReversals[sym]?.status === 'pending_entry') {
+      checkPendingReversalAutoEntry().catch(() => {});
+    }
 
     // 🛡️ COOLDOWN GUARD: Chỉ cho phép enqueueSymbolSignal tối đa 1 lần mỗi 15 giây cho từng coin
     const now = Date.now();
