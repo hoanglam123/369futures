@@ -1035,15 +1035,14 @@ async function calculateTierSLTP(
   );
   effectiveLeverage = Math.max(1, Math.floor(effectiveLeverage));
 
-  // 5. TÍNH TOÁN TP VÀ CHỐT CHẶN R:R >= 1.5
+  // 5. TÍNH TOÁN TP TRỰC TIẾP TỪ SL VÀ CHỐT CHẶN R:R >= 1.5 (BỎ ĐÁNH GIÁ 50% GRID)
   const step = h4Ref?.step || getStep(entryPrice);
   const effGridWidth = (typeof gridWidthPct === 'number' && gridWidthPct > 0)
     ? gridWidthPct
     : (((step * 10) / entryPrice) * 100);
 
-  const gridTpDist = entryPrice * ((effGridWidth * 0.50) / 100.0);
-  const minRequiredTpDist = slDist * 1.50;
-  const targetTpDist = Math.max(gridTpDist, minRequiredTpDist);
+  const targetTpRatio = (typeof tpRatio === 'number' && tpRatio > 0) ? tpRatio : 1.50;
+  const targetTpDist = slDist * targetTpRatio;
 
   const rawTP = isLong ? (entryPrice + targetTpDist) : (entryPrice - targetTpDist);
   const finalTpPrice = roundTpConservative(rawTP, effTickSize, isLong);
