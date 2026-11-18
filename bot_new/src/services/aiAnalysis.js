@@ -810,17 +810,6 @@ async function callGemini(prompt, maxTokens, apiKey, systemPrompt = '') {
         { timeout: 60000 }
       );
     } catch (err) {
-        {
-          contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: {
-            maxOutputTokens: maxTokens,
-            temperature: 0.2,
-            thinkingConfig: { thinkingBudget: 0 },
-          },
-        },
-        { timeout: 60000 }
-      );
-    } catch (err) {
       const detail = err.response?.data?.error?.message ?? err.message;
       const status = err.response?.status ?? 'N/A';
       lastError = new Error(`Gemini [${model}] lỗi [${status}]: ${detail}`);
