@@ -276,6 +276,7 @@ async function apiHealth() {
   }
 
   const activeTradesList = await apiTrades();
+  const shadowList = apiShadowTrades();
 
   return {
     status: 'ONLINE',
@@ -304,6 +305,7 @@ async function apiHealth() {
     aiCount,
     warnCount,
     activeTrades: activeTradesList.length,
+    shadowTrades: shadowList.length,
     fundingActive: 0,
   };
 }
@@ -438,65 +440,56 @@ async function apiTrades() {
     }
   }
 
-  // 3. Nếu chưa có lệnh thực, kiểm tra shadow_positions.json của bot-h4
+  return trades;
+}
+
+function apiShadowTrades() {
   const shadowPositions = readJson('shadow_positions.json', {});
+  const list = [];
   for (const [id, s] of Object.entries(shadowPositions)) {
     if (!s || s.status !== 'ACTIVE') continue;
     const sym = s.symbol;
-    if (symbolMap.has(sym)) continue;
     const isLong = s.signal === 'LONG' || s.signal === 'BUY';
     const entryPrice = parseFloat(s.entryPrice) || 0;
-    const markPrice = entryPrice; // Sẽ được cập nhật qua live-pnl
     const leverage = parseFloat(s.leverage) || 10;
     const margin = parseFloat(s.margin) || 20;
 
-    const roiPct = isLong
-      ? ((markPrice - entryPrice) / entryPrice) * leverage * 100
-      : ((entryPrice - markPrice) / entryPrice) * leverage * 100;
-    const pnlUsd = (roiPct / 100) * margin;
-
-    trades.push({
+    list.push({
       id: s.shadowId || id,
       symbol: sym,
       direction: isLong ? 'LONG' : 'SHORT',
       side: isLong ? 'BUY' : 'SELL',
       entryPrice,
-      currentPrice: markPrice,
-      targetPrice: s.tierTpPrice,
-      tp1Price: s.tierTpPrice,
+      currentPrice: entryPrice,
+      targetPrice: s.tierTpPrice || null,
+      tp1Price: s.tierTpPrice || null,
       tp2Price: null,
       tp1Hit: false,
       tp2Hit: false,
-      slPrice: s.tierSlPrice || s.originalSlPrice,
-      beTriggerPrice: s.beTriggerPrice,
-      isBreakeven: s.isBeTriggered || false,
-      slMovedToBreakeven: s.isBeTriggered || false,
+      slPrice: s.tierSlPrice || s.originalSlPrice || null,
       leverage,
       margin: parseFloat(margin.toFixed(2)),
-      unrealizedPnlUsd: parseFloat(pnlUsd.toFixed(2)),
-      roiPct: parseFloat(roiPct.toFixed(2)),
       score: s.score || 0,
       confluenceScore: s.score || null,
-      entryFilled: s.isFilled !== false,
-      tpOrderId: null,
-      slOrderId: null,
-      binanceTpOrderId: null,
-      binanceSlOrderId: null,
+      vetoCategory: s.vetoCategory || null,
+      vetoReason: s.vetoReason || null,
       recommendedAt: s.entryTimestamp ? new Date(s.entryTimestamp).toISOString() : new Date().toISOString(),
       status: 'active',
+      isShadow: true,
       source: 'bot-h4-shadow',
     });
   }
-
-  return trades;
+  return list;
 }
 
 async function apiLivePnl() {
   return cached('live-pnl', 10_000, async () => {
-    const trades = await apiTrades();
-    if (!trades.length) return [];
+    const realTrades = await apiTrades();
+    const shadowTrades = apiShadowTrades();
+    const allTrades = [...realTrades, ...shadowTrades];
+    if (!allTrades.length) return [];
 
-    const symbols = [...new Set(trades.map(t => t.symbol))];
+    const symbols = [...new Set(allTrades.map(t => t.symbol))];
     const prices = {};
 
     try {
@@ -510,7 +503,7 @@ async function apiLivePnl() {
       }
     } catch {}
 
-    return trades.map(t => {
+    return allTrades.map(t => {
       const curr = prices[t.symbol] || t.currentPrice;
       const entry = t.entryPrice;
       if (!curr || !entry) {
@@ -1007,6 +1000,7 @@ function createDashboardServer() {
         '/api/health': apiHealth,
         '/api/stats': apiStats,
         '/api/trades': apiTrades,
+        '/api/shadow-trades': apiShadowTrades,
         '/api/history': apiHistory,
         '/api/chart': apiChart,
         '/api/analytics': apiAnalytics,
@@ -1176,6 +1170,7 @@ module.exports = {
   broadcastWs,
   apiHealth,
   apiTrades,
+  apiShadowTrades,
   apiHistory,
   apiStats,
   apiChart,
