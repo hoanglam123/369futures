@@ -18,6 +18,7 @@ const http = require('http');
 const {
   startDashboard,
   stopDashboard,
+  getActivePort,
   broadcastWs,
   apiHealth,
   apiTrades,
@@ -188,6 +189,27 @@ function httpPost(path) {
     // Lệnh không tồn tại
     const unknownOk = await executeCommand('/invalidcommand');
     assert.strictEqual(unknownOk, false, 'Lệnh lạ phải trả về false');
+  });
+
+  // ── TEST 7: KHẢ NĂNG CHỐNG CRASH KHI TRÙNG PORT (EADDRINUSE HUNTING) ──
+  await runAsyncTest('WebDashboard: Tự động bắt lỗi EADDRINUSE và chuyển sang port dự phòng an toàn không crash', async () => {
+    stopDashboard();
+    const busyPort = 3192;
+    // Giả lập tiến trình khác đang chiếm giữ port 3192 (giống bot_new chiếm port 3000 trên VPS)
+    const dummyServer = http.createServer((req, res) => res.end('occupied'));
+    await new Promise((resolve) => dummyServer.listen(busyPort, resolve));
+
+    try {
+      startDashboard(busyPort);
+      // Chờ một nhịp nhỏ để event loop xử lý sự kiện 'error' và retry port tiếp theo
+      await new Promise((resolve) => setTimeout(resolve, 150));
+
+      const activePort = getActivePort();
+      assert.strictEqual(activePort, busyPort + 1, `Phải tự động nhảy sang port kế tiếp (${busyPort + 1})`);
+    } finally {
+      await new Promise((resolve) => dummyServer.close(resolve));
+      stopDashboard();
+    }
   });
 
   console.log('\n================================================================');

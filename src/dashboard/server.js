@@ -22,7 +22,8 @@ const DATA_DIR = path.join(process.cwd(), 'data');
 const HTML_FILE = path.join(__dirname, 'index.html');
 const FAVICON_FILE = path.join(__dirname, 'favicon.jpg');
 const TIMEZONE = process.env.TIMEZONE || 'Asia/Ho_Chi_Minh';
-const DEFAULT_PORT = parseInt(process.env.PORT || '3000', 10);
+// Mặc định port 3369 cho PP369 để tránh xung đột với bot_new (port 3000) trên cùng VPS
+const DEFAULT_PORT = parseInt(process.env.DASHBOARD_PORT || (process.env.PORT && process.env.PORT !== '3000' ? process.env.PORT : '3369'), 10);
 
 // WebSocket clients
 const _wsClients = new Set();
@@ -244,6 +245,7 @@ function apiCooldown() {
 
 let _server = null;
 let _wss = null;
+let _activePort = DEFAULT_PORT;
 
 function createDashboardServer() {
   const server = http.createServer((req, res) => {
@@ -326,57 +328,97 @@ function createDashboardServer() {
 
 // ─── Lifecycle ────────────────────────────────────────────────────────────────
 
-function startDashboard(port = DEFAULT_PORT) {
+function startDashboard(port = DEFAULT_PORT, attempt = 1, originalPort = null) {
   if (_server) return _server;
 
-  _server = createDashboardServer();
+  const targetPort = port || DEFAULT_PORT;
+  const initialPort = originalPort || targetPort;
+  _activePort = targetPort;
 
-  // Khởi tạo WebSocket Server cho Dashboard
-  _wss = new WebSocketServer({ server: _server });
-  _wss.on('connection', (ws) => {
-    _wsClients.add(ws);
-    // Push ngay snapshot ban đầu khi client kết nối
+  const srv = createDashboardServer();
+
+  // Bắt sự kiện error TRƯỚC KHI listen để triệt tiêu vĩnh viễn unhandled 'error' crash tiến trình
+  srv.on('error', (err) => {
+    if (err.code === 'EADDRINUSE') {
+      log.warn(`[Dashboard] ⚠️ Port ${_activePort} đã bị chiếm dụng (EADDRINUSE).`);
+      stopDashboard();
+
+      if (attempt < 5) {
+        const nextPort = targetPort + 1;
+        log.system(`[Dashboard] 🔄 Đang tự động đổi sang port dự phòng: ${nextPort} (Lần thử ${attempt + 1}/5)...`);
+        startDashboard(nextPort, attempt + 1, initialPort);
+      } else {
+        log.warn(`[Dashboard] ⚠️ Không thể mở Web Dashboard sau 5 lần thử cổng (${initialPort} -> ${_activePort}). Bot vẫn tiếp tục tự động giao dịch bình thường không bị gián đoạn.`);
+      }
+      return;
+    }
+
+    log.warn(`[Dashboard] Lỗi mạng máy chủ Web Dashboard: ${err.message}`);
+    stopDashboard();
+  });
+
+  srv.listen(targetPort, () => {
+    log.system(`[Dashboard] 🚀 Web Dashboard PP369 sẵn sàng tại: http://localhost:${targetPort}`);
+
+    // Chỉ khởi tạo WebSocketServer khi HTTP Server đã BIND thành công cổng
     try {
-      ws.send(JSON.stringify({
-        type: 'SNAPSHOT',
-        data: {
-          trades: apiTrades(),
-          stats: apiStats(),
-          health: apiHealth(),
-        },
-      }));
-    } catch {}
+      _wss = new WebSocketServer({ server: srv });
+      _wss.on('error', (err) => {
+        log.warn(`[Dashboard] Lỗi WebSocket Server: ${err.message}`);
+      });
+      _wss.on('connection', (ws) => {
+        _wsClients.add(ws);
+        try {
+          ws.send(JSON.stringify({
+            type: 'SNAPSHOT',
+            data: {
+              trades: apiTrades(),
+              stats: apiStats(),
+              health: apiHealth(),
+            },
+          }));
+        } catch {}
 
-    ws.on('close', () => _wsClients.delete(ws));
-    ws.on('error', () => _wsClients.delete(ws));
+        ws.on('close', () => _wsClients.delete(ws));
+        ws.on('error', () => _wsClients.delete(ws));
+      });
+    } catch (wsErr) {
+      log.warn(`[Dashboard] Lỗi khởi tạo WebSocket Server: ${wsErr.message}`);
+    }
   });
 
-  _server.listen(port, () => {
-    log.system(`[Dashboard] 🚀 Web Dashboard PP369 sẵn sàng tại: http://localhost:${port}`);
-  });
-
+  _server = srv;
   return _server;
 }
 
 function stopDashboard() {
   if (_wss) {
-    for (const ws of _wsClients) {
-      try { ws.terminate(); } catch {}
-    }
-    _wsClients.clear();
-    _wss.close();
+    try {
+      for (const ws of _wsClients) {
+        try { ws.terminate(); } catch {}
+      }
+      _wsClients.clear();
+      _wss.close(() => {});
+    } catch {}
     _wss = null;
   }
   if (_server) {
-    _server.close();
+    try {
+      _server.close(() => {});
+    } catch {}
     _server = null;
     log.system('[Dashboard] Đã dừng Web Dashboard Server');
   }
 }
 
+function getActivePort() {
+  return _activePort;
+}
+
 module.exports = {
   startDashboard,
   stopDashboard,
+  getActivePort,
   broadcastWs,
   apiHealth,
   apiTrades,

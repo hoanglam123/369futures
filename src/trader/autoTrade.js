@@ -1314,8 +1314,9 @@ async function startAutoTrade(coins) {
   // ── Khởi động Báo Cáo Tổng Kết Giao Dịch 24H qua Telegram (07:00 UTC+7 mỗi ngày) ──
   startDailyReportScheduler();
 
-  // ── Khởi động Web Dashboard Express/Canvas Port 3000 (Phase 5) ──
-  const dashboardPort = parseInt(process.env.DASHBOARD_PORT || process.env.PORT || '3000', 10);
+  // ── Khởi động Web Dashboard Express/Canvas Port 3369 (Phase 5) ──
+  // Mặc định port 3369 để tránh xung đột với bot_new (port 3000) trên VPS
+  const dashboardPort = parseInt(process.env.DASHBOARD_PORT || (process.env.PORT && process.env.PORT !== '3000' ? process.env.PORT : '3369'), 10);
   try {
     startDashboard(dashboardPort);
   } catch (err) {
