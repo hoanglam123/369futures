@@ -1,29 +1,29 @@
 'use strict';
 
 /**
- * PP369 Futures Web Dashboard Server (Port 3369) — Phase 5 & 6
+ * PP369 Futures Web Dashboard Server (Port 3369) — bot-h4 Dedicated
  *
  * Tính năng:
- *   1. REST API endpoints đầy đủ cung cấp số liệu thời gian thực:
- *      - /api/health: Trạng thái bot, ram, lỗi, số lệnh active, last log
- *      - /api/watched-coins: Danh sách coin theo dõi (fixed, tier2, liquid, gainers)
- *      - /api/stats: Tổng quan hiệu suất (win rate, profit factor, streak, best/worst trade)
- *      - /api/chart: Biểu đồ PnL lũy kế (cumulative)
- *      - /api/analytics: Phân tích chi tiết (theo symbol, theo ngày, duration)
- *      - /api/market: Thị trường tổng quan (BTC, ETH, Fear & Greed, Funding rates)
- *      - /api/trades: Danh sách vị thế đang mở
- *      - /api/live-pnl: PnL thời gian thực cho từng lệnh (array)
- *      - /api/history: Lịch sử lệnh đóng (hợp nhất bot-h4 & bot_new)
- *      - /api/funding/*: Số liệu funding arbitrage
- *      - /api/signals: Lịch sử tín hiệu PP369
+ *   1. Quản lý và hiển thị dữ liệu RIÊNG BIỆT của tài khoản Binance bot-h4:
+ *      - /api/health: Trạng thái bot-h4, ram, lỗi, số vị thế thực tế đang mở, last log
+ *      - /api/watched-coins: Danh sách coin theo dõi bot-h4 (từ step_sizes.json & market_cap_top.json)
+ *      - /api/stats: Tổng quan hiệu suất bot-h4 (từ shadow_trades_history.jsonl)
+ *      - /api/chart: Biểu đồ PnL lũy kế bot-h4
+ *      - /api/analytics: Phân tích theo symbol, theo ngày, duration bot-h4
+ *      - /api/market: Thị trường tổng quan (BTC, ETH, Fear & Greed, Funding rates Binance)
+ *      - /api/trades: Vị thế thực tế trên sàn Binance của bot-h4 (kết hợp active_trades.json)
+ *      - /api/live-pnl: PnL thời gian thực cho từng lệnh (array chuẩn)
+ *      - /api/history: Lịch sử lệnh đóng của bot-h4
+ *      - /api/funding/*: Trả về trạng thái rỗng an toàn (bot-h4 không chạy funding arbitrage)
+ *      - /api/signals: Lịch sử tín hiệu 369 của bot-h4 (369_signals.jsonl)
  *      - /api/pp369-context: Nến H1 đầu tháng của các coin có tín hiệu
- *      - /api/log-dates: Danh sách ngày có log (từ cả PM2 logs-h4 và bot_new)
- *      - /api/logs: Đọc và parse nhật ký đa định dạng (bot-new + PM2 h4)
- *      - /api/trades/update: Cập nhật TP/SL lệnh đang mở
- *      - /api/sync & /api/forcesync: Đồng bộ vị thế và override safety brake
- *      - /api/cooldown: Danh sách coin đang trong thời gian giãn cách
+ *      - /api/log-dates: Danh sách ngày có log của bot-h4 (từ logs/logs-h4/ và logs/)
+ *      - /api/logs: Đọc và parse nhật ký PM2 của bot-h4
+ *      - /api/trades/update: Cập nhật TP/SL lệnh trong active_trades.json của bot-h4
+ *      - /api/sync & /api/forcesync: Override safety brake của bot-h4
+ *      - /api/cooldown: Danh sách coin cooldown của bot-h4
  *   2. WebSocket Server push realtime (0ms delay) cho cả 'trades' và 'price'.
- *   3. Phục vụ giao diện Web Dashboard hoàn chỉnh (index.html).
+ *   3. Phục vụ giao diện Web Dashboard (index.html).
  */
 
 const http = require('http');
@@ -56,6 +56,24 @@ function broadcastWs(type, data) {
       if (client.readyState === 1) client.send(msg);
     } catch {}
   }
+}
+
+// ─── Binance Client của bot-h4 ───────────────────────────────────────────────
+let _binanceClient = null;
+function getBinanceClient() {
+  if (!_binanceClient) {
+    const apiKey = process.env.BINANCE_API_KEY;
+    const secret = process.env.BINANCE_SECRET;
+    if (apiKey && secret) {
+      try {
+        const { createClient } = require('../trader/binance');
+        _binanceClient = createClient(apiKey, secret);
+      } catch (err) {
+        log.warn(`[Dashboard] Không thể tạo Binance client bot-h4: ${err.message}`);
+      }
+    }
+  }
+  return _binanceClient;
 }
 
 // ─── Simple TTL Cache ────────────────────────────────────────────────────────
@@ -118,24 +136,13 @@ function readTail(filePath, maxBytes = 2 * 1024 * 1024) {
   }
 }
 
-// ─── Parser Nhật Ký Đa Định Dạng ──────────────────────────────────────────────
+// ─── Parser Nhật Ký bot-h4 ────────────────────────────────────────────────────
 
 function parseLogLine(line, targetDate) {
   if (!line || !line.trim()) return null;
 
-  // Định dạng 1: bot-new: [HH:mm:ss] [CAT  ] message | {optional json}
-  let m = line.match(/^\[(\d{2}:\d{2}:\d{2})\]\s*\[(\w+)\s*\]\s*(.+)$/);
-  if (m) {
-    const [, time, rawCat, rest] = m;
-    const pi = rest.lastIndexOf(' | {');
-    const message = pi >= 0 ? rest.slice(0, pi) : rest;
-    let data = null;
-    if (pi >= 0) { try { data = JSON.parse(rest.slice(pi + 3)); } catch {} }
-    return { time, cat: rawCat.trim(), message, data, date: targetDate, raw: line };
-  }
-
-  // Định dạng 2: PM2 (bot-h4): YYYY-MM-DD HH:mm:ss: [Tag1] [Tag2] message
-  m = line.match(/^(\d{4}-\d{2}-\d{2})\s+(\d{2}:\d{2}:\d{2}):\s*(.+)$/);
+  // 1. Định dạng chuẩn PM2 của bot-h4: YYYY-MM-DD HH:mm:ss: [Tag1] [Tag2] message
+  let m = line.match(/^(\d{4}-\d{2}-\d{2})\s+(\d{2}:\d{2}:\d{2}):\s*(.+)$/);
   if (m) {
     const [, date, time, rawRest] = m;
     if (targetDate && date !== targetDate) return null;
@@ -164,6 +171,17 @@ function parseLogLine(line, targetDate) {
     return { time, cat, message, data: null, date, raw: line };
   }
 
+  // 2. Định dạng có ngoặc vuông: [HH:mm:ss] [CAT] msg
+  m = line.match(/^\[(\d{2}:\d{2}:\d{2})\]\s*\[(\w+)\s*\]\s*(.+)$/);
+  if (m) {
+    const [, time, rawCat, rest] = m;
+    const pi = rest.lastIndexOf(' | {');
+    const message = pi >= 0 ? rest.slice(0, pi) : rest;
+    let data = null;
+    if (pi >= 0) { try { data = JSON.parse(rest.slice(pi + 3)); } catch {} }
+    return { time, cat: rawCat.trim(), message, data, date: targetDate, raw: line };
+  }
+
   return { time: '', cat: '', message: line, data: null, date: targetDate, raw: line };
 }
 
@@ -171,11 +189,7 @@ function getLogsForDate(date, limit = 300, filter = '') {
   const isToday = (date === todayStr());
   const targetFiles = [];
 
-  // 1. bot_new log
-  const newLog = path.join(process.cwd(), 'bot_new', 'data', 'logs', `bot-${date}.log`);
-  if (fs.existsSync(newLog)) targetFiles.push(newLog);
-
-  // 2. bot-h4 rotated logs matching date
+  // Quét CHỈ thư mục log của bot-h4
   const h4Dirs = [
     path.join(process.cwd(), 'logs', 'logs-h4'),
     path.join(process.cwd(), 'logs'),
@@ -219,7 +233,6 @@ function getLogsForDate(date, limit = 300, filter = '') {
     ? rawLines.filter(l => cats.some(c => (l.cat && l.cat.toUpperCase().includes(c)) || (l.message && l.message.toUpperCase().includes(`[${c}`))))
     : rawLines;
 
-  // Sắp xếp thời gian tăng dần
   filtered.sort((a, b) => (a.time || '').localeCompare(b.time || ''));
 
   return { date, lines: filtered.slice(-limit) };
@@ -227,7 +240,7 @@ function getLogsForDate(date, limit = 300, filter = '') {
 
 // ─── API Handlers ─────────────────────────────────────────────────────────────
 
-function apiHealth() {
+async function apiHealth() {
   const mem = process.memoryUsage();
   let brakeInfo = { reason: null, time: null };
   try { brakeInfo = getLastBrakeInfo(); } catch {}
@@ -262,8 +275,7 @@ function apiHealth() {
     }
   }
 
-  const activeTradesList = apiTrades();
-  const fundingTradesList = apiFundingTrades();
+  const activeTradesList = await apiTrades();
 
   return {
     status: 'ONLINE',
@@ -285,7 +297,6 @@ function apiHealth() {
     cooldownCount: activeCooldownsCount,
     version: '2.0.0-hybrid-quant',
 
-    // Các trường tương thích hoàn toàn với index.html:
     today,
     lastLog,
     errorCount,
@@ -293,14 +304,71 @@ function apiHealth() {
     aiCount,
     warnCount,
     activeTrades: activeTradesList.length,
-    fundingActive: fundingTradesList.length,
+    fundingActive: 0,
   };
 }
 
-function apiTrades() {
+async function apiTrades() {
   const trades = [];
+  const symbolMap = new Map();
 
-  // 1. Đọc từ active_trades.json của bot-h4
+  // 1. Lấy vị thế thực tế từ sàn Binance qua tài khoản của bot-h4
+  const client = getBinanceClient();
+  if (client) {
+    try {
+      const openPos = await client.getOpenPositions();
+      for (const p of openPos) {
+        const amt = parseFloat(p.positionAmt);
+        if (!amt) continue;
+        const sym = p.symbol.replace('USDT', '');
+        const isLong = amt > 0;
+        const entryPrice = parseFloat(p.entryPrice) || 0;
+        const markPrice = parseFloat(p.markPrice) || entryPrice;
+        const leverage = parseFloat(p.leverage) || 10;
+        const unrealizedPnlUsd = parseFloat(p.unRealizedProfit) || 0;
+        const margin = parseFloat(p.isolatedMargin) || (Math.abs(amt) * entryPrice / leverage);
+        const roiPct = margin > 0 ? (unrealizedPnlUsd / margin) * 100 : 0;
+
+        const trade = {
+          id: sym,
+          symbol: sym,
+          direction: isLong ? 'LONG' : 'SHORT',
+          side: isLong ? 'BUY' : 'SELL',
+          entryPrice,
+          currentPrice: markPrice,
+          targetPrice: null,
+          tp1Price: null,
+          tp2Price: null,
+          tp1Hit: false,
+          tp2Hit: false,
+          slPrice: null,
+          beTriggerPrice: null,
+          isBreakeven: false,
+          slMovedToBreakeven: false,
+          leverage,
+          margin: parseFloat(margin.toFixed(2)),
+          unrealizedPnlUsd: parseFloat(unrealizedPnlUsd.toFixed(2)),
+          roiPct: parseFloat(roiPct.toFixed(2)),
+          score: 0,
+          confluenceScore: null,
+          entryFilled: true,
+          tpOrderId: null,
+          slOrderId: null,
+          binanceTpOrderId: null,
+          binanceSlOrderId: null,
+          recommendedAt: new Date().toISOString(),
+          status: 'active',
+          source: 'binance-real',
+        };
+        symbolMap.set(sym, trade);
+        trades.push(trade);
+      }
+    } catch (err) {
+      log.warn(`[Dashboard] Lỗi lấy vị thế Binance cho bot-h4: ${err.message}`);
+    }
+  }
+
+  // 2. Bổ sung / đồng bộ với active_trades.json của bot-h4
   const activeTrades = readJson('active_trades.json', {});
   for (const [sym, meta] of Object.entries(activeTrades)) {
     if (!meta || meta.isClosed) continue;
@@ -310,52 +378,114 @@ function apiTrades() {
     const leverage = parseFloat(meta.leverage) || 10;
     const margin = parseFloat(meta.margin) || 20;
 
+    const existing = symbolMap.get(sym);
+    if (existing) {
+      existing.targetPrice = meta.tierTpPrice || meta.targetPrice || existing.targetPrice;
+      existing.tp1Price = meta.tp1Price || existing.targetPrice;
+      existing.tp2Price = meta.tp2Price || null;
+      existing.tp1Hit = meta.tp1Hit || false;
+      existing.tp2Hit = meta.tp2Hit || false;
+      existing.slPrice = meta.currentSlPrice || meta.tierSlPrice || meta.slPrice || existing.slPrice;
+      existing.beTriggerPrice = meta.beTriggerPrice || null;
+      existing.isBreakeven = meta.isBreakeven || false;
+      existing.slMovedToBreakeven = meta.isBreakeven || false;
+      existing.score = meta.score || existing.score;
+      existing.confluenceScore = meta.confluenceScore || meta.score || null;
+      existing.tpOrderId = meta.tpOrderId || null;
+      existing.slOrderId = meta.slOrderId || null;
+      existing.binanceTpOrderId = meta.tpOrderId || meta.binanceTpOrderId || null;
+      existing.binanceSlOrderId = meta.slOrderId || meta.binanceSlOrderId || null;
+      if (meta.time) existing.recommendedAt = new Date(meta.time).toISOString();
+    } else {
+      const roiPct = isLong
+        ? ((markPrice - entryPrice) / entryPrice) * leverage * 100
+        : ((entryPrice - markPrice) / entryPrice) * leverage * 100;
+      const pnlUsd = (roiPct / 100) * margin;
+
+      const trade = {
+        id: meta.id || sym,
+        symbol: sym,
+        direction: isLong ? 'LONG' : 'SHORT',
+        side: meta.side,
+        entryPrice,
+        currentPrice: markPrice,
+        targetPrice: meta.tierTpPrice || meta.targetPrice,
+        tp1Price: meta.tp1Price || meta.tierTpPrice || meta.targetPrice,
+        tp2Price: meta.tp2Price || null,
+        tp1Hit: meta.tp1Hit || false,
+        tp2Hit: meta.tp2Hit || false,
+        slPrice: meta.currentSlPrice || meta.tierSlPrice || meta.slPrice,
+        beTriggerPrice: meta.beTriggerPrice,
+        isBreakeven: meta.isBreakeven || false,
+        slMovedToBreakeven: meta.isBreakeven || false,
+        leverage,
+        margin,
+        unrealizedPnlUsd: parseFloat(pnlUsd.toFixed(2)),
+        roiPct: parseFloat(roiPct.toFixed(2)),
+        score: meta.score || 0,
+        confluenceScore: meta.confluenceScore || meta.score || null,
+        entryFilled: meta.isFilled !== false,
+        tpOrderId: meta.tpOrderId || null,
+        slOrderId: meta.slOrderId || null,
+        binanceTpOrderId: meta.tpOrderId || meta.binanceTpOrderId || null,
+        binanceSlOrderId: meta.slOrderId || meta.binanceSlOrderId || null,
+        recommendedAt: meta.time ? new Date(meta.time).toISOString() : new Date().toISOString(),
+        status: 'active',
+        source: 'bot-h4',
+      };
+      symbolMap.set(sym, trade);
+      trades.push(trade);
+    }
+  }
+
+  // 3. Nếu chưa có lệnh thực, kiểm tra shadow_positions.json của bot-h4
+  const shadowPositions = readJson('shadow_positions.json', {});
+  for (const [id, s] of Object.entries(shadowPositions)) {
+    if (!s || s.status !== 'ACTIVE') continue;
+    const sym = s.symbol;
+    if (symbolMap.has(sym)) continue;
+    const isLong = s.signal === 'LONG' || s.signal === 'BUY';
+    const entryPrice = parseFloat(s.entryPrice) || 0;
+    const markPrice = entryPrice; // Sẽ được cập nhật qua live-pnl
+    const leverage = parseFloat(s.leverage) || 10;
+    const margin = parseFloat(s.margin) || 20;
+
     const roiPct = isLong
       ? ((markPrice - entryPrice) / entryPrice) * leverage * 100
       : ((entryPrice - markPrice) / entryPrice) * leverage * 100;
     const pnlUsd = (roiPct / 100) * margin;
 
     trades.push({
-      id: meta.id || sym,
+      id: s.shadowId || id,
       symbol: sym,
       direction: isLong ? 'LONG' : 'SHORT',
-      side: meta.side,
+      side: isLong ? 'BUY' : 'SELL',
       entryPrice,
       currentPrice: markPrice,
-      targetPrice: meta.tierTpPrice || meta.targetPrice,
-      tp1Price: meta.tp1Price || meta.tierTpPrice || meta.targetPrice,
-      tp2Price: meta.tp2Price || null,
-      tp1Hit: meta.tp1Hit || false,
-      tp2Hit: meta.tp2Hit || false,
-      slPrice: meta.currentSlPrice || meta.tierSlPrice || meta.slPrice,
-      beTriggerPrice: meta.beTriggerPrice,
-      isBreakeven: meta.isBreakeven || false,
-      slMovedToBreakeven: meta.isBreakeven || false,
+      targetPrice: s.tierTpPrice,
+      tp1Price: s.tierTpPrice,
+      tp2Price: null,
+      tp1Hit: false,
+      tp2Hit: false,
+      slPrice: s.tierSlPrice || s.originalSlPrice,
+      beTriggerPrice: s.beTriggerPrice,
+      isBreakeven: s.isBeTriggered || false,
+      slMovedToBreakeven: s.isBeTriggered || false,
       leverage,
-      margin,
+      margin: parseFloat(margin.toFixed(2)),
       unrealizedPnlUsd: parseFloat(pnlUsd.toFixed(2)),
       roiPct: parseFloat(roiPct.toFixed(2)),
-      score: meta.score || 0,
-      confluenceScore: meta.confluenceScore || meta.score || null,
-      entryFilled: meta.isFilled !== false,
-      tpOrderId: meta.tpOrderId || null,
-      slOrderId: meta.slOrderId || null,
-      binanceTpOrderId: meta.tpOrderId || meta.binanceTpOrderId || null,
-      binanceSlOrderId: meta.slOrderId || meta.binanceSlOrderId || null,
-      recommendedAt: meta.time ? new Date(meta.time).toISOString() : new Date().toISOString(),
+      score: s.score || 0,
+      confluenceScore: s.score || null,
+      entryFilled: s.isFilled !== false,
+      tpOrderId: null,
+      slOrderId: null,
+      binanceTpOrderId: null,
+      binanceSlOrderId: null,
+      recommendedAt: s.entryTimestamp ? new Date(s.entryTimestamp).toISOString() : new Date().toISOString(),
       status: 'active',
-      source: 'bot-h4',
+      source: 'bot-h4-shadow',
     });
-  }
-
-  // 2. Đọc từ bot_new/data/trades.json nếu có
-  const newTrades = readJson(path.join(process.cwd(), 'bot_new', 'data', 'trades.json'), []);
-  if (Array.isArray(newTrades)) {
-    for (const nt of newTrades) {
-      if (nt.status === 'active' && !trades.some(t => t.symbol === nt.symbol)) {
-        trades.push({ ...nt, id: nt.id || nt.symbol });
-      }
-    }
   }
 
   return trades;
@@ -363,7 +493,7 @@ function apiTrades() {
 
 async function apiLivePnl() {
   return cached('live-pnl', 10_000, async () => {
-    const trades = apiTrades();
+    const trades = await apiTrades();
     if (!trades.length) return [];
 
     const symbols = [...new Set(trades.map(t => t.symbol))];
@@ -414,8 +544,6 @@ async function apiLivePnl() {
 
 function apiHistory() {
   const list = [];
-
-  // 1. Đọc từ shadow_trades_history.jsonl
   const shadowHist = readJsonl('shadow_trades_history.jsonl', 300);
   for (const item of shadowHist) {
     const isWin = (item.pnlPct || 0) > 0;
@@ -436,18 +564,6 @@ function apiHistory() {
       tp2Hit: item.tp2Hit || false,
       source: 'bot-h4',
     });
-  }
-
-  // 2. Đọc từ bot_new/data/trade_history.json nếu có
-  const newHist = readJson(path.join(process.cwd(), 'bot_new', 'data', 'trade_history.json'), []);
-  if (Array.isArray(newHist)) {
-    for (const item of newHist) {
-      list.push({
-        ...item,
-        closedAt: item.closedAt || item.timestamp,
-        source: 'bot-new',
-      });
-    }
   }
 
   list.sort((a, b) => new Date(b.closedAt || 0) - new Date(a.closedAt || 0));
@@ -551,7 +667,6 @@ function apiAnalytics() {
   const history = apiHistory();
   if (!history.length) return { bySymbol: [], byDay: [], duration: [] };
 
-  // 1. Thống kê theo symbol
   const symMap = {};
   for (const t of history) {
     if (!t.symbol) continue;
@@ -580,7 +695,6 @@ function apiAnalytics() {
     })
     .sort((a, b) => b.total - a.total);
 
-  // 2. PnL theo ngày (60 ngày gần nhất)
   const dayMap = {};
   for (const t of history) {
     if (!t.closedAt || t.pnlPct == null) continue;
@@ -596,7 +710,6 @@ function apiAnalytics() {
     .slice(-60)
     .map(([day, d]) => ({ day, pnl: parseFloat(d.pnl.toFixed(2)), wins: d.wins, losses: d.losses }));
 
-  // 3. Phân bổ thời gian giữ vị thế
   const buckets = { '<1h': 0, '1–4h': 0, '4–12h': 0, '12–24h': 0, '>24h': 0 };
   for (const t of history) {
     if (!t.durationMs) continue;
@@ -655,22 +768,7 @@ async function apiMarket() {
 }
 
 function apiWatchedCoins() {
-  // 1. Thử đọc từ pp369_symbols.json nếu có
-  let data = readJson('pp369_symbols.json', null);
-  if (!data) data = readJson(path.join(process.cwd(), 'bot_new', 'data', 'pp369_symbols.json'), null);
-
-  if (data && Array.isArray(data.symbols) && data.symbols.length) {
-    const symbols = data.symbols;
-    const fixed = Array.isArray(data.fixed) ? data.fixed : [];
-    const tier2 = Array.isArray(data.tier2) ? data.tier2 : [];
-    const liquid = Array.isArray(data.liquid) ? data.liquid : [];
-    const gainers = Array.isArray(data.gainers) ? data.gainers : [];
-    const resolvedFixed = (!fixed.length && !tier2.length && !liquid.length && !gainers.length && symbols.length)
-      ? symbols : fixed;
-    return { ...data, symbols, fixed: resolvedFixed, tier2, liquid, gainers };
-  }
-
-  // 2. Fallback cho bot-h4: đọc danh sách từ step_sizes.json và market_cap_top.json
+  // Lấy coin theo dõi của bot-h4 từ step_sizes.json và market_cap_top.json
   const fixed = (process.env.FIXED_COINS || process.env.COINS || 'BTC,ETH,SOL,BNB,XRP,DOGE,ADA,NEAR')
     .split(',')
     .map(s => s.trim().toUpperCase())
@@ -694,7 +792,7 @@ function apiWatchedCoins() {
     if (Array.isArray(mcData.symbols)) {
       tier2 = mcData.symbols
         .filter(s => symbols.includes(s) && !fixed.includes(s))
-        .slice(0, 42);
+        .slice(0, 42); // Top 50 (8 fixed + 42 tier2)
     }
   } catch {}
 
@@ -712,17 +810,11 @@ function apiWatchedCoins() {
 }
 
 function apiSignals() {
-  const file1 = path.join(DATA_DIR, '369_signals.jsonl');
-  const file2 = path.join(process.cwd(), 'bot_new', 'data', '369_signals.jsonl');
+  const file = path.join(DATA_DIR, '369_signals.jsonl');
   const list = [];
   try {
-    if (fs.existsSync(file1)) {
-      list.push(...fs.readFileSync(file1, 'utf8').split('\n').filter(Boolean).map(l => JSON.parse(l)));
-    }
-  } catch {}
-  try {
-    if (fs.existsSync(file2)) {
-      list.push(...fs.readFileSync(file2, 'utf8').split('\n').filter(Boolean).map(l => JSON.parse(l)));
+    if (fs.existsSync(file)) {
+      list.push(...fs.readFileSync(file, 'utf8').split('\n').filter(Boolean).map(l => JSON.parse(l)));
     }
   } catch {}
   return list.reverse();
@@ -765,21 +857,15 @@ async function apiPp369Context() {
 }
 
 function apiFundingStats() {
-  let data = readJson('funding_stats.json', null);
-  if (!data) data = readJson(path.join(process.cwd(), 'bot_new', 'data', 'funding_stats.json'), null);
-  return { total: 0, wins: 0, losses: 0, totalNetPct: 0, ...(data || {}) };
+  return { total: 0, wins: 0, losses: 0, totalNetPct: 0 };
 }
 
 function apiFundingTrades() {
-  let data = readJson('funding_trades.json', null);
-  if (!data) data = readJson(path.join(process.cwd(), 'bot_new', 'data', 'funding_trades.json'), []);
-  return Array.isArray(data) ? data.filter(t => t.status === 'active') : [];
+  return [];
 }
 
 function apiFundingHistory() {
-  let data = readJson('funding_history.json', null);
-  if (!data) data = readJson(path.join(process.cwd(), 'bot_new', 'data', 'funding_history.json'), []);
-  return Array.isArray(data) ? data.slice().reverse() : [];
+  return [];
 }
 
 function apiCooldown() {
@@ -808,11 +894,10 @@ function apiLogDates() {
   const today = todayStr();
   dates.add(today);
 
+  // Chỉ quét thư mục log của bot-h4
   const searchDirs = [
     path.join(process.cwd(), 'logs', 'logs-h4'),
     path.join(process.cwd(), 'logs'),
-    path.join(process.cwd(), 'bot_new', 'data', 'logs'),
-    path.join(process.cwd(), 'data', 'logs'),
   ];
 
   for (const dir of searchDirs) {
@@ -820,10 +905,7 @@ function apiLogDates() {
     try {
       const files = fs.readdirSync(dir);
       for (const f of files) {
-        let m = f.match(/^bot-(\d{4}-\d{2}-\d{2})\.log$/);
-        if (m) { dates.add(m[1]); continue; }
-
-        m = f.match(/__(\d{4}-\d{2}-\d{2})_\d{2}-\d{2}-\d{2}\.log$/);
+        let m = f.match(/__(\d{4}-\d{2}-\d{2})_\d{2}-\d{2}-\d{2}\.log$/);
         if (m) { dates.add(m[1]); continue; }
 
         m = f.match(/(\d{4}-\d{2}-\d{2})/);
@@ -856,7 +938,7 @@ function apiUpdateTrade(url) {
     }
   }
 
-  // 1. Thử cập nhật trong bot-h4 active_trades.json
+  // Cập nhật trong active_trades.json của bot-h4
   const activeFile = path.join(DATA_DIR, 'active_trades.json');
   if (fs.existsSync(activeFile)) {
     try {
@@ -876,16 +958,7 @@ function apiUpdateTrade(url) {
     }
   }
 
-  // 2. Thử cập nhật qua tradeMonitor của bot_new nếu có
-  try {
-    const tm = require(path.join(process.cwd(), 'bot_new', 'src', 'services', 'tradeMonitor'));
-    if (tm?.updateActiveTrade) {
-      const res = tm.updateActiveTrade(id, fields);
-      if (res?.ok) return res;
-    }
-  } catch {}
-
-  return { ok: false, error: 'Trade not found' };
+  return { ok: false, error: 'Trade not found in active_trades.json' };
 }
 
 // ─── HTTP Server Router ───────────────────────────────────────────────────────
@@ -972,11 +1045,6 @@ function createDashboardServer() {
           result = overrideSafetyBrake();
         } catch {}
 
-        try {
-          const tm = require(path.join(process.cwd(), 'bot_new', 'src', 'services', 'tradeMonitor'));
-          if (tm?.syncManualPositions) await tm.syncManualPositions('api');
-        } catch {}
-
         res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
         res.end(JSON.stringify({
           ok: true,
@@ -1037,9 +1105,10 @@ function startDashboard(port = DEFAULT_PORT, attempt = 1, originalPort = null) {
       _wss.on('connection', async (ws) => {
         _wsClients.add(ws);
         try {
+          const tradesList = await apiTrades();
           ws.send(JSON.stringify({
             type: 'trades',
-            data: apiTrades(),
+            data: tradesList,
           }));
           const pnlList = await apiLivePnl();
           ws.send(JSON.stringify({
