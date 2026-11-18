@@ -663,9 +663,19 @@ async function fetchH1Historical(symbol) {
 
   let cache = _h1HistCache[symbol];
 
-  if (!cache || cache.yearStart !== YEAR_START_MS) {
-    cache = { yearStart: YEAR_START_MS, candles: [], cursor: YEAR_START_MS };
+  // Khởi tạo nhanh (1 call duy nhất): Nếu chưa có cache hoặc cache rỗng, tải ngay 100 nến H1 gần nhất
+  // Thay vì chạy while-loop từ đầu năm 2026 (7700 giờ = 52 calls -> gây nghẽn 429 Rate Limit)
+  if (!cache || cache.yearStart !== YEAR_START_MS || !Array.isArray(cache.candles) || cache.candles.length === 0) {
+    const raw = await fetchBinanceKlines(symbol, '1h', null, 105);
+    const closed = (raw || []).filter(c => c.openTime < currentH1Start).slice(-100);
+    cache = {
+      yearStart: YEAR_START_MS,
+      candles: closed,
+      cursor: closed.length > 0 ? closed[closed.length - 1].openTime + H1_MS : currentH1Start
+    };
     _h1HistCache[symbol] = cache;
+    if (closed.length > 0) saveH1HistDiskCache();
+    return cache.candles;
   }
 
   if (cache.cursor >= currentH1Start) return cache.candles; // Không có H1 mới nào
@@ -725,9 +735,17 @@ async function fetchH4Historical(symbol) {
   const currentH4Start = floorToH4(Date.now());
   let cache = _h4HistCache[symbol];
 
-  if (!cache || cache.yearStart !== YEAR_START_MS) {
-    cache = { yearStart: YEAR_START_MS, candles: [], cursor: YEAR_START_MS };
+  // Khởi tạo nhanh (1 call duy nhất): Tải 80 nến H4 gần nhất thay vì 20 calls từ đầu năm
+  if (!cache || cache.yearStart !== YEAR_START_MS || !Array.isArray(cache.candles) || cache.candles.length === 0) {
+    const raw = await fetchBinanceKlines(symbol, '4h', null, 80);
+    const closed = (raw || []).filter(c => c.openTime < currentH4Start).slice(-75);
+    cache = {
+      yearStart: YEAR_START_MS,
+      candles: closed,
+      cursor: closed.length > 0 ? closed[closed.length - 1].openTime + H4_MS : currentH4Start
+    };
     _h4HistCache[symbol] = cache;
+    return cache.candles;
   }
 
   if (cache.cursor >= currentH4Start) return cache.candles;
@@ -769,9 +787,17 @@ async function fetchD1Historical(symbol) {
   const currentD1Start = floorToD1(Date.now());
   let cache = _d1HistCache[symbol];
 
-  if (!cache || cache.yearStart !== YEAR_START_MS) {
-    cache = { yearStart: YEAR_START_MS, candles: [], cursor: YEAR_START_MS };
+  // Khởi tạo nhanh (1 call duy nhất): Tải 50 nến D1 gần nhất thay vì 4 calls từ đầu năm
+  if (!cache || cache.yearStart !== YEAR_START_MS || !Array.isArray(cache.candles) || cache.candles.length === 0) {
+    const raw = await fetchBinanceKlines(symbol, '1d', null, 50);
+    const closed = (raw || []).filter(c => c.openTime < currentD1Start).slice(-45);
+    cache = {
+      yearStart: YEAR_START_MS,
+      candles: closed,
+      cursor: closed.length > 0 ? closed[closed.length - 1].openTime + D1_MS : currentD1Start
+    };
     _d1HistCache[symbol] = cache;
+    return cache.candles;
   }
 
   if (cache.cursor >= currentD1Start) return cache.candles;
