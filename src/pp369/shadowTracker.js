@@ -134,7 +134,7 @@ function registerShadowTrade(sig, evalResult, options = {}) {
   let tierSlPrice = options.tierSlPrice || options.slPrice || null;
   let slPct = options.slPct;
   if (!tierSlPrice) {
-    slPct = Math.max(gridWidthPct * 0.5, minSlPct);
+    slPct = Math.min(Math.max(gridWidthPct * 0.5, minSlPct), 3.5);
     tierSlPrice = isLong ? entryPrice * (1 - slPct / 100) : entryPrice * (1 + slPct / 100);
   } else if (!slPct) {
     slPct = Math.abs((tierSlPrice - entryPrice) / entryPrice) * 100;
@@ -144,10 +144,16 @@ function registerShadowTrade(sig, evalResult, options = {}) {
   let tierTpPrice = options.tierTpPrice || options.tpPrice || null;
   let tpPct = options.tpPct;
   if (!tierTpPrice) {
-    tpPct = Math.min(Math.max(gridWidthPct * 0.45, 1.2), 3.0);
+    tpPct = Math.max(gridWidthPct * 0.5, slPct * 1.5);
     tierTpPrice = isLong ? entryPrice * (1 + tpPct / 100) : entryPrice * (1 - tpPct / 100);
   } else if (!tpPct) {
     tpPct = Math.abs((tierTpPrice - entryPrice) / entryPrice) * 100;
+  }
+
+  // 🛡️ BẢO VỆ R:R >= 1.5: Đảm bảo khoảng cách TP luôn >= 1.5 * khoảng cách SL, tránh tình trạng SL xa hơn TP
+  if (slPct > 0 && tpPct < slPct * 1.48) {
+    tpPct = slPct * 1.5;
+    tierTpPrice = isLong ? entryPrice * (1 + tpPct / 100) : entryPrice * (1 - tpPct / 100);
   }
 
   // 🛡️ BREAKEVEN TRIGGER: Mức giá kích hoạt kéo SL về Hòa vốn

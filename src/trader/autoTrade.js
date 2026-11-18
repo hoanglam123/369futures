@@ -953,15 +953,18 @@ async function calculateTierSLTP(
 
   // Kịch bản 3: Không có Đáy/Đỉnh cũ (Dò ATH/ATL hoặc khoảng trống thanh khoản)
   if (!rawSL) {
-    const pureDist = entryPrice * (Math.max(1.5 * atrPct, minSlPct) / 100.0);
+    const pureDist = entryPrice * (Math.min(Math.max(1.5 * atrPct, minSlPct), 3.5) / 100.0);
     rawSL = isLong ? (entryPrice - pureDist) : (entryPrice + pureDist);
     slScenario = 'PURE_VOLATILITY_ATR';
   }
 
-  // Khống chế sàn tối thiểu (Safety Floor)
+  // Khống chế sàn tối thiểu (Safety Floor) và trần tối đa (Safety Ceiling 3.5%)
   let slDist = Math.abs(entryPrice - rawSL);
   if (slDist < entryPrice * (minSlPct / 100.0)) {
     slDist = entryPrice * (minSlPct / 100.0);
+    rawSL = isLong ? (entryPrice - slDist) : (entryPrice + slDist);
+  } else if (slDist > entryPrice * (3.5 / 100.0)) {
+    slDist = entryPrice * (3.5 / 100.0);
     rawSL = isLong ? (entryPrice - slDist) : (entryPrice + slDist);
   }
 

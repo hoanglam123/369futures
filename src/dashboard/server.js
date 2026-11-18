@@ -576,7 +576,7 @@ function apiStats() {
       currentStreak: 0,
       streakType: 'win',
       totalPnlPct: 0,
-      profitFactor: null,
+      profitFactor: 0.0,
       avgPnl: 0,
       avgDuration: 0,
       bestTrade: null,
@@ -591,7 +591,7 @@ function apiStats() {
   const totalPnlPct = parseFloat(history.reduce((sum, t) => sum + (t.pnlPct || 0), 0).toFixed(2));
   const winPnl = history.filter(t => (t.pnlPct || 0) > 0).reduce((sum, t) => sum + t.pnlPct, 0);
   const lossPnl = Math.abs(history.filter(t => (t.pnlPct || 0) < 0).reduce((sum, t) => sum + t.pnlPct, 0));
-  const profitFactor = lossPnl > 0 ? parseFloat((winPnl / lossPnl).toFixed(2)) : (winPnl > 0 ? 99.9 : null);
+  const profitFactor = lossPnl > 0 ? parseFloat((winPnl / lossPnl).toFixed(2)) : (winPnl > 0 ? 99.9 : 0.0);
   const avgPnl = parseFloat((totalPnlPct / totalTrades).toFixed(2));
 
   const validDurations = history.filter(t => t.durationMs > 0);
@@ -1040,10 +1040,11 @@ function createDashboardServer() {
         } catch {}
 
         res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+        const act = urlPath.replace('/api/', '');
         res.end(JSON.stringify({
           ok: true,
-          action: 'sync',
-          message: result?.message || 'Sync triggered successfully',
+          action: act,
+          message: result?.message || 'Sync override triggered successfully',
           timestamp: new Date().toISOString(),
         }));
         return;
