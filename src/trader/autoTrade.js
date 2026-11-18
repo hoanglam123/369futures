@@ -1920,7 +1920,7 @@ async function startAutoTrade(coins) {
       if (sig.score < minRequiredScore) {
         if (_shouldLogSignal(sym, sig.signal, sig.targetLevel, 'hard_score_gate', 10 * 60 * 1000)) {
           log.system(
-            `[AutoTrade] 🛑 [Hard Score Gate VETO] ${sym} (${sig.signal}): Score ${sig.score.toFixed(1)}đ < ${minRequiredScore}đ (${rankTierLabel}) — VETO bỏ qua không nạp cho AI.`
+            `[AutoTrade] 🛑 [Confluence Filter] ${sym} (${sig.signal}): Score ${sig.score.toFixed(1)}đ < ${minRequiredScore}đ [${rankTierLabel}] — Bỏ qua (Chưa đủ điểm)`
           );
           recordSkippedSignal({
             symbol: sym,
@@ -1939,7 +1939,7 @@ async function startAutoTrade(coins) {
       const isNewSignalLog = _shouldLogSignal(sym, sig.signal, sig.targetLevel, 'detected');
       if (isNewSignalLog) {
         log.system(
-          `[AutoTrade] 🎯 ${sym} → ${sig.signal} [ĐẠT CHUẨN VÒNG SƠ TUYỂN] (Score: ${sig.score.toFixed(1)}đ >= ${minRequiredScore}đ | ${rankTierLabel} | Ký quỹ: $${tradeAmount}) tại $${sig.targetLevel}`
+          `[AutoTrade] 🎯 [CONFLUENCE PASS] ${sym} → ${sig.signal} (${sig.score.toFixed(1)}đ >= ${minRequiredScore}đ [${rankTierLabel}] | Ký quỹ: $${tradeAmount}) tại $${sig.targetLevel}`
         );
       }
 
@@ -2153,8 +2153,7 @@ async function startAutoTrade(coins) {
           if (maxBouncePct >= preEntryBouncePct) {
             if (_shouldLogSignal(sym, sig.signal, sig.targetLevel, 'stale_canceled')) {
               log.system(
-                `[AutoTrade] ⚠️ ${sym} LONG: Từ khi chạm mốc Short ($${sig.condLevel}), nến M1 đã xát mốc entry LONG ($${bestTouchLow.toFixed(6)}) ` +
-                `rồi nảy lên đỉnh $${bestPeakHigh.toFixed(6)} (+${maxBouncePct.toFixed(2)}% >= ${preEntryBouncePct.toFixed(2)}% Khung/5) — Chuyển giao AI Reviewer thẩm định rủi ro.`
+                `[AutoTrade] ⚠️ ${sym} LONG: Đã nảy +${maxBouncePct.toFixed(2)}% từ mốc entry ($${bestTouchLow.toFixed(6)} → $${bestPeakHigh.toFixed(6)} >= ngưỡng an toàn ${preEntryBouncePct.toFixed(2)}%).`
               );
             }
           }
@@ -2196,8 +2195,7 @@ async function startAutoTrade(coins) {
           if (maxDropPct >= preEntryBouncePct) {
             if (_shouldLogSignal(sym, sig.signal, sig.targetLevel, 'stale_canceled')) {
               log.system(
-                `[AutoTrade] ⚠️ ${sym} SHORT: Từ khi chạm mốc Long ($${sig.condLevel}), nến M1 đã xát mốc entry SHORT ($${bestTouchHigh.toFixed(6)}) ` +
-                `rồi nảy xuống đáy $${bestTroughLow.toFixed(6)} (-${maxDropPct.toFixed(2)}% >= ${preEntryBouncePct.toFixed(2)}% Khung/5) — Chuyển giao AI Reviewer thẩm định rủi ro.`
+                `[AutoTrade] ⚠️ ${sym} SHORT: Đã sụt -${maxDropPct.toFixed(2)}% từ mốc entry ($${bestTouchHigh.toFixed(6)} → $${bestTroughLow.toFixed(6)} >= ngưỡng an toàn ${preEntryBouncePct.toFixed(2)}%).`
               );
             }
           }
@@ -2208,14 +2206,14 @@ async function startAutoTrade(coins) {
           maxRecentBouncePct = Math.max(0, bouncedAwayPct);
           if (bouncedAwayPct >= preEntryBouncePct) {
             if (_shouldLogSignal(sym, sig.signal, sig.targetLevel, 'stale_canceled_fallback')) {
-              log.system(`[AutoTrade] ⚠️ ${sym} LONG đã nảy xa mốc entry ($${sig.targetLevel} → $${markPrice.toFixed(6)} +${bouncedAwayPct.toFixed(2)}% >= ${preEntryBouncePct.toFixed(2)}%) — Chuyển giao AI Reviewer thẩm định rủi ro.`);
+              log.system(`[AutoTrade] ⚠️ ${sym} LONG đã nảy xa mốc entry ($${sig.targetLevel} → $${markPrice.toFixed(6)} +${bouncedAwayPct.toFixed(2)}% >= ${preEntryBouncePct.toFixed(2)}%).`);
             }
           }
         } else if (sig.signal === 'SHORT') {
           const bouncedAwayPct = ((sig.targetLevel - markPrice) / sig.targetLevel) * 100;
           maxRecentBouncePct = Math.max(0, bouncedAwayPct);
           if (bouncedAwayPct >= preEntryBouncePct) {
-            log.system(`[AutoTrade] ⚠️ ${sym} SHORT đã nảy xa mốc entry ($${sig.targetLevel} → $${markPrice.toFixed(6)} -${bouncedAwayPct.toFixed(2)}% >= ${preEntryBouncePct.toFixed(2)}%) — Chuyển giao AI Reviewer thẩm định rủi ro.`);
+            log.system(`[AutoTrade] ⚠️ ${sym} SHORT đã nảy xa mốc entry ($${sig.targetLevel} → $${markPrice.toFixed(6)} -${bouncedAwayPct.toFixed(2)}% >= ${preEntryBouncePct.toFixed(2)}%).`);
           }
         }
       }
@@ -2229,7 +2227,7 @@ async function startAutoTrade(coins) {
         if (maxRecentBouncePct >= extremeTh) {
           sig.scoreReasons.push(`[Độ nảy M1] Giá nảy cực xa mốc trước khi vào lệnh (${maxRecentBouncePct.toFixed(2)}% >= ${extremeTh.toFixed(2)}% Khung)`);
         } else if (maxRecentBouncePct >= preEntryBouncePct) {
-          sig.scoreReasons.push(`[Độ nảy M1] Giá đã nảy xa mốc trước khi vào lệnh (${maxRecentBouncePct.toFixed(2)}% >= ${preEntryBouncePct.toFixed(2)}% Khung/5)`);
+          sig.scoreReasons.push(`[Độ nảy M1] Giá đã nảy xa mốc trước khi vào lệnh (${maxRecentBouncePct.toFixed(2)}% >= ${preEntryBouncePct.toFixed(2)}%)`);
         } else if (maxRecentBouncePct >= 0.50) {
           sig.scoreReasons.push(`[Độ nảy M1] Giá chớm nảy (${maxRecentBouncePct.toFixed(2)}% < ${preEntryBouncePct.toFixed(2)}%)`);
         } else {
@@ -2366,7 +2364,7 @@ async function startAutoTrade(coins) {
         // 🛡️ THROTTLE CHỐNG SPAM LOG AI VETO: Không in lặp lại mỗi 15s cho cùng coin/mốc giá (cooldown 3 phút)
         const shouldLogVeto = _shouldLogSignal(sym, sig.signal, sig.targetLevel, 'ai_veto_logged', 3 * 60 * 1000);
         if (shouldLogVeto) {
-          log.system(`[AutoTrade] 🛑 [AI Veto] ${sym} (${sig.signal}) bị phủ quyết: ${aiEval.reason} — Bỏ qua không đặt lệnh.`);
+          log.system(`[AutoTrade] 🛑 [AI VETO] ${sym} (${sig.signal}): ${aiEval.reason} — Bỏ qua`);
           recordAIEvaluation(sig, aiEval);
           recordSkippedSignal({
             symbol: sym,
@@ -2418,14 +2416,13 @@ async function startAutoTrade(coins) {
             signalMetrics: sig.signalMetrics || null,
             timestamp: Date.now()
           };
-          log.system(`[AutoTrade] 📋 Đưa ${sym} (${sig.signal} @ $${sig.targetLevel}) vào Watchlist chờ xác nhận Retest nến H1.`);
         }
 
         return;
       }
 
       recordAIEvaluation(sig, aiEval);
-      log.system(`[AI Reviewer] 🟢 Khuyên NÊN ĐẶT LỆNH ${sym} (${sig.signal}) - ${aiEval.reason}`);
+      log.system(`[AutoTrade] 🟢 [AI APPROVED] ${sym} (${sig.signal}) — ${aiEval.reason}`);
 
       // ── BƯỚC KIỂM SOÁT CHIẾN THUẬT: PRE-LIMIT TACTICAL GATEKEEPER ──
       // Chỉ áp dụng với lệnh LIMIT (tránh hứng dao rơi khi nến M15 xả Marubozu hoặc Taker Sell > 75%)
@@ -2440,7 +2437,7 @@ async function startAutoTrade(coins) {
         });
 
         if (!gatekeeperCheck.passed) {
-          log.system(`[AutoTrade] ⚠️ [PreLimitGatekeeper] Tạm hoãn đặt Limit cho ${sym} (${sig.signal}): ${gatekeeperCheck.reason}. Chuyển vào Watchlist chờ nến H1 đóng rút chân/râu.`);
+          log.system(`[AutoTrade] ⚠️ [PreLimitGatekeeper] Tạm hoãn đặt Limit cho ${sym} (${sig.signal}): ${gatekeeperCheck.reason}.`);
 
           // Đăng ký Shadow Trade để theo dõi
           registerShadowTrade(sig, aiEval, {
@@ -3233,8 +3230,6 @@ async function checkH1RetestSignals(client, activeSymbols, leverageInfo = {}) {
             if (isNearTouched && bounceFromLow >= bouncePct) {
               log.system(`[H1Retest] ${sym} LONG gần chạm mốc $${targetLevel} (Low: $${h1MinLow}, cách ${((h1MinLow - targetLevel) / targetLevel * 100).toFixed(3)}%) và đã nảy +${bounceFromLow.toFixed(2)}% >= ${bouncePct.toFixed(2)}% — XÓA KHỎI WATCHLIST`);
               delete lowScoreWatchlist[sym];
-            } else {
-              log.system(`[H1Retest] ${sym} LONG nến H1 chưa chạm mốc $${targetLevel} (Low: $${h1MinLow}) — Tiếp tục giữ trong Watchlist`);
             }
           } else {
             const isNearTouched = h1MaxHigh >= targetLevel - nearTouchRange;
@@ -3243,8 +3238,6 @@ async function checkH1RetestSignals(client, activeSymbols, leverageInfo = {}) {
             if (isNearTouched && bounceFromHigh >= bouncePct) {
               log.system(`[H1Retest] ${sym} SHORT gần chạm mốc $${targetLevel} (High: $${h1MaxHigh}, cách ${((targetLevel - h1MaxHigh) / targetLevel * 100).toFixed(3)}%) và đã nảy -${bounceFromHigh.toFixed(2)}% >= ${bouncePct.toFixed(2)}% — XÓA KHỎI WATCHLIST`);
               delete lowScoreWatchlist[sym];
-            } else {
-              log.system(`[H1Retest] ${sym} SHORT nến H1 chưa chạm mốc $${targetLevel} (High: $${h1MaxHigh}) — Tiếp tục giữ trong Watchlist`);
             }
           }
         }
@@ -3338,7 +3331,7 @@ async function checkH1RetestSignals(client, activeSymbols, leverageInfo = {}) {
         : parseFloat(process.env.MIN_CONFLUENCE_SCORE_TIER2 || '8.0');
 
       if (typeof watchData.score === 'number' && watchData.score < minRequiredScoreRetest) {
-        log.system(`[AutoTrade (Retest H1)] 🛑 ${sym} (${signal}): Score ${watchData.score}đ < ${minRequiredScoreRetest}đ — Bỏ qua khỏi Watchlist.`);
+        log.system(`[AutoTrade (Retest H1)] 🛑 [Confluence Filter] ${sym} (${signal}): Score ${watchData.score}đ < ${minRequiredScoreRetest}đ — Bỏ qua`);
         delete lowScoreWatchlist[sym];
         continue;
       }
@@ -3460,7 +3453,7 @@ async function checkH1RetestSignals(client, activeSymbols, leverageInfo = {}) {
         // 🛡️ THROTTLE CHỐNG SPAM LOG AI VETO CHO RETEST H1: Không in lặp lại mỗi chu kỳ scan (cooldown 5 phút)
         const shouldLogRetestVeto = _shouldLogSignal(sym, signal, targetLevel, 'retest_ai_veto_logged', 5 * 60 * 1000);
         if (shouldLogRetestVeto) {
-          log.system(`[AutoTrade (Retest H1)] 🛑 [AI Veto] ${sym} (${signal}) bị phủ quyết: ${aiEval.reason} — Hủy đặt lệnh Retest.`);
+          log.system(`[AutoTrade (Retest H1)] 🛑 [AI VETO] ${sym} (${signal}): ${aiEval.reason} — Bỏ qua`);
           recordAIEvaluation(sigForAI, aiEval);
         }
 
@@ -3486,7 +3479,7 @@ async function checkH1RetestSignals(client, activeSymbols, leverageInfo = {}) {
       }
 
       recordAIEvaluation(sigForAI, aiEval);
-      log.system(`[AI Reviewer (Retest H1)] 🟢 Khuyên NÊN ĐẶT LỆNH ${sym} (${signal}) - ${aiEval.reason}`);
+      log.system(`[AutoTrade (Retest H1)] 🟢 [AI APPROVED] ${sym} (${signal}) — ${aiEval.reason}`);
 
       // ── TÍNH TOÁN STOPLOSS THEO TIER, TP ĐỘNG (1:1.5 -> 1:2.0), VÀ ĐÒN BẨY / MARGIN ĐỘNG CHO RETEST H1 (100% TỪ AI) ──
       const riskProfileRetest = getDynamicRiskProfile(rank, aiEval.winProbability, null, baseLossRetest);
