@@ -215,24 +215,160 @@ async function placeNewTrade(trade) {
 }
 
 /**
- * SL được theo dõi client-side bởi tradeMonitor.
- * Binance FAPI không hỗ trợ STOP/STOP_MARKET (error -4131) trên account này.
- * Endpoint /fapi/v1/order/algo/stopOrder cũng trả về 404 (chưa public).
- * → Bot monitor giá mỗi 1 phút, gọi placeMarketClose() khi chạm slPrice.
+ * Đặt lệnh Stop Market (SL) hoặc Take Profit Market (TP) với closePosition=true
+ * thông qua Binance Futures /fapi/v1/algoOrder (chuẩn Portfolio Margin & Standard accounts).
  */
-async function placeSLAfterFill(trade) {
-  log.trade(`BINANCE: SL ${trade.symbol} — client-side tại ${trade.slPrice}`);
-  return null;
+async function placeStopOrder(symbol, side, type, stopPrice) {
+  if (!isEnabled()) return null;
+  const cleanSym = (symbol || '').toUpperCase().replace(/USDT$/, '');
+  const info = await getSymbolInfo(cleanSym);
+  const pricePrecision = info?.pricePrecision ?? 4;
+  const tickSize = info?.stepSize || Math.pow(10, -pricePrecision);
+
+  let finalStopPriceStr;
+  if (tickSize) {
+    const roundedPrice = Math.round(stopPrice / tickSize) * tickSize;
+    const dec = Math.max(0, Math.round(-Math.log10(tickSize)));
+    finalStopPriceStr = roundedPrice.toFixed(dec);
+  } else {
+    finalStopPriceStr = stopPrice.toFixed(pricePrecision);
+  }
+
+  const res = await api('POST', '/fapi/v1/algoOrder', {
+    algoType: 'CONDITIONAL',
+    symbol: `${cleanSym}USDT`,
+    side,
+    type,
+    triggerPrice: finalStopPriceStr,
+    closePosition: 'true',
+    positionSide: 'BOTH',
+  });
+  return res;
 }
 
 /**
- * Dời SL về entry price (breakeven) sau khi TP2 hit.
- * Cancel algo SL cũ → đặt algo SL mới tại entryPrice.
+ * Hủy lệnh Algo theo algoId.
  */
-async function moveSLToBreakeven(trade) {
-  if (!isEnabled()) return null;
-  log.trade(`BINANCE: SL dời (client-side) ${trade.symbol}`, { newSL: trade.slPrice });
-  return 'CLIENT_SIDE';
+async function cancelAlgoOrder(symbol, algoId) {
+  if (!isEnabled() || !algoId) return null;
+  const cleanSym = (symbol || '').toUpperCase().replace(/USDT$/, '');
+  return await api('DELETE', '/fapi/v1/algoOrder', { symbol: `${cleanSym}USDT`, algoId });
+}
+
+/**
+ * Lấy danh sách lệnh Algo đang mở của 1 symbol (hoặc tất cả).
+ */
+async function getOpenAlgoOrders(symbol) {
+  if (!isEnabled()) return [];
+  const params = {};
+  if (symbol) {
+    const cleanSym = symbol.toUpperCase().replace(/USDT$/, '');
+    params.symbol = `${cleanSym}USDT`;
+  }
+  return await api('GET', '/fapi/v1/openAlgoOrders', params);
+}
+
+/**
+ * Đặt Hard STOP_MARKET SL trực tiếp lên Binance ngay sau khi Entry khớp.
+ * Sử dụng /fapi/v1/algoOrder để bảo vệ vị thế 100% on-exchange.
+ */
+async function placeSLAfterFill(trade) {
+  if (!isEnabled() || !trade) return null;
+  const { symbol, direction, slPrice } = trade;
+  if (!slPrice) {
+    log.warn(`BINANCE: slPrice null cho ${symbol} — skip SL`);
+    return null;
+  }
+  const slSide = direction === 'LONG' ? 'SELL' : 'BUY';
+  try {
+    const slRes = await placeStopOrder(symbol, slSide, 'STOP_MARKET', slPrice);
+    const slOrderId = slRes?.algoId || slRes?.orderId;
+    trade.binanceSlOrderId = slOrderId;
+    log.trade(`BINANCE: Hard STOP_MARKET SL OK ${symbol}`, { algoId: slOrderId, slPrice });
+    return slOrderId;
+  } catch (err) {
+    log.error(`BINANCE: lỗi đặt Hard STOP_MARKET SL ${symbol}`, { error: err.message });
+    return null;
+  }
+}
+
+/**
+ * Dời SL về entry price / hòa vốn (+1% phí) trực tiếp trên sàn Binance.
+ * Atomic operation: Hủy algo SL cũ -> Đặt algo SL mới tại newSlPrice.
+ */
+async function moveSLToBreakeven(trade, newSlPrice) {
+  if (!isEnabled() || !trade) return null;
+  const { symbol, direction } = trade;
+  const targetSlPrice = newSlPrice || trade.entryPrice;
+  const slSide = direction === 'LONG' ? 'SELL' : 'BUY';
+
+  // 1. Hủy SL cũ trên sàn nếu có
+  if (trade.binanceSlOrderId) {
+    try {
+      await cancelAlgoOrder(symbol, trade.binanceSlOrderId);
+      log.trade(`BINANCE: đã hủy SL cũ #${trade.binanceSlOrderId} của ${symbol}`);
+    } catch (err) {
+      log.warn(`BINANCE: hủy SL cũ #${trade.binanceSlOrderId} thất bại hoặc đã khớp: ${err.message}`);
+    }
+  }
+
+  // 2. Đặt SL mới tại mốc Breakeven
+  try {
+    const slRes = await placeStopOrder(symbol, slSide, 'STOP_MARKET', targetSlPrice);
+    const newSlId = slRes?.algoId || slRes?.orderId;
+    trade.binanceSlOrderId = newSlId;
+    trade.slPrice = targetSlPrice;
+    trade.slMovedToBreakeven = true;
+    log.trade(`BINANCE: dời SL Breakeven OK ${symbol}`, { newAlgoId: newSlId, newSL: targetSlPrice });
+    return newSlId;
+  } catch (err) {
+    log.error(`BINANCE: lỗi đặt SL Breakeven ${symbol}`, { error: err.message });
+    return null;
+  }
+}
+
+/**
+ * Dịch chuyển TP trực tiếp trên sàn Binance:
+ * Hủy TP Limit cũ -> Đặt TP Limit mới tại newTargetPrice (reduceOnly: true).
+ */
+async function replaceTPOrder(trade, newTargetPrice) {
+  if (!isEnabled() || !trade) return null;
+  const { symbol, direction } = trade;
+  const tpSide = direction === 'LONG' ? 'SELL' : 'BUY';
+
+  // 1. Hủy TP Limit cũ trên sàn nếu có
+  if (trade.binanceTpOrderId) {
+    try {
+      await cancelOrderById(symbol, trade.binanceTpOrderId);
+      log.trade(`BINANCE: đã hủy TP cũ #${trade.binanceTpOrderId} của ${symbol}`);
+    } catch (err) {
+      log.warn(`BINANCE: hủy TP cũ #${trade.binanceTpOrderId} thất bại: ${err.message}`);
+    }
+  }
+
+  // 2. Đặt TP Limit mới
+  try {
+    const info = await getSymbolInfo(symbol);
+    const pricePrecision = info?.pricePrecision ?? 4;
+    const tpPrice = parseFloat(newTargetPrice.toFixed(pricePrecision));
+    const qty = trade.binanceQty;
+    const tpOrder = await api('POST', '/fapi/v1/order', {
+      symbol: `${symbol}USDT`,
+      side: tpSide,
+      type: 'LIMIT',
+      price: tpPrice,
+      quantity: qty,
+      timeInForce: 'GTC',
+      reduceOnly: 'true',
+    });
+    trade.binanceTpOrderId = tpOrder.orderId;
+    trade.targetPrice = newTargetPrice;
+    log.trade(`BINANCE: Dịch TP Limit mới OK ${symbol}`, { orderId: tpOrder.orderId, newTP: tpPrice });
+    return tpOrder.orderId;
+  } catch (err) {
+    log.error(`BINANCE: lỗi đặt TP Limit mới ${symbol}`, { error: err.message });
+    return null;
+  }
 }
 
 /**
@@ -393,11 +529,19 @@ async function placeMarketTrade(trade, currentPrice) {
     trade.binanceTpOrderId = tpOrder.orderId;
     log.trade(`BINANCE MARKET: TP LIMIT OK ${symbol}`, { orderId: tpOrder.orderId, price: trade.targetPrice, fillPrice });
 
-    // 6. SL — client-side monitoring (bot MARKET close khi giá chạm slPrice)
-    log.trade(`BINANCE MARKET: SL ${symbol} client-side tại ${slPrice}`);
+    // 6. Hard STOP_MARKET SL treo trực tiếp lên sàn Binance (/fapi/v1/algoOrder)
+    const slSide = isLong ? 'SELL' : 'BUY';
+    const slRes = await placeStopOrder(symbol, slSide, 'STOP_MARKET', slPrice).catch(e => {
+      log.error(`BINANCE MARKET: lỗi đặt Hard STOP_MARKET SL ${symbol}`, { error: e.message });
+      return null;
+    });
+    if (slRes) {
+      trade.binanceSlOrderId = slRes.algoId || slRes.orderId;
+      log.trade(`BINANCE MARKET: Hard STOP_MARKET SL OK ${symbol}`, { algoId: trade.binanceSlOrderId, slPrice });
+    }
 
     _invalidateBalanceCache();
-    return { entryOrderId: entryOrder.orderId, tpOrderId: tpOrder.orderId, qty, sizeUsdt, balance };
+    return { entryOrderId: entryOrder.orderId, tpOrderId: tpOrder.orderId, slOrderId: trade.binanceSlOrderId, qty, sizeUsdt, balance };
   } catch (err) {
     if (/TradFi|agreement/i.test(err.message)) {
       log.warn(`BINANCE MARKET: ${symbol} yêu cầu ký TradFi-Perps agreement — không retry cho đến khi ký`);
@@ -421,14 +565,28 @@ async function cancelEntryOrder(trade) {
   }
 }
 
-// Huỷ algo order (SL server-side) theo strategyId — khác với orderId thông thường
-async function cancelAlgoOrderById(strategyId) {
-  if (!isEnabled() || !strategyId) return;
+// Huỷ algo order (SL server-side) theo algoId/strategyId
+async function cancelAlgoOrderById(symbolOrId, maybeAlgoId) {
+  if (!isEnabled()) return;
+  let symbol = null;
+  let algoId = null;
+  if (maybeAlgoId) {
+    symbol = symbolOrId;
+    algoId = maybeAlgoId;
+  } else {
+    algoId = symbolOrId;
+  }
+  if (!algoId) return;
+
   try {
-    await api('DELETE', '/fapi/v1/order/algo', { strategyId });
-    log.trade(`BINANCE: huỷ algo order OK`, { strategyId });
+    if (symbol) {
+      await cancelAlgoOrder(symbol, algoId);
+    } else {
+      await api('DELETE', '/fapi/v1/algoOrder', { algoId });
+    }
+    log.trade(`BINANCE: huỷ algo order OK`, { symbol, algoId });
   } catch (err) {
-    log.warn(`BINANCE: không thể huỷ algo order #${strategyId}`, { error: err.message });
+    log.warn(`BINANCE: không thể huỷ algo order #${algoId}`, { error: err.message });
   }
 }
 
@@ -601,4 +759,26 @@ async function getRecentClosingTrades(symbol, direction, sinceMs, binanceQty = n
   return { avgPrice, orderId: best.orderId, time: best.maxTime, totalQty: best.totalQty };
 }
 
-module.exports = { isEnabled, getUsdtBalance, placeNewTrade, placeMarketTrade, placeSLAfterFill, placeTPAfterEntry, placeMarketClose, moveSLToBreakeven, cancelEntryOrder, cancelOrderById, cancelAlgoOrderById, getOrderStatus, getPositionAmt, getPositionInfo, getAllPositions, getOpenOrders, getRecentClosingTrades };
+module.exports = {
+  isEnabled,
+  getUsdtBalance,
+  placeNewTrade,
+  placeMarketTrade,
+  placeSLAfterFill,
+  placeTPAfterEntry,
+  placeMarketClose,
+  moveSLToBreakeven,
+  replaceTPOrder,
+  placeStopOrder,
+  cancelAlgoOrder,
+  getOpenAlgoOrders,
+  cancelEntryOrder,
+  cancelOrderById,
+  cancelAlgoOrderById,
+  getOrderStatus,
+  getPositionAmt,
+  getPositionInfo,
+  getAllPositions,
+  getOpenOrders,
+  getRecentClosingTrades
+};

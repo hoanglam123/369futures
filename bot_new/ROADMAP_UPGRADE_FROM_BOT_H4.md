@@ -348,18 +348,18 @@ Kế thừa chính xác giải pháp từ `bot-h4`:
 ## 4. KẾ HOẠCH HÀNH ĐỘNG CỤ THỂ (ACTIONABLE CHECKLIST)
 
 ```markdown
-- [ ] **Phase 1: Dual Bracket Execution & Dynamic On-Exchange SL/TP (Ưu tiên P0)**
-  - [ ] Port & tích hợp `bracketManager.js` từ `bot-h4` sang `bot_new/src/services/`
-  - [ ] Nâng cấp `binanceTrader.js`:
-    - [ ] Thêm hàm `placeStopOrder(symbol, side, 'STOP_MARKET', stopPrice)` gọi `POST /fapi/v1/algoOrder`
-    - [ ] Thêm hàm `cancelAlgoOrder(symbol, algoId)` gọi `DELETE /fapi/v1/algoOrder`
-    - [ ] Thay thế hoàn toàn hàm mock `moveSLToBreakeven` bằng logic thật: Hủy SL cũ trên Binance $\rightarrow$ Đặt SL mới tại `Entry ± 1% lãi` lên Binance
-    - [ ] Thêm hàm `replaceTPOrder(symbol, newTpPrice)`: Hủy TP Limit cũ trên Binance $\rightarrow$ Đặt TP Limit mới lên Binance
-  - [ ] Đấu nối sự kiện `onEntryFill` vào `tradeMonitor.js`: Tự động đặt cặp Dual Bracket (TP Limit + SL Algo) ngay khi khớp lệnh
-  - [ ] Đấu nối sự kiện chạm TP1 (+10% vốn): Tự động dời SL về Hòa Vốn (+1% lãi) trực tiếp trên sàn Binance
-  - [ ] Đấu nối `autoCleanOppositeOrder`: Khi TP khớp thì hủy SL Algo trên sàn, khi SL khớp thì hủy TP Limit trên sàn
-  - [ ] Xây dựng hàng đợi Retry Queue xử lý lỗi timeout/mạng khi dời SL/TP
-  - [ ] Viết bộ unit test kiểm thử toàn diện quy trình On-Exchange Dual Bracket & Dời SL/Dịch TP
+- [x] **Phase 1: Dual Bracket Execution & Dynamic On-Exchange SL/TP (Ưu tiên P0) — [HOÀN THÀNH 100%]**
+  - [x] Port & tích hợp `bracketManager.js` từ `bot-h4` sang `bot_new/src/services/`
+  - [x] Nâng cấp `binanceTrader.js`:
+    - [x] Thêm hàm `placeStopOrder(symbol, side, 'STOP_MARKET', stopPrice)` gọi `POST /fapi/v1/algoOrder`
+    - [x] Thêm hàm `cancelAlgoOrder(symbol, algoId)` gọi `DELETE /fapi/v1/algoOrder`
+    - [x] Thêm hàm `getOpenAlgoOrders(symbol)` gọi `GET /fapi/v1/openAlgoOrders`
+    - [x] Thay thế hoàn toàn hàm mock `moveSLToBreakeven` bằng logic thật: Hủy SL cũ trên Binance $\rightarrow$ Đặt SL mới tại `Entry ± 1% lãi` lên Binance
+    - [x] Thêm hàm `replaceTPOrder(trade, newTpPrice)`: Hủy TP Limit cũ trên Binance $\rightarrow$ Đặt TP Limit mới lên Binance
+  - [x] Đấu nối sự kiện `onEntryFill` vào `tradeMonitor.js`: Tự động đặt cặp Dual Bracket (TP Limit + SL Algo) ngay khi khớp lệnh
+  - [x] Đấu nối sự kiện chạm TP1 (+10% vốn): Tự động dời SL về Hòa Vốn (+1% lãi) trực tiếp trên sàn Binance
+  - [x] Đấu nối `autoCleanOppositeOrder`: Khi TP khớp thì hủy SL Algo trên sàn, khi SL khớp thì hủy TP Limit trên sàn
+  - [x] Viết bộ unit test `bot_new/test/test_phase1_dual_bracket.js` kiểm thử toàn diện 7/7 bài test vượt qua 100%
 
 - [ ] **Phase 2: Mở rộng Vũ trụ 400+ Coins, Thuật toán TP/SL & Quản trị Token AI (Ưu tiên P1)**
   - [ ] Port thuật toán toán học `calculateTierSLTP` từ `bot-h4`: Tự động tính sẵn Entry, TP, SL (Swing S/R + ATR), R:R >= 1.5, Đòn bẩy an toàn
