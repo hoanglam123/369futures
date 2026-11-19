@@ -614,6 +614,11 @@ const HIST_CACHE_FILE_H1 = path.join(process.cwd(), 'data', 'h1_history_cache.js
 const HIST_CACHE_FILE_H4 = path.join(process.cwd(), 'data', 'h4_history_cache.json');
 const HIST_CACHE_FILE_D1 = path.join(process.cwd(), 'data', 'd1_history_cache.json');
 
+// Dung lượng nến lịch sử tối đa lưu trữ bền vững trên đĩa (Persistent Deep Cache)
+const CACHE_MAX_H1 = 300; // 300 nến H1 ≈ 12.5 ngày
+const CACHE_MAX_H4 = 300; // 300 nến H4 ≈ 50 ngày (> 1.5 tháng)
+const CACHE_MAX_D1 = 180; // 180 nến D1 ≈ 6 tháng
+
 function loadDiskCache(filePath, maxKeep, targetMap) {
   try {
     if (fs.existsSync(filePath)) {
@@ -663,13 +668,13 @@ function scheduleSaveDiskCache(type, filePath, maxKeep, sourceMap) {
 }
 
 function saveH1HistDiskCache() {
-  scheduleSaveDiskCache('H1', HIST_CACHE_FILE_H1, 100, _h1HistCache);
+  scheduleSaveDiskCache('H1', HIST_CACHE_FILE_H1, CACHE_MAX_H1, _h1HistCache);
 }
 
 function loadAllKlinesDiskCache() {
-  loadDiskCache(HIST_CACHE_FILE_H1, 100, _h1HistCache);
-  loadDiskCache(HIST_CACHE_FILE_H4, 75, _h4HistCache);
-  loadDiskCache(HIST_CACHE_FILE_D1, 45, _d1HistCache);
+  loadDiskCache(HIST_CACHE_FILE_H1, CACHE_MAX_H1, _h1HistCache);
+  loadDiskCache(HIST_CACHE_FILE_H4, CACHE_MAX_H4, _h4HistCache);
+  loadDiskCache(HIST_CACHE_FILE_D1, CACHE_MAX_D1, _d1HistCache);
   const h1Count = Object.keys(_h1HistCache).length;
   const h4Count = Object.keys(_h4HistCache).length;
   const d1Count = Object.keys(_d1HistCache).length;
@@ -685,7 +690,7 @@ loadAllKlinesDiskCache();
  * Lấy nến H1 đã đóng (incremental).
  * - Nếu đã có trên đĩa và đủ nến mới: 0 requests (0ms, 0 weight).
  * - Nếu bị thiếu vài nến (do bot tắt): CHỈ GỌI ĐÚNG SỐ NẾN BỊ THIẾU.
- * - Nếu coin hoàn toàn mới: gọi 1 lần 100 nến và lưu ngay vào đĩa máy chủ.
+ * - Nếu coin hoàn toàn mới hoặc cache cũ thiếu nến: gọi 1 lần tối đa 300 nến và lưu ngay vào đĩa.
  */
 async function fetchH1Historical(symbol) {
   const H1_MS = 60 * 60 * 1000;
@@ -695,8 +700,8 @@ async function fetchH1Historical(symbol) {
 
   // 1. Trường hợp hoàn toàn chưa có cache trên đĩa (Coin mới gặp lần đầu tiên):
   if (!cache || !Array.isArray(cache.candles) || cache.candles.length === 0) {
-    const raw = await fetchBinanceKlines(symbol, '1h', null, 105);
-    const closed = (raw || []).filter(c => c.openTime < currentH1Start).slice(-100);
+    const raw = await fetchBinanceKlines(symbol, '1h', null, CACHE_MAX_H1 + 5);
+    const closed = (raw || []).filter(c => c.openTime < currentH1Start).slice(-CACHE_MAX_H1);
     cache = {
       yearStart: YEAR_START_MS,
       candles: closed,
@@ -704,13 +709,28 @@ async function fetchH1Historical(symbol) {
     };
     _h1HistCache[symbol] = cache;
     if (closed.length > 0) {
-      scheduleSaveDiskCache('H1', HIST_CACHE_FILE_H1, 100, _h1HistCache);
+      scheduleSaveDiskCache('H1', HIST_CACHE_FILE_H1, CACHE_MAX_H1, _h1HistCache);
     }
     return cache.candles;
   }
 
   // 2. Trường hợp đã có cache: kiểm tra nến cuối cùng
   const lastClosedTime = cache.candles.length > 0 ? cache.candles[cache.candles.length - 1].openTime : 0;
+
+  // Tự động nâng cấp số lượng nến nếu cache cũ có ít hơn CACHE_MAX_H1 (vd: từ 100 nâng lên 300 nến)
+  if (cache.candles.length < CACHE_MAX_H1) {
+    try {
+      const raw = await fetchBinanceKlines(symbol, '1h', null, CACHE_MAX_H1 + 5);
+      const closed = (raw || []).filter(c => c.openTime < currentH1Start).slice(-CACHE_MAX_H1);
+      if (closed.length > cache.candles.length) {
+        cache.candles = closed;
+        cache.cursor = closed[closed.length - 1].openTime + H1_MS;
+        scheduleSaveDiskCache('H1', HIST_CACHE_FILE_H1, CACHE_MAX_H1, _h1HistCache);
+      }
+    } catch (_) {}
+    return cache.candles;
+  }
+
   if (lastClosedTime + H1_MS >= currentH1Start) {
     // Đã có nến của giờ vừa đóng -> Hoàn toàn không cần gọi sàn (0 API calls, 0 weight)
     return cache.candles;
@@ -720,29 +740,29 @@ async function fetchH1Historical(symbol) {
   const missingFrom = lastClosedTime + H1_MS;
   const missingCount = Math.max(1, Math.ceil((currentH1Start - missingFrom) / H1_MS));
 
-  if (missingCount >= 100) {
-    // Nếu tắt quá lâu (> 4 ngày), tải 1 lần 100 nến mới nhất
-    const raw = await fetchBinanceKlines(symbol, '1h', null, 105);
-    const closed = (raw || []).filter(c => c.openTime < currentH1Start).slice(-100);
+  if (missingCount >= CACHE_MAX_H1) {
+    // Nếu tắt quá lâu, tải 1 lần nến mới nhất
+    const raw = await fetchBinanceKlines(symbol, '1h', null, CACHE_MAX_H1 + 5);
+    const closed = (raw || []).filter(c => c.openTime < currentH1Start).slice(-CACHE_MAX_H1);
     if (closed.length > 0) {
       cache.candles = closed;
       cache.cursor = closed[closed.length - 1].openTime + H1_MS;
-      scheduleSaveDiskCache('H1', HIST_CACHE_FILE_H1, 100, _h1HistCache);
+      scheduleSaveDiskCache('H1', HIST_CACHE_FILE_H1, CACHE_MAX_H1, _h1HistCache);
     }
     return cache.candles;
   }
 
   // Chỉ lấy đúng số nến thiếu (1 call duy nhất)
   try {
-    const batch = await fetchBinanceKlines(symbol, '1h', missingFrom, Math.min(missingCount + 5, 100));
+    const batch = await fetchBinanceKlines(symbol, '1h', missingFrom, Math.min(missingCount + 5, CACHE_MAX_H1));
     const closedNew = (batch || []).filter(c => c.openTime < currentH1Start && c.openTime > lastClosedTime);
     if (closedNew.length > 0) {
       cache.candles.push(...closedNew);
-      if (cache.candles.length > 100) {
-        cache.candles = cache.candles.slice(-100);
+      if (cache.candles.length > CACHE_MAX_H1) {
+        cache.candles = cache.candles.slice(-CACHE_MAX_H1);
       }
       cache.cursor = cache.candles[cache.candles.length - 1].openTime + H1_MS;
-      scheduleSaveDiskCache('H1', HIST_CACHE_FILE_H1, 100, _h1HistCache);
+      scheduleSaveDiskCache('H1', HIST_CACHE_FILE_H1, CACHE_MAX_H1, _h1HistCache);
     }
   } catch (err) {
     log.warn(`[369] Lỗi lấy nến H1 thiếu cho ${symbol}: ${err.message}`);
@@ -765,7 +785,7 @@ function floorToD1(tsMs) {
  * Lấy nến H4 đã đóng (incremental).
  * - Nếu đã có trên đĩa và đủ nến mới: 0 requests (0ms, 0 weight).
  * - Nếu bị thiếu vài nến: CHỈ GỌI ĐÚNG SỐ NẾN H4 BỊ THIẾU.
- * - Nếu coin hoàn toàn mới: gọi 1 lần 75 nến và lưu ngay vào đĩa máy chủ.
+ * - Nếu coin hoàn toàn mới: gọi 1 lần tối đa 300 nến và lưu ngay vào đĩa máy chủ.
  */
 async function fetchH4Historical(symbol) {
   const H4_MS = 4 * 60 * 60 * 1000;
@@ -775,8 +795,8 @@ async function fetchH4Historical(symbol) {
 
   // 1. Chưa có cache trên đĩa:
   if (!cache || !Array.isArray(cache.candles) || cache.candles.length === 0) {
-    const raw = await fetchBinanceKlines(symbol, '4h', null, 80);
-    const closed = (raw || []).filter(c => c.openTime < currentH4Start).slice(-75);
+    const raw = await fetchBinanceKlines(symbol, '4h', null, CACHE_MAX_H4 + 5);
+    const closed = (raw || []).filter(c => c.openTime < currentH4Start).slice(-CACHE_MAX_H4);
     cache = {
       yearStart: YEAR_START_MS,
       candles: closed,
@@ -784,13 +804,28 @@ async function fetchH4Historical(symbol) {
     };
     _h4HistCache[symbol] = cache;
     if (closed.length > 0) {
-      scheduleSaveDiskCache('H4', HIST_CACHE_FILE_H4, 75, _h4HistCache);
+      scheduleSaveDiskCache('H4', HIST_CACHE_FILE_H4, CACHE_MAX_H4, _h4HistCache);
     }
     return cache.candles;
   }
 
   // 2. Đã có cache: kiểm tra nến cuối
   const lastClosedTime = cache.candles.length > 0 ? cache.candles[cache.candles.length - 1].openTime : 0;
+
+  // Tự động nâng cấp số lượng nến nếu cache cũ có ít hơn CACHE_MAX_H4 (vd: từ 75 nâng lên 300 nến)
+  if (cache.candles.length < CACHE_MAX_H4) {
+    try {
+      const raw = await fetchBinanceKlines(symbol, '4h', null, CACHE_MAX_H4 + 5);
+      const closed = (raw || []).filter(c => c.openTime < currentH4Start).slice(-CACHE_MAX_H4);
+      if (closed.length > cache.candles.length) {
+        cache.candles = closed;
+        cache.cursor = closed[closed.length - 1].openTime + H4_MS;
+        scheduleSaveDiskCache('H4', HIST_CACHE_FILE_H4, CACHE_MAX_H4, _h4HistCache);
+      }
+    } catch (_) {}
+    return cache.candles;
+  }
+
   if (lastClosedTime + H4_MS >= currentH4Start) {
     // Đã có nến mới nhất -> 0 calls
     return cache.candles;
@@ -800,27 +835,27 @@ async function fetchH4Historical(symbol) {
   const missingFrom = lastClosedTime + H4_MS;
   const missingCount = Math.max(1, Math.ceil((currentH4Start - missingFrom) / H4_MS));
 
-  if (missingCount >= 75) {
-    const raw = await fetchBinanceKlines(symbol, '4h', null, 80);
-    const closed = (raw || []).filter(c => c.openTime < currentH4Start).slice(-75);
+  if (missingCount >= CACHE_MAX_H4) {
+    const raw = await fetchBinanceKlines(symbol, '4h', null, CACHE_MAX_H4 + 5);
+    const closed = (raw || []).filter(c => c.openTime < currentH4Start).slice(-CACHE_MAX_H4);
     if (closed.length > 0) {
       cache.candles = closed;
       cache.cursor = closed[closed.length - 1].openTime + H4_MS;
-      scheduleSaveDiskCache('H4', HIST_CACHE_FILE_H4, 75, _h4HistCache);
+      scheduleSaveDiskCache('H4', HIST_CACHE_FILE_H4, CACHE_MAX_H4, _h4HistCache);
     }
     return cache.candles;
   }
 
   try {
-    const batch = await fetchBinanceKlines(symbol, '4h', missingFrom, Math.min(missingCount + 5, 80));
+    const batch = await fetchBinanceKlines(symbol, '4h', missingFrom, Math.min(missingCount + 5, CACHE_MAX_H4));
     const closedNew = (batch || []).filter(c => c.openTime < currentH4Start && c.openTime > lastClosedTime);
     if (closedNew.length > 0) {
       cache.candles.push(...closedNew);
-      if (cache.candles.length > 75) {
-        cache.candles = cache.candles.slice(-75);
+      if (cache.candles.length > CACHE_MAX_H4) {
+        cache.candles = cache.candles.slice(-CACHE_MAX_H4);
       }
       cache.cursor = cache.candles[cache.candles.length - 1].openTime + H4_MS;
-      scheduleSaveDiskCache('H4', HIST_CACHE_FILE_H4, 75, _h4HistCache);
+      scheduleSaveDiskCache('H4', HIST_CACHE_FILE_H4, CACHE_MAX_H4, _h4HistCache);
     }
   } catch (err) {
     log.warn(`[369] Lỗi lấy nến H4 thiếu cho ${symbol}: ${err.message}`);
@@ -833,7 +868,7 @@ async function fetchH4Historical(symbol) {
  * Lấy nến D1 đã đóng (incremental).
  * - Nếu đã có trên đĩa và đủ nến mới: 0 requests (0ms, 0 weight).
  * - Nếu bị thiếu vài nến: CHỈ GỌI ĐÚNG SỐ NẾN D1 BỊ THIẾU.
- * - Nếu coin hoàn toàn mới: gọi 1 lần 45 nến và lưu ngay vào đĩa máy chủ.
+ * - Nếu coin hoàn toàn mới: gọi 1 lần tối đa 180 nến và lưu ngay vào đĩa máy chủ.
  */
 async function fetchD1Historical(symbol) {
   const D1_MS = 24 * 60 * 60 * 1000;
@@ -843,8 +878,8 @@ async function fetchD1Historical(symbol) {
 
   // 1. Chưa có cache trên đĩa:
   if (!cache || !Array.isArray(cache.candles) || cache.candles.length === 0) {
-    const raw = await fetchBinanceKlines(symbol, '1d', null, 50);
-    const closed = (raw || []).filter(c => c.openTime < currentD1Start).slice(-45);
+    const raw = await fetchBinanceKlines(symbol, '1d', null, CACHE_MAX_D1 + 10);
+    const closed = (raw || []).filter(c => c.openTime < currentD1Start).slice(-CACHE_MAX_D1);
     cache = {
       yearStart: YEAR_START_MS,
       candles: closed,
@@ -852,13 +887,28 @@ async function fetchD1Historical(symbol) {
     };
     _d1HistCache[symbol] = cache;
     if (closed.length > 0) {
-      scheduleSaveDiskCache('D1', HIST_CACHE_FILE_D1, 45, _d1HistCache);
+      scheduleSaveDiskCache('D1', HIST_CACHE_FILE_D1, CACHE_MAX_D1, _d1HistCache);
     }
     return cache.candles;
   }
 
   // 2. Đã có cache: kiểm tra nến cuối
   const lastClosedTime = cache.candles.length > 0 ? cache.candles[cache.candles.length - 1].openTime : 0;
+
+  // Tự động nâng cấp số lượng nến nếu cache cũ có ít hơn CACHE_MAX_D1 (vd: từ 45 nâng lên 180 nến)
+  if (cache.candles.length < CACHE_MAX_D1) {
+    try {
+      const raw = await fetchBinanceKlines(symbol, '1d', null, CACHE_MAX_D1 + 10);
+      const closed = (raw || []).filter(c => c.openTime < currentD1Start).slice(-CACHE_MAX_D1);
+      if (closed.length > cache.candles.length) {
+        cache.candles = closed;
+        cache.cursor = closed[closed.length - 1].openTime + D1_MS;
+        scheduleSaveDiskCache('D1', HIST_CACHE_FILE_D1, CACHE_MAX_D1, _d1HistCache);
+      }
+    } catch (_) {}
+    return cache.candles;
+  }
+
   if (lastClosedTime + D1_MS >= currentD1Start) {
     // Đã có nến mới nhất -> 0 calls
     return cache.candles;
@@ -868,27 +918,27 @@ async function fetchD1Historical(symbol) {
   const missingFrom = lastClosedTime + D1_MS;
   const missingCount = Math.max(1, Math.ceil((currentD1Start - missingFrom) / D1_MS));
 
-  if (missingCount >= 45) {
-    const raw = await fetchBinanceKlines(symbol, '1d', null, 50);
-    const closed = (raw || []).filter(c => c.openTime < currentD1Start).slice(-45);
+  if (missingCount >= CACHE_MAX_D1) {
+    const raw = await fetchBinanceKlines(symbol, '1d', null, CACHE_MAX_D1 + 10);
+    const closed = (raw || []).filter(c => c.openTime < currentD1Start).slice(-CACHE_MAX_D1);
     if (closed.length > 0) {
       cache.candles = closed;
       cache.cursor = closed[closed.length - 1].openTime + D1_MS;
-      scheduleSaveDiskCache('D1', HIST_CACHE_FILE_D1, 45, _d1HistCache);
+      scheduleSaveDiskCache('D1', HIST_CACHE_FILE_D1, CACHE_MAX_D1, _d1HistCache);
     }
     return cache.candles;
   }
 
   try {
-    const batch = await fetchBinanceKlines(symbol, '1d', missingFrom, Math.min(missingCount + 5, 50));
+    const batch = await fetchBinanceKlines(symbol, '1d', missingFrom, Math.min(missingCount + 5, CACHE_MAX_D1));
     const closedNew = (batch || []).filter(c => c.openTime < currentD1Start && c.openTime > lastClosedTime);
     if (closedNew.length > 0) {
       cache.candles.push(...closedNew);
-      if (cache.candles.length > 45) {
-        cache.candles = cache.candles.slice(-45);
+      if (cache.candles.length > CACHE_MAX_D1) {
+        cache.candles = cache.candles.slice(-CACHE_MAX_D1);
       }
       cache.cursor = cache.candles[cache.candles.length - 1].openTime + D1_MS;
-      scheduleSaveDiskCache('D1', HIST_CACHE_FILE_D1, 45, _d1HistCache);
+      scheduleSaveDiskCache('D1', HIST_CACHE_FILE_D1, CACHE_MAX_D1, _d1HistCache);
     }
   } catch (err) {
     log.warn(`[369] Lỗi lấy nến D1 thiếu cho ${symbol}: ${err.message}`);
@@ -3140,4 +3190,7 @@ module.exports = {
   fetchD1Historical,
   findSwingPoints,
   calculateATR,
+  CACHE_MAX_H1,
+  CACHE_MAX_H4,
+  CACHE_MAX_D1,
 };

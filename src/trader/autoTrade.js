@@ -53,6 +53,7 @@ const {
   getRecentM15FractalSwing,
   fetchH1Historical,
   fetchH4Historical,
+  fetchD1Historical,
   findSwingPoints,
   calculateATR,
   isTop50Symbol,
@@ -870,6 +871,72 @@ async function getDynamicMargin(isTier1, clientInstance = null) {
   return fallbackMargin;
 }
 
+/**
+ * Nhóm các swing points vào các Cluster Zones [zoneMin, zoneMax]
+ * @param {Array<{ price: number, timeframe: string, type: 'HIGH'|'LOW' }>} points
+ * @param {number} toleranceRatio - Tỷ lệ dung sai (ví dụ 0.005 hoặc theo ATR)
+ * @returns {Array<{ zoneMin: number, zoneMax: number, zoneMid: number, touches: number, timeframe: string, isMajor: boolean, points: Array }>}
+ */
+function buildClusterZones(points, toleranceRatio = 0.005) {
+  if (!points || !Array.isArray(points) || points.length === 0) return [];
+
+  // Sắp xếp tăng dần theo giá
+  const sorted = [...points].sort((a, b) => a.price - b.price);
+  const clusters = [];
+  let currentGroup = [sorted[0]];
+
+  for (let i = 1; i < sorted.length; i++) {
+    const pt = sorted[i];
+    const groupMin = currentGroup[0].price;
+    const groupMax = currentGroup[currentGroup.length - 1].price;
+    const avgPrice = (groupMin + groupMax) / 2;
+
+    const tol = Math.max(avgPrice * toleranceRatio, avgPrice * 0.002);
+    if (pt.price - groupMax <= tol) {
+      currentGroup.push(pt);
+    } else {
+      clusters.push(summarizeClusterZone(currentGroup));
+      currentGroup = [pt];
+    }
+  }
+  if (currentGroup.length > 0) {
+    clusters.push(summarizeClusterZone(currentGroup));
+  }
+
+  return clusters;
+}
+
+function summarizeClusterZone(group) {
+  const prices = group.map(p => p.price);
+  const zoneMin = Math.min(...prices);
+  const zoneMax = Math.max(...prices);
+  const zoneMid = prices.reduce((sum, p) => sum + p, 0) / prices.length;
+
+  const d1Points = group.filter(p => p.timeframe === 'D1');
+  const h4Points = group.filter(p => p.timeframe === 'H4');
+  const h1Points = group.filter(p => p.timeframe === 'H1');
+
+  const d1Touches = d1Points.length;
+  const h4Touches = h4Points.length;
+  const h1Touches = h1Points.length;
+  const touches = Math.max(d1Touches, h4Touches, h1Touches, group.length);
+
+  const highestTf = d1Touches > 0 ? 'D1' : (h4Touches > 0 ? 'H4' : 'H1');
+
+  // Cản Cứng (Major S/R): Khung D1 có ít nhất 1 cản, hoặc H4 có >= 2 lần phản ứng riêng biệt, hoặc H1 có >= 3 lần phản ứng
+  const isMajor = (d1Touches >= 1) || (h4Touches >= 2) || (h1Touches >= 3);
+
+  return {
+    zoneMin,
+    zoneMax,
+    zoneMid,
+    touches,
+    timeframe: highestTf,
+    isMajor,
+    points: group
+  };
+}
+
 async function calculateTierSLTP(
   symbol,
   side,
@@ -900,20 +967,24 @@ async function calculateTierSLTP(
   const defaultTickSize = Math.pow(10, -decimals);
   const effTickSize = (typeof tickSize === 'number' && tickSize > 0) ? tickSize : defaultTickSize;
 
-  // 1. Tải nến lịch sử H1 và H4 (Đã có RAM cache bảo vệ trong core.js)
+  // 1. Tải nến lịch sử H1, H4 và D1 (Đã có RAM cache bảo vệ trong core.js)
   let h1Candles = [];
   let h4Candles = [];
+  let d1Candles = [];
   try {
     if (customKlines && customKlines.h1 && customKlines.h4) {
       h1Candles = customKlines.h1;
       h4Candles = customKlines.h4;
+      d1Candles = customKlines.d1 || [];
     } else {
-      const [resH1, resH4] = await Promise.all([
+      const [resH1, resH4, resD1] = await Promise.all([
         fetchH1Historical(symbol).catch(() => []),
-        fetchH4Historical(symbol).catch(() => [])
+        fetchH4Historical(symbol).catch(() => []),
+        fetchD1Historical(symbol).catch(() => [])
       ]);
       h1Candles = resH1 || [];
       h4Candles = resH4 || [];
+      d1Candles = resD1 || [];
     }
   } catch (err) {
     // Fallback silent
@@ -933,28 +1004,53 @@ async function calculateTierSLTP(
   }
   const atrPct = (atrVal / entryPrice) * 100;
 
-  // 3. Quét cấu trúc Swing S/R trên H1 (90 nến gần nhất) & H4 (45 nến gần nhất)
-  let candidatePivots = [];
-  if (h1Candles && h1Candles.length >= 8) {
-    const swH1 = findSwingPoints(h1Candles.slice(-90), 3, 3);
-    const pListH1 = isLong ? swH1.lows : swH1.highs;
-    if (Array.isArray(pListH1)) candidatePivots.push(...pListH1);
-  }
-  if (h4Candles && h4Candles.length >= 6) {
-    const swH4 = findSwingPoints(h4Candles.slice(-45), 2, 2);
-    const pListH4 = isLong ? swH4.lows : swH4.highs;
-    if (Array.isArray(pListH4)) candidatePivots.push(...pListH4);
+  // 3. Quét cấu trúc Swing S/R trên H1 (300 nến), H4 (150 nến) và D1 (180 nến)
+  const allSupportPoints = [];
+  const allResistancePoints = [];
+
+  if (h1Candles && h1Candles.length >= 7) {
+    const swH1 = findSwingPoints(h1Candles.slice(-300), 3, 3);
+    if (Array.isArray(swH1.lows)) {
+      for (const p of swH1.lows) allSupportPoints.push({ price: p, timeframe: 'H1', type: 'LOW' });
+    }
+    if (Array.isArray(swH1.highs)) {
+      for (const p of swH1.highs) allResistancePoints.push({ price: p, timeframe: 'H1', type: 'HIGH' });
+    }
   }
 
-  // Lọc các pivot nằm đúng chiều:
-  const validPivots = candidatePivots.filter(p => isLong ? (p < entryPrice * 0.999) : (p > entryPrice * 1.001));
-  if (isLong) {
-    validPivots.sort((a, b) => b - a); // Gần Entry nhất trước
-  } else {
-    validPivots.sort((a, b) => a - b);
+  if (h4Candles && h4Candles.length >= 5) {
+    const swH4 = findSwingPoints(h4Candles.slice(-150), 2, 2);
+    if (Array.isArray(swH4.lows)) {
+      for (const p of swH4.lows) allSupportPoints.push({ price: p, timeframe: 'H4', type: 'LOW' });
+    }
+    if (Array.isArray(swH4.highs)) {
+      for (const p of swH4.highs) allResistancePoints.push({ price: p, timeframe: 'H4', type: 'HIGH' });
+    }
   }
 
-  // 4. Kẹp biên 3 Kịch bản (3-Tier Adaptive SL Clamping)
+  if (d1Candles && d1Candles.length >= 5) {
+    const swD1 = findSwingPoints(d1Candles.slice(-180), 2, 2);
+    if (Array.isArray(swD1.lows)) {
+      for (const p of swD1.lows) allSupportPoints.push({ price: p, timeframe: 'D1', type: 'LOW' });
+    }
+    if (Array.isArray(swD1.highs)) {
+      for (const p of swD1.highs) allResistancePoints.push({ price: p, timeframe: 'D1', type: 'HIGH' });
+    }
+  }
+
+  // Nhóm các điểm xoay thành các Vùng Cản Cụm (Cluster Zones)
+  const tolRatio = atrVal > 0 ? Math.max(0.003, (atrVal / entryPrice) * 0.20) : 0.005;
+  const supportClusters = buildClusterZones(allSupportPoints, tolRatio);
+  const resistanceClusters = buildClusterZones(allResistancePoints, tolRatio);
+
+  // Lọc các cluster nằm ở phía phòng thủ bảo vệ (Protective Clusters)
+  // LONG: Cần Support nằm dưới Entry (zoneMax < entryPrice * 0.999) -> sắp xếp gần Entry nhất trước
+  // SHORT: Cần Resistance nằm trên Entry (zoneMin > entryPrice * 1.001) -> sắp xếp gần Entry nhất trước
+  const protectiveClusters = isLong
+    ? supportClusters.filter(c => c.zoneMax < entryPrice * 0.999).sort((a, b) => b.zoneMax - a.zoneMax)
+    : resistanceClusters.filter(c => c.zoneMin > entryPrice * 1.001).sort((a, b) => a.zoneMin - b.zoneMin);
+
+  // 4. MÔ HÌNH HYBRID SL 3 TẦNG THÔNG MINH
   let rawSL = null;
   let slScenario = 'PURE_VOLATILITY_ATR';
   let matchedSwing = null;
@@ -962,42 +1058,97 @@ async function calculateTierSLTP(
   const minSafeDistPct = Math.max(minSlPct, 1.2 * atrPct);
   const maxSafeDistPct = Math.min(3.5, 2.0 * atrPct);
 
-  // Kịch bản 1: Sweet spot trong [1.2*ATR, 2.0*ATR] (<= 3.5%)
-  for (const p of validPivots) {
-    const distPct = (Math.abs(entryPrice - p) / entryPrice) * 100;
-    if (distPct >= minSafeDistPct && distPct <= maxSafeDistPct) {
-      matchedSwing = p;
-      rawSL = isLong ? (p - entryPrice * 0.002) : (p + entryPrice * 0.002);
+  // ─── TẦNG 1: CẢN SWEET SPOT H1 / H4 GẦN ───────────────────────────
+  // Quét các cluster zone từ H1/H4 trong khoảng an toàn (<= min(2.0x ATR, 3.5%))
+  const h1h4ProtectiveClusters = protectiveClusters.filter(c => c.timeframe === 'H1' || c.timeframe === 'H4');
+  for (const c of h1h4ProtectiveClusters) {
+    const distPct = isLong
+      ? ((entryPrice - c.zoneMin) / entryPrice) * 100
+      : ((c.zoneMax - entryPrice) / entryPrice) * 100;
+
+    if (distPct >= minSlPct && distPct <= maxSafeDistPct) {
+      matchedSwing = isLong ? c.zoneMin : c.zoneMax;
+      rawSL = isLong ? (c.zoneMin - entryPrice * 0.002) : (c.zoneMax + entryPrice * 0.002);
       slScenario = 'SWEET_SPOT_SWING';
       break;
     }
   }
 
-  // Kịch bản 2: Đáy/Đỉnh cũ Quá Xa (> 2.0*ATR hoặc > 3.5%)
-  if (!rawSL && validPivots.length > 0) {
-    const nearestPivot = validPivots[0];
-    const nearestDistPct = (Math.abs(entryPrice - nearestPivot) / entryPrice) * 100;
-    if (nearestDistPct > maxSafeDistPct) {
-      const clampedDist = entryPrice * (Math.min(1.5 * atrPct, 3.0) / 100.0);
-      rawSL = isLong ? (entryPrice - clampedDist) : (entryPrice + clampedDist);
-      slScenario = 'CLAMP_FAR_SWING';
+  // ─── TẦNG 2: CẢN D1 TẦM TRUNG (LỊCH SỬ 6 THÁNG) ────────────────────
+  // Áp dụng khi không có cản H1/H4 đạt sweet spot, nhưng có cản D1 trong cự ly cho phép (<= 4.0%)
+  if (!rawSL) {
+    const d1ProtectiveClusters = protectiveClusters.filter(c => c.timeframe === 'D1');
+    const maxD1DistPct = 4.0;
+    for (const c of d1ProtectiveClusters) {
+      const distPct = isLong
+        ? ((entryPrice - c.zoneMin) / entryPrice) * 100
+        : ((c.zoneMax - entryPrice) / entryPrice) * 100;
+
+      if (distPct >= minSlPct && distPct <= maxD1DistPct) {
+        matchedSwing = isLong ? c.zoneMin : c.zoneMax;
+        rawSL = isLong ? (c.zoneMin - entryPrice * 0.002) : (c.zoneMax + entryPrice * 0.002);
+        slScenario = 'TIER2_D1_SWING';
+        break;
+      }
     }
   }
 
-  // Kịch bản 3: Không có Đáy/Đỉnh cũ (Dò ATH/ATL hoặc khoảng trống thanh khoản)
+  // ─── TẦNG 3: CẢN ĐỘNG FIBONACCI (GIẢI PHÁP ĐỈNH/ĐÁY Ở XA HOẶC DÒ ATH/ATL) ──
+  // Khi cả cản H1/H4 và D1 đều ở quá xa (> 2.2x ATR hoặc > 4.0%) hoặc không có cản
   if (!rawSL) {
-    const pureDist = entryPrice * (Math.min(Math.max(1.5 * atrPct, minSlPct), 3.5) / 100.0);
-    rawSL = isLong ? (entryPrice - pureDist) : (entryPrice + pureDist);
-    slScenario = 'PURE_VOLATILITY_ATR';
+    // 3A: Fibonacci Retracement trên sóng đẩy H1 gần nhất (24 nến H1 ≈ 1 ngày)
+    const recentH1 = (h1Candles && h1Candles.length >= 12) ? h1Candles.slice(-24) : [];
+    if (recentH1.length >= 12) {
+      const high24 = Math.max(...recentH1.map(c => c.high));
+      const low24 = Math.min(...recentH1.map(c => c.low));
+      const waveDelta = high24 - low24;
+      const wavePct = (waveDelta / entryPrice) * 100;
+
+      // Sóng có biên độ tối thiểu (>= 1.5% và >= 1.2x ATR)
+      if (waveDelta > 0 && wavePct >= 1.5 && wavePct >= 1.2 * atrPct) {
+        if (!isLong) {
+          // SHORT: SL nép sau Fib 0.786 + 0.2% buffer
+          const fib786 = low24 + 0.786 * waveDelta;
+          const candidateSL = fib786 + (entryPrice * 0.002);
+          const fibDistPct = ((candidateSL - entryPrice) / entryPrice) * 100;
+          if (fibDistPct >= minSlPct && fibDistPct <= 3.5) {
+            rawSL = candidateSL;
+            matchedSwing = fib786;
+            slScenario = 'TIER3A_FIBONACCI_0786';
+          }
+        } else {
+          // LONG: SL nép sau Fib 0.786 - 0.2% buffer
+          const fib786 = high24 - 0.786 * waveDelta;
+          const candidateSL = fib786 - (entryPrice * 0.002);
+          const fibDistPct = ((entryPrice - candidateSL) / entryPrice) * 100;
+          if (fibDistPct >= minSlPct && fibDistPct <= 3.5) {
+            rawSL = candidateSL;
+            matchedSwing = fib786;
+            slScenario = 'TIER3A_FIBONACCI_0786';
+          }
+        }
+      }
+    }
+
+    // 3B: Fallback Fibonacci Golden ATR (1.618x ATR) nếu sóng phẳng hoặc Fib không thỏa điều kiện
+    if (!rawSL) {
+      const goldenDistPct = Math.min(Math.max(1.618 * atrPct, minSlPct), 3.0);
+      rawSL = isLong
+        ? (entryPrice * (1 - goldenDistPct / 100.0))
+        : (entryPrice * (1 + goldenDistPct / 100.0));
+      slScenario = protectiveClusters.length > 0 ? 'CLAMP_FAR_SWING' : 'PURE_VOLATILITY_ATR';
+    }
   }
 
-  // Khống chế sàn tối thiểu (Safety Floor) và trần tối đa (Safety Ceiling 3.5%)
+  // Khống chế sàn tối thiểu (Safety Floor) và trần tối đa (Safety Ceiling)
+  // Lưu ý: Tier 2 cho phép tới 4.0%, các tầng khác kẹp trần 3.5%
+  const maxCeilingPct = (slScenario === 'TIER2_D1_SWING') ? 4.0 : 3.5;
   let slDist = Math.abs(entryPrice - rawSL);
   if (slDist < entryPrice * (minSlPct / 100.0)) {
     slDist = entryPrice * (minSlPct / 100.0);
     rawSL = isLong ? (entryPrice - slDist) : (entryPrice + slDist);
-  } else if (slDist > entryPrice * (3.5 / 100.0)) {
-    slDist = entryPrice * (3.5 / 100.0);
+  } else if (slDist > entryPrice * (maxCeilingPct / 100.0)) {
+    slDist = entryPrice * (maxCeilingPct / 100.0);
     rawSL = isLong ? (entryPrice - slDist) : (entryPrice + slDist);
   }
 
@@ -1014,7 +1165,7 @@ async function calculateTierSLTP(
   const mmr = 0.01;
   const maxSafeLevForLiq = 1.0 / (1.5 * (finalSlPct / 100.0) + mmr);
 
-  // Bậc thang ATR chuẩn hóa (đồng bộ 100% với Confluence Scorer & bot-new)
+  // Bậc thang ATR chuẩn hóa
   let rawLevAtr;
   if (!atrPct || atrPct <= 0) rawLevAtr = 3;
   else if (atrPct < 0.8)      rawLevAtr = 10;
@@ -1027,28 +1178,127 @@ async function calculateTierSLTP(
     ? 10
     : (isTier1 ? 7 : 3);
 
+  // Chuẩn hóa rủi ro vốn: khi SL rộng (Tier 2 tới 4.0%), giảm đòn bẩy để bảo vệ TargetLossUSD
+  const maxRiskLev = (standardMargin > 0 && finalSlPct > 0)
+    ? Math.floor((targetLossUSD * 1.25) / (standardMargin * (finalSlPct / 100.0)))
+    : hardCeilingLev;
+
   let effectiveLeverage = Math.min(
     rawLevAtr,
     Math.floor(maxSafeLevForLiq),
     hardCeilingLev,
+    Math.max(1, maxRiskLev),
     maxExchangeLeverage || 20
   );
   effectiveLeverage = Math.max(1, Math.floor(effectiveLeverage));
 
-  // 5. TÍNH TOÁN TP TRỰC TIẾP TỪ SL VÀ CHỐT CHẶN R:R >= 1.5 (BỎ ĐÁNH GIÁ 50% GRID)
+  // 5. TÍNH TOÁN TP THÔNG MINH (S/R & 369 GRID ANCHORED TP VỚI FRONT-RUNNING)
   const step = h4Ref?.step || getStep(entryPrice);
   const effGridWidth = (typeof gridWidthPct === 'number' && gridWidthPct > 0)
     ? gridWidthPct
     : (((step * 10) / entryPrice) * 100);
 
   const targetTpRatio = (typeof tpRatio === 'number' && tpRatio > 0) ? tpRatio : 1.50;
-  const targetTpDist = slDist * targetTpRatio;
+  const minRequiredTpDist = slDist * 1.48; // Sàn tối thiểu tuyệt đối để R:R >= 1.48
+  const idealTpDist = slDist * targetTpRatio; // Mốc lý tưởng 1.5R
 
-  const rawTP = isLong ? (entryPrice + targetTpDist) : (entryPrice - targetTpDist);
+  // 5.1. Quét tìm các Cản Đối Diện (Opposing Clusters)
+  // LONG: Cản là Resistance nằm phía trên Entry
+  // SHORT: Cản là Support nằm phía dưới Entry
+  const opposingClusters = isLong
+    ? resistanceClusters.filter(c => c.zoneMin > entryPrice * 1.001).sort((a, b) => a.zoneMin - b.zoneMin)
+    : supportClusters.filter(c => c.zoneMax < entryPrice * 0.999).sort((a, b) => b.zoneMax - a.zoneMax);
+
+  // 5.2. Kiểm tra BỨC TƯỜNG CẢN CỨNG CHẶN ĐẦU (Hard Major Wall Blocking Check)
+  // Chỉ bấm VETO khi một Cản Cứng thực sự (Major S/R: D1 hoặc H4 touches >= 2) nằm chắn đường
+  // khiến giá không thể đạt được R:R >= 1.48 (vị trí bức tường nằm trước khoảng cách tối thiểu)!
+  // Nếu là cản yếu (Minor S/R: 1x H1 wick): KÍCH HOẠT WEAK S/R BYPASS (Bỏ qua cản yếu để không reject oan uổng)
+  for (const c of opposingClusters) {
+    const rawDistToWall = isLong ? (c.zoneMin - entryPrice) : (entryPrice - c.zoneMax);
+
+    if (rawDistToWall < minRequiredTpDist) {
+      if (c.isMajor) {
+        // Bức tường cản cứng chặn đầu -> VETO chính xác vì giá không thể vượt qua cản cứng này để đạt 1.48R
+        const frontRunPrice = isLong ? (c.zoneMin - entryPrice * 0.002) : (c.zoneMax + entryPrice * 0.002);
+        const distToWall = Math.max(0, Math.abs(entryPrice - frontRunPrice));
+        const blockedRR = distToWall / slDist;
+        const finalTpPriceFail = roundTpConservative(frontRunPrice, effTickSize, isLong);
+        return {
+          valid: false,
+          reason: `RR_BLOCKED_BY_MAJOR_SR (Cản cứng ${c.timeframe} [${c.zoneMin}-${c.zoneMax}] chặn tại R:R = ${blockedRR.toFixed(2)} < 1.48)`,
+          rrRatio: parseFloat(blockedRR.toFixed(2)),
+          slPrice: finalSlPrice,
+          tpPrice: finalTpPriceFail,
+          slDistance: slDist,
+          tpDistance: distToWall,
+          slPct: parseFloat(finalSlPct.toFixed(2)),
+          tpPct: parseFloat(((distToWall / entryPrice) * 100).toFixed(2)),
+          leverage: effectiveLeverage,
+          margin: standardMargin
+        };
+      }
+      // Nếu là Minor S/R (Weak S/R): Không reject, kích hoạt cơ chế Bypass để tìm mốc phía sau!
+    }
+  }
+
+  // 5.3. Xác định Mốc TP Mục Tiêu:
+  // Neo vào Cản Cứng tiếp theo hoặc Mốc Lưới 369 gần nhất thỏa mãn R:R >= 1.48
+  let rawTP = null;
+  let tpAnchorType = 'STANDARD_RR';
+
+  // Ứng viên 1: Cản đối diện hợp lệ (đã front-running 0.2%) đạt R:R >= 1.48
+  // Ưu tiên cản Major trong vùng [1.48R, 2.50R]
+  for (const c of opposingClusters) {
+    const frontRunPrice = isLong
+      ? (c.zoneMin - entryPrice * 0.002)
+      : (c.zoneMax + entryPrice * 0.002);
+    const dist = Math.abs(entryPrice - frontRunPrice);
+    const candRR = dist / slDist;
+
+    if (candRR >= 1.48 && candRR <= 2.50) {
+      // Ưu tiên cản Major hoặc cản có nhiều touches
+      if (c.isMajor || candRR >= targetTpRatio) {
+        rawTP = frontRunPrice;
+        tpAnchorType = `${c.timeframe}_SR_ANCHOR`;
+        break;
+      }
+    }
+  }
+
+  // Ứng viên 2: Mốc Lưới 369 kế tiếp (với Front-running 0.2%) nếu chưa có TP hoặc cản ở xa
+  if (!rawTP && step > 0) {
+    const gridTarget1 = isLong ? (entryPrice + step) : (entryPrice - step);
+    const frontRunGrid1 = isLong ? (gridTarget1 - entryPrice * 0.002) : (gridTarget1 + entryPrice * 0.002);
+    const distGrid1 = Math.abs(entryPrice - frontRunGrid1);
+    const rrGrid1 = distGrid1 / slDist;
+
+    if (rrGrid1 >= 1.48 && rrGrid1 <= 2.50) {
+      rawTP = frontRunGrid1;
+      tpAnchorType = '369_GRID_ANCHOR';
+    } else if (rrGrid1 < 1.48) {
+      // Nếu 1 step quá nhỏ không đủ 1.48R, thử mốc 2 step
+      const gridTarget2 = isLong ? (entryPrice + 2 * step) : (entryPrice - 2 * step);
+      const frontRunGrid2 = isLong ? (gridTarget2 - entryPrice * 0.002) : (gridTarget2 + entryPrice * 0.002);
+      const distGrid2 = Math.abs(entryPrice - frontRunGrid2);
+      const rrGrid2 = distGrid2 / slDist;
+      if (rrGrid2 >= 1.48 && rrGrid2 <= 3.0) {
+        rawTP = frontRunGrid2;
+        tpAnchorType = '369_GRID_2STEP_ANCHOR';
+      }
+    }
+  }
+
+  // Ứng viên 3: Fallback mục tiêu 1.5R chuẩn hoặc 0.618 step nếu không có cản chặn
+  if (!rawTP) {
+    const fallbackDist = Math.max(idealTpDist, step * 0.618);
+    rawTP = isLong ? (entryPrice + fallbackDist) : (entryPrice - fallbackDist);
+    tpAnchorType = 'FALLBACK_RATIO';
+  }
+
+  // 5.4. Làm tròn bảo thủ theo tickSize Binance
   const finalTpPrice = roundTpConservative(rawTP, effTickSize, isLong);
   const finalTpDist = Math.abs(entryPrice - finalTpPrice);
   const finalTpPct = (finalTpDist / entryPrice) * 100;
-
   const rrRatio = slDist > 0 ? (finalTpDist / slDist) : 0;
 
   // 🛡️ CHỐT CHẶN CỨNG R:R >= 1.5 (VETO NẾU KHÔNG ĐẠT)
@@ -1087,6 +1337,7 @@ async function calculateTierSLTP(
     minSlPct: minSlPct,
     atrPct: parseFloat(atrPct.toFixed(2)),
     slScenario: slScenario,
+    tpAnchorType: tpAnchorType,
     matchedSwing: matchedSwing,
     leverage: effectiveLeverage,
     margin: standardMargin,
@@ -2380,8 +2631,9 @@ async function startAutoTrade(coins) {
       }
 
       // ── TẦNG 3: BỘ CHẤM ĐIỂM HỢP LƯU ĐỊNH LƯỢNG (DETERMINISTIC CONFLUENCE SCORER 0 - 10đ) ──
+      let scoreRes = null;
       try {
-        const scoreRes = scoreSetup(sym, sig.signal, taSymbol, whaleData, derivatives, fundingRate, fearGreed, null, btcTA, sig);
+        scoreRes = scoreSetup(sym, sig.signal, taSymbol, whaleData, derivatives, fundingRate, fearGreed, null, btcTA, sig);
         sig.score = scoreRes.total;
         sig.scoreReasons = scoreRes.reasons;
         sig.confluenceVerdict = scoreRes.verdict;
@@ -5653,6 +5905,7 @@ async function notifyRealClose(client, sym, prevPos, meta) {
 module.exports = {
   startAutoTrade,
   calculateTierSLTP,
+  buildClusterZones,
   getDynamicRiskProfile,
   checkPreLimitTacticalGatekeeper,
   overrideSafetyBrake,
