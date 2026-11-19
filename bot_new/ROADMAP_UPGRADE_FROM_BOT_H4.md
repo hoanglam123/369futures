@@ -36,8 +36,8 @@ flowchart TD
     subgraph SignalEngine ["TẦNG 2: BỘ XỬ LÝ TÍN HIỆU HYBRID 0ms & TÍNH TOÁN ĐỊNH LƯỢNG"]
         D --> E1["Luồng 1: WebSocket Price Stream (0ms Ticks)"]
         D --> E2["Luồng 2: Polling Backup (30s)"]
-        E1 & E2 --> F["Hard Filters + Deterministic Confluence Scorer"]
-        F -- "Score &ge; 7.0đ (Tier 1) / 8.5đ (Tier 2)" --> G1["Thuật toán tính sẵn TP/SL & R:R (calculateTierSLTP)\n[Chính xác 100% bằng toán học ATR & Swing S/R]"]
+        E1 & E2 --> F["Hard Filters + Deterministic Confluence Scorer\n(Bỏ phạt thời gian, Chạm cản lần 2+ luôn +1đ)"]
+        F -- "Score &ge; 7.0đ (Tier 1) / 8.5đ (Tier 2)" --> G1["Thuật toán tính sẵn TP/SL & R:R (calculateTierSLTP)\n[Hybrid Fibonacci 3-Tier SL + Smart Anchored TP + Bypass Cản Yếu]"]
         G1 --> G2["AI Risk Gatekeeper (Claude / Gemini)\n[Prompt siêu nhẹ 180 tokens - Chỉ Duyệt/Từ chối]"]
     end
 
@@ -202,41 +202,66 @@ sequenceDiagram
 flowchart TD
     A["400+ Cặp Binance Futures"] -->|BƯỚC 1: Proximity Filter| B["getNearbySymbols: Sắp xếp độ gần mốc\nCHỈ LẤY TOP 8 MÃ SÁT MỐC NHẤT (slice 0,8)"]
     B -->|BƯỚC 2: Hàng đợi tuần tự giãn cách 600ms| C["processSignalQueue:\nTránh nghẽn API & giật weight Binance"]
-    C -->|BƯỚC 3: Confluence Scorer 0 - 10đ| D{"Chốt chặn điểm:\nTier 1 &ge; 7.0đ\nTier 2 &ge; 8.5đ"}
+    C -->|BƯỚC 3: Confluence Scorer 0 - 10đ\n(Bỏ phạt thời gian, Chạm cản lần 2+ luôn +1đ)| D{"Chốt chặn điểm:\nTier 1 &ge; 7.0đ\nTier 2 &ge; 8.5đ"}
     D -- Không đạt --> E["Loại bỏ / Lưu Log"]
     D -- "Đạt chuẩn (10-20 mã)" --> F["Sắp xếp Confluence Score giảm dần\nCHỈ CHỌN TOP 1 (HOẶC TOP 2) CAO NHẤT"]
-    F --> G["Thuật toán calculateTierSLTP (Toán học 100%):\n- SL: Quét Swing H1/H4 kẹp biên ATR 1.2x-2x\n- TP: Tính trực tiếp từ khoảng cách SL theo chuẩn R:R &ge; 1.5\n- Đòn bẩy an toàn chống cháy tài khoản"]
+    F --> G["Thuật toán calculateTierSLTP MỚI (Hybrid Fibonacci & Cluster Zones):\n- Deep Cache H1 (300) / H4 (300) / D1 (180)\n- SL 3 Tầng: Cản gần -> Cản D1 -> Fibonacci 0.786 / Golden ATR\n- TP Neo Cản Thông Minh: Front-running 0.2% + Bypass Cản Yếu (R:R &ge; 1.5)\n- BE Trigger 35% TP: Dời SL khóa lãi +0.33% sau phí"]
     G --> H{"Kiểm tra AI Token Guard:\n1. Coin có trong Cooldown 30p?\n2. Đã gọi gần đây?"}
     H -- "Trong Cooldown 30p" --> I["Tái sử dụng nhận định cũ (0 Token)"]
     H -- "Setup mới hợp lệ" --> J["AI Risk Gatekeeper (Gemini/Claude):\nPrompt siêu nhẹ Compact JSON (~180 tokens)\nChỉ trả về: APPROVE / REJECT (0.8s)"]
     J --> K["Đẩy lệnh lên sàn Binance"]
 ```
 
-#### Chi tiết 5 trụ cột kiến trúc Giai đoạn 2:
+#### Chi tiết 6 trụ cột kiến trúc Giai đoạn 2:
 
-##### 1. Chuyển giao tính toán TP/SL sang Thuật toán Toán học (`calculateTierSLTP`)
-Thay vì để AI tự nhẩm, **code thuật toán tự động tính toán chính xác 100% trong $0.01\text{ ms}$** trước khi hỏi AI:
-- **Entry**: Là mốc toán học 369 chuẩn xác.
-- **Stop Loss (SL)**: 
-  - Tự động quét 90 nến H1 và 45 nến H4 tìm đáy/đỉnh Swing Point cấu trúc sóng.
-  - Kẹp biên thích ứng 3 tầng theo biến động $ATR(14, 4h)$: Tối thiểu $1.2\text{x} \text{ ATR}$, tối đa $2.0\text{x} \text{ ATR}$ (trần an toàn $3.5\%$).
+##### 1. Chuyển giao tính toán TP/SL sang Thuật toán Hybrid Fibonacci & Cluster Zones (`calculateTierSLTP`)
+Thay vì để AI tự nhẩm hay nhân máy móc tỷ lệ cố định, **code thuật toán tự động tính toán chính xác 100% trong $0.01\text{ ms}$** dựa trên sự kết hợp giữa **Cụm Cản Đa Khung Thời Gian (Cluster Zones)** và **Tỷ Lệ Vàng Fibonacci**:
+- **Kiến trúc Persistent Deep Candle Cache (Lưu bền vững JSON)**:
+  - Nạp trực tiếp từ file JSON trên đĩa vào RAM lúc khởi động ($0\text{ ms}$): H1 ($300\text{ nến} \approx 12.5\text{ ngày}$), H4 ($300\text{ nến} \approx 50\text{ ngày}$), D1 ($180\text{ nến} \approx 6\text{ tháng}$).
+  - Suốt chu kỳ quét: $100\%$ đọc từ RAM cache, **tiêu thụ đúng 0 điểm API weight Binance**, xóa bỏ hoàn toàn vùng mù lịch sử (Blind Zone).
+- **Hệ thống Cluster Zones (Gom cụm S/R đa khung thời gian)**:
+  - Tự động gom các đỉnh/đáy swing point H1, H4, D1 nằm trong dung sai $0.5\%$ thành các cụm hỗ trợ / kháng cự hợp lưu.
+  - Phân loại rõ ràng:
+    - *Cản Yếu (Minor/Weak S/R)*: Đỉnh/đáy H1 đơn lẻ ($touches = 1$) hoặc cản nằm quá sát Entry ($< 1.0\text{x ATR}$). Dễ bị xuyên phá khi có xung lực.
+    - *Cản Cứng (Major/Strong S/R)*: Cụm H4 có $touches \ge 2$, Cản D1 (Khung Ngày 6 tháng), hoặc Mốc ô lưới 369. Đây là những bức tường cản thực sự có khả năng đảo chiều giá.
+- **Stop Loss 3 Tầng Thích Ứng (3-Tier Adaptive SL)**:
+  - *Tầng 1 (Cản Sweet Spot H1/H4 gần kề)*: Đặt SL nép sau cụm cản $[1.2 \times ATR, 2.0 \times ATR]$ kèm buffer $0.2\%$ an toàn.
+  - *Tầng 2 (Cản D1 tầm trung 6 tháng)*: Khi cản gần bị phá, bám cản D1 lịch sử $(\le 2.2 \times ATR$ hoặc $\le 4.0\%)$, tự động hạ đòn bẩy để bảo toàn rủi ro cố định $\$3.00\text{ USD}$.
+  - *Tầng 3 (Cản Động Fibonacci - Khi coin phá đỉnh/đáy lịch sử)*:
+    - *Fibonacci Retracement 0.786 trên sóng đẩy H1 gần nhất*: SL nép sau mốc $0.786 \pm 0.2\%$ buffer.
+    - *Fibonacci Golden ATR ($1.618 \times ATR$)*: Fallback khi sóng phẳng: $\text{slDist} = \min(\max(1.618 \times ATR, \text{minSlPct}), 3.2\%)$.
+    - **Xóa bỏ hoàn toàn trần cứng $3.5\%$ mù quáng** (từng làm dính SL oan uổng ở SOLV và ICNT).
+  - *Kẹp an toàn thích ứng theo ATR*: Sàn $minSlPct = \max(1.8\%, \min(3.5\%, 1.8 \times ATR))$, trần $maxSlPct = \max(3.5\%, \min(6.0\%, 3.0 \times ATR))$.
   - Thuật toán né nam châm số tròn tâm lý (`evadeRoundNumber`) và làm tròn bảo thủ theo đúng `tickSize` của Binance.
-- **Take Profit (TP)**:
-  - **Tính toán trực tiếp 100% từ Stop Loss (SL)**: Khoảng cách chốt lời TP được xác định trực tiếp từ khoảng cách SL theo công thức chuẩn quản trị rủi ro:
-    $$\text{TargetTpDist} = \text{slDist} \times \text{targetRR} \quad (\text{với } \text{targetRR} \ge 1.5)$$
-  - Luôn bảo đảm tỷ lệ Lời/Lỗ chuẩn $R:R \ge 1.5$ (hoặc tùy biến $1:2$). Làm tròn bảo thủ theo đúng bước giá `tickSize` của Binance.
-  - Nếu sau khi tính toán mà tỷ lệ $R:R < 1.48 \rightarrow$ VETO hủy kèo ngay lập tức để bảo toàn vốn.
-- **Đòn bẩy (Leverage)**:
-  - Tự động tính toán theo trần thanh lý an toàn (Liquidation Front-Running Guard):
-    $$\text{MaxSafeLev} = \frac{1}{1.5 \times \text{SL\%} + \text{MMR}}$$
-    Ngăn chặn tuyệt đối tình trạng râu nến quét thanh lý trước khi cắn SL.
+- **Take Profit Thông Minh (Smart Anchored TP) & Cơ Chế Bypass Cản Yếu (Tránh Reject Oan Uổng)**:
+  - *Neo theo Cản Đối Diện & Mốc 369 (S/R & Grid Anchored)*: Tìm cụm cản mục tiêu phía trên (LONG) hoặc phía dưới (SHORT).
+  - *Kỹ thuật Front-Running TP (Đi trước cản 0.2%)*: Đặt TP lùi lại $0.2\% - 0.3\%$ trước cản để lệnh khớp chắc chắn trước khi áp lực xả/mua của thị trường xuất hiện.
+  - *Cơ chế Bypass Cản Yếu (Weak S/R Bypass)*:
+    - **TUYỆT ĐỐI KHÔNG REJECT LỆNH** chỉ vì vướng một cản yếu H1 ở cự ly gần làm $R:R < 1.5$.
+    - Thuật toán tự động "nhìn xuyên qua" cản yếu đó để vươn tới **CẢN CỨNG TIẾP THEO (hoặc Mốc Lưới 369 kế tiếp / Fibonacci Extension 1.272, 1.618 / Fallback Ratio $R:R \ge 1.5$)**.
+    - Vị thế được bảo hiểm an toàn bởi **Break-Even Trigger 35%**: Nếu giá chạm cản yếu rồi rung lắc, mốc 35% đã kịp dời SL về hòa vốn. Nếu xuyên thủng cản yếu $\rightarrow$ Lệnh phi thẳng tới Cản Cứng để ăn trọn sóng lớn!
+    - **Điều kiện DUY NHẤT để Bot VETO Hủy Kèo**: Chỉ VETO khi **BỨC TƯỜNG CẢN CỨNG THỰC SỰ** (H4 $\ge 2$ chạm, D1, hoặc Mốc 369) chặn ngay trước đầu mà khoảng cách không đủ đạt $R:R \ge 1.48$.
+- **Cột mốc Quản trị Vị thế Động (Break-Even Trigger 35%)**:
+  - Khi giá đi được **35% quãng đường tới TP** $\rightarrow$ Tự động dời SL lên/xuống khóa trước lợi nhuận **`+0.33%`** sau khi trừ phí giao dịch Binance (Risk-Free sau phí).
+- **Đòn bẩy & Ký quỹ an toàn**:
+  - Tự động tính toán theo mức rủi ro cố định: $Margin \times Leverage \times SL\% = TargetLossUSD$ ($3.00 USD).
+  - Khóa trần đòn bẩy chống quét râu thanh lý trước SL ($MaxSafeLev = \frac{1}{1.5 \times SL\% + MMR}$).
 
-##### 2. Tái định vị vai trò của AI: Từ "Máy tính số học" sang "Chuyên gia Thẩm định Rủi ro (Risk Auditor / Gatekeeper)"
+##### 2. Tinh chỉnh Confluence Scorer theo kinh nghiệm thực chiến mới nhất từ `bot-h4`
+- **Bỏ hoàn toàn hình phạt thời gian (`timePenalty = 0`)**: Thị trường crypto giao dịch toàn cầu 24/7/365, việc trừ $1.0$đ khung giờ 00:00 - 07:00 UTC là phi lý và bóp nghẹt cơ hội vào lệnh.
+- **Mốc cản PP369 từ đầu năm đến giờ**: Vì mốc cản được tính từ đầu năm nên việc giá chạm nhiều lần là hoàn toàn bình thường; quy định chạm từ lần 2 trở đi (`touchCount >= 1`) luôn nhận đủ **`+1.0đ`** (thay vì bị trừ xuống 0.5đ như cũ).
+- **Phễu lọc 4 tầng phân tầng rõ rệt**:
+  - *Tầng 1 (Proximity Filter)*: Chỉ đo khoảng cách toán học $\le 0.5\%$, sort tăng dần và cắt Top 8.
+  - *Tầng 2 (Hard Filter)*: Lưới gridStep $0.4\% - 15\%$, Funding rate không cực đoan, BB Bandwidth $\ge 2\%$.
+  - *Tầng 3 (Confluence Scorer 0 - 10đ)*: Chỉ những coin đạt $\ge 7.0$đ (Tier 1) hoặc $\ge 8.5$đ (Tier 2) mới được đi tiếp.
+  - *Tầng 4 (Top 1-2 Cap + 600ms Queue + Cooldown 30p)*: Chọn tối đa Top 1 hoặc Top 2 mã xuất sắc nhất gửi AI.
+
+##### 3. Tái định vị vai trò của AI: Từ "Máy tính số học" sang "Chuyên gia Thẩm định Rủi ro (Risk Auditor / Gatekeeper)"
 - AI **không cần làm công việc tính nhẩm số học nữa**.
 - AI chỉ đóng vai trò là **người gác cổng thẩm định rủi ro**: Đọc bối cảnh vi cấu trúc nến M15/H1, độ dãn spread, biến tốc BTC, và trả lời ngắn gọn:
   $$\text{Duyệt (APPROVE) hay Từ chối (REJECT)}$$
 
-##### 3. Xử lý triệt để bài toán: 50 coin tiệm cận $\le 0.5\%$ và 10–20 coin đủ điểm
+##### 4. Xử lý triệt để bài toán: 50 coin tiệm cận $\le 0.5\%$ và 10–20 coin đủ điểm
 Kế thừa chính xác giải pháp từ `bot-h4`:
 - **Giải quyết 50 coin tiệm cận mốc $\le 0.5\%$**:
   - Hàm `getNearbySymbols` tính khoảng cách thực tế của từng coin tới mốc: $\text{dist} = \frac{|\text{Price} - \text{Level}|}{\text{Price}}$.
@@ -247,7 +272,7 @@ Kế thừa chính xác giải pháp từ `bot-h4`:
   - **Quy tắc Top 1–2 Cap**: Trong 10–20 mã đủ điểm, bot sắp xếp theo điểm Confluence từ cao xuống thấp và **CHỈ GỬI ĐÚNG TOP 1 (HOẶC TOP 2) MÃ CAO NHẤT** cho AI thẩm định.
   - **Bộ nhớ đệm Cooldown 30 phút**: Coin nào AI đã duyệt hoặc từ chối trong 30 phút qua sẽ không bao giờ bị gọi lại lần 2 $\rightarrow$ Triệt tiêu hoàn toàn nguy cơ spam API.
 
-##### 4. Tinh gọn Prompt (Prompt Compression): Từ ~3,500 tokens xuống ~180 tokens
+##### 5. Tinh gọn Prompt (Prompt Compression): Từ ~3,500 tokens xuống ~180 tokens
 - **Cắt bỏ hoàn toàn**: Dữ liệu Mempool BTC, Reddit posts, văn bản giải thích lý thuyết OI, và TA của 399 coin còn lại.
 - **Chuyển sang Compact JSON Features Vector**:
   ```json
@@ -259,12 +284,15 @@ Kế thừa chính xác giải pháp từ `bot-h4`:
     "tp": 4.880,
     "sl": 4.350,
     "rr": 2.12,
+    "sl_scenario": "TIER1_SWEET_SPOT",
+    "tp_scenario": "H1_SR_ANCHOR",
+    "be_trigger": 4.646,
     "confluence_score": 8.5,
     "btc_flash_180s": "STABLE",
     "candle_m15": "PINBAR_REJECTION",
     "opposing_wick_pct": 12,
     "orderbook_wall_ahead": false,
-    "reasons": ["Mốc 369 H4 trùng Support 1D", "Funding âm -0.015%", "Vol nảy 2.1x"]
+    "reasons": ["Mốc 369 H4 trùng Support D1", "Funding âm -0.015%", "Vol nảy 2.1x"]
   }
   Yêu cầu: Đánh giá xem có nên duyệt lệnh không. Trả về DUY NHẤT 1 JSON:
   { "winProbability": 78, "isApproved": true, "reason": "Cấu trúc R:R tốt, không có cản lớn phía trước" }
@@ -275,13 +303,10 @@ Kế thừa chính xác giải pháp từ `bot-h4`:
   - Thời gian phản hồi: **0.8s – 1.2s** (nhanh gấp 6 lần).
   - Gói Free 500 RPD có thể quét cả ngày mà **không bao giờ lo cạn quota hay dính 429**.
 
-##### 5. Cơ chế Xoay vòng Multi-Key & Fallback an toàn (Kế thừa từ `llmReviewer.js`)
+##### 6. Cơ chế Xoay vòng Multi-Key & Fallback an toàn (Kế thừa từ `llmReviewer.js`)
 - Cấu hình danh sách nhiều key: `GEMINI_API_KEY=key1,key2,key3`.
 - Tự động xoay sang Key tiếp theo ngay trong mili-giây nếu Key hiện tại gặp lỗi 429 hoặc cạn quota.
 - **Fail-safe Fallback**: Nếu toàn bộ API Key bị nghẽn mạng quốc tế, bot tự động kích hoạt **Lõi AI Cục bộ (`aiReviewer.js`)** để thẩm định bằng toán học offline $0\text{ ms}$, đảm bảo bot không bao giờ bị tê liệt hay bỏ lỡ cơ hội.
-
-##### 6. Bộ nhớ đệm nến dùng chung (`data/*_history_cache.json`)
-- Đọc nến H4/D1 từ file JSON local đã được sync định kỳ: Tốc độ đọc $0\text{ ms}$, **tiêu thụ 0 điểm API weight Binance**, giải quyết triệt để vấn đề cảnh báo 429/1900 weight.
 
 ---
 
@@ -361,17 +386,25 @@ Kế thừa chính xác giải pháp từ `bot-h4`:
   - [x] Đấu nối `autoCleanOppositeOrder`: Khi TP khớp thì hủy SL Algo trên sàn, khi SL khớp thì hủy TP Limit trên sàn
   - [x] Viết bộ unit test `bot_new/test/test_phase1_dual_bracket.js` kiểm thử toàn diện 7/7 bài test vượt qua 100%
 
-- [ ] **Phase 2: Mở rộng Vũ trụ 400+ Coins, Thuật toán TP/SL & Quản trị Token AI (Ưu tiên P1)**
-  - [ ] Port thuật toán toán học `calculateTierSLTP` từ `bot-h4`: Tự động tính sẵn Entry, TP, SL (Swing S/R + ATR), R:R >= 1.5, Đòn bẩy an toàn
-  - [ ] Chuyển đổi vai trò AI từ "tính toán TP/SL" sang "Risk Gatekeeper" (chỉ duyệt APPROVE / REJECT)
-  - [ ] Viết bộ nạp Universe động `getAllActiveFuturesSymbols()` (~420 cặp USDT)
-  - [ ] Tích hợp Cache nến local dùng chung (`data/*_history_cache.json`) tiêu tốn 0 API weight
-  - [ ] Tích hợp bộ lọc bước giá Grid ($1.5\% \le \text{GridWidth\%} \le 30\%$)
-  - [ ] Tích hợp `getNearbySymbols` + Sắp xếp khoảng cách tăng dần + Cắt `slice(0, 8)`
-  - [ ] Xây dựng hàng đợi tuần tự `processSignalQueue` với giãn cách 600ms
-  - [ ] Tinh gọn Prompt AI thành Compact JSON Features Vector (~180 tokens đầu vào, ~60 tokens đầu ra)
+- [ ] **Phase 2: Mở rộng Vũ trụ 400+ Coins, Thuật toán Hybrid SL/TP & Quản trị Token AI (Ưu tiên P1)**
+  - [ ] Port & tích hợp Persistent Deep Candle Cache: H1 (300 nến), H4 (300 nến), D1 (180 nến) lưu file JSON trên đĩa, đọc 0ms, tiêu thụ 0 REST API weight
+  - [ ] Port thuật toán `buildClusterZones`: Gom cụm S/R đa khung (H1/H4/D1, dung sai 0.5%), phân loại Cản Yếu (Minor 1 chạm) vs Cản Cứng (Major &ge; 2 chạm / D1 / Mốc 369)
+  - [ ] Port thuật toán toán học `calculateTierSLTP` MỚI:
+    - [ ] SL 3 Tầng: Cản gần [1.2x-2.0x ATR] &rarr; Cản D1 tầm trung (&le; 2.2x ATR / 4.0%) &rarr; Fibonacci Retracement 0.786 / Golden ATR 1.618x (Xóa bỏ trần 3.5% cứng)
+    - [ ] Kẹp biên an toàn thích ứng ATR (Sàn 1.8%, Trần 6.0%), né số tròn tâm lý (`evadeRoundNumber`), tickSize Binance
+    - [ ] Smart Anchored TP: Neo cụm cản đối diện với Front-running buffer 0.2% an toàn
+    - [ ] Cơ chế Bypass Cản Yếu (Tránh reject oan): Nhìn xuyên cản yếu H1 để vươn tới cản cứng tiếp theo hoặc Fibonacci Extension 1.272/1.618 hoặc Fallback Ratio R:R &ge; 1.5. Chỉ VETO khi vướng Cản Cứng thực sự
+    - [ ] Quản trị vị thế động: Break-Even Trigger @ 35% quãng đường TP (dời SL khóa lãi an toàn +0.33% sau phí)
+  - [ ] Đồng bộ `confluenceScorer.js` trong `bot_new`:
+    - [ ] Bỏ hoàn toàn hình phạt thời gian (`timePenalty = 0`)
+    - [ ] Mốc cản PP369 từ đầu năm: Chạm từ lần 2 trở đi (`touchCount >= 1`) luôn nhận đủ +1.0đ
+  - [ ] Viết bộ nạp Universe động `getAllActiveFuturesSymbols()` (~420 cặp USDT) + bộ lọc lưới ($0.4\% \le \text{gridStepPct} \le 15\%$)
+  - [ ] Tích hợp phễu lọc `getNearbySymbols`: Sắp xếp khoảng cách tăng dần, chỉ lấy Top 8 mã sát mốc nhất (`slice(0, 8)`)
+  - [ ] Xây dựng hàng đợi tuần tự `processSignalQueue` với giãn cách 600ms giữa các mã
+  - [ ] Chuyển đổi vai trò AI sang "Risk Gatekeeper": Tinh gọn Prompt thành Compact JSON Features Vector (~180 tokens đầu vào, ~60 tokens đầu ra, chỉ trả về APPROVE / REJECT)
   - [ ] Tích hợp cơ chế Top 1–2 Cap khi có nhiều mã đủ điểm + Cooldown 30 phút cho từng coin
-  - [ ] Tích hợp cơ chế Xoay vòng Multi-Key (`GEMINI_API_KEY=key1,key2,key3`) và Fallback tự động sang AI Cục bộ
+  - [ ] Tích hợp cơ chế Xoay vòng Multi-Key (`GEMINI_API_KEY=key1,key2,key3`) và Fallback tự động sang AI Cục bộ (`aiReviewer.js`)
+  - [ ] Viết bộ unit test `bot_new/test/test_phase2_universe_scorer.js` kiểm thử toàn diện các kịch bản: SL 3 tầng, Smart Anchored TP, Weak S/R Bypass, Confluence Scorer mới, và Compact JSON Gatekeeper
 
 - [ ] **Phase 3: Real-time WebSocket Price Engine**
   - [ ] Tích hợp WebSocket Mark Price đa luồng
