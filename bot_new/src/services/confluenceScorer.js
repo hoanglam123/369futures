@@ -403,10 +403,9 @@ function scoreSetup(symbol, direction, ta, whaleData, derivatives, fundingRates,
   const sentResult   = scoreSentiment(direction, fearGreed, social);
   const result369    = score369Method(signal369, direction);
 
-  // Giờ UTC thấp thanh khoản
-  const utcHour = new Date().getUTCHours();
-  const timePenalty = (utcHour >= 0 && utcHour < 7) ? -1 : 0;
-  const timeReasons = timePenalty ? [`UTC ${utcHour}h thanh khoản thấp (-1)`] : [];
+  // Giờ UTC: Bỏ hình phạt thời gian theo yêu cầu chiến lược (timePenalty = 0)
+  const timePenalty = 0;
+  const timeReasons = [];
 
   // BTC headwind: LONG altcoin khi BTC đang TRENDING_DOWN → -1 (áp dụng cả ETH)
   let btcPenalty = 0;

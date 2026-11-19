@@ -669,14 +669,8 @@ function score369Reaction(sig369, direction) {
     return { score: 0, reasons: [] };
   }
   const touch = typeof sig369.touchCount === 'number' ? sig369.touchCount : 0;
-  let score = 0.5;
-  if (touch === 0) {
-    score = 2.0; // Chạm lần 1 (Fresh - Chưa ai khai thác)
-  } else if (touch === 1) {
-    score = 1.0; // Lần 2
-  } else {
-    score = 0.5; // Lần 3 trở lên (cản mòn)
-  }
+  // Mốc cản PP369 tính từ đầu năm: Chạm lần 1 (Fresh) được +2.0đ; từ lần 2 trở đi luôn giữ mức điểm phản ứng là +1.0đ
+  const score = (touch === 0) ? 2.0 : 1.0;
   const lan = touch + 1;
   const reasons = [`[PP369] ${direction} lần ${lan} tại $${sig369.targetLevel} (+${score}đ)`];
   return { score, reasons };
@@ -708,10 +702,9 @@ function scoreSetup(symbol, direction, ta, whaleData, derivatives, fundingRates,
   const sentResult  = scoreSentiment(direction, fearGreed, social);
   const result369   = score369Reaction(signal369, direction);
 
-  // 3. Giờ UTC thấp thanh khoản (0:00 - 7:00 UTC)
-  const utcHour = new Date().getUTCHours();
-  const timePenalty = (utcHour >= 0 && utcHour < 7) ? -1 : 0;
-  const timeReasons = timePenalty ? [`UTC ${utcHour}h thanh khoản thấp (-1)`] : [];
+  // 3. Giờ UTC: Bỏ hình phạt thời gian theo yêu cầu chiến lược (timePenalty = 0)
+  const timePenalty = 0;
+  const timeReasons = [];
 
   // 4. BTC headwind: LONG altcoin khi BTC đang TRENDING_DOWN → -1 (áp dụng cả ETH)
   let btcPenalty = 0;
