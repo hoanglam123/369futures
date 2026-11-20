@@ -155,8 +155,8 @@ if (process.argv.includes('--run-now')) {
   // Bổ sung cho WS fill event — đảm bảo không bỏ sót vị thế nếu WS miss hoặc bot vừa restart
   // Có thể tắt bằng SYNC_POSITIONS_CRON=false trong .env
   const SYNC_POSITIONS_CRON = process.env.SYNC_POSITIONS_CRON;
-  if (SYNC_POSITIONS_CRON !== 'false') {
-    const syncCron = SYNC_POSITIONS_CRON || '*/5 * * * *';
+  const syncCron = SYNC_POSITIONS_CRON !== 'false' ? (SYNC_POSITIONS_CRON || '*/5 * * * *') : null;
+  if (syncCron) {
     if (!cron.validate(syncCron)) {
       console.error(`❌ SYNC_POSITIONS_CRON không hợp lệ: "${syncCron}"`);
     } else {
@@ -167,7 +167,6 @@ if (process.argv.includes('--run-now')) {
           log.error('Auto-sync: thất bại', { trigger: 'cron', error: e.message });
         }
       }, { timezone: TIMEZONE, scheduled: true });
-      log.system(`Auto-sync vị thế Binance: ${syncCron}`);
     }
   }
 
@@ -209,7 +208,7 @@ if (process.argv.includes('--run-now')) {
   createDashboard();
   onWsPush(broadcastWs);
   log.system('[PP369] [AutoTrade] ✓ Khởi động hệ thống giao dịch tự động định lượng 369 Futures');
-  log.system(`[PP369] [AutoTrade] Chu kỳ quét định lượng: ${SIGNAL_SCAN_CRON} | Auto-sync vị thế: ${syncCron}`);
+  log.system(`[PP369] [AutoTrade] Chu kỳ quét định lượng: ${SIGNAL_SCAN_CRON} | Auto-sync vị thế: ${syncCron || 'tắt'}`);
 
   // Gửi Telegram summary nếu có lệnh đang theo dõi sau khi restart
   const restored = getActiveTrades();
