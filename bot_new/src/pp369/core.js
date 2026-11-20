@@ -292,7 +292,8 @@ async function get369Signal(symbol, currentPrice = null) {
 
     const { openPrice, closePrice, step, decimals, upperPrice, lowerPrice } = h1;
 
-    const price = currentPrice;
+    const stream = require('./stream');
+    const price = currentPrice || (typeof stream.getMarkPrice === 'function' ? stream.getMarkPrice(symbol) : null) || (typeof stream.getPrices === 'function' ? stream.getPrices()[symbol] : null) || null;
 
     // Dùng step từ GIÁ HIỆN TẠI thay vì H1 open — đảm bảo khoảng cách mốc phù hợp
     // khi coin đã tăng/giảm mạnh so với đầu tháng (VD: coin 10x → step tăng 10x theo)
@@ -315,8 +316,9 @@ async function get369Signal(symbol, currentPrice = null) {
         _levelCache[symbol] = { longEntry: longEntry.value, shortEntry: shortEntry.value, step: effectiveStep };
 
         const nearTol   = price * NEAR_LEVEL_PCT * 2; // 0.2% dung sai chạm
-        const nearLong  = (price - longEntry.value)  <= nearTol;
-        const nearShort = (shortEntry.value - price) <= nearTol;
+        const gridWidthStepPre = shortEntry.value - longEntry.value;
+        const nearLong  = (price <= longEntry.value + nearTol) && (price >= longEntry.value - gridWidthStepPre * 0.50);
+        const nearShort = (price >= shortEntry.value - nearTol) && (price <= shortEntry.value + gridWidthStepPre * 0.50);
 
         if (!nearLong && !nearShort) {
           return {
@@ -334,7 +336,10 @@ async function get369Signal(symbol, currentPrice = null) {
       return { signal: 'NONE', symbol, month, reason: 'Không lấy được nến 1m tháng này' };
     }
 
-    const finalPrice = price ?? m1Candles[m1Candles.length - 1].close;
+    const finalPrice = price ?? (m1Candles.length > 0 ? m1Candles[m1Candles.length - 1].close : null);
+    if (!finalPrice || finalPrice <= 0) {
+      return { signal: 'NONE', symbol, month, reason: 'Không có giá hiện tại hợp lệ' };
+    }
 
     const distTicks = Math.ceil(Math.max(
       Math.abs(upperPrice - finalPrice),
@@ -365,9 +370,10 @@ async function get369Signal(symbol, currentPrice = null) {
     const touchCountLong  = lowerCount;
     const touchCountShort = upperCount;
 
-    const nearTol   = price * NEAR_LEVEL_PCT;
-    const nearLong  = (price - longEntry.value)  <= nearTol;
-    const nearShort = (shortEntry.value - price) <= nearTol;
+    const nearTol   = finalPrice * NEAR_LEVEL_PCT;
+    const gridWidthStep = shortEntry.value - longEntry.value;
+    const nearLong  = (finalPrice <= longEntry.value + nearTol) && (finalPrice >= longEntry.value - gridWidthStep * 0.50);
+    const nearShort = (finalPrice >= shortEntry.value - nearTol) && (finalPrice <= shortEntry.value + gridWidthStep * 0.50);
 
     let signal      = 'NONE';
     let strength    = 'none';

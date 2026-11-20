@@ -105,6 +105,13 @@ async function generateQuantitativeTrade(setup, marketData = null) {
     entryPrice = currentPrice;
   }
 
+  // ─── CHỐT CHẶN BẢO VỆ: CỰ LY ENTRY VS GIÁ THỊ TRƯỜNG HIỆN TẠI (TỐI ĐA 0.5%) ─────────
+  const entryDistPct = Math.abs(entryPrice - currentPrice) / currentPrice;
+  if (entryDistPct > 0.005) {
+    log.system(`[AutoTrade] 🛑 [VETO Entry Distance] ${symbol} ${direction}: Entry $${entryPrice} cách giá hiện tại $${currentPrice} quá xa (${(entryDistPct * 100).toFixed(2)}% > 0.5%) — Hủy`);
+    return null;
+  }
+
   // ─── CHỐT CHẶN 4: BOUNCE CANCEL COOLDOWN (MỐC VỪA BẬT NẢY) ─────────
   if (isLevelBounceCooldown(symbol, entryPrice)) {
     log.system(`[AutoTrade] 🛑 [VETO Bounce Cancel] ${symbol} ${direction} @ ${entryPrice}: Mốc vừa nảy giá không khớp, đang cooldown`);

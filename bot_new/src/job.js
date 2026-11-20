@@ -267,13 +267,17 @@ async function runJob({ silent = false, lookbackHours = null } = {}) {
       log.system(`TA + Whale: ${taSymbols.length} coins → [${taSymbols.join(', ')}]`);
     }
 
+    const priceMap369 = Object.fromEntries(
+      taSymbols.map(s => [s, { price: getMarkPrice(s) || getPrices()[s] || null }]).filter(([, v]) => v.price != null)
+    );
+
     const [taResult, whaleResult, derivResult, onchainResult, socialResult, signals369Result] = await Promise.allSettled([
       getTAReport(taSymbols),
       getWhaleData(whaleSymbols, cronHours),
       getDerivatives(whaleSymbols, cronHours),
       getBTCOnchain(),
       getRedditSentiment(),
-      get369SignalsForCoins(taSymbols),
+      get369SignalsForCoins(taSymbols, priceMap369),
     ]);
 
     logSourceStatus('Technical Analysis', taResult);
