@@ -111,38 +111,65 @@ function _invalidateBalanceCache() {
 }
 
 // Tính số lượng coin cần mua/bán
-// - Dùng TRADE_SIZE_PCT % balance (tự động tăng dần theo lãi kép khi balance tăng)
-// - Capped trong [TRADE_MIN_USDT, TRADE_MAX_USDT]
-async function calcQty(symbol, entryPrice, leverage, info) {
-  const balance = await getUsdtBalance();
+// - Hỗ trợ targetMargin từ trade.margin (Tier setup) hoặc TRADE_SIZE_PCT % balance
+// - Capped trong [TRADE_MIN_USDT, TRADE_MAX_USDT] hoặc targetMargin
+// - Đảm bảo thỏa mãn cả minNotional VÀ minQty/stepSize (tránh lỗi floor về 0 trên BTC/ETH giá cao)
+async function calcQty(symbol, entryPrice, leverage, info, targetMargin = null, overrideBalance = null) {
+  const balance = (overrideBalance !== null && overrideBalance !== undefined)
+    ? overrideBalance
+    : await getUsdtBalance();
+
   let sizeUsdt;
-  if (balance > BALANCE_THRESHOLD && TRADE_SIZE_PCT > 0) {
+  if (typeof targetMargin === 'number' && targetMargin > 0) {
+    sizeUsdt = Math.min(targetMargin, balance);
+  } else if (balance > BALANCE_THRESHOLD && TRADE_SIZE_PCT > 0) {
     const rawSize = (balance * TRADE_SIZE_PCT) / 100;
     sizeUsdt = Math.min(Math.max(rawSize, TRADE_MIN_USDT), TRADE_MAX_USDT, balance);
   } else {
     sizeUsdt = Math.min(FLAT_TRADE_USDT, balance);
   }
-  const minNotional = info?.minNotional || MIN_NOTIONAL_USDT;
+
+  const step = info?.stepSize || Math.pow(10, -(info?.quantityPrecision || 3));
+  const minQty = Math.max(info?.minQty || 0, step);
+  const minNotionalFilter = info?.minNotional || MIN_NOTIONAL_USDT;
+  // Binance Futures yêu cầu cả 2 điều kiện: notional >= minNotional VÀ qty >= minQty
+  // Với coin giá cao như BTC (~62k-100k), 1 lot tối thiểu (0.001 BTC) đòi hỏi notional ~$62-100!
+  const minRequiredNotional = Math.max(minNotionalFilter, minQty * entryPrice);
+
   let notional = sizeUsdt * leverage;
-  if (notional < minNotional) {
-    // Tự nâng nhẹ sizeUsdt để thỏa mãn sàn Binance nếu số dư cho phép
-    sizeUsdt = Math.min(Math.ceil((minNotional / leverage) * 100) / 100, balance);
-    notional = sizeUsdt * leverage;
-    if (notional < minNotional) {
-      log.warn(`calcQty: số dư $${balance} không đủ thỏa mãn minNotional $${minNotional} cho ${symbol}`);
+  if (notional < minRequiredNotional) {
+    // Tự động nâng margin lên mức tối thiểu đủ đặt 1 lot nếu balance cho phép
+    const neededMargin = Math.ceil((minRequiredNotional / leverage) * 100) / 100;
+    if (neededMargin <= balance) {
+      sizeUsdt = neededMargin;
+      notional = sizeUsdt * leverage;
+    } else {
+      log.warn(`calcQty: số dư $${balance.toFixed(2)} USDT không đủ margin tối thiểu $${neededMargin.toFixed(2)} USDT (cần notional $${minRequiredNotional.toFixed(2)} cho ${symbol})`);
       return { qty: 0, sizeUsdt, balance };
     }
   }
-  const rawQty  = notional / entryPrice;
-  // Dùng floor theo stepSize thay vì round-to-nearest (toFixed) để tránh -1111
-  const step    = info.stepSize || Math.pow(10, -info.quantityPrecision);
+
+  const rawQty = notional / entryPrice;
   const floored = Math.floor(rawQty / step) * step;
   const decimals = step.toString().includes('.') ? step.toString().split('.')[1].length : 0;
-  let qty     = parseFloat(floored.toFixed(decimals));
-  // Bảo đảm notional sau khi làm tròn không bị hụt dưới minNotional sàn (tránh lỗi Binance notional < 20)
-  if (qty > 0 && (qty * entryPrice) < minNotional) {
-    qty = parseFloat((qty + step).toFixed(decimals));
+  let qty = parseFloat(floored.toFixed(decimals));
+
+  // Nếu sau khi floor bị nhỏ hơn minQty nhưng balance đủ ký quỹ cho 1 minQty
+  if (qty < minQty) {
+    const minQtyNotional = minQty * entryPrice;
+    const minQtyMargin = Math.ceil((minQtyNotional / leverage) * 100) / 100;
+    if (minQtyMargin <= balance) {
+      qty = parseFloat(minQty.toFixed(decimals));
+      sizeUsdt = Math.max(sizeUsdt, minQtyMargin);
+    }
   }
+
+  // Bảo đảm notional sau khi làm tròn không bị hụt dưới minNotionalFilter sàn (tránh lỗi Binance notional < 20)
+  if (qty > 0 && (qty * entryPrice) < minNotionalFilter) {
+    qty = parseFloat((qty + step).toFixed(decimals));
+    sizeUsdt = Math.ceil(((qty * entryPrice) / leverage) * 100) / 100;
+  }
+
   return { qty, sizeUsdt, balance };
 }
 
@@ -169,10 +196,12 @@ async function placeNewTrade(trade) {
     // 1. Đặt đòn bẩy
     await api('POST', '/fapi/v1/leverage', { symbol: `${symbol}USDT`, leverage });
 
-    // 2. Tính qty
-    const { qty, sizeUsdt, balance } = await calcQty(symbol, entryPrice, leverage, info);
+    // 2. Tính qty (hỗ trợ targetMargin từ trade.margin hoặc tự bump cho coin giá cao như BTC)
+    const { qty, sizeUsdt, balance } = await calcQty(symbol, entryPrice, leverage, info, trade.margin);
     if (qty <= 0) {
-      log.warn(`BINANCE: balance không đủ cho ${symbol} — balance=${balance.toFixed(2)} USDT, cần tối thiểu ${MIN_NOTIONAL_USDT} USDT`);
+      const minStep = info?.minQty || info?.stepSize || 0.001;
+      const minLotCost = ((minStep * entryPrice) / leverage).toFixed(2);
+      log.warn(`BINANCE: balance không đủ cho ${symbol} — balance=${balance.toFixed(2)} USDT, cần tối thiểu margin ~$${minLotCost} USDT (x${leverage})`);
       return { insufficientBalance: true, balance, sizeUsdt };
     }
 
@@ -474,10 +503,12 @@ async function placeMarketTrade(trade, currentPrice) {
     // 1. Leverage
     await api('POST', '/fapi/v1/leverage', { symbol: `${symbol}USDT`, leverage });
 
-    // 2. Tính qty theo giá thị trường hiện tại
-    const { qty, sizeUsdt, balance } = await calcQty(symbol, currentPrice, leverage, info);
+    // 2. Tính qty theo giá thị trường hiện tại (hỗ trợ targetMargin từ trade.margin)
+    const { qty, sizeUsdt, balance } = await calcQty(symbol, currentPrice, leverage, info, trade?.margin);
     if (qty <= 0) {
-      log.warn(`BINANCE MARKET: balance không đủ cho ${symbol} — balance=${balance.toFixed(2)} USDT`);
+      const minStep = info?.minQty || info?.stepSize || 0.001;
+      const minLotCost = ((minStep * currentPrice) / leverage).toFixed(2);
+      log.warn(`BINANCE MARKET: balance không đủ cho ${symbol} — balance=${balance.toFixed(2)} USDT, cần tối thiểu margin ~$${minLotCost} USDT (x${leverage})`);
       return { insufficientBalance: true, balance, sizeUsdt };
     }
 
@@ -768,6 +799,8 @@ async function getRecentClosingTrades(symbol, direction, sinceMs, binanceQty = n
 module.exports = {
   isEnabled,
   getUsdtBalance,
+  calcQty,
+  getSymbolInfo,
   placeNewTrade,
   placeMarketTrade,
   placeSLAfterFill,

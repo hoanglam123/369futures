@@ -184,6 +184,64 @@ async function testAsync(name, fn) {
     assert.deepStrictEqual(cancelledAlgos, ['sl_algo_456']);
   });
 
+  // Test 7: Fix BTC limit order calculation (auto-bump margin to cover minQty 0.001 BTC @ $62k x5)
+  await testAsync('Test 7: calcQty tự động bump margin cho BTC khi số dư đủ (Fix qty=0 trên coin giá cao)', async () => {
+    const btcInfo = {
+      quantityPrecision: 3,
+      pricePrecision: 1,
+      stepSize: 0.001,
+      minQty: 0.001,
+      minNotional: 5
+    };
+    const entryPrice = 62126.2;
+    const leverage = 5;
+    const balance = 88.90;
+
+    // Test trường hợp không có targetMargin (tự tính từ % balance: 88.90 * 5% = 4.45 -> min 5 USDT)
+    // 5 USDT * 5x = 25 notional < 62.13 notional tối thiểu của 0.001 BTC -> phải tự bump lên 12.43 USDT
+    const res = await binanceTrader.calcQty('BTC', entryPrice, leverage, btcInfo, null, balance);
+    assert.strictEqual(res.qty, 0.001);
+    assert.strictEqual(res.sizeUsdt >= 12.43, true);
+    assert.strictEqual(res.qty * entryPrice >= 5, true);
+  });
+
+  // Test 8: calcQty với targetMargin từ Tier 1 (20 USDT)
+  await testAsync('Test 8: calcQty sử dụng targetMargin=20 USDT cho Tier 1 BTC', async () => {
+    const btcInfo = {
+      quantityPrecision: 3,
+      pricePrecision: 1,
+      stepSize: 0.001,
+      minQty: 0.001,
+      minNotional: 5
+    };
+    const entryPrice = 62126.2;
+    const leverage = 5;
+    const balance = 88.90;
+    const targetMargin = 20;
+
+    const res = await binanceTrader.calcQty('BTC', entryPrice, leverage, btcInfo, targetMargin, balance);
+    assert.strictEqual(res.qty, 0.001);
+    assert.strictEqual(res.sizeUsdt, 20);
+    assert.strictEqual(res.qty * entryPrice >= 5, true);
+  });
+
+  // Test 9: calcQty khi số dư thực sự không đủ cho 1 lot tối thiểu
+  await testAsync('Test 9: calcQty trả về qty=0 khi số dư không đủ ký quỹ tối thiểu cho 1 lot BTC', async () => {
+    const btcInfo = {
+      quantityPrecision: 3,
+      pricePrecision: 1,
+      stepSize: 0.001,
+      minQty: 0.001,
+      minNotional: 5
+    };
+    const entryPrice = 62126.2;
+    const leverage = 5;
+    const smallBalance = 8.00; // Cần ~12.43 USDT margin
+
+    const res = await binanceTrader.calcQty('BTC', entryPrice, leverage, btcInfo, null, smallBalance);
+    assert.strictEqual(res.qty, 0);
+  });
+
   console.log(`\n========================================================================`);
   console.log(`🏁 KẾT QUẢ KIỂM THỬ: ${pass}/${total} TESTS ĐẠT CHUẨN (${(pass/total*100).toFixed(1)}%)`);
   console.log(`========================================================================`);
