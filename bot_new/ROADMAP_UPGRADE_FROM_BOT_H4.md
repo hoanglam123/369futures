@@ -263,21 +263,33 @@ Thay vì để AI tự nhẩm hay nhân máy móc tỷ lệ cố định, **code
   - Tự động tính toán theo mức rủi ro cố định: $Margin \times Leverage \times SL\% = TargetLossUSD$ ($3.00 USD).
   - Khóa trần đòn bẩy chống quét râu thanh lý trước SL ($MaxSafeLev = \frac{1}{1.5 \times SL\% + MMR}$).
 
-##### 3. Đồng bộ Confluence Scorer: Giữ nguyên thang điểm chạm mốc của `bot-new`
+##### 3. Đồng bộ Confluence Scorer: Giữ nguyên thang điểm chạm mốc & Tích hợp Ma trận Trend 3 Tầng (D1 - H4 - H1)
 - **Giữ nguyên thang điểm số lần chạm Mốc cản PP369 trong `bot-new`**:
   - Lần 1: **+2đ** (`strong`)
   - Lần 2: **+1đ** (`medium`)
   - Lần 3 trở đi: **+1đ** (`weak`)
   - *Lý do*: `bot-new` tính chu kỳ mốc cản theo chu kỳ tháng (`monthStartMs()`), do đó số lần chạm trong tháng là phản ứng giá mới trong tháng, thang điểm phân hóa (+2đ cho lần 1, +1đ cho lần 2 và 3+) là hoàn toàn chuẩn xác và hợp lý, không bị mòn như mốc cả năm của bot-h4.
 - **Bỏ hoàn toàn hình phạt thời gian (`timePenalty = 0`)**: Thị trường crypto giao dịch toàn cầu 24/7/365, việc trừ $1.0$đ khung giờ 00:00 - 07:00 UTC là phi lý và bóp nghẹt cơ hội vào lệnh.
+- **Ma trận Đánh giá Xu hướng 3 Tầng Hợp lưu (Dài hạn D1 - Trung hạn H4 - Ngắn hạn H1)**:
+  - *Tầng 1 (Dài hạn D1)*: Vị thế so với EMA200 D1 + Regime cấu trúc nến Ngày D1 ($\pm 1.0$đ).
+  - *Tầng 2 (Trung hạn H4)*: EMA Stack 4H (EMA7 > EMA25 > EMA99) + MACD 4H Trend (+1.5đ đến +2.0đ).
+  - *Tầng 3 (Ngắn hạn H1)*: EMA Stack 1H (EMA7 > EMA25 trên nến 1H) (+1.0đ).
+  - *Thưởng Hợp lưu Siêu Sóng (3 Tầng Đồng thuận)*: Khi cả D1 + H4 + H1 cùng thuận chiều lệnh $\rightarrow$ Thưởng thêm **$+1.0$đ**.
 - **Phễu lọc 4 tầng phân tầng rõ rệt**:
   - *Tầng 1 (Proximity Filter)*: Chỉ đo khoảng cách toán học $\le 0.5\%$, sort tăng dần và cắt Top 8.
   - *Tầng 2 (Hard Filter)*: Lưới gridStep $0.4\% - 15\%$, Funding rate không cực đoan, BB Bandwidth $\ge 2\%$.
   - *Tầng 3 (Confluence Scorer 0 - 10đ)*: Chỉ những coin đạt $\ge 7.0$đ (Tier 1) hoặc $\ge 8.5$đ (Tier 2) mới được đi tiếp.
   - *Tầng 4 (Top 1-2 Cap + 600ms Queue + Cooldown 30p)*: Chọn tối đa Top 1 hoặc Top 2 mã xuất sắc nhất gửi AI.
 
-##### 4. AI Risk Gatekeeper: Sử dụng AI Bản Thân Cục Bộ (`aiReviewer.js`) là chính, Không cần phụ thuộc Model AI ngoài
+##### 4. AI Risk Gatekeeper: Tinh gọn AI Bản Thân Cục Bộ (`aiReviewer.js`), Triệt tiêu Phạt kép & Bỏ hẳn Turnover Guard
 - **Định vị cốt lõi**: Nếu đã có **AI Bản Thân (`aiReviewer.js`)**, hệ thống **HOÀN TOÀN KHÔNG CẦN gọi sang model AI ngoài (Gemini/Claude)** trong luồng giao dịch tiêu chuẩn!
+- **Tinh giản tiêu chí & Triệt tiêu hoàn toàn Phạt kép (Double-Penalty)**:
+  - *Chuyển giao 100% sang Confluence Scorer*: Lược bỏ các tiêu chí trùng lặp (`trend`, `rsi`, `volume`, `price_action`, `sr_quality`, `adx_strength`, `oi_change`, `ls_flow`, `funding`, `rank_group`, `btc_wave`).
+  - *Bỏ hẳn `turnover_guard`*: Không chặn các mã có Volume 24H cao (vốn là ưu tiên của bot-new), tin cậy vào `spread_slippage` để kiểm soát thanh khoản thời gian thực tại 0ms.
+  - *Bỏ các tiêu chí phụ không hiệu quả*: Bỏ `trading_session`, `grid_width`, `economic_calendar`.
+  - *Tối ưu hóa Lệnh Limit đón đầu*: Nến đang chạy tiếp cận mốc Limit là `HOLD_OR_HOVER` (baseline 1.00), tuyệt đối không phạt vì thiếu râu rút chân Pinbar, không phạt Marubozu dump khi giá chỉ đang tiến về mốc.
+  - *Giữ lại `risk_interaction`*: Chốt chặn then chốt khi nhiều rủi ro lớn cùng lúc xuất hiện (`INTERACTION_STALE_BOUNCE_RUNAWAY`, `INTERACTION_HIGH_VOLATILITY_WEAK_SETUP`, `INTERACTION_PUNCTURE_RUNAWAY`).
+- **Tại sao AI Bản Thân vượt trội hoàn toàn cho việc thẩm định lệnh?**:
 - **Tại sao AI Bản Thân vượt trội hoàn toàn cho việc thẩm định lệnh?**:
   - **Tốc độ $0.01\text{ ms}$**: Chạy trực tiếp trong bộ nhớ CPU máy chủ, đánh giá ngay lập tức khi giá chạm mốc, không có độ trễ 1-3 giây của mạng internet.
   - **Chi phí $0\text{ USD}$ (0 Token)**: Không tiêu tốn bất kỳ token nào, vĩnh viễn không bao giờ gặp lỗi 429 (Resource Exhausted) hay hết hạn mức ngày.

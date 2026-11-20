@@ -3,7 +3,6 @@
 const fs = require('fs');
 const path = require('path');
 const { log } = require('./_logger');
-const { isTurnoverBlocked } = require('./turnoverGuard');
 const { classifyCandleGeometry, getStep } = require('./core');
 const { checkEconomicBlackout } = require('../trader/economicCalendar');
 
@@ -556,31 +555,6 @@ function extractSignalFeatures(reasons, score, rank, gridWidthPct, rawMarketData
     features['btc_flash'] = 'BTC_FLASH_NORMAL';
   }
 
-  // ── [MỚI] 16. Abnormal Turnover Guard (MarketCap < 100M & Vol 24H / MC > 8%) ──
-  const sym = rawMarketData?.symbol || '';
-  if (rawMarketData?.isTurnoverBlocked || (sym && isTurnoverBlocked(sym))) {
-    features['turnover_guard'] = 'TURNOVER_RISK_BLOCKED';
-  } else {
-    features['turnover_guard'] = 'TURNOVER_NORMAL';
-  }
-
-  // ── [MỚI] 17. Trading Session & Time-of-Day ──
-  const now = new Date(timestamp || Date.now());
-  const vnHour = (now.getUTCHours() + 7) % 24;
-  const vnDay = now.getUTCDay(); // 0: CN, 6: T7
-
-  if (vnDay === 0 || vnDay === 6) {
-    features['trading_session'] = 'SESSION_WEEKEND';
-  } else if (vnHour >= 7 && vnHour < 14) {
-    features['trading_session'] = 'SESSION_ASIA'; // 07h - 14h VN: Nén đẹp, sóng êm
-  } else if (vnHour >= 14 && vnHour < 19.5) {
-    features['trading_session'] = 'SESSION_EUROPE'; // 14h - 19h30 VN: Âu vào lệnh
-  } else if (vnHour >= 19.5 && vnHour < 23.5) {
-    features['trading_session'] = 'SESSION_US_OPEN'; // 19h30 - 23h30 VN: Biến động giật mạnh nhất ngày
-  } else {
-    features['trading_session'] = 'SESSION_US_LATE'; // Đêm/Rạng sáng VN
-  }
-
   // ── 18. M15 Dynamic Candle Momentum vs Signal Direction (Chống chặn đầu xe lửa Pump/Dump) ──
   const sigDir = (signal || '').toUpperCase();
   const mmData = rawMarketData?.marketMetrics;
@@ -615,36 +589,27 @@ function extractSignalFeatures(reasons, score, rank, gridWidthPct, rawMarketData
     features['candle_momentum'] = 'MOMENTUM_NORMAL';
   }
 
-  // ── [MỚI] 19. Multi-Factor Risk Interactions (Tương tác rủi ro do AI tự lượng hóa) ──
-  const isTrendConflict = features['trend'] === 'TREND_CONFLICT';
-  const isLsDiv = features['ls_flow'] === 'LS_DIVERGENCE';
-  const isNoSR = features['price_action'] === 'PA_0_LEVEL';
-  const isDryVol = features['volume'] === 'VOL_DRY';
-  const isCoolingOi = features['oi_change'] === 'OI_COOLING';
+  // ── 19. Multi-Factor Risk Interactions (Tương tác rủi ro kép — Giữ lại theo chỉ đạo) ──
   const isVolDanger = features['h1_volatility'] === 'H1_VOLATILE_DANGER' ||
+    features['h1_volatility'] === 'H1_EXTREME_STORM_PUMP_DUMP' ||
     features['m15_volatility'] === 'M15_VOLATILE_DANGER' ||
+    features['m15_volatility'] === 'M15_EXTREME_STORM' ||
     features['m15_volatility'] === 'M15_VOLUME_SURGE';
   const isCounterTrain = features['candle_momentum'] === 'MOMENTUM_COUNTER_PUMP_TRAIN' ||
     features['candle_momentum'] === 'MOMENTUM_COUNTER_DUMP_TRAIN';
 
-  // 🛡️ TƯƠNG TÁC ĐA NHÂN TỐ RỦI RO: Nảy cực xa kết hợp Bão BTC / Ngược sóng BTC (áp dụng bình đẳng mọi coin)
   const isStaleExtreme = features['pre_entry_bounce'] === 'BOUNCE_STALE_EXTREME';
   const isStaleHigh = features['pre_entry_bounce'] === 'BOUNCE_STALE_HIGH';
-  const isBtcCounter = features['btc_wave'] === 'BTC_COUNTER';
-  const isBtcVolatileRegime = features['btc_storm'] === 'BTC_STORM_VOLATILE' || 
-                              (features['btc_flash'] && features['btc_flash'] !== 'BTC_FLASH_NORMAL');
+  const isBtcVolatileRegime = features['btc_storm'] === 'BTC_STORM_VOLATILE' ||
+    (features['btc_flash'] && features['btc_flash'] !== 'BTC_FLASH_NORMAL');
 
-  // Giá đã nảy quá xa cản kết hợp bão hoặc ngược sóng BTC -> Kích hoạt rủi ro thoát vị thế
-  if (isStaleExtreme || (isStaleHigh && (isBtcVolatileRegime || isTrendConflict || isBtcCounter))) {
+  // Giá đã nảy quá xa cản kết hợp bão BTC -> Kích hoạt rủi ro đu đỉnh/đáy
+  if (isStaleExtreme || (isStaleHigh && isBtcVolatileRegime)) {
     features['risk_interaction'] = 'INTERACTION_STALE_BOUNCE_RUNAWAY';
-  } else if (isVolDanger && (isTrendConflict || isLsDiv || isCounterTrain)) {
+  } else if (isVolDanger && isCounterTrain) {
     features['risk_interaction'] = 'INTERACTION_HIGH_VOLATILITY_WEAK_SETUP';
-  } else if (isTrendConflict && isLsDiv) {
-    features['risk_interaction'] = 'INTERACTION_TREND_FLOW_CONFLICT';
-  } else if (isNoSR && (isTrendConflict || isLsDiv || features['trend'] === 'TREND_NEUTRAL')) {
-    features['risk_interaction'] = 'INTERACTION_NO_SR_WEAK_SETUP';
-  } else if (isDryVol && isCoolingOi) {
-    features['risk_interaction'] = 'INTERACTION_DRY_VOL_COOLING_OI';
+  } else if (features['puncture_interaction'] === 'INTERACTION_H1_M15_PUNCTURED') {
+    features['risk_interaction'] = 'INTERACTION_PUNCTURE_RUNAWAY';
   } else {
     features['risk_interaction'] = 'INTERACTION_BALANCED';
   }
@@ -727,84 +692,60 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
   const wallBlockMult = riskPenalties.wallOpposingBlock ?? 0.35;
   const btcFlashMult = riskPenalties.btcFlashOpposing ?? 0.08;
 
-  // Custom weights for raw market features and risk interactions
+  // Custom weights for raw market features and risk interactions (Đã tinh giản theo bot-h4)
   const dynamicModifiers = {
-    'h1_volatility:H1_EXTREME_STORM_PUMP_DUMP': stormH1Raw, // Điểm phạt bão nến từ riskPenaltyProfile (giảm mức phạt từ 0.20 -> 0.60)
-    'h1_volatility:H1_VOLATILE_DANGER': 0.75,     // H1 biến động mạnh nguy cơ quét SL (nới từ 0.65 -> 0.75)
-    'm15_volatility:M15_EXTREME_STORM': stormM15Raw, // Điểm phạt bão nến từ riskPenaltyProfile (giảm mức phạt từ 0.20 -> 0.60)
-    'm15_volatility:M15_VOLATILE_DANGER': 0.75,   // M15 biến động mạnh (nới từ 0.60 -> 0.75)
-    'm15_volatility:M15_VOLUME_SURGE': 0.65,      // Đột biến volume M15
-    'h1_stagnant:H1_STAGNANT_TRAP': 0.65,         // Nén bế tắc bẫy thanh khoản
-    'h1_candle_geometry:H1_PUNCTURED_DEEP': 0.22, // Tỷ lệ thắng thực nghiệm 19.8% (x0.22) -> Veto dứt khoát
+    'h1_volatility:H1_EXTREME_STORM_PUMP_DUMP': stormH1Raw,
+    'h1_volatility:H1_VOLATILE_DANGER': 0.75,
+    'm15_volatility:M15_EXTREME_STORM': stormM15Raw,
+    'm15_volatility:M15_VOLATILE_DANGER': 0.75,
+    'm15_volatility:M15_VOLUME_SURGE': 0.65,
+    'h1_stagnant:H1_STAGNANT_TRAP': 0.65,
+    'h1_candle_geometry:H1_PUNCTURED_DEEP': 0.22,
     'h1_candle_geometry:H1_PUNCTURED_LIGHT': 0.60,
-    'h1_candle_geometry:H1_REJECT_PINBAR': 1.72,  // Tỷ lệ thắng thực nghiệm 65.6% (x1.72)
-    'h1_candle_geometry:H1_HOLD_OR_HOVER': 1.55,
-    'm15_candle_geometry:M15_PUNCTURED_DEEP': 0.40, // Tỷ lệ thắng thực nghiệm 30.6% (x0.40)
+    'h1_candle_geometry:H1_REJECT_PINBAR': 1.20,
+    'h1_candle_geometry:H1_HOLD_OR_HOVER': 1.00, // Chuẩn baseline cho lệnh Limit đón đầu
+    'm15_candle_geometry:M15_PUNCTURED_DEEP': 0.40,
     'm15_candle_geometry:M15_PUNCTURED_LIGHT': 0.46,
-    'm15_candle_geometry:M15_REJECT_PINBAR': 1.21,
-    'm15_candle_geometry:M15_HOLD_OR_HOVER': 1.19,
+    'm15_candle_geometry:M15_REJECT_PINBAR': 1.15,
+    'm15_candle_geometry:M15_HOLD_OR_HOVER': 1.00, // Chuẩn baseline cho lệnh Limit đón đầu
     'puncture_interaction:INTERACTION_H1_M15_PUNCTURED': 0.32,
     'puncture_interaction:INTERACTION_H1_PUNCTURED_DEEP': 0.22,
     'puncture_interaction:INTERACTION_M15_PUNCTURED_DEEP': 0.85,
-    'puncture_interaction:INTERACTION_PUNCTURE_NORMAL': 1.34,
+    'puncture_interaction:INTERACTION_PUNCTURE_NORMAL': 1.00,
     'candle_shape:CANDLE_PINBAR_HAMMER': 1.15,
     'candle_shape:CANDLE_PINBAR_SHOOTING': 1.15,
     'candle_shape:CANDLE_MARUBOZU_DUMP': 0.45,
     'candle_shape:CANDLE_MARUBOZU_PUMP': 0.45,
     'candle_shape:CANDLE_NORMAL': 1.00,
-    'wick_rejection:OPPOSING_WICK_TRAP': 0.40, // Bẫy rút râu ngược chiều >= 50% -> Phạt -60%
-    'pre_entry_bounce:BOUNCE_STALE_EXTREME': 0.45, // Nảy cực xa (>= 3.0% hoặc >= 1.8x mốc khung): Quán tính phá cản mạnh -> Phạt -55%
-    'pre_entry_bounce:BOUNCE_STALE_HIGH': 0.90,  // Nảy xa mốc rồi quay đầu: phạt nhẹ thay vì thưởng
+    'wick_rejection:OPPOSING_WICK_TRAP': 0.40,
+    'pre_entry_bounce:BOUNCE_STALE_EXTREME': 0.45,
+    'pre_entry_bounce:BOUNCE_STALE_HIGH': 0.90,
     'pre_entry_bounce:BOUNCE_MODERATE': 1.00,
     'pre_entry_bounce:BOUNCE_FRESH': 1.00,
-    'trend:TREND_M15_ALIGNED': 1.34,             // M15 cấu trúc hoàn chỉnh khi H1 sideway -> Thưởng +34%
-    'adx_strength:ADX_STRONG_TREND': 0.82,       // ADX >= 25 trend mạnh dễ xuyên thủng lưới 369 -> Phạt -18%
-    'adx_strength:ADX_WEAK_TREND': 1.29,         // ADX < 25 nén đẹp, dao động mốc chuẩn xác -> Thưởng +29%
-    'adx_strength:ADX_NORMAL': 1.00,
-    'sr_quality:SR_DAILY_D1_INCLUDED': 1.01,     // Có cản Daily bảo trợ
-    'sr_quality:SR_H4_ONLY': 0.93,               // Chỉ có cản H4
-    'sr_quality:SR_NONE': 1.00,
-    'h1_volume_burst:H1_VOL_BURST_DANGER': 0.81, // Đột biến Volume 3 nến H1 -> Phạt -19%
+    'h1_volume_burst:H1_VOL_BURST_DANGER': 0.81,
     'h1_volume_burst:H1_VOL_BURST_NORMAL': 1.05,
-    'realtime_volume:VOL_BURST_DANGER': 0.70,     // Khối lượng bùng nổ đột biến bão giá -> Phạt -30%
-    'realtime_volume:VOL_SURGE': 0.95,            // Dòng tiền gia tăng
-    'realtime_volume:VOL_STABLE': 1.05,           // Khối lượng bình ổn sóng êm -> Thưởng +5%
-    'realtime_volume:VOL_DRY': 0.92,              // Thanh khoản cạn kiệt -> Thận trọng -8%
-    'btc_wave:BTC_ALIGNED': 1.05,
-    'btc_wave:BTC_PULLBACK_HEALTHY': 1.00,
-    'btc_wave:BTC_NEUTRAL': 1.00,
-    'btc_wave:BTC_COUNTER': 0.85,
-    'btc_storm:BTC_STORM_VOLATILE': 0.43,        // BTC bão M15 > 1% -> Phạt -57%
+    'realtime_volume:VOL_BURST_DANGER': 0.70,
+    'realtime_volume:VOL_SURGE': 0.95,
+    'realtime_volume:VOL_STABLE': 1.05,
+    'realtime_volume:VOL_DRY': 0.92,
+    'btc_storm:BTC_STORM_VOLATILE': 0.43,
     'btc_storm:BTC_STORM_NORMAL': 1.03,
-    'btc_flash:BTC_FLASH_PUMP_ACTIVE': btcFlashMult, // Bão BTC Flash Pump từ riskPenaltyProfile
-    'btc_flash:BTC_FLASH_DUMP_ACTIVE': btcFlashMult, // Bão BTC Flash Dump từ riskPenaltyProfile
+    'btc_flash:BTC_FLASH_PUMP_ACTIVE': btcFlashMult,
+    'btc_flash:BTC_FLASH_DUMP_ACTIVE': btcFlashMult,
     'btc_flash:BTC_FLASH_NORMAL': 1.00,
-    'turnover_guard:TURNOVER_RISK_BLOCKED': 0.30, // Phạt nặng coin Low-Cap bị bơm xả Turnover > 8%
-    'turnover_guard:TURNOVER_NORMAL': 1.00,
-    'price_action:PA_0_LEVEL': 1.00,              // Thực nghiệm N=1825 WinRate 51.84%, mốc 369 tự thân là cản chuẩn, không phạt PA_0_LEVEL
-    'ls_flow:LS_DIVERGENCE': 0.80,                // [CÂN BẰNG] Phạt vừa phải 20% khi dòng tiền Cá voi và Retail phân kỳ ngược nhau
-    'risk_interaction:INTERACTION_STALE_BOUNCE_RUNAWAY': 0.45, // Quán tính nảy cực xa kết hợp Lowcap/Bão BTC -> Phạt dứt khoát -55%
-    'risk_interaction:INTERACTION_HIGH_VOLATILITY_WEAK_SETUP': 0.50, // Biến động mạnh kết hợp thế nến/cản yếu -> Veto
-    'risk_interaction:INTERACTION_TREND_FLOW_CONFLICT': 0.65, // Phạt 35% khi vừa ngược trend vừa phân kỳ dòng tiền
-    'risk_interaction:INTERACTION_NO_SR_WEAK_SETUP': 1.00,      // Trung tính theo dữ liệu thực tế
-    'risk_interaction:INTERACTION_DRY_VOL_COOLING_OI': 0.80,     // Fallback nếu chưa có trong weights
+    'risk_interaction:INTERACTION_STALE_BOUNCE_RUNAWAY': 0.45,
+    'risk_interaction:INTERACTION_HIGH_VOLATILITY_WEAK_SETUP': 0.50,
+    'risk_interaction:INTERACTION_PUNCTURE_RUNAWAY': 0.35,
     'risk_interaction:INTERACTION_BALANCED': 1.00,
-    'economic_calendar:CALENDAR_RED_DANGER': 1.00,  // Thực nghiệm N=39 WinRate 65.4% ~ trung tính, không phạt định kiến
-    'economic_calendar:CALENDAR_SAFE': 1.00,
-    'spread_slippage:SPREAD_WIDE_DANGER': 1.00,      // Thực nghiệm N=128 WinRate 73.3% ~ coin có sóng mạnh
+    'spread_slippage:SPREAD_WIDE_DANGER': 1.00,
     'spread_slippage:SPREAD_MEDIUM_CAUTION': 0.95,
     'spread_slippage:SPREAD_TIGHT_SAFE': 1.05,
-    'cvd_momentum:CVD_SURGE_ALIGNED': 1.25,        // Taker Buy/Sell đẩy mạnh thuận hướng -> Thưởng +25%
-    'cvd_momentum:CVD_DIVERGENCE_OPPOSING': 1.00,  // Thực nghiệm N=484 WinRate 63.2%
+    'cvd_momentum:CVD_SURGE_ALIGNED': 1.25,
+    'cvd_momentum:CVD_DIVERGENCE_OPPOSING': 1.00,
     'cvd_momentum:CVD_NEUTRAL': 1.00,
-    'orderbook_wall:WALL_CLEAR_PATH': 1.15,        // Đường tới TP thông thoáng -> Thưởng +15%
-    'orderbook_wall:WALL_SUPPORT_SHIELD': 1.12,    // Có tường dày bảo vệ sau Entry -> Thưởng +12%
-    'orderbook_wall:WALL_OPPOSING_BLOCK': 0.45,
-    'trading_session:SESSION_ASIA': 1.02,        // Phiên Á nén chuẩn, sóng êm -> Thưởng nhẹ +2%
-    'trading_session:SESSION_EUROPE': 1.01,      // Phiên Âu sóng đều -> Thưởng nhẹ +1%
-    'trading_session:SESSION_US_OPEN': 0.98,     // Phiên Mỹ mở cửa -> Thận trọng nhẹ -2%
-    'trading_session:SESSION_US_LATE': 1.00,     // Bình thường
-    'trading_session:SESSION_WEEKEND': 0.98      // Cuối tuần vol mỏng -> Thận trọng nhẹ -2%
+    'orderbook_wall:WALL_CLEAR_PATH': 1.15,
+    'orderbook_wall:WALL_SUPPORT_SHIELD': 1.12,
+    'orderbook_wall:WALL_OPPOSING_BLOCK': 0.45
   };
 
   const score = parseFloat(sig.score) || 0;
@@ -914,9 +855,26 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
     skipForInteraction.set('adx_strength', 'TREND_CONFLICT');
   }
 
+  // 🛡️ DANH MỤC TIÊU CHÍ ĐÃ LƯỢC BỎ / CHUYỂN GIAO SANG CONFLUENCE SCORER:
+  // - Nhóm 1 (TA cơ bản): trend, rsi, price_action, sr_quality, volume, adx_strength
+  // - Nhóm 2 (Dòng tiền phái sinh & Vĩ mô): oi_change, ls_flow, funding, rank_group, btc_wave
+  // - Nhóm 4 (Turnover): turnover_guard (bỏ hẳn theo chỉ đạo)
+  // - Nhóm 5 (Khác): trading_session, grid_width, economic_calendar
+  const DEPRECATED_REVIEWER_CATEGORIES = new Set([
+    'trend', 'rsi', 'price_action', 'sr_quality', 'volume', 'adx_strength',
+    'oi_change', 'ls_flow', 'funding', 'rank_group', 'btc_wave',
+    'turnover_guard',
+    'trading_session', 'grid_width', 'economic_calendar'
+  ]);
+
   for (const [cat, val] of Object.entries(features)) {
     const key = `${cat}:${val}`;
     let mult = 1.0;
+
+    // 🚫 Bỏ qua hoàn toàn các tiêu chí đã lược bỏ / chuyển sang Scorer
+    if (DEPRECATED_REVIEWER_CATEGORIES.has(cat)) {
+      continue;
+    }
 
     // 🚫 Bỏ qua feature đã được capture / trùng lặp (tránh double-counting)
     if (skipForInteraction.has(cat)) {
@@ -933,23 +891,23 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
 
     // 🎯 BASELINE ANCHORING: Các trạng thái chuẩn mực / bình thường / trung tính là mốc quy chiếu (baseline = 1.00)
     // Triệt tiêu hoàn toàn hiện tượng 15-20 nhãn "bình thường" cùng nhân dồn hệ số 0.85-0.95 dìm xác suất ảo xuống 15-25%!
-    const isBaselineNormal = val.endsWith('_NORMAL') || 
-                             val.endsWith('_NEUTRAL') || 
-                             val.endsWith('_BALANCED') || 
-                             val.endsWith('_SAFE') ||
-                             val === 'HOLD_OR_HOVER' ||
-                             val === 'H1_HOLD_OR_HOVER' ||
-                             val === 'M15_HOLD_OR_HOVER' ||
-                             val === 'H1_NOT_STAGNANT' ||
-                             val === 'INTERACTION_PUNCTURE_NORMAL' ||
-                             val === 'OI_STABLE' ||
-                             val === 'BOUNCE_FRESH' ||
-                             val === 'PA_0_LEVEL' ||
-                             val === 'SR_NONE' ||
-                             val === 'INTERACTION_NO_SR_WEAK_SETUP' ||
-                             val === 'SESSION_ASIA' ||
-                             val === 'SESSION_EUROPE' ||
-                             val === 'SESSION_US_LATE';
+    const isBaselineNormal = val.endsWith('_NORMAL') ||
+      val.endsWith('_NEUTRAL') ||
+      val.endsWith('_BALANCED') ||
+      val.endsWith('_SAFE') ||
+      val === 'HOLD_OR_HOVER' ||
+      val === 'H1_HOLD_OR_HOVER' ||
+      val === 'M15_HOLD_OR_HOVER' ||
+      val === 'H1_NOT_STAGNANT' ||
+      val === 'INTERACTION_PUNCTURE_NORMAL' ||
+      val === 'OI_STABLE' ||
+      val === 'BOUNCE_FRESH' ||
+      val === 'PA_0_LEVEL' ||
+      val === 'SR_NONE' ||
+      val === 'INTERACTION_NO_SR_WEAK_SETUP' ||
+      val === 'SESSION_ASIA' ||
+      val === 'SESSION_EUROPE' ||
+      val === 'SESSION_US_LATE';
     if (isBaselineNormal && mult < 1.00) {
       mult = 1.00;
     }
@@ -1029,16 +987,16 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
     const isLongSig = sig.signal === 'LONG' || sig.signal === 'BUY';
     const isShortSig = sig.signal === 'SHORT' || sig.signal === 'SELL';
     const isBtcAligned = features['btc_wave'] === 'BTC_ALIGNED' ||
-                         features['btc_wave'] === 'BTC_PULLBACK_HEALTHY' ||
-                         (rawMarketData?.btcFlashDump && isShortSig) ||
-                         (rawMarketData?.btcFlashPump && isLongSig);
+      features['btc_wave'] === 'BTC_PULLBACK_HEALTHY' ||
+      (rawMarketData?.btcFlashDump && isShortSig) ||
+      (rawMarketData?.btcFlashPump && isLongSig);
     const isRunaway = isLongSig
       ? (features['candle_shape'] === 'CANDLE_MARUBOZU_DUMP')
       : (features['candle_shape'] === 'CANDLE_MARUBOZU_PUMP');
     const hasRejection = features['h1_candle_geometry'] === 'H1_REJECT_PINBAR' ||
-                         features['m15_candle_geometry'] === 'M15_REJECT_PINBAR' ||
-                         features['candle_shape'] === 'CANDLE_PINBAR_HAMMER' ||
-                         features['candle_shape'] === 'CANDLE_PINBAR_SHOOTING';
+      features['m15_candle_geometry'] === 'M15_REJECT_PINBAR' ||
+      features['candle_shape'] === 'CANDLE_PINBAR_HAMMER' ||
+      features['candle_shape'] === 'CANDLE_PINBAR_SHOOTING';
 
     const isM15PuncturedDeep = features['m15_candle_geometry'] === 'M15_PUNCTURED_DEEP';
     const isM15Storm = features['m15_volatility'] === 'M15_VOLATILE_DANGER' || features['m15_volatility'] === 'M15_EXTREME_STORM';
@@ -1051,21 +1009,20 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
     const isActiveStormAttack = isRunaway || isM15PuncturedDeep || isM15Storm || isVolBurst || isOrderFlowAdverse;
 
     // 🛡️ SANITY GUARD: Triệt tiêu toàn bộ điểm thưởng khi có rủi ro cấu trúc nghiêm trọng
-    const isTurnoverBlockedRisk = features['turnover_guard'] === 'TURNOVER_RISK_BLOCKED';
     const isVolDangerCritical = (features['h1_volatility'] === 'H1_VOLATILE_DANGER' && isActiveStormAttack) ||
-                                features['h1_volatility'] === 'H1_EXTREME_STORM_PUMP_DUMP';
-    const hasCriticalRisk = isTurnoverBlockedRisk ||
-                            isVolDangerCritical ||
-                            features['h1_volume_burst'] === 'H1_VOL_BURST_DANGER' ||
-                            features['risk_interaction'] === 'INTERACTION_TREND_FLOW_CONFLICT' ||
-                            features['risk_interaction'] === 'INTERACTION_STALE_BOUNCE_RUNAWAY' ||
-                            features['puncture_interaction'] === 'INTERACTION_H1_M15_PUNCTURED';
+      features['h1_volatility'] === 'H1_EXTREME_STORM_PUMP_DUMP';
+    const hasCriticalRisk = isVolDangerCritical ||
+      features['h1_volume_burst'] === 'H1_VOL_BURST_DANGER' ||
+      features['risk_interaction'] === 'INTERACTION_STALE_BOUNCE_RUNAWAY' ||
+      features['risk_interaction'] === 'INTERACTION_HIGH_VOLATILITY_WEAK_SETUP' ||
+      features['risk_interaction'] === 'INTERACTION_PUNCTURE_RUNAWAY' ||
+      features['puncture_interaction'] === 'INTERACTION_H1_M15_PUNCTURED';
     if (hasCriticalRisk) {
-      // Khi tâm bão đang lao dốc hoặc dính rủi ro cấu trúc nặng, KHÔNG cho phép bất kỳ điểm thưởng nào lấp liếm rủi ro
-      if (['oi_change', 'ls_flow', 'volume', 'realtime_volume', 'candle_shape', 'm15_candle_geometry', 'pre_entry_bounce', 'h1_candle_geometry', 'trend', 'adx_strength', 'price_action', 'sr_quality'].includes(cat)) {
+      // Khi tâm bão đang lao dốc hoặc dính rủi ro cấu trúc nặng, KHÔNG cho phép điểm thưởng lấp liếm rủi ro
+      if (['realtime_volume', 'candle_shape', 'm15_candle_geometry', 'pre_entry_bounce', 'h1_candle_geometry'].includes(cat)) {
         mult = Math.min(1.00, mult);
       }
-      if ((isTurnoverBlockedRisk || isVolDangerCritical) && mult > 1.00) {
+      if (isVolDangerCritical && mult > 1.00) {
         mult = Math.min(1.00, mult);
       }
     }
@@ -1119,12 +1076,12 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
     // 🛡️ SANITY GUARD: Khắc chế các yếu tố rủi ro ngược xu hướng và phân kỳ dòng tiền
     if (cat === 'risk_interaction' && val === 'INTERACTION_TREND_FLOW_CONFLICT') {
       const hasHoldingStructure = features['h1_candle_geometry'] === 'H1_HOLD_OR_HOVER' ||
-                                  features['h1_candle_geometry'] === 'H1_REJECT_PINBAR' ||
-                                  features['m15_candle_geometry'] === 'M15_HOLD_OR_HOVER' ||
-                                  features['m15_candle_geometry'] === 'M15_REJECT_PINBAR' ||
-                                  features['candle_shape'] === 'CANDLE_NORMAL' ||
-                                  features['candle_shape'] === 'CANDLE_PINBAR_HAMMER' ||
-                                  features['candle_shape'] === 'CANDLE_PINBAR_SHOOTING';
+        features['h1_candle_geometry'] === 'H1_REJECT_PINBAR' ||
+        features['m15_candle_geometry'] === 'M15_HOLD_OR_HOVER' ||
+        features['m15_candle_geometry'] === 'M15_REJECT_PINBAR' ||
+        features['candle_shape'] === 'CANDLE_NORMAL' ||
+        features['candle_shape'] === 'CANDLE_PINBAR_HAMMER' ||
+        features['candle_shape'] === 'CANDLE_PINBAR_SHOOTING';
       if (hasHoldingStructure && !isRunaway && !isActiveStormAttack) {
         mult = Math.max(mult, 0.80); // Đón cản êm đềm: nới nhẹ về x0.80 thay vì phạt đè x0.70
       } else {
@@ -1133,12 +1090,12 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
     }
     if (cat === 'trend' && val === 'TREND_CONFLICT') {
       const hasHoldingStructure = features['h1_candle_geometry'] === 'H1_HOLD_OR_HOVER' ||
-                                  features['h1_candle_geometry'] === 'H1_REJECT_PINBAR' ||
-                                  features['m15_candle_geometry'] === 'M15_HOLD_OR_HOVER' ||
-                                  features['m15_candle_geometry'] === 'M15_REJECT_PINBAR' ||
-                                  features['candle_shape'] === 'CANDLE_NORMAL' ||
-                                  features['candle_shape'] === 'CANDLE_PINBAR_HAMMER' ||
-                                  features['candle_shape'] === 'CANDLE_PINBAR_SHOOTING';
+        features['h1_candle_geometry'] === 'H1_REJECT_PINBAR' ||
+        features['m15_candle_geometry'] === 'M15_HOLD_OR_HOVER' ||
+        features['m15_candle_geometry'] === 'M15_REJECT_PINBAR' ||
+        features['candle_shape'] === 'CANDLE_NORMAL' ||
+        features['candle_shape'] === 'CANDLE_PINBAR_HAMMER' ||
+        features['candle_shape'] === 'CANDLE_PINBAR_SHOOTING';
       if (hasHoldingStructure && !isRunaway && !isActiveStormAttack) {
         // Nảy cản PP369 êm đềm: Phạt nhẹ 10-12% (x0.88 - x0.90) thay vì ép trần x0.78 dìm xác suất
         mult = Math.min(mult, 0.90);
@@ -1163,12 +1120,12 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
     if (features['trend'] === 'TREND_CONFLICT' && cat === 'adx_strength' && val === 'ADX_STRONG_TREND') {
       const hasSolidSR = features['price_action'] === 'PA_1_LEVEL' || features['price_action'] === 'PA_2_LEVELS';
       const hasHoldingStructure = features['h1_candle_geometry'] === 'H1_HOLD_OR_HOVER' ||
-                                  features['h1_candle_geometry'] === 'H1_REJECT_PINBAR' ||
-                                  features['m15_candle_geometry'] === 'M15_HOLD_OR_HOVER' ||
-                                  features['m15_candle_geometry'] === 'M15_REJECT_PINBAR' ||
-                                  features['candle_shape'] === 'CANDLE_NORMAL' ||
-                                  features['candle_shape'] === 'CANDLE_PINBAR_HAMMER' ||
-                                  features['candle_shape'] === 'CANDLE_PINBAR_SHOOTING';
+        features['h1_candle_geometry'] === 'H1_REJECT_PINBAR' ||
+        features['m15_candle_geometry'] === 'M15_HOLD_OR_HOVER' ||
+        features['m15_candle_geometry'] === 'M15_REJECT_PINBAR' ||
+        features['candle_shape'] === 'CANDLE_NORMAL' ||
+        features['candle_shape'] === 'CANDLE_PINBAR_HAMMER' ||
+        features['candle_shape'] === 'CANDLE_PINBAR_SHOOTING';
       if ((hasSolidSR || hasHoldingStructure) && !isRunaway && !isActiveStormAttack) {
         mult = 1.00; // Giữ trung tính 1.00, xóa bỏ hoàn toàn phạt kép khi đón cản êm đềm!
       } else {
@@ -1186,7 +1143,7 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
       } else if (val === 'BTC_COUNTER') {
         // Phân cấp rủi ro theo Vốn hóa & Cản S/R khi BTC thực sự xác nhận sóng ngược:
         const hasSolidSR = (features['price_action'] && features['price_action'] !== 'PA_0_LEVEL') ||
-                           (features['sr_quality'] && features['sr_quality'] !== 'SR_NONE');
+          (features['sr_quality'] && features['sr_quality'] !== 'SR_NONE');
         if (rank <= 30) {
           mult = hasSolidSR ? 0.95 : 0.90; // Top 30 Bluechip: thanh khoản dày, mốc 369 giữ tốt, chỉ phạt nhẹ
         } else if (rank <= 150) {
@@ -1281,10 +1238,10 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
     else minRequiredRr = typeof rrProfile['floor'] === 'number' ? rrProfile['floor'] : 0.80;
   } else {
     minRequiredRr = (winProb >= 65.0) ? 0.55
-                  : (winProb >= 60.0) ? 0.60
-                  : (winProb >= 57.5) ? 0.65
-                  : (winProb >= 55.0) ? 0.70
-                  : 0.80;
+      : (winProb >= 60.0) ? 0.60
+        : (winProb >= 57.5) ? 0.65
+          : (winProb >= 55.0) ? 0.70
+            : 0.80;
   }
   const isRrAcceptable = rrRatio >= minRequiredRr;
 
@@ -1306,20 +1263,20 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
     ? (features['candle_shape'] === 'CANDLE_MARUBOZU_DUMP')
     : (features['candle_shape'] === 'CANDLE_MARUBOZU_PUMP');
   const isBtcAlignedSig = features['btc_wave'] === 'BTC_ALIGNED' ||
-                          features['btc_wave'] === 'BTC_PULLBACK_HEALTHY' ||
-                          (rawMarketData?.btcFlashDump && (sig.signal === 'SHORT' || sig.signal === 'SELL')) ||
-                          (rawMarketData?.btcFlashPump && (sig.signal === 'LONG' || sig.signal === 'BUY'));
+    features['btc_wave'] === 'BTC_PULLBACK_HEALTHY' ||
+    (rawMarketData?.btcFlashDump && (sig.signal === 'SHORT' || sig.signal === 'SELL')) ||
+    (rawMarketData?.btcFlashPump && (sig.signal === 'LONG' || sig.signal === 'BUY'));
   const isExtremeStormCondition = (features['h1_volatility'] === 'H1_EXTREME_STORM_PUMP_DUMP' || features['m15_volatility'] === 'M15_EXTREME_STORM') &&
-                                  (!hasRejectionConfirmation || isOpposingRunaway) &&
-                                  !(isBtcAlignedSig && !isOpposingRunaway);
+    (!hasRejectionConfirmation || isOpposingRunaway) &&
+    !(isBtcAlignedSig && !isOpposingRunaway);
   const isStrongCounterTrendCondition = (features['trend'] === 'TREND_CONFLICT' || features['trend'] === 'TREND_COUNTER') &&
-                                        features['adx_strength'] === 'ADX_STRONG_TREND' &&
-                                        (isOpposingRunaway || features['puncture_interaction'] === 'INTERACTION_H1_M15_PUNCTURED' || features['h1_candle_geometry'] === 'H1_PUNCTURED_DEEP');
+    features['adx_strength'] === 'ADX_STRONG_TREND' &&
+    (isOpposingRunaway || features['puncture_interaction'] === 'INTERACTION_H1_M15_PUNCTURED' || features['h1_candle_geometry'] === 'H1_PUNCTURED_DEEP');
   const isOpposingWickCondition = features['wick_rejection'] === 'OPPOSING_WICK_TRAP';
   const isEconomicRedCondition = features['economic_calendar'] === 'CALENDAR_RED_DANGER';
   const isSpreadDangerCondition = features['spread_slippage'] === 'SPREAD_WIDE_DANGER';
   const isBtcFlashCondition = (features['btc_flash'] === 'BTC_FLASH_DUMP_ACTIVE' && (sig.signal === 'LONG' || sig.signal === 'BUY')) ||
-                              (features['btc_flash'] === 'BTC_FLASH_PUMP_ACTIVE' && (sig.signal === 'SHORT' || sig.signal === 'SELL'));
+    (features['btc_flash'] === 'BTC_FLASH_PUMP_ACTIVE' && (sig.signal === 'SHORT' || sig.signal === 'SELL'));
   const isWallBlockedCondition = features['orderbook_wall'] === 'WALL_OPPOSING_BLOCK' && features['cvd_momentum'] !== 'CVD_SURGE_ALIGNED';
 
   let vetoCategory = null;
@@ -1334,7 +1291,7 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
         // 🛡️ VETO THÔNG MINH PHÂN CẤP:
         // Khi cả BTC và Altcoin đều ngược trend, CHỈ VETO khi là Lowcap (> 150) hoặc không có cản S/R bảo vệ!
         const hasSolidSR = (features['price_action'] && features['price_action'] !== 'PA_0_LEVEL') ||
-                           (features['sr_quality'] && features['sr_quality'] !== 'SR_NONE');
+          (features['sr_quality'] && features['sr_quality'] !== 'SR_NONE');
         const isHighRiskTarget = rank > 150 || !hasSolidSR;
         if (isHighRiskTarget) {
           vetoCategory = 'BTC_COUNTER_TREND_CONFLICT';

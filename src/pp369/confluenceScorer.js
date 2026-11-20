@@ -33,7 +33,7 @@ function isTop50Symbol(symbol) {
       const rank = getMarketCapRank(cleanSym);
       return rank <= 50;
     }
-  } catch (_) {}
+  } catch (_) { }
   return false;
 }
 
@@ -63,11 +63,11 @@ function calcMaxLeverage(ta, verdict, symbol) {
   // Base từ ATR
   let maxLev;
   if (!atrPct || atrPct <= 0) maxLev = 3;
-  else if (atrPct < 0.8)      maxLev = 10;
-  else if (atrPct < 1.5)      maxLev = 7;
-  else if (atrPct < 2.5)      maxLev = 5;
-  else if (atrPct < 4.0)      maxLev = 3;
-  else                         maxLev = 2;
+  else if (atrPct < 0.8) maxLev = 10;
+  else if (atrPct < 1.5) maxLev = 7;
+  else if (atrPct < 2.5) maxLev = 5;
+  else if (atrPct < 4.0) maxLev = 3;
+  else maxLev = 2;
 
   // Coin tier hard ceiling
   if (BTC_ETH.has(cleanSym)) {
@@ -162,7 +162,7 @@ function calcRSI(closes, period = 14) {
   ag /= period; al /= period;
   for (let i = period + 1; i < closes.length; i++) {
     const d = closes[i] - closes[i - 1];
-    ag = (ag * (period - 1) + Math.max(0,  d)) / period;
+    ag = (ag * (period - 1) + Math.max(0, d)) / period;
     al = (al * (period - 1) + Math.max(0, -d)) / period;
   }
   return al === 0 ? 100 : 100 - 100 / (1 + ag / al);
@@ -178,7 +178,7 @@ function calcEMA(closes, period) {
 
 function calcMACD(closes) {
   if (!closes || closes.length < 35) return null;
-  const k12 = 2/13, k26 = 2/27, k9 = 2/10;
+  const k12 = 2 / 13, k26 = 2 / 27, k9 = 2 / 10;
   let e12 = closes.slice(0, 12).reduce((a, b) => a + b) / 12;
   let e26 = closes.slice(0, 26).reduce((a, b) => a + b) / 26;
   for (let i = 12; i < 26; i++) {
@@ -208,16 +208,16 @@ function calcMACD(closes) {
     macd: currM, signal: currS, histogram: currM - currS,
     trend: currM > currS ? 'BULLISH' : 'BEARISH',
     crossover: prevM < prevS && currM >= currS ? 'GOLDEN_CROSS' :
-               prevM > prevS && currM <= currS ? 'DEATH_CROSS' : null,
+      prevM > prevS && currM <= currS ? 'DEATH_CROSS' : null,
   };
 }
 
 function calcBB(closes, period = 20, mult = 2) {
   if (!closes || closes.length < period) return null;
   const slice = closes.slice(-period);
-  const mean  = slice.reduce((a, b) => a + b) / period;
-  const std   = Math.sqrt(slice.reduce((a, b) => a + (b - mean) ** 2) / period);
-  const curr  = closes[closes.length - 1];
+  const mean = slice.reduce((a, b) => a + b) / period;
+  const std = Math.sqrt(slice.reduce((a, b) => a + (b - mean) ** 2) / period);
+  const curr = closes[closes.length - 1];
   const upper = mean + mult * std;
   const lower = mean - mult * std;
   return {
@@ -264,10 +264,10 @@ function clusterSR(klines, lookback = 90, tolerance = 0.005) {
   const pivots = [];
   for (let i = 3; i < recent.length - 3; i++) {
     const h = recent[i].h, l = recent[i].l;
-    if (h > recent[i-1].h && h > recent[i-2].h && h > recent[i-3].h &&
-        h > recent[i+1].h && h > recent[i+2].h && h > recent[i+3].h) pivots.push(h);
-    if (l < recent[i-1].l && l < recent[i-2].l && l < recent[i-3].l &&
-        l < recent[i+1].l && l < recent[i+2].l && l < recent[i+3].l) pivots.push(l);
+    if (h > recent[i - 1].h && h > recent[i - 2].h && h > recent[i - 3].h &&
+      h > recent[i + 1].h && h > recent[i + 2].h && h > recent[i + 3].h) pivots.push(h);
+    if (l < recent[i - 1].l && l < recent[i - 2].l && l < recent[i - 3].l &&
+      l < recent[i + 1].l && l < recent[i + 2].l && l < recent[i + 3].l) pivots.push(l);
   }
   if (!pivots.length) return { support: [], resistance: [], supportTouches: [], resistanceTouches: [] };
 
@@ -317,7 +317,7 @@ function analyzeVolume(klines, period = 20) {
   return {
     ratio,
     label: ratio > 2.5 ? 'SPIKE RẤT CAO' : ratio > 1.5 ? 'cao' :
-           ratio < 0.5 ? 'RẤT THẤP'      : ratio < 0.8 ? 'thấp' : 'bình thường',
+      ratio < 0.5 ? 'RẤT THẤP' : ratio < 0.8 ? 'thấp' : 'bình thường',
   };
 }
 
@@ -365,9 +365,9 @@ function calcTAFromKlines(symbol, raw1h, raw4h, raw1d, raw1w) {
   const c1d = k1d.length ? k1d.map(k => k.c) : null;
   const price = c4h[c4h.length - 1];
 
-  const ema7    = calcEMA(c4h, 7);
-  const ema25   = calcEMA(c4h, 25);
-  const ema99   = calcEMA(c4h, 99);
+  const ema7 = calcEMA(c4h, 7);
+  const ema25 = calcEMA(c4h, 25);
+  const ema99 = calcEMA(c4h, 99);
   const ema200d = c1d ? calcEMA(c1d, 200) : null;
 
   let trend = 'SIDEWAY';
@@ -383,16 +383,16 @@ function calcTAFromKlines(symbol, raw1h, raw4h, raw1d, raw1w) {
   const rsi1h = c1h ? calcRSI(c1h, 14) : null;
   const rsi1d = c1d ? calcRSI(c1d, 14) : null;
 
-  const macd4h   = calcMACD(c4h);
-  const bb4h     = calcBB(c4h, 20, 2);
-  const atr4h    = calcATR(k4h, 14);
+  const macd4h = calcMACD(c4h);
+  const bb4h = calcBB(c4h, 20, 2);
+  const atr4h = calcATR(k4h, 14);
   const stochRSI = c4h.length >= 60 ? calcStochRSI(c4h, 14, 14, 3) : null;
 
   const { support, resistance, supportTouches, resistanceTouches } =
     k1d.length >= 20 ? clusterSR(k1d, 90) : clusterSR(k4h, 60);
 
   const { support: support4h, resistance: resistance4h,
-          supportTouches: support4hTouches, resistanceTouches: resistance4hTouches } =
+    supportTouches: support4hTouches, resistanceTouches: resistance4hTouches } =
     clusterSR(k4h, 60, 0.003);
 
   let weeklyPivot = null;
@@ -435,10 +435,10 @@ function scoreTechnical(ta, direction) {
   const rsi4h = ta.rsi?.['4h'];
   if (rsi4h != null) {
     if (isLong) {
-      if (rsi4h < 30)      { score += 2; reasons.push(`RSI4h ${rsi4h.toFixed(0)} oversold nặng (+2)`); }
+      if (rsi4h < 30) { score += 2; reasons.push(`RSI4h ${rsi4h.toFixed(0)} oversold nặng (+2)`); }
       else if (rsi4h < 40) { score += 1; reasons.push(`RSI4h ${rsi4h.toFixed(0)} oversold (+1)`); }
     } else {
-      if (rsi4h > 70)      { score += 2; reasons.push(`RSI4h ${rsi4h.toFixed(0)} overbought nặng (+2)`); }
+      if (rsi4h > 70) { score += 2; reasons.push(`RSI4h ${rsi4h.toFixed(0)} overbought nặng (+2)`); }
       else if (rsi4h > 60) { score += 1; reasons.push(`RSI4h ${rsi4h.toFixed(0)} overbought (+1)`); }
     }
   }
@@ -446,14 +446,14 @@ function scoreTechnical(ta, direction) {
   // RSI 1D xác nhận
   const rsi1d = ta.rsi?.['1d'];
   if (rsi1d != null) {
-    if (isLong && rsi1d < 45)       { score += 1; reasons.push(`RSI1D ${rsi1d.toFixed(0)} xác nhận LONG (+1)`); }
+    if (isLong && rsi1d < 45) { score += 1; reasons.push(`RSI1D ${rsi1d.toFixed(0)} xác nhận LONG (+1)`); }
     else if (!isLong && rsi1d > 55) { score += 1; reasons.push(`RSI1D ${rsi1d.toFixed(0)} xác nhận SHORT (+1)`); }
   }
 
   // StochRSI 4h
   const stoch = ta.stochRSI?.k;
   if (stoch != null) {
-    if (isLong && stoch < 20)       { score += 1; reasons.push(`StochRSI K=${stoch.toFixed(0)} oversold (+1)`); }
+    if (isLong && stoch < 20) { score += 1; reasons.push(`StochRSI K=${stoch.toFixed(0)} oversold (+1)`); }
     else if (!isLong && stoch > 80) { score += 1; reasons.push(`StochRSI K=${stoch.toFixed(0)} overbought (+1)`); }
   }
 
@@ -462,27 +462,117 @@ function scoreTechnical(ta, direction) {
     const { trend, crossover } = ta.macd;
     if (isLong) {
       if (crossover === 'GOLDEN_CROSS') { score += 2; reasons.push('MACD GOLDEN_CROSS (+2)'); }
-      else if (trend === 'BULLISH')     { score += 1; reasons.push('MACD BULLISH trend (+1)'); }
+      else if (trend === 'BULLISH') { score += 1; reasons.push('MACD BULLISH trend (+1)'); }
     } else {
       if (crossover === 'DEATH_CROSS') { score += 2; reasons.push('MACD DEATH_CROSS (+2)'); }
-      else if (trend === 'BEARISH')    { score += 1; reasons.push('MACD BEARISH trend (+1)'); }
+      else if (trend === 'BEARISH') { score += 1; reasons.push('MACD BEARISH trend (+1)'); }
     }
   }
 
-  // EMA 4h stack
+  // ── ĐÁNH GIÁ XU HƯỚNG 3 TẦNG: DÀI HẠN (D1) - TRUNG HẠN (H4) - NGẮN HẠN (H1) ──
+  let d1Aligned = false;
+  let h4Aligned = false;
+  let h1Aligned = false;
+
+  // 1. Dài hạn D1: EMA200D & Regime D1
+  if (ta?.aboveEMA200 !== null && ta?.aboveEMA200 !== undefined) {
+    const rsi1dVal = ta.rsi?.['1d'] ?? 50;
+    if (isLong) {
+      if (ta.aboveEMA200) {
+        d1Aligned = true;
+        score += 1;
+        reasons.push('Trên EMA200D dài hạn (+1)');
+      } else if (rsi1dVal > 35) {
+        score -= 2;
+        reasons.push(`Dưới EMA200D (RSI1D=${rsi1dVal.toFixed(0)}) — bearish bias (-2)`);
+      }
+    } else {
+      if (!ta.aboveEMA200) {
+        d1Aligned = true;
+        score += 1;
+        reasons.push('Dưới EMA200D dài hạn (+1)');
+      } else if (rsi1dVal < 65) {
+        score -= 2;
+        reasons.push(`Trên EMA200D (RSI1D=${rsi1dVal.toFixed(0)}) — bullish bias (-2)`);
+      }
+    }
+  }
+
+  if (ta.regime) {
+    if (isLong && ta.regime === 'TRENDING_UP') {
+      d1Aligned = true;
+      score += 1;
+      reasons.push('Regime 1D TRENDING_UP (+1)');
+    } else if (!isLong && ta.regime === 'TRENDING_DOWN') {
+      d1Aligned = true;
+      score += 1;
+      reasons.push('Regime 1D TRENDING_DOWN (+1)');
+    } else if (ta.regime === 'VOLATILE') {
+      score -= 1;
+      reasons.push('Regime VOLATILE — rủi ro cao (-1)');
+    }
+  }
+
+  // 2. Trung hạn H4: EMA Stack H4
   const { e7, e25, e99 } = ta.ema || {};
   if (e7 && e25 && price) {
     if (isLong) {
-      if (e99 && price > e7 && e7 > e25 && e25 > e99) { score += 2; reasons.push('EMA stack LONG hoàn toàn (+2)'); }
-      else if (price > e7 && e7 > e25)                 { score += 1; reasons.push('EMA partial LONG (+1)'); }
+      if (e99 && price > e7 && e7 > e25 && e25 > e99) {
+        h4Aligned = true;
+        score += 2;
+        reasons.push('EMA 4H stack LONG hoàn toàn (+2)');
+      } else if (price > e7 && e7 > e25) {
+        h4Aligned = true;
+        score += 1;
+        reasons.push('EMA 4H partial LONG (+1)');
+      }
     } else {
-      if (e99 && price < e7 && e7 < e25 && e25 < e99) { score += 2; reasons.push('EMA stack SHORT hoàn toàn (+2)'); }
-      else if (price < e7 && e7 < e25)                 { score += 1; reasons.push('EMA partial SHORT (+1)'); }
+      if (e99 && price < e7 && e7 < e25 && e25 < e99) {
+        h4Aligned = true;
+        score += 2;
+        reasons.push('EMA 4H stack SHORT hoàn toàn (+2)');
+      } else if (price < e7 && e7 < e25) {
+        h4Aligned = true;
+        score += 1;
+        reasons.push('EMA 4H partial SHORT (+1)');
+      }
     }
   }
 
+  // 3. Ngắn hạn H1: EMA Stack H1
+  const { e7: e7_1h, e25: e25_1h, e99: e99_1h } = ta.ema1h || {};
+  if (e7_1h && e25_1h && price) {
+    if (isLong) {
+      if (e99_1h && price > e7_1h && e7_1h > e25_1h && e25_1h > e99_1h) {
+        h1Aligned = true;
+        score += 1;
+        reasons.push('EMA 1H stack LONG ngắn hạn (+1)');
+      } else if (price > e7_1h && e7_1h > e25_1h) {
+        h1Aligned = true;
+        score += 1;
+        reasons.push('EMA 1H thuận LONG (+1)');
+      }
+    } else {
+      if (e99_1h && price < e7_1h && e7_1h < e25_1h && e25_1h < e99_1h) {
+        h1Aligned = true;
+        score += 1;
+        reasons.push('EMA 1H stack SHORT ngắn hạn (+1)');
+      } else if (price < e7_1h && e7_1h < e25_1h) {
+        h1Aligned = true;
+        score += 1;
+        reasons.push('EMA 1H thuận SHORT (+1)');
+      }
+    }
+  }
+
+  // 4. Hợp lưu Đồng thuận Xu hướng 3 Tầng (Trend Alignment Bonus)
+  if (d1Aligned && h4Aligned && h1Aligned) {
+    score += 1;
+    reasons.push('⚡ HỢP LƯU XU HƯỚNG 3 TẦNG: D1 + H4 + H1 đồng thuận (+1)');
+  }
+
   // S/R 1D cluster
-  const srLevels  = isLong ? (ta.support    || []) : (ta.resistance    || []);
+  const srLevels = isLong ? (ta.support || []) : (ta.resistance || []);
   const srTouches = isLong ? (ta.supportTouches || []) : (ta.resistanceTouches || []);
   if (srLevels.length && price) {
     const closest = srLevels[0];
@@ -499,7 +589,7 @@ function scoreTechnical(ta, direction) {
   }
 
   // S/R 4H cluster
-  const sr4hLevels  = isLong ? (ta.support4h    || []) : (ta.resistance4h    || []);
+  const sr4hLevels = isLong ? (ta.support4h || []) : (ta.resistance4h || []);
   const sr4hTouches = isLong ? (ta.support4hTouches || []) : (ta.resistance4hTouches || []);
   if (sr4hLevels.length && price) {
     const closest4h = sr4hLevels[0];
@@ -535,28 +625,10 @@ function scoreTechnical(ta, direction) {
 
   // BB %B cực đoan
   if (ta.bb?.pctB != null) {
-    if (isLong && ta.bb.pctB < 15)       { score += 1; reasons.push(`BB %B=${ta.bb.pctB.toFixed(0)}% oversold (+1)`); }
+    if (isLong && ta.bb.pctB < 15) { score += 1; reasons.push(`BB %B=${ta.bb.pctB.toFixed(0)}% oversold (+1)`); }
     else if (!isLong && ta.bb.pctB > 85) { score += 1; reasons.push(`BB %B=${ta.bb.pctB.toFixed(0)}% overbought (+1)`); }
   }
 
-  // EMA 200D bias penalty
-  if (ta?.aboveEMA200 !== null && ta?.aboveEMA200 !== undefined) {
-    const rsi1dVal = ta.rsi?.['1d'] ?? 50;
-    if (isLong && !ta.aboveEMA200 && rsi1dVal > 35) {
-      score -= 2;
-      reasons.push(`Dưới EMA200D (RSI1D=${rsi1dVal.toFixed(0)}) — bearish bias (-2)`);
-    } else if (!isLong && ta.aboveEMA200 && rsi1dVal < 65) {
-      score -= 2;
-      reasons.push(`Trên EMA200D (RSI1D=${rsi1dVal.toFixed(0)}) — bullish bias (-2)`);
-    }
-  }
-
-  // Regime bonus
-  if (ta.regime) {
-    if (isLong && ta.regime === 'TRENDING_UP')    { score += 1; reasons.push('Regime TRENDING_UP + LONG (+1)'); }
-    if (!isLong && ta.regime === 'TRENDING_DOWN') { score += 1; reasons.push('Regime TRENDING_DOWN + SHORT (+1)'); }
-    if (ta.regime === 'VOLATILE')                 { score -= 1; reasons.push('Regime VOLATILE — rủi ro cao (-1)'); }
-  }
 
   return { score, reasons };
 }
@@ -570,36 +642,36 @@ function scoreWhale(symbol, direction, whaleData) {
 
   const tf = whaleData.takerFlow?.[symbol];
   if (tf) {
-    if (isLong && tf.bias === 'BUY_PRESSURE')       { score += 1; reasons.push(`OKX Taker Flow BUY ${tf.buyPct?.toFixed(1)}% (+1)`); }
+    if (isLong && tf.bias === 'BUY_PRESSURE') { score += 1; reasons.push(`OKX Taker Flow BUY ${tf.buyPct?.toFixed(1)}% (+1)`); }
     else if (!isLong && tf.bias === 'SELL_PRESSURE') { score += 1; reasons.push(`OKX Taker Flow SELL ${tf.sellPct?.toFixed(1)}% (+1)`); }
   }
 
   const bn = whaleData.binanceLarge?.[symbol];
   if (bn) {
-    if (isLong && bn.bias === 'WHALE_BUY')       { score += 1; reasons.push(`BN large trades WHALE_BUY (+1)`); }
+    if (isLong && bn.bias === 'WHALE_BUY') { score += 1; reasons.push(`BN large trades WHALE_BUY (+1)`); }
     else if (!isLong && bn.bias === 'WHALE_SELL') { score += 1; reasons.push(`BN large trades WHALE_SELL (+1)`); }
 
     const whl = bn.tiers?.WHALE;
     const ins = bn.tiers?.INSTITUTION;
     if (whl && (whl.buyVol + whl.sellVol > 0)) {
-      if (isLong && whl.buyVol > whl.sellVol)       { score += 1; reasons.push(`WHALE $5M-$20M BUY ${fmtM(whl.buyVol)} (+1)`); }
+      if (isLong && whl.buyVol > whl.sellVol) { score += 1; reasons.push(`WHALE $5M-$20M BUY ${fmtM(whl.buyVol)} (+1)`); }
       else if (!isLong && whl.sellVol > whl.buyVol) { score += 1; reasons.push(`WHALE $5M-$20M SELL ${fmtM(whl.sellVol)} (+1)`); }
     }
     if (ins && (ins.buyVol + ins.sellVol > 0)) {
-      if (isLong && ins.buyVol > ins.sellVol)       { score += 2; reasons.push(`INSTITUTION ≥$20M BUY ${fmtM(ins.buyVol)} (+2) ⚡`); }
+      if (isLong && ins.buyVol > ins.sellVol) { score += 2; reasons.push(`INSTITUTION ≥$20M BUY ${fmtM(ins.buyVol)} (+2) ⚡`); }
       else if (!isLong && ins.sellVol > ins.buyVol) { score += 2; reasons.push(`INSTITUTION ≥$20M SELL ${fmtM(ins.sellVol)} (+2) ⚡`); }
     }
   }
 
   const cs = whaleData.crossSignals?.[symbol];
   if (cs) {
-    if (isLong && cs.verdict === 'XÁC NHẬN MUA')       { score += 1; reasons.push('Cross-signal XÁC NHẬN MUA (+1)'); }
+    if (isLong && cs.verdict === 'XÁC NHẬN MUA') { score += 1; reasons.push('Cross-signal XÁC NHẬN MUA (+1)'); }
     else if (!isLong && cs.verdict === 'XÁC NHẬN BÁN') { score += 1; reasons.push('Cross-signal XÁC NHẬN BÁN (+1)'); }
   }
 
   const liq = whaleData.liquidations?.[symbol];
   if (liq && liq.totalLiq > 0) {
-    const longPct  = liq.longLiqVol  / liq.totalLiq * 100;
+    const longPct = liq.longLiqVol / liq.totalLiq * 100;
     const shortPct = liq.shortLiqVol / liq.totalLiq * 100;
     if (isLong && liq.dominant === 'SHORT_SQUEEZE' && shortPct > 65) {
       score += 2;
@@ -622,18 +694,18 @@ function scoreDerivatives(symbol, direction, derivatives) {
   const reasons = [];
 
   if (d.oi) {
-    if (isLong && d.oi.trend === 'RISING')        { score += 1.0; reasons.push(`OI RISING +${d.oi.changePct?.toFixed(1)}% (+1.0)`); }
-    else if (!isLong && d.oi.trend === 'RISING')  { score += 1.0; reasons.push(`OI RISING (vốn short mới) (+1.0)`); }
-    else if (isLong && d.oi.trend === 'FALLING')  { score -= 1.0; reasons.push('OI FALLING khi LONG (-1.0)'); }
+    if (isLong && d.oi.trend === 'RISING') { score += 1.0; reasons.push(`OI RISING +${d.oi.changePct?.toFixed(1)}% (+1.0)`); }
+    else if (!isLong && d.oi.trend === 'RISING') { score += 1.0; reasons.push(`OI RISING (vốn short mới) (+1.0)`); }
+    else if (isLong && d.oi.trend === 'FALLING') { score -= 1.0; reasons.push('OI FALLING khi LONG (-1.0)'); }
   }
 
   const ls = d.lsSignal;
   if (ls) {
-    if (isLong && ls.contrarian === 'CONTRARIAN_LONG')       { score += 1.0; reasons.push('Retail quá SHORT → contrarian LONG (+1.0)'); }
+    if (isLong && ls.contrarian === 'CONTRARIAN_LONG') { score += 1.0; reasons.push('Retail quá SHORT → contrarian LONG (+1.0)'); }
     else if (!isLong && ls.contrarian === 'CONTRARIAN_SHORT') { score += 1.0; reasons.push('Retail quá LONG → contrarian SHORT (+1.0)'); }
 
     if (ls.divergence) {
-      if (isLong && d.topTrader?.longPct > 50)       { score += 1.0; reasons.push('Top trader LONG vs retail SHORT (+1.0)'); }
+      if (isLong && d.topTrader?.longPct > 50) { score += 1.0; reasons.push('Top trader LONG vs retail SHORT (+1.0)'); }
       else if (!isLong && d.topTrader?.longPct < 50) { score += 1.0; reasons.push('Top trader SHORT vs retail LONG (+1.0)'); }
     }
   }
@@ -649,14 +721,14 @@ function scoreSentiment(direction, fearGreed, social) {
 
   const val = fearGreed?.value;
   if (val != null) {
-    if (isLong && val < 20)       { score += 1.0; reasons.push(`Fear&Greed ${val} extreme fear → contrarian LONG (+1.0)`); }
+    if (isLong && val < 20) { score += 1.0; reasons.push(`Fear&Greed ${val} extreme fear → contrarian LONG (+1.0)`); }
     else if (!isLong && val > 80) { score += 1.0; reasons.push(`Fear&Greed ${val} extreme greed → contrarian SHORT (+1.0)`); }
-    else if (isLong && val > 80)  { score -= 1.0; reasons.push(`Fear&Greed ${val} greed cao → LONG rủi ro (-1.0)`); }
+    else if (isLong && val > 80) { score -= 1.0; reasons.push(`Fear&Greed ${val} greed cao → LONG rủi ro (-1.0)`); }
     else if (!isLong && val < 20) { score -= 1.0; reasons.push(`Fear&Greed ${val} fear cao → SHORT rủi ro (-1.0)`); }
   }
 
   if (social) {
-    if (isLong && social.sentiment === 'BEARISH')       { score += 1.0; reasons.push('Social BEARISH + LONG = contrarian (+1.0)'); }
+    if (isLong && social.sentiment === 'BEARISH') { score += 1.0; reasons.push('Social BEARISH + LONG = contrarian (+1.0)'); }
     else if (!isLong && social.sentiment === 'BULLISH') { score += 1.0; reasons.push('Social BULLISH + SHORT = contrarian (+1.0)'); }
   }
 
@@ -696,11 +768,11 @@ function scoreSetup(symbol, direction, ta, whaleData, derivatives, fundingRates,
   }
 
   // 2. Chấm từng nhóm
-  const taResult    = scoreTechnical(ta, direction);
+  const taResult = scoreTechnical(ta, direction);
   const whaleResult = scoreWhale(cleanSym, direction, whaleData);
   const derivResult = scoreDerivatives(cleanSym, direction, derivatives);
-  const sentResult  = scoreSentiment(direction, fearGreed, social);
-  const result369   = score369Reaction(signal369, direction);
+  const sentResult = scoreSentiment(direction, fearGreed, social);
+  const result369 = score369Reaction(signal369, direction);
 
   // 3. Giờ UTC: Bỏ hình phạt thời gian theo yêu cầu chiến lược (timePenalty = 0)
   const timePenalty = 0;
@@ -725,11 +797,11 @@ function scoreSetup(symbol, direction, ta, whaleData, derivatives, fundingRates,
 
   // Phân cấp Verdict và Độ tin cậy chuẩn Bot-New
   let verdict, confidence;
-  if (total < 5)        { verdict = 'NO_SETUP';         confidence = 0;  }
-  else if (total <= 6)  { verdict = 'CAUTIOUS';         confidence = 55; }
-  else if (total <= 8)  { verdict = 'CONFIDENT';        confidence = 70; }
+  if (total < 5) { verdict = 'NO_SETUP'; confidence = 0; }
+  else if (total <= 6) { verdict = 'CAUTIOUS'; confidence = 55; }
+  else if (total <= 8) { verdict = 'CONFIDENT'; confidence = 70; }
   else if (total <= 10) { verdict = 'BEST_OPPORTUNITY'; confidence = 85; }
-  else                  { verdict = 'BEST_OPPORTUNITY'; confidence = 90; }
+  else { verdict = 'BEST_OPPORTUNITY'; confidence = 90; }
 
   const maxLeverage = calcMaxLeverage(ta, verdict, cleanSym);
 
@@ -738,11 +810,11 @@ function scoreSetup(symbol, direction, ta, whaleData, derivatives, fundingRates,
     disqualified: false, disqualifyReason: null,
     total, verdict, confidence, maxLeverage,
     breakdown: {
-      ta:          taResult.score,
-      whale:       whaleResult.score,
+      ta: taResult.score,
+      whale: whaleResult.score,
       derivatives: derivResult.score,
-      sentiment:   sentResult.score,
-      pp369:       result369.score,
+      sentiment: sentResult.score,
+      pp369: result369.score,
       timePenalty,
       btcPenalty,
     },

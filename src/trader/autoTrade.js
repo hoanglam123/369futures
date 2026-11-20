@@ -178,7 +178,7 @@ function pruneMemoryCaches() {
     _lastGcTime = now;
     try {
       global.gc();
-    } catch (_) {}
+    } catch (_) { }
   }
 }
 
@@ -291,7 +291,7 @@ async function triggerBtcFlashPump(client, { reason, source = 'REST', durationMs
         for (const order of openOrders) {
           if (order.side === 'SELL' && (order.type === 'LIMIT' || order.orderType === 'LIMIT')) {
             const sym = order.symbol.replace('USDT', '');
-            await effectiveClient.cancelOrder(sym, order.orderId).catch(() => {});
+            await effectiveClient.cancelOrder(sym, order.orderId).catch(() => { });
             log.system(`[AutoTrade] [BTC Guard] Hủy lệnh LIMIT SHORT treo của ${sym} để phòng ngừa rủi ro.`);
           }
         }
@@ -307,14 +307,14 @@ async function triggerBtcFlashPump(client, { reason, source = 'REST', durationMs
             }
           }
         }
-      } catch (_) {}
+      } catch (_) { }
     }
 
     sendTelegram(
       `🚨 <b>[BTC Flash Pump Guard] KÍCH HOẠT KHÓA SHORT & THOÁT HIỂM VỊ THẾ (${source})</b>\n` +
       `• <b>Phát hiện:</b> ${reason}\n` +
       `• <b>Hành động:</b> Tự động <b>KHÓA LỆNH SHORT</b>, hủy Limit chờ & <b>Dời TP về Entry hòa vốn cho các vị thế SHORT đang mở</b>!`
-    ).catch(() => {});
+    ).catch(() => { });
   }
 }
 
@@ -345,7 +345,7 @@ async function triggerBtcFlashDump(client, { reason, source = 'REST', durationMs
         for (const order of openOrders) {
           if (order.side === 'BUY' && (order.type === 'LIMIT' || order.orderType === 'LIMIT')) {
             const sym = order.symbol.replace('USDT', '');
-            await effectiveClient.cancelOrder(sym, order.orderId).catch(() => {});
+            await effectiveClient.cancelOrder(sym, order.orderId).catch(() => { });
             log.system(`[AutoTrade] [BTC Guard] Hủy lệnh LIMIT LONG treo của ${sym} để phòng ngừa rủi ro.`);
           }
         }
@@ -361,14 +361,14 @@ async function triggerBtcFlashDump(client, { reason, source = 'REST', durationMs
             }
           }
         }
-      } catch (_) {}
+      } catch (_) { }
     }
 
     sendTelegram(
       `🚨 <b>[BTC Flash Dump Guard] KÍCH HOẠT KHÓA LONG & THOÁT HIỂM VỊ THẾ (${source})</b>\n` +
       `• <b>Phát hiện:</b> ${reason}\n` +
       `• <b>Hành động:</b> Tự động <b>KHÓA LỆNH LONG</b>, hủy Limit chờ & <b>Dời TP về Entry hòa vốn cho các vị thế LONG đang mở</b>!`
-    ).catch(() => {});
+    ).catch(() => { });
   }
 }
 
@@ -582,7 +582,7 @@ async function updateBtcFlashGuard(client) {
             `🟢 <b>[BTC Flash Guard] THỊ TRƯỜNG ĐÃ HẠ NHIỆT AN TOÀN</b>\n` +
             `• Nến M15 BTC đã ổn định (Vol <b>${lastVolRatio.toFixed(1)}x</b>, Biên độ <b>${lastRangePct.toFixed(2)}%</b>)\n` +
             `• Tự động <b>MỞ KHÓA GIAO DỊCH ALTCOIN</b> bình thường trở lại!`
-          ).catch(() => {});
+          ).catch(() => { });
         }
       }
     }
@@ -685,7 +685,7 @@ function getLeverageCached(sym) {
         return data.leverageInfo[sym];
       }
     }
-  } catch (_) {}
+  } catch (_) { }
   return 20;
 }
 
@@ -698,7 +698,7 @@ function calcHalfQuantity(sym, totalQty) {
       const data = JSON.parse(content);
       stepSize = data.stepSizes?.[`${sym}USDT`] || data.steps?.[`${sym}USDT`] || 0.001;
     }
-  } catch (_) {}
+  } catch (_) { }
   const half = totalQty / 2;
   const qty = Math.floor(half / stepSize) * stepSize;
   const dec = Math.max(0, Math.round(-Math.log10(stepSize)));
@@ -866,7 +866,7 @@ async function getDynamicMargin(isTier1, clientInstance = null) {
       const calcMargin = (balance * effPct) / 100.0;
       return parseFloat(Math.min(Math.max(calcMargin, minMargin), maxMargin).toFixed(2));
     }
-  } catch (_) {}
+  } catch (_) { }
 
   return fallbackMargin;
 }
@@ -1168,11 +1168,11 @@ async function calculateTierSLTP(
   // Bậc thang ATR chuẩn hóa
   let rawLevAtr;
   if (!atrPct || atrPct <= 0) rawLevAtr = 3;
-  else if (atrPct < 0.8)      rawLevAtr = 10;
-  else if (atrPct < 1.5)      rawLevAtr = 7;
-  else if (atrPct < 2.5)      rawLevAtr = 5;
-  else if (atrPct < 4.0)      rawLevAtr = 3;
-  else                         rawLevAtr = 2;
+  else if (atrPct < 0.8) rawLevAtr = 10;
+  else if (atrPct < 1.5) rawLevAtr = 7;
+  else if (atrPct < 2.5) rawLevAtr = 5;
+  else if (atrPct < 4.0) rawLevAtr = 3;
+  else rawLevAtr = 2;
 
   const hardCeilingLev = (symbol === 'BTC' || symbol === 'ETH')
     ? 10
@@ -1528,7 +1528,7 @@ async function startAutoTrade(coins) {
   function savePendingReversals() {
     try {
       fs.writeFileSync(PENDING_REVERSALS_PATH, JSON.stringify(pendingReversals, null, 2), 'utf8');
-    } catch (_) {}
+    } catch (_) { }
   }
 
   function fmtPrice(p) {
@@ -1556,7 +1556,7 @@ async function startAutoTrade(coins) {
         `🛑 Cắt lỗ (SL):     <code>$${fmtPrice(rev.slPrice)}</code>\n` +
         `━━━━━━━━━━━━━━━━\n` +
         `<i>🤖 Bot đang rà soát giá: chỉ vào lệnh MARKET khi giá về đúng vùng entry (không đuổi giá xấu) và chưa chạm SL.</i>`
-      ).catch(() => {});
+      ).catch(() => { });
 
       log.system(`[AutoTrade] ⏳ [Đảo Chiều Kích Hoạt Hàng Chờ] ${sym} ${rev.direction} — Vị thế cũ đã đóng, bắt đầu rà soát entry`);
     }
@@ -1668,7 +1668,7 @@ async function startAutoTrade(coins) {
         activePositionsMap.delete(sym);
         activeSymbols.delete(sym);
         saveActiveTradesMetadata();
-        sendTelegram(`🎯 <b>[AutoTrade] Chốt Lời Thành Công!</b>\n• Coin: <b>#${sym}</b>\n• Giá TP: <b>$${fillData.avgPrice}</b>`).catch(() => {});
+        sendTelegram(`🎯 <b>[AutoTrade] Chốt Lời Thành Công!</b>\n• Coin: <b>#${sym}</b>\n• Giá TP: <b>$${fillData.avgPrice}</b>`).catch(() => { });
         activatePendingReversalIfAny(sym);
       }
       // Kiểm tra nếu SL Stop-Market khớp
@@ -1682,7 +1682,7 @@ async function startAutoTrade(coins) {
         activePositionsMap.delete(sym);
         activeSymbols.delete(sym);
         saveActiveTradesMetadata();
-        sendTelegram(`🛑 <b>[AutoTrade] Dừng Lỗ Vị Thế</b>\n• Coin: <b>#${sym}</b>\n• Giá SL: <b>$${fillData.avgPrice}</b>\n• Kích hoạt Cooldown 6h bảo vệ vốn`).catch(() => {});
+        sendTelegram(`🛑 <b>[AutoTrade] Dừng Lỗ Vị Thế</b>\n• Coin: <b>#${sym}</b>\n• Giá SL: <b>$${fillData.avgPrice}</b>\n• Kích hoạt Cooldown 6h bảo vệ vốn`).catch(() => { });
         activatePendingReversalIfAny(sym);
       }
     });
@@ -1764,7 +1764,7 @@ async function startAutoTrade(coins) {
           updateShadowPrices({ [sym]: mp });
         }
       }
-    } catch (_) {}
+    } catch (_) { }
   }, 10_000);
 
   // ── Tái kiểm tra danh sách coin mỗi 4 giờ theo giá thị trường hiện tại ────
@@ -2171,7 +2171,7 @@ async function startAutoTrade(coins) {
             const beStr = shadowStats.totalSavedBE > 0 ? ` | Thoát BE: ${shadowStats.totalSavedBE} lệnh` : '';
             log.system(`[Shadow PnL] 📊 Thống kê AI Veto: Đang theo dõi: ${shadowStats.activePositionsCount} lệnh | Đã cứu SL: ${shadowStats.totalSavedSL} lệnh (+$${shadowStats.totalSavedUSD})${beStr} | Bỏ lỡ TP: ${shadowStats.totalMissedTP} lệnh (-$${shadowStats.totalMissedUSD}) | Giá trị AI ròng: +$${shadowStats.netValueUSD} USD (Độ chính xác Veto: ${shadowStats.aiVetoAccuracyPct}%)`);
           }
-        } catch (_) {}
+        } catch (_) { }
       }
 
       if (!scanNearby.length) return;
@@ -2296,7 +2296,7 @@ async function startAutoTrade(coins) {
           const maxAllowed = leverageInfo[sym]?.maxLeverage || 10;
           const tradeAmount = await getDynamicMargin(isTop50Symbol(sym), client);
           tierSetup = await calculateTierSLTP(sym, sig.signal, sig.targetLevel, h4Ref, tickSize, maxAllowed, 3.0, 1.5, rank, sig.gridWidthPct, null, tradeAmount);
-        } catch (_) {}
+        } catch (_) { }
 
         const step = sig.step || getStep(sig.targetLevel);
         const slPrice = tierSetup?.valid ? tierSetup.slPrice : (sig.signal === 'LONG' ? sig.targetLevel - step : sig.targetLevel + step);
@@ -2377,7 +2377,7 @@ async function startAutoTrade(coins) {
           `⌛ Đã chờ 4h nhưng giá không về vùng entry.\n` +
           `━━━━━━━━━━━━━━━━\n` +
           `<i>🤖 Bot tự hủy setup này để tránh vào lệnh muộn khi thị trường đã thay đổi.</i>`
-        ).catch(() => {});
+        ).catch(() => { });
         continue;
       }
 
@@ -2400,7 +2400,7 @@ async function startAutoTrade(coins) {
         let balance = 0;
         try {
           balance = await client.getBalance();
-        } catch (_) {}
+        } catch (_) { }
         if (balance < (rev.margin || 10)) {
           log.warn(`[AutoTrade] Reversal auto-entry: ${sym} không đủ balance ($${balance.toFixed(2)} < $${rev.margin})`);
           continue;
@@ -2411,7 +2411,7 @@ async function startAutoTrade(coins) {
       try {
         const effectiveLev = rev.leverage || 10;
         if (!isShadowMode && client) {
-          try { await client.setLeverage(sym, effectiveLev); } catch (_) {}
+          try { await client.setLeverage(sym, effectiveLev); } catch (_) { }
         }
 
         const currentNotional = (rev.margin || 10) * effectiveLev;
@@ -2495,7 +2495,7 @@ async function startAutoTrade(coins) {
           `💰 Ký quỹ:         <b>$${rev.margin}</b> | Qty: <b>${qty}</b>\n` +
           `━━━━━━━━━━━━━━━━\n` +
           `<i>🤖 Đã tự động đặt cặp lệnh bảo vệ kép Dual Bracket (TP/SL) trên Binance!</i>`
-        ).catch(() => {});
+        ).catch(() => { });
 
         log.system(`[AutoTrade] 🚀 [ĐẢO CHIỀU MARKET FILL] ${sym} ${side} ${qty} @ $${currentPrice}`);
       } catch (err) {
@@ -2711,7 +2711,7 @@ async function startAutoTrade(coins) {
           const maxAllowedCd = leverageInfo[sym] ?? leverage;
           const baseTargetLossUSDCd = parseFloat(process.env.MAX_LOSS_PER_TRADE_USD || '3.0');
           prelimSetupCd = await calculateTierSLTP(sym, sig.signal, sig.targetLevel, h4RefCd, tickSizeCd, maxAllowedCd, baseTargetLossUSDCd, 1.5, rank, sig.gridWidthPct);
-        } catch (_) {}
+        } catch (_) { }
 
         registerShadowTrade(sig, null, {
           markPrice,
@@ -2743,7 +2743,7 @@ async function startAutoTrade(coins) {
           const maxAllowedDir = leverageInfo[sym] ?? leverage;
           const baseTargetLossUSDDir = parseFloat(process.env.MAX_LOSS_PER_TRADE_USD || '3.0');
           prelimSetupDir = await calculateTierSLTP(sym, sig.signal, sig.targetLevel, h4RefDir, tickSizeDir, maxAllowedDir, baseTargetLossUSDDir, 1.5, rank, sig.gridWidthPct);
-        } catch (_) {}
+        } catch (_) { }
 
         registerShadowTrade(sig, null, {
           markPrice,
@@ -2774,7 +2774,7 @@ async function startAutoTrade(coins) {
           const maxAllowedSd = leverageInfo[sym] ?? leverage;
           const baseTargetLossUSDSd = parseFloat(process.env.MAX_LOSS_PER_TRADE_USD || '3.0');
           prelimSetupSd = await calculateTierSLTP(sym, sig.signal, sig.targetLevel, h4RefSd, tickSizeSd, maxAllowedSd, baseTargetLossUSDSd, 1.5, rank, sig.gridWidthPct);
-        } catch (_) {}
+        } catch (_) { }
 
         registerShadowTrade(sig, null, {
           markPrice,
@@ -3082,7 +3082,7 @@ async function startAutoTrade(coins) {
         rawMarketData.signalMetrics = sig.signalMetrics || null;
         try {
           rawMarketData.microstructure = await scanMicrostructure(sym, sig.targetLevel, prelimSetup?.tpPrice || 0, sig.signal);
-        } catch (_) {}
+        } catch (_) { }
       }
 
       const aiEval = evaluateSignalWithAI(sig, rawMarketData);
@@ -3428,7 +3428,7 @@ async function startAutoTrade(coins) {
 
     // ⚡ Kích hoạt rà soát tức thì (0ms) nếu coin này đang trong hàng chờ vào lệnh đảo chiều
     if (pendingReversals[sym]?.status === 'pending_entry') {
-      checkPendingReversalAutoEntry().catch(() => {});
+      checkPendingReversalAutoEntry().catch(() => { });
     }
 
     // 🛡️ COOLDOWN GUARD: Chỉ cho phép enqueueSymbolSignal tối đa 1 lần mỗi 15 giây cho từng coin
@@ -3614,7 +3614,7 @@ async function checkPendingLimits(client, activeSymbols) {
                   `• Entry: <b>$${entry}</b> | Giá hiện tại: <b>$${markPrice.toFixed(6)}</b>\n` +
                   `• Nguyên nhân: <b>${cancelReason}</b>\n` +
                   `• Hành động: <b>Xác nhận 2 nhịp vi cấu trúc sụp đổ -> Hủy lệnh tránh dao rơi!</b>`
-                ).catch(() => {});
+                ).catch(() => { });
 
                 const holdingDurationMinutes = (Date.now() - (meta.time || Date.now())) / 60000;
                 recordTradeExit({
@@ -4189,7 +4189,7 @@ async function checkH1RetestSignals(client, activeSymbols, leverageInfo = {}) {
         rawMarketDataRetest.signalMetrics = sigForAI.signalMetrics || null;
         try {
           rawMarketDataRetest.microstructure = await scanMicrostructure(sym, targetLevel, prelimRetest?.tpPrice || 0, signal);
-        } catch (_) {}
+        } catch (_) { }
       }
 
       const aiEval = evaluateSignalWithAI(sigForAI, rawMarketDataRetest);
@@ -4380,10 +4380,10 @@ async function closeRealPositionMarket(client, sym, oppositeSide, absAmt, openAl
   justClosedByBot.add(sym);
 
   // 1. Hủy ngay tất cả lệnh mở (TP/SL sàn) và lệnh Algo
-  client.cancelAllOpenOrders(sym).catch(() => {});
+  client.cancelAllOpenOrders(sym).catch(() => { });
   if (Array.isArray(openAlgoOrders)) {
     for (const algo of openAlgoOrders) {
-      client.cancelAlgoOrder(sym, algo.algoId || algo.orderId).catch(() => {});
+      client.cancelAlgoOrder(sym, algo.algoId || algo.orderId).catch(() => { });
     }
   }
 
@@ -4448,12 +4448,12 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
         partialClosedSymbols.delete(prevSym);
 
         // 🧹 Hủy sạch tất cả các lệnh LIMIT Entry còn dư và SL/TP cũ trên sàn (chống cắn lại phần dư của lệnh limit)
-        client.cancelAllOpenOrders(prevSym).catch(() => {});
+        client.cancelAllOpenOrders(prevSym).catch(() => { });
         client.getOpenAlgoOrders(prevSym).then(algos => {
           for (const a of (algos || [])) {
-            client.cancelAlgoOrder(prevSym, a.algoId || a.orderId).catch(() => {});
+            client.cancelAlgoOrder(prevSym, a.algoId || a.orderId).catch(() => { });
           }
-        }).catch(() => {});
+        }).catch(() => { });
 
         // Get metadata before deleting
         const meta = activeTradesMetadata[prevSym];
@@ -4627,7 +4627,7 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
       // 1. Xác định Bước giá (Step) & Đơn vị (Unit = Step / 3)
       const currentStep = meta?.step || getStep(entryPrice);
       const unit = currentStep / 3;
-      
+
       // Dời SL / TP về hòa vốn có buffer bù phí (+/- 5 ticks bù phí và tối thiểu 0.12% giá để luôn dương PnL sau phí sàn)
       const beBuffer = Math.max(unit * 0.05, entryPrice * 0.0012);
 
@@ -4776,7 +4776,7 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
       const trailSlDistance = unit * 0.05; // Dời SL +5 ticks (0.05 * unit) khi chạm mốc Trail Trigger
       // 3. Tính khoảng cách giá và mục tiêu TP/SL theo Tier mới:
       let targetSlPriceExact, targetTpPriceExact, trailTriggerPriceExact, trailedSlPriceExact;
-      
+
       if (meta?.tierSlPrice && meta?.tierTpPrice) {
         targetSlPriceExact = meta.tierSlPrice;
         if (meta?.isPanicEscape || meta?.isH1Failed || meta?.isDefensiveBeActive) {
@@ -4833,161 +4833,161 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
       const posNotional = absAmt * entryPrice;
       const unrealizedPnlUsd = (roi / 100) * (meta?.margin || (posNotional / leverageVal));
 
-        // ----------------------------------------------------
-        // 0a. CƠ CHẾ THOÁT HIỂM 2 GIAI ĐOẠN (HYBRID DEFENSIVE ESCAPE)
-        // GIAI ĐOẠN 1: Dời TP về Entry + beBuffer khi lún 40%-45% SL + CVD đối lập > 70% (đón nhịp hồi thoát hòa vốn, Lỗ = 0)
-        // GIAI ĐOẠN 2: Cắt Non Market khi lún >= 70% SL + Nến M15 xác nhận đóng thủng cản + CVD xả gia tốc (bảo vệ 30%-35% vốn)
-        // GIAI ĐOẠN 3: Sideway theo nến M15 quanh Entry -> Kiên nhẫn giữ vị thế, tuyệt đối không cắt theo thời gian
-        // ----------------------------------------------------
-        if (ENABLE_DEFENSIVE_ESCAPE && meta && !meta.isTrendRunner && !meta.isPanicEscape && !meta.isH1Failed) {
-          const nowMs = Date.now();
-          const slDist = meta?.slDistance || unit;
-          // Giai đoạn 1: Lún 40% - 45% khoảng cách SL (vượt ra ngoài nhiễu râu quanh Entry)
-          const adverseSagDistance = slDist * 0.40;
-          const isSagging = isLong
-            ? (markPrice <= entryPrice - adverseSagDistance)
-            : (markPrice >= entryPrice + adverseSagDistance);
+      // ----------------------------------------------------
+      // 0a. CƠ CHẾ THOÁT HIỂM 2 GIAI ĐOẠN (HYBRID DEFENSIVE ESCAPE)
+      // GIAI ĐOẠN 1: Dời TP về Entry + beBuffer khi lún 40%-45% SL + CVD đối lập > 70% (đón nhịp hồi thoát hòa vốn, Lỗ = 0)
+      // GIAI ĐOẠN 2: Cắt Non Market khi lún >= 70% SL + Nến M15 xác nhận đóng thủng cản + CVD xả gia tốc (bảo vệ 30%-35% vốn)
+      // GIAI ĐOẠN 3: Sideway theo nến M15 quanh Entry -> Kiên nhẫn giữ vị thế, tuyệt đối không cắt theo thời gian
+      // ----------------------------------------------------
+      if (ENABLE_DEFENSIVE_ESCAPE && meta && !meta.isTrendRunner && !meta.isPanicEscape && !meta.isH1Failed) {
+        const nowMs = Date.now();
+        const slDist = meta?.slDistance || unit;
+        // Giai đoạn 1: Lún 40% - 45% khoảng cách SL (vượt ra ngoài nhiễu râu quanh Entry)
+        const adverseSagDistance = slDist * 0.40;
+        const isSagging = isLong
+          ? (markPrice <= entryPrice - adverseSagDistance)
+          : (markPrice >= entryPrice + adverseSagDistance);
 
-          const neverReachedTrail = !meta.maxFavorablePrice || (isLong ? (meta.maxFavorablePrice < entryPrice * 1.003) : (meta.maxFavorablePrice > entryPrice * 0.997));
+        const neverReachedTrail = !meta.maxFavorablePrice || (isLong ? (meta.maxFavorablePrice < entryPrice * 1.003) : (meta.maxFavorablePrice > entryPrice * 0.997));
 
-          if (!meta.isDefensiveBeActive && isSagging && neverReachedTrail) {
-            let shouldTriggerPhase1 = false;
-            let cvdRatio = 0.5;
+        if (!meta.isDefensiveBeActive && isSagging && neverReachedTrail) {
+          let shouldTriggerPhase1 = false;
+          let cvdRatio = 0.5;
+          try {
+            const cvd = await getCvdMomentum(sym, isLong ? 'LONG' : 'SHORT');
+            cvdRatio = cvd?.takerBuyRatio ?? 0.5;
+            // CVD đối lập: Ngưỡng đồng nhất mọi coin >= 65% (Taker Buy <= 35% cho Long, >= 65% cho Short)
+            const opposingThreshold = 0.35;
+            if (isLong && cvdRatio <= opposingThreshold) shouldTriggerPhase1 = true;
+            if (!isLong && cvdRatio >= (1.0 - opposingThreshold)) shouldTriggerPhase1 = true;
+          } catch (_) { }
+
+          if (shouldTriggerPhase1) {
+            meta.isDefensiveBeActive = true;
+            meta.defensiveActivatedTime = nowMs;
+            meta.hasMovedTpToCustom = false; // Báo hiệu luồng đặt TP cập nhật lệnh trên sàn
+            const escapePrice = isLong ? Number((entryPrice + beBuffer).toFixed(8)) : Number((entryPrice - beBuffer).toFixed(8));
+            meta.tierTpPrice = escapePrice;
+            targetTpPriceExact = escapePrice;
+            const opposingPct = isLong ? ((1 - cvdRatio) * 100).toFixed(1) : (cvdRatio * 100).toFixed(1);
+            log.system(
+              `[AutoTrade] 🛡️ [Defensive Escape - Phase 1] ${sym} (${isLong ? 'LONG' : 'SHORT'}): ` +
+              `Lún sâu 40%-45% SL & Dòng tiền CVD đối lập áp đảo ${opposingPct}% (Ngưỡng: >=65%) -> Dời TP về Entry hòa vốn @ $${escapePrice}`
+            );
+            await sendTelegram(
+              `🛡️ <b>[AutoTrade] Kích Hoạt Thoát Hiểm Giai Đoạn 1 (Dời TP về Entry)</b>\n` +
+              `• Coin: <b>#${sym} (${isLong ? 'LONG' : 'SHORT'})</b>\n` +
+              `• Entry: <b>$${entryPrice}</b> | Hiện tại: <b>$${markPrice}</b> (ROI ${roi.toFixed(2)}%)\n` +
+              `• Tín hiệu: <b>Lún 40%-45% SL & CVD đối lập ${opposingPct}%</b>\n` +
+              `• Hành động: <b>Đã dời TP về $${escapePrice} để đón nhịp giật râu thoát hàng LỖ = 0!</b>`
+            ).catch(() => { });
+            saveActiveTradesMetadata();
+          }
+        }
+
+        // Giai đoạn 2: Cắt Non Market nếu lún sâu >= 70% SL + Nến M15 ĐÓNG THỦNG cản + CVD xả gia tốc (> 70%)
+        // Giai đoạn 3: Nếu nến M15 đi ngang (sideway) chưa đóng thủng cản -> Kiên nhẫn giữ vị thế
+        if (meta.isDefensiveBeActive) {
+          const deepLossDistance = slDist * 0.70; // Lún sâu >= 70% khoảng cách SL
+          const isDeepDanger = isLong
+            ? (markPrice <= entryPrice - deepLossDistance)
+            : (markPrice >= entryPrice + deepLossDistance);
+
+          if (isDeepDanger && roi <= -7.5) {
+            let isM15ClosedBroken = false;
+            let isCvdAccelerating = false;
+            let cvdOpposingPct = '0';
+
+            // 1. Kiểm tra xác nhận nến M15 ĐÃ ĐÓNG CỬA (loại bỏ hoàn toàn râu nến M1)
+            try {
+              const m15s = await fetchBinanceKlines(sym, '15m', null, 5);
+              if (m15s && m15s.length >= 2) {
+                const lastClosedM15 = m15s[m15s.length - 2];
+                const m15CloseTime = (lastClosedM15?.openTime || 0) + 15 * 60_000;
+                const entryTime = meta.time || 0;
+
+                // Cây nến M15 vừa đóng phải kết thúc sau thời điểm vào lệnh
+                if (lastClosedM15 && m15CloseTime > entryTime) {
+                  // LONG: Nến Đỏ & đóng cửa dưới Entry
+                  // SHORT: Nến Xanh & đóng cửa trên Entry
+                  isM15ClosedBroken = isLong
+                    ? (lastClosedM15.close < lastClosedM15.open && lastClosedM15.close < entryPrice)
+                    : (lastClosedM15.close > lastClosedM15.open && lastClosedM15.close > entryPrice);
+                }
+              }
+            } catch (err) {
+              log.warn(`[AutoTrade] Không kiểm tra được nến M15 đóng cửa cho ${sym}: ${err.message}`);
+            }
+
+            // 2. Kiểm tra CVD xả gia tốc (phe đối lập duy trì > 70%)
             try {
               const cvd = await getCvdMomentum(sym, isLong ? 'LONG' : 'SHORT');
-              cvdRatio = cvd?.takerBuyRatio ?? 0.5;
-              // CVD đối lập: Ngưỡng đồng nhất mọi coin >= 65% (Taker Buy <= 35% cho Long, >= 65% cho Short)
-              const opposingThreshold = 0.35;
-              if (isLong && cvdRatio <= opposingThreshold) shouldTriggerPhase1 = true;
-              if (!isLong && cvdRatio >= (1.0 - opposingThreshold)) shouldTriggerPhase1 = true;
-            } catch (_) {}
+              const ratio = cvd?.takerBuyRatio ?? 0.5;
+              if (isLong && ratio <= 0.30) isCvdAccelerating = true;
+              if (!isLong && ratio >= 0.70) isCvdAccelerating = true;
+              cvdOpposingPct = isLong ? ((1 - ratio) * 100).toFixed(1) : (ratio * 100).toFixed(1);
+            } catch (_) { }
 
-            if (shouldTriggerPhase1) {
-              meta.isDefensiveBeActive = true;
-              meta.defensiveActivatedTime = nowMs;
-              meta.hasMovedTpToCustom = false; // Báo hiệu luồng đặt TP cập nhật lệnh trên sàn
-              const escapePrice = isLong ? Number((entryPrice + beBuffer).toFixed(8)) : Number((entryPrice - beBuffer).toFixed(8));
-              meta.tierTpPrice = escapePrice;
-              targetTpPriceExact = escapePrice;
-              const opposingPct = isLong ? ((1 - cvdRatio) * 100).toFixed(1) : (cvdRatio * 100).toFixed(1);
+            // Chỉ kích hoạt cắt non khi HỘI TỤ ĐỦ: Lún 70% SL + Nến M15 xác nhận đóng thủng + CVD xả gia tốc
+            // Nếu M15 vẫn đang nén đi ngang (sideway) quanh cản chưa đóng thủng -> Giữ vị thế!
+            if (isM15ClosedBroken && isCvdAccelerating) {
               log.system(
-                `[AutoTrade] 🛡️ [Defensive Escape - Phase 1] ${sym} (${isLong ? 'LONG' : 'SHORT'}): ` +
-                `Lún sâu 40%-45% SL & Dòng tiền CVD đối lập áp đảo ${opposingPct}% (Ngưỡng: >=65%) -> Dời TP về Entry hòa vốn @ $${escapePrice}`
+                `[AutoTrade] 🚨 [Defensive Early Cut - Phase 2] ${sym} (${isLong ? 'LONG' : 'SHORT'}): ` +
+                `Lún sâu >= 70% SL + Nến M15 đóng thủng cản + CVD xả gia tốc ${cvdOpposingPct}% (ROI ${roi.toFixed(2)}%, Lỗ -$${Math.abs(unrealizedPnlUsd).toFixed(2)} USDT) -> Cắt Non Market khẩn cấp!`
               );
-              await sendTelegram(
-                `🛡️ <b>[AutoTrade] Kích Hoạt Thoát Hiểm Giai Đoạn 1 (Dời TP về Entry)</b>\n` +
-                `• Coin: <b>#${sym} (${isLong ? 'LONG' : 'SHORT'})</b>\n` +
-                `• Entry: <b>$${entryPrice}</b> | Hiện tại: <b>$${markPrice}</b> (ROI ${roi.toFixed(2)}%)\n` +
-                `• Tín hiệu: <b>Lún 40%-45% SL & CVD đối lập ${opposingPct}%</b>\n` +
-                `• Hành động: <b>Đã dời TP về $${escapePrice} để đón nhịp giật râu thoát hàng LỖ = 0!</b>`
-              ).catch(() => {});
-              saveActiveTradesMetadata();
-            }
-          }
-
-          // Giai đoạn 2: Cắt Non Market nếu lún sâu >= 70% SL + Nến M15 ĐÓNG THỦNG cản + CVD xả gia tốc (> 70%)
-          // Giai đoạn 3: Nếu nến M15 đi ngang (sideway) chưa đóng thủng cản -> Kiên nhẫn giữ vị thế
-          if (meta.isDefensiveBeActive) {
-            const deepLossDistance = slDist * 0.70; // Lún sâu >= 70% khoảng cách SL
-            const isDeepDanger = isLong
-              ? (markPrice <= entryPrice - deepLossDistance)
-              : (markPrice >= entryPrice + deepLossDistance);
-
-            if (isDeepDanger && roi <= -7.5) {
-              let isM15ClosedBroken = false;
-              let isCvdAccelerating = false;
-              let cvdOpposingPct = '0';
-
-              // 1. Kiểm tra xác nhận nến M15 ĐÃ ĐÓNG CỬA (loại bỏ hoàn toàn râu nến M1)
               try {
-                const m15s = await fetchBinanceKlines(sym, '15m', null, 5);
-                if (m15s && m15s.length >= 2) {
-                  const lastClosedM15 = m15s[m15s.length - 2];
-                  const m15CloseTime = (lastClosedM15?.openTime || 0) + 15 * 60_000;
-                  const entryTime = meta.time || 0;
+                await closeRealPositionMarket(client, sym, oppositeSide, absAmt, openAlgoOrders, 'Defensive Early Cut');
+                await sendTelegram(
+                  `🚨 <b>[AutoTrade] Cắt Non Phòng Thủ - Giai Đoạn 2 (Defensive Early Cut)</b>\n` +
+                  `• Coin: <b>#${sym} (${isLong ? 'LONG' : 'SHORT'})</b>\n` +
+                  `• Giá cắt: <b>$${markPrice}</b> | ROI: <b>${roi.toFixed(2)}%</b>\n` +
+                  `• Thiệt hại khống chế: <b>-$${Math.abs(unrealizedPnlUsd).toFixed(2)} USDT</b>\n` +
+                  `• Xác nhận: <b>Nến M15 đóng thủng cản & CVD xả gia tốc ${cvdOpposingPct}%</b>\n` +
+                  `• Kết quả: <b>Chủ động cắt sớm để bảo toàn ~30%-35% vốn so với Full SL (-13%)!</b>`
+                ).catch(() => { });
 
-                  // Cây nến M15 vừa đóng phải kết thúc sau thời điểm vào lệnh
-                  if (lastClosedM15 && m15CloseTime > entryTime) {
-                    // LONG: Nến Đỏ & đóng cửa dưới Entry
-                    // SHORT: Nến Xanh & đóng cửa trên Entry
-                    isM15ClosedBroken = isLong
-                      ? (lastClosedM15.close < lastClosedM15.open && lastClosedM15.close < entryPrice)
-                      : (lastClosedM15.close > lastClosedM15.open && lastClosedM15.close > entryPrice);
-                  }
-                }
-              } catch (err) {
-                log.warn(`[AutoTrade] Không kiểm tra được nến M15 đóng cửa cho ${sym}: ${err.message}`);
-              }
+                const holdingDurationMinutes = (Date.now() - (meta.time || Date.now())) / 60000;
+                recordTradeExit({
+                  tradeId: `${sym}-${meta.orderId || 'defCut'}`,
+                  orderId: String(meta.orderId || ''),
+                  symbol: sym,
+                  exitPrice: markPrice,
+                  exitTimestamp: Date.now(),
+                  exitType: 'DEFENSIVE_EARLY_CUT',
+                  pnlPercent: roi,
+                  pnlUsd: unrealizedPnlUsd,
+                  holdingDurationMinutes: holdingDurationMinutes,
+                  isWin: false,
+                });
+                recordDirectionalTradeExit({
+                  symbol: sym,
+                  side: isLong ? 'LONG' : 'SHORT',
+                  isWin: false,
+                  exitType: 'DEFENSIVE_EARLY_CUT',
+                  pnlUsd: unrealizedPnlUsd,
+                  pnlPercent: roi
+                });
+                recordRealTradeOutcome({
+                  symbol: sym,
+                  side: isLong ? 'LONG' : 'SHORT',
+                  isWin: false,
+                  exitType: 'DEFENSIVE_EARLY_CUT',
+                  pnlUsd: unrealizedPnlUsd,
+                  pnlPercent: roi
+                });
 
-              // 2. Kiểm tra CVD xả gia tốc (phe đối lập duy trì > 70%)
-              try {
-                const cvd = await getCvdMomentum(sym, isLong ? 'LONG' : 'SHORT');
-                const ratio = cvd?.takerBuyRatio ?? 0.5;
-                if (isLong && ratio <= 0.30) isCvdAccelerating = true;
-                if (!isLong && ratio >= 0.70) isCvdAccelerating = true;
-                cvdOpposingPct = isLong ? ((1 - ratio) * 100).toFixed(1) : (ratio * 100).toFixed(1);
-              } catch (_) {}
-
-              // Chỉ kích hoạt cắt non khi HỘI TỤ ĐỦ: Lún 70% SL + Nến M15 xác nhận đóng thủng + CVD xả gia tốc
-              // Nếu M15 vẫn đang nén đi ngang (sideway) quanh cản chưa đóng thủng -> Giữ vị thế!
-              if (isM15ClosedBroken && isCvdAccelerating) {
-                log.system(
-                  `[AutoTrade] 🚨 [Defensive Early Cut - Phase 2] ${sym} (${isLong ? 'LONG' : 'SHORT'}): ` +
-                  `Lún sâu >= 70% SL + Nến M15 đóng thủng cản + CVD xả gia tốc ${cvdOpposingPct}% (ROI ${roi.toFixed(2)}%, Lỗ -$${Math.abs(unrealizedPnlUsd).toFixed(2)} USDT) -> Cắt Non Market khẩn cấp!`
-                );
-                try {
-                  await closeRealPositionMarket(client, sym, oppositeSide, absAmt, openAlgoOrders, 'Defensive Early Cut');
-                  await sendTelegram(
-                    `🚨 <b>[AutoTrade] Cắt Non Phòng Thủ - Giai Đoạn 2 (Defensive Early Cut)</b>\n` +
-                    `• Coin: <b>#${sym} (${isLong ? 'LONG' : 'SHORT'})</b>\n` +
-                    `• Giá cắt: <b>$${markPrice}</b> | ROI: <b>${roi.toFixed(2)}%</b>\n` +
-                    `• Thiệt hại khống chế: <b>-$${Math.abs(unrealizedPnlUsd).toFixed(2)} USDT</b>\n` +
-                    `• Xác nhận: <b>Nến M15 đóng thủng cản & CVD xả gia tốc ${cvdOpposingPct}%</b>\n` +
-                    `• Kết quả: <b>Chủ động cắt sớm để bảo toàn ~30%-35% vốn so với Full SL (-13%)!</b>`
-                  ).catch(() => {});
-
-                  const holdingDurationMinutes = (Date.now() - (meta.time || Date.now())) / 60000;
-                  recordTradeExit({
-                    tradeId: `${sym}-${meta.orderId || 'defCut'}`,
-                    orderId: String(meta.orderId || ''),
-                    symbol: sym,
-                    exitPrice: markPrice,
-                    exitTimestamp: Date.now(),
-                    exitType: 'DEFENSIVE_EARLY_CUT',
-                    pnlPercent: roi,
-                    pnlUsd: unrealizedPnlUsd,
-                    holdingDurationMinutes: holdingDurationMinutes,
-                    isWin: false,
-                  });
-                  recordDirectionalTradeExit({
-                    symbol: sym,
-                    side: isLong ? 'LONG' : 'SHORT',
-                    isWin: false,
-                    exitType: 'DEFENSIVE_EARLY_CUT',
-                    pnlUsd: unrealizedPnlUsd,
-                    pnlPercent: roi
-                  });
-                  recordRealTradeOutcome({
-                    symbol: sym,
-                    side: isLong ? 'LONG' : 'SHORT',
-                    isWin: false,
-                    exitType: 'DEFENSIVE_EARLY_CUT',
-                    pnlUsd: unrealizedPnlUsd,
-                    pnlPercent: roi
-                  });
-
-                  addSymbolToCooldown(sym, null, 'DEFENSIVE_EARLY_CUT');
-                  continue;
-                } catch (e) {
-                  justClosedByBot.delete(sym);
-                  log.error(`[AutoTrade] [Defensive Early Cut] Lỗi đóng vị thế ${sym}: ${e.message}`);
-                }
+                addSymbolToCooldown(sym, null, 'DEFENSIVE_EARLY_CUT');
+                continue;
+              } catch (e) {
+                justClosedByBot.delete(sym);
+                log.error(`[AutoTrade] [Defensive Early Cut] Lỗi đóng vị thế ${sym}: ${e.message}`);
               }
             }
           }
+        }
       }
 
-            // ----------------------------------------------------
+      // ----------------------------------------------------
       // 0b. STALE POSITION GUARD (Quản lý vị thế ứ đọng quá 6 giờ ~ 1.5 nến H4)
       // ----------------------------------------------------
       const holdingDurationMinutes = (Date.now() - (meta?.time || Date.now())) / 60000;
@@ -5015,7 +5015,7 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
               `• Thời gian giữ lệnh: <b>${holdingHours.toFixed(1)} giờ (>= 1.5 nến H4)</b>\n` +
               `• Hiện tại: <b>$${markPrice}</b> | ROI: <b>+${roi.toFixed(2)}%</b>\n` +
               `• Hành động: <b>Lệnh đang có lãi -> Tự động dời SL về Entry hòa vốn để tiếp tục gồng Full TP với RỦI RO = 0!</b>`
-            ).catch(() => {});
+            ).catch(() => { });
           }
         }
         // 👉 TRƯỜNG HỢP 2: Lệnh đang LÌNH XÌNH HÒA VỐN / ÂM NHẸ (-3.0% <= ROI <= +0.5%)
@@ -5034,7 +5034,7 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
               `• Giá đóng: <b>$${markPrice}</b> | ROI: <b>${roi >= 0 ? '+' : ''}${roi.toFixed(2)}%</b>\n` +
               `• PnL: <b>${unrealizedPnlUsd >= 0 ? '+' : ''}${unrealizedPnlUsd.toFixed(2)} USDT</b>\n` +
               `• Hành động: <b>Chủ động đóng Market giải phóng vốn sau 1.5 chu kỳ H4 đi ngang không bứt phá!</b>`
-            ).catch(() => {});
+            ).catch(() => { });
 
             recordTradeExit({
               tradeId: `${sym}-${meta.orderId || 'staleExit'}`,
@@ -5228,7 +5228,7 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
               try {
                 if (o.isAlgo) await client.cancelAlgoOrder(sym, o.orderId);
                 else await client.cancelOrder(sym, o.orderId);
-              } catch (_) {}
+              } catch (_) { }
             }
 
             // Hủy SL cũ trên sàn để chuẩn bị dời SL khóa lãi mới
@@ -5236,7 +5236,7 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
               try {
                 if (o.isAlgo) await client.cancelAlgoOrder(sym, o.orderId);
                 else await client.cancelOrder(sym, o.orderId);
-              } catch (_) {}
+              } catch (_) { }
             }
 
             const tp1Roi = parseFloat(((Math.abs(markPrice - entryPrice) / entryPrice) * leverageVal * 100).toFixed(2));
@@ -5251,7 +5251,7 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
               `• Vị thế còn lại: <b>${absAmt}</b> tiếp tục gồng theo đà sóng\n` +
               `• Khóa SL bảo đảm lãi tại: <b>$${lockedSlPrice}</b> (Chắc chắn ăn +${lockedRoi}% ROI)\n` +
               `• Mục tiêu TP2 mở rộng: <b>$${targetTp2}</b> (Kỳ vọng +${tp2Roi}% ROI)!`
-            ).catch(() => {});
+            ).catch(() => { });
 
             continue; // Bỏ qua đóng vị thế toàn phần, tiếp tục gồng!
           }
@@ -5388,7 +5388,7 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
               `• Giá chốt: <b>$${markPrice}</b> | ROI: <b>+${roi.toFixed(2)}%</b>\n` +
               `• Tiền lãi bỏ túi: <b>+$${estRealizedPnl.toFixed(2)} USDT</b>\n` +
               `• Vị thế còn lại: <b>${absAmt}</b> (SL đang dời theo sóng M15 để tiếp tục gồng lãi Full TP!)`
-            ).catch(() => {});
+            ).catch(() => { });
           } catch (e) {
             partialClosedSymbols.delete(sym);
             log.error(`[AutoTrade] [Partial TP] Đóng 50% vị thế ${sym} thất bại: ${e.message}`);
@@ -5575,7 +5575,7 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
             // 🧹 Hủy sạch các lệnh LIMIT Entry còn treo dư (chống khớp lại phần dư khi giá hồi về Entry)
             const remainingEntryLimits = openOrders.filter(o => o.type === 'LIMIT' || o.orderType === 'LIMIT');
             for (const limitOrder of remainingEntryLimits) {
-              client.cancelOrder(sym, limitOrder.orderId).catch(() => {});
+              client.cancelOrder(sym, limitOrder.orderId).catch(() => { });
             }
 
             // Hủy SL cũ
@@ -5738,7 +5738,7 @@ async function notifyRealClose(client, sym, prevPos, meta) {
         // để tránh nhặt nhầm giao dịch đóng vị thế cũ từ các ngày trước!
         const minTradeTime = meta?.time ? (meta.time - 10000) : (Date.now() - 30 * 60 * 1000);
         const closeTrades = trades.filter(t => t.side === oppositeSide && t.time >= minTradeTime);
-        
+
         if (closeTrades.length > 0) {
           closeTrades.sort((a, b) => b.time - a.time);
           const recentCloseTime = closeTrades[0].time;
@@ -5799,7 +5799,7 @@ async function notifyRealClose(client, sym, prevPos, meta) {
     // Phân loại lý do đóng chính xác dựa vào cả PnL và mức giá chạm so với target TP/SL
     let label = '🛡️ Đóng vị thế (Sàn khớp)';
     let exitType = 'SL';
-    
+
     // Kiểm tra xem giá đóng có khớp với TP mục tiêu không (xét cả closePrice, maxFavorablePrice và dung sai trượt giá 0.1%)
     // 🛡️ CHỈ công nhận chạm TP nếu lệnh thực sự CÓ LÃI (realizedProfit > 0.1)
     // Loại trừ triệt để trường hợp tierTpPrice bị Defensive Escape dời về Entry hoặc giá từng giật râu đỉnh rồi đảo chiều cắn SL!
@@ -5888,8 +5888,8 @@ async function notifyRealClose(client, sym, prevPos, meta) {
     const sideStr = prevPos.isLong ? 'LONG' : 'SHORT';
     const detailStr = hasTradeData
       ? `\n• Hướng: <b>${sideStr}</b>` +
-        `\n• PnL Thực Nhận: <b>${pnlSign}${realizedProfit.toFixed(2)} USDT</b> (ROI: <b>${roiSign}${roi.toFixed(2)}%</b>)` +
-        (closePrice && prevPos.entryPrice ? `\n• Giá: <b>$${prevPos.entryPrice}</b> ➔ <b>$${closePrice}</b>` : '')
+      `\n• PnL Thực Nhận: <b>${pnlSign}${realizedProfit.toFixed(2)} USDT</b> (ROI: <b>${roiSign}${roi.toFixed(2)}%</b>)` +
+      (closePrice && prevPos.entryPrice ? `\n• Giá: <b>$${prevPos.entryPrice}</b> ➔ <b>$${closePrice}</b>` : '')
       : '';
 
     await sendTelegram(

@@ -16,131 +16,131 @@
  * Dependencies cần có: axios, ws
  */
 
-const { setLogger }  = require('./_logger');
-const core           = require('./core');
-const stream         = require('./stream');
-const signalLog      = require('./signalLog');
-const formatter      = require('./formatter');
-const telegram       = require('./telegram');
+const { setLogger } = require('./_logger');
+const core = require('./core');
+const stream = require('./stream');
+const signalLog = require('./signalLog');
+const formatter = require('./formatter');
+const telegram = require('./telegram');
 const datasetCollector = require('./datasetCollector');
-const signalTracker   = require('./signalTracker');
-const aiReviewer      = require('./aiReviewer');
-const turnoverGuard   = require('./turnoverGuard');
-const shadowTracker   = require('./shadowTracker');
-const autoRetrainer   = require('./autoRetrainer');
-const dailyReporter   = require('./dailyReporter');
+const signalTracker = require('./signalTracker');
+const aiReviewer = require('./aiReviewer');
+const turnoverGuard = require('./turnoverGuard');
+const shadowTracker = require('./shadowTracker');
+const autoRetrainer = require('./autoRetrainer');
+const dailyReporter = require('./dailyReporter');
 const confluenceScorer = require('./confluenceScorer');
 
 module.exports = {
   // ── Shadow PnL Tracker ───────────────────────────────────────────────────
-  registerShadowTrade:     shadowTracker.registerShadowTrade,
-  updateShadowPrices:      shadowTracker.updateShadowPrices,
-  getShadowStats:          shadowTracker.getShadowStats,
+  registerShadowTrade: shadowTracker.registerShadowTrade,
+  updateShadowPrices: shadowTracker.updateShadowPrices,
+  getShadowStats: shadowTracker.getShadowStats,
   getActiveShadowPositions: shadowTracker.getActiveShadowPositions,
-  setShadowTrackerLogger:  shadowTracker.setLogger,
+  setShadowTrackerLogger: shadowTracker.setLogger,
 
   // ── Autonomous Retraining Loop ───────────────────────────────────────────
-  runRetrainCycle:       autoRetrainer.runRetrainCycle,
-  startPeriodicRetrain:  autoRetrainer.startPeriodicRetrain,
-  stopPeriodicRetrain:   autoRetrainer.stopPeriodicRetrain,
-  getRetrainStatus:      autoRetrainer.getRetrainStatus,
+  runRetrainCycle: autoRetrainer.runRetrainCycle,
+  startPeriodicRetrain: autoRetrainer.startPeriodicRetrain,
+  stopPeriodicRetrain: autoRetrainer.stopPeriodicRetrain,
+  getRetrainStatus: autoRetrainer.getRetrainStatus,
   setAutoRetrainerLogger: autoRetrainer.setLogger,
 
   // ── Turnover Guard ───────────────────────────────────────────────────────
   updateVolume24hCache: turnoverGuard.updateVolume24hCache,
-  getVolume24hUSD:      turnoverGuard.getVolume24hUSD,
-  getMarketCapUSD:      turnoverGuard.getMarketCapUSD,
-  checkTurnoverGuard:   turnoverGuard.checkTurnoverGuard,
-  isTurnoverBlocked:    turnoverGuard.isTurnoverBlocked,
+  getVolume24hUSD: turnoverGuard.getVolume24hUSD,
+  getMarketCapUSD: turnoverGuard.getMarketCapUSD,
+  checkTurnoverGuard: turnoverGuard.checkTurnoverGuard,
+  isTurnoverBlocked: turnoverGuard.isTurnoverBlocked,
 
   // ── AI Reviewer & Inference Engine ──────────────────────────────────────
   evaluateSignalWithAI: aiReviewer.evaluateSignalWithAI,
-  recordAIEvaluation:   aiReviewer.recordAIEvaluation,
-  loadAIModel:          aiReviewer.loadAIModel,
-  checkModelHotReload:  aiReviewer.checkModelHotReload,
-  getAIModelConfig:     aiReviewer.getAIModelConfig,
+  recordAIEvaluation: aiReviewer.recordAIEvaluation,
+  loadAIModel: aiReviewer.loadAIModel,
+  checkModelHotReload: aiReviewer.checkModelHotReload,
+  getAIModelConfig: aiReviewer.getAIModelConfig,
   // ── Cấu hình (optional) ──────────────────────────────────────────────────
   setLogger,                             // override logger (mặc định: console)
   setDataDir: signalLog.setDataDir,      // override thư mục lưu signal log
   setDatasetLogger: datasetCollector.setLogger, // override dataset collector logger
 
   // ── AI Trade Dataset ─────────────────────────────────────────────────────
-  recordTradeEntry:   datasetCollector.recordTradeEntry,
-  recordTradeExit:    datasetCollector.recordTradeExit,
-  getDatasetStats:    datasetCollector.getDatasetStats,
+  recordTradeEntry: datasetCollector.recordTradeEntry,
+  recordTradeExit: datasetCollector.recordTradeExit,
+  getDatasetStats: datasetCollector.getDatasetStats,
 
   // ── Skipped Signals Tracker ─────────────────────────────────────────────
-  recordSkippedSignal:   signalTracker.recordSkippedSignal,
+  recordSkippedSignal: signalTracker.recordSkippedSignal,
   getSkippedSignalsStats: signalTracker.getSkippedSignalsStats,
   setSignalTrackerLogger: signalTracker.setLogger,
 
   // ── Core strategy ────────────────────────────────────────────────────────
-  get369Signal:          core.get369Signal,
+  get369Signal: core.get369Signal,
   get369SignalsForCoins: core.get369SignalsForCoins,
-  score369Method:        core.score369Method,
-  format369ForPrompt:    core.format369ForPrompt,
-  getLevelCache:         core.getLevelCache,
+  score369Method: core.score369Method,
+  format369ForPrompt: core.format369ForPrompt,
+  getLevelCache: core.getLevelCache,
   overrideLevelLastSide: core.overrideLevelLastSide,
-  initH4Cache:           core.initH4Cache,
-  YEAR_START_MS:         core.YEAR_START_MS,
-  fetchBinanceKlines:    core.fetchBinanceKlines,
-  fetchH4Reference:      core.fetchH4Reference,
-  buildLevelGrid:        core.buildLevelGrid,
-  PROXIMITY_PCT:         core.PROXIMITY_PCT,
-  getDecimals:           core.getDecimals,
-  getStep:               core.getStep,
-  getGridStepPct:        core.getGridStepPct,
-  isGridWidthValid:      core.isGridWidthValid,
-  GRID_MIN_PCT:          core.GRID_MIN_PCT,
-  GRID_MIN_PCT_TOP30:   core.GRID_MIN_PCT_TOP30,
-  GRID_MIN_PCT_TOP100:  core.GRID_MIN_PCT_TOP30,
-  GRID_MAX_PCT:          core.GRID_MAX_PCT,
-  getMinGridPct:         core.getMinGridPct,
-  isTop100Symbol:        core.isTop100Symbol,
-  isTop30Symbol:         core.isTop30Symbol,
-  isTop50Symbol:         confluenceScorer.isTop50Symbol,
-  scoreSetup:            confluenceScorer.scoreSetup,
-  checkHardFilters:      confluenceScorer.checkHardFilters,
-  calcMaxLeverage:       confluenceScorer.calcMaxLeverage,
-  calcTAFromKlines:      confluenceScorer.calcTAFromKlines,
-  getMarketCapRank:      core.getMarketCapRank,
+  initH4Cache: core.initH4Cache,
+  YEAR_START_MS: core.YEAR_START_MS,
+  fetchBinanceKlines: core.fetchBinanceKlines,
+  fetchH4Reference: core.fetchH4Reference,
+  buildLevelGrid: core.buildLevelGrid,
+  PROXIMITY_PCT: core.PROXIMITY_PCT,
+  getDecimals: core.getDecimals,
+  getStep: core.getStep,
+  getGridStepPct: core.getGridStepPct,
+  isGridWidthValid: core.isGridWidthValid,
+  GRID_MIN_PCT: core.GRID_MIN_PCT,
+  GRID_MIN_PCT_TOP30: core.GRID_MIN_PCT_TOP30,
+  GRID_MIN_PCT_TOP100: core.GRID_MIN_PCT_TOP30,
+  GRID_MAX_PCT: core.GRID_MAX_PCT,
+  getMinGridPct: core.getMinGridPct,
+  isTop100Symbol: core.isTop100Symbol,
+  isTop30Symbol: core.isTop30Symbol,
+  isTop50Symbol: confluenceScorer.isTop50Symbol,
+  scoreSetup: confluenceScorer.scoreSetup,
+  checkHardFilters: confluenceScorer.checkHardFilters,
+  calcMaxLeverage: confluenceScorer.calcMaxLeverage,
+  calcTAFromKlines: confluenceScorer.calcTAFromKlines,
+  getMarketCapRank: core.getMarketCapRank,
   isSymbolInGridBlacklist: core.isSymbolInGridBlacklist,
-  getGridBlacklistInfo:    core.getGridBlacklistInfo,
-  addToGridBlacklist:      core.addToGridBlacklist,
-  classifyCandleGeometry:  core.classifyCandleGeometry,
-  getRecentFractalSwing:   core.getRecentFractalSwing,
+  getGridBlacklistInfo: core.getGridBlacklistInfo,
+  addToGridBlacklist: core.addToGridBlacklist,
+  classifyCandleGeometry: core.classifyCandleGeometry,
+  getRecentFractalSwing: core.getRecentFractalSwing,
   getRecentM15FractalSwing: core.getRecentM15FractalSwing,
-  fetchH1Historical:       core.fetchH1Historical,
-  fetchH4Historical:       core.fetchH4Historical,
-  findSwingPoints:         core.findSwingPoints,
-  calculateATR:            core.calculateATR,
+  fetchH1Historical: core.fetchH1Historical,
+  fetchH4Historical: core.fetchH4Historical,
+  findSwingPoints: core.findSwingPoints,
+  calculateATR: core.calculateATR,
 
   // ── WebSocket stream ─────────────────────────────────────────────────────
-  start369Stream:   stream.start369Stream,
-  stop369Stream:    stream.stop369Stream,
-  getMarkPrice:     stream.getMarkPrice,
+  start369Stream: stream.start369Stream,
+  stop369Stream: stream.stop369Stream,
+  getMarkPrice: stream.getMarkPrice,
   getNearbySymbols: stream.getNearbySymbols,
   updatePricesRest: stream.updatePricesRest,
   syncWebSocketSubscriptions: stream.syncWebSocketSubscriptions,
-  onPriceUpdate:    stream.onPriceUpdate,
+  onPriceUpdate: stream.onPriceUpdate,
 
   // ── Signal log ───────────────────────────────────────────────────────────
-  logSignal369:      signalLog.logSignal369,
+  logSignal369: signalLog.logSignal369,
   loadSignalHistory: signalLog.loadSignalHistory,
 
   // ── Telegram formatter ───────────────────────────────────────────────────
-  fmt369Price:      formatter.fmt369Price,
-  format369Alert:   formatter.format369Alert,
+  fmt369Price: formatter.fmt369Price,
+  format369Alert: formatter.format369Alert,
   getGridBotConfig: formatter.getGridBotConfig,
 
   // ── Telegram notifier ────────────────────────────────────────────────────
-  sendTelegram:   telegram.sendTelegram,
+  sendTelegram: telegram.sendTelegram,
   notifyBotStart: telegram.notifyBotStart,
-  notifySignals:  telegram.notifySignals,
+  notifySignals: telegram.notifySignals,
 
   // ── Daily Performance Reporter ───────────────────────────────────────────
-  getDailyTradeStats:        dailyReporter.getDailyTradeStats,
-  formatDailyReportHtml:      dailyReporter.formatDailyReportHtml,
-  sendDailyReportTelegram:    dailyReporter.sendDailyReportTelegram,
+  getDailyTradeStats: dailyReporter.getDailyTradeStats,
+  formatDailyReportHtml: dailyReporter.formatDailyReportHtml,
+  sendDailyReportTelegram: dailyReporter.sendDailyReportTelegram,
   startDailyReportScheduler: dailyReporter.startDailyReportScheduler,
 };
