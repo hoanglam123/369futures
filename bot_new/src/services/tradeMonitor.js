@@ -30,8 +30,8 @@ const MAINTENANCE_MARGIN = 0.005;   // ~0.5% dùng để tính giá thanh lý g�
 const MIN_HOLD_BEFORE_REVERSAL_MS  = parseInt(process.env.MIN_HOLD_HOURS_REVERSAL || '8', 10) * 3_600_000;
 // MIN_TP_SL_UPDATE_PCT: % thay đổi tối thiểu để chấp nhận cập nhật TP/SL từ AI (tránh update vụn vặt)
 const MIN_PRICE_CHANGE_TO_UPDATE   = parseFloat(process.env.MIN_TP_SL_UPDATE_PCT || '1.5');
-// ENTRY_EXPIRY_HOURS: hủy lệnh pending nếu giá không fill sau X giờ (market đã thay đổi)
-const ENTRY_EXPIRY_MS              = parseInt(process.env.ENTRY_EXPIRY_HOURS || '4', 10) * 3_600_000;
+// ENTRY_EXPIRY_HOURS: hủy lệnh pending nếu không fill sau 90 phút (1.5h) chuẩn theo bot-h4
+const ENTRY_EXPIRY_MS              = parseFloat(process.env.ENTRY_EXPIRY_HOURS || '1.5') * 3_600_000;
 // WS_FILL_FALLBACK_MINUTES: khoảng cách giữa các lần poll REST để phát hiện WS fill event bị miss (mặc định 5 phút để tiết kiệm API weight)
 const WS_FILL_FALLBACK_MS          = parseInt(process.env.WS_FILL_FALLBACK_MINUTES || '5', 10) * 60_000;
 // TRADE_COOLDOWN_HOURS: không vào lại cùng coin trong X giờ sau khi đóng lệnh (TP/SL/reversed)
@@ -992,7 +992,35 @@ async function syncManualPositions(source = 'internal') {
       const posAmt    = parseFloat(pos.positionAmt);
       const direction = posAmt > 0 ? 'LONG' : 'SHORT';
 
-      // Đã theo dõi vị thế này rồi → bỏ qua (kể cả đang chờ fill)
+      // 🛡️ Đồng bộ vị thế như bot-h4:
+      // Nếu trade đã có trong activeTrades với trạng thái pending (!entryFilled)
+      // mà trên sàn đã xuất hiện vị thế posAmt != 0 -> xác nhận lệnh LIMIT đã khớp!
+      const existingPending = activeTrades.find(t =>
+        t.symbol === symbol &&
+        t.direction === direction &&
+        t.status === 'active' &&
+        !t.entryFilled
+      );
+      if (existingPending) {
+        log.system(`[TradeMonitor] ✓ Đồng bộ vị thế sàn: Lệnh LIMIT ${symbol} ${direction} đã khớp (posAmt=${posAmt}, entry=${pos.entryPrice})`);
+        existingPending.entryFilled = true;
+        existingPending.binanceQty = Math.abs(posAmt);
+        if (parseFloat(pos.entryPrice) > 0) existingPending.entryPrice = parseFloat(pos.entryPrice);
+        saveTrades();
+        ensureMarkPriceWS(symbol);
+
+        // Đặt TP & SL On-Exchange nếu chưa có (Dual Bracket)
+        if (!existingPending.binanceTpOrderId && existingPending.targetPrice) {
+          await binanceTrader.placeTPAfterEntry(existingPending).catch(e => log.warn(`[Sync] Đặt TP ${symbol} thất bại: ${e.message}`));
+        }
+        if (!existingPending.binanceSlOrderId && existingPending.slPrice) {
+          await binanceTrader.placeSLAfterFill(existingPending).catch(e => log.warn(`[Sync] Đặt SL ${symbol} thất bại: ${e.message}`));
+        }
+        saveTrades();
+        continue;
+      }
+
+      // Đã theo dõi vị thế này rồi → bỏ qua
       // Bao gồm cả lệnh đã đóng < 30p để tránh re-detect khi position vẫn chưa settle trên Binance
       // Bao gồm cả reversed trade: lệnh REV chỉ đóng khi user tự đóng thủ công — bot không được tự đóng
       const tracked = activeTrades.some(t => {
@@ -1559,103 +1587,13 @@ async function checkActiveTrades() {
         continue;
       }
 
-      // Nếu đã đặt lệnh LIMIT trên Binance → chờ WS fill event, không tự suy đoán từ giá.
-      // Tự suy đoán gây lỗi: mark price chạm zone → bot set entryFilled=true → placeTP thất bại
-      // vì chưa có position thật → recovery đóng nhầm trade trong khi lệnh vẫn đang pending.
+      // Cơ chế đồng bộ vị thế chuẩn bot-h4:
+      // Lệnh LIMIT đang treo trên sàn Binance chờ giá khớp.
+      // - Khớp lệnh được bắt tức thì qua WebSocket User Data Stream (ORDER_TRADE_UPDATE)
+      // - Dự phòng rớt mạng WebSocket qua chu kỳ syncManualPositions() (getAllPositions)
+      // - Hủy lệnh tự động nếu giá bật nảy ra xa (checkBounceCancel) hoặc chờ quá 90p (ENTRY_EXPIRY_MS)
+      // Không cần poll REST orderId liên tục để tiết kiệm API weight và giữ log sạch sẽ.
       if (trade.binanceEntryOrderId) {
-        // WS fill fallback: sau WS_FILL_FALLBACK_MS mà WS chưa fire, poll REST để phát hiện fill bị miss.
-        // Binance user data stream có thể drop events mà không ngắt kết nối — đây là safety net.
-        if (binanceTrader.isEnabled() && pendingMs > WS_FILL_FALLBACK_MS) {
-          const lastCheck = _fillCheckMs.get(trade.id) ?? 0;
-          if (Date.now() - lastCheck > WS_FILL_FALLBACK_MS) {
-            _fillCheckMs.set(trade.id, Date.now());
-            const elapsedMin = Math.round(pendingMs / 60_000);
-            log.price(`[Limit Fallback Poll] Kiểm tra order #${trade.binanceEntryOrderId} ${trade.symbol} sau ${elapsedMin}m`);
-            try {
-              const order = await binanceTrader.getOrderStatus(trade.symbol, trade.binanceEntryOrderId);
-              // Helper: recover fill từ avgPrice (dùng lại cho cả order-based và posAmt-based)
-              const recoverFill = async (avgPrice, source) => {
-                if (avgPrice > 0) {
-                  const lev       = trade.leverage || 10;
-                  const tp1RawPct = 10 / lev + TAKER_FEE * 2 * 100;
-                  const tp1Price  = isLong
-                    ? avgPrice * (1 + tp1RawPct / 100)
-                    : avgPrice * (1 - tp1RawPct / 100);
-                  trade.tp1Price = parseFloat(tp1Price.toFixed(2));
-                  trade.tp1Pct   = parseFloat(tp1RawPct.toFixed(2));
-                }
-                trade.entryFilled = true;
-                saveTrades();
-                ensureMarkPriceWS(trade.symbol);
-                _fillCheckMs.delete(trade.id);
-                const tpOrderId = await binanceTrader.placeTPAfterEntry(trade).catch(e => {
-                  log.warn(`WS FILL FALLBACK (${source}): đặt TP thất bại ${trade.symbol}`, { error: e.message });
-                  return null;
-                });
-                if (!trade.binanceSlOrderId && trade.slPrice) {
-                  await binanceTrader.placeSLAfterFill(trade).catch(e => {
-                    log.warn(`WS FILL FALLBACK (${source}): đặt Hard STOP_MARKET SL thất bại ${trade.symbol}`, { error: e.message });
-                    return null;
-                  });
-                }
-                saveTrades();
-                const dirLabel = isLong ? '🟢 LONG' : '🔴 SHORT';
-                const slLine = trade.binanceSlOrderId
-                  ? `🛑 SL sàn đã đặt:  <code>#${trade.binanceSlOrderId}</code>  tại  <code>${fmtPrice(trade.slPrice)}</code>\n`
-                  : `🛡️ SL:  bot theo dõi tại  <code>${fmtPrice(trade.slPrice)}</code>  (real-time)\n`;
-                sendMessages([
-                  `⚠️ <b>WS FILL FALLBACK — ${trade.symbol} ${dirLabel}${trade.leverage ? ` ⚡x${trade.leverage}` : ''}</b>\n` +
-                  `━━━━━━━━━━━━━━━━\n` +
-                  `Bot phát hiện entry fill qua ${source} sau ${elapsedMin}m (WS event bị miss)\n` +
-                  `💹 Fill tại:   <code>${fmtPrice(avgPrice)}</code>\n` +
-                  (tpOrderId ? `🎯 TP đã đặt:  <code>#${tpOrderId}</code>  tại  <code>${fmtPrice(trade.targetPrice)}</code>\n` : `⚠️ TP đặt thất bại — kiểm tra ngay!\n`) +
-                  slLine +
-                  `<i>🤖 WS event bị Binance drop — đã tự phục hồi qua ${source} fallback (Dual Bracket on-exchange)</i>`,
-                ], 1500, NEWS_CHAT_ID).catch(() => {});
-              };
-              if (order?.status === 'FILLED') {
-                log.warn(`WS FILL FALLBACK (order): CONFIRMED FILLED ${trade.symbol} #${trade.binanceEntryOrderId} avgPrice=${order.avgPrice}`);
-                await recoverFill(parseFloat(order.avgPrice) || trade.entryPrice, 'REST order');
-                continue;
-              }
-              // Order ID lookup failed (precision loss hoặc order đã xoá) — fallback sang position check
-              if (!order) {
-                const posInfo = await binanceTrader.getPositionInfo(trade.symbol);
-                const expectedSign = isLong ? 1 : -1;
-                if (posInfo !== null && Math.sign(posInfo.positionAmt) === expectedSign && Math.abs(posInfo.positionAmt) > 0) {
-                  log.warn(`WS FILL FALLBACK (posAmt): ${trade.symbol} ${trade.direction} position=${posInfo.positionAmt} nhưng entryFilled=false → recover`);
-                  if (!trade.binanceQty) trade.binanceQty = Math.abs(posInfo.positionAmt);
-                  // Dùng entryPrice thực từ Binance positionRisk thay vì trade.entryPrice (ước tính)
-                  const actualAvgPrice = posInfo.entryPrice > 0 ? posInfo.entryPrice : trade.entryPrice;
-                  await recoverFill(actualAvgPrice, 'posAmt');
-                  continue;
-                }
-
-                // Nếu order không tìm thấy trên Binance, posAmt = 0 và đã quá 5 phút: kiểm tra openOrders thực tế
-                if (posInfo !== null && posInfo.positionAmt === 0 && elapsedMin >= 5) {
-                  const openOrders = await binanceTrader.getOpenOrders(trade.symbol).catch(() => []);
-                  const hasMatchingOpenOrder = openOrders.some(o =>
-                    (o.side === (isLong ? 'BUY' : 'SELL')) && (o.type === 'LIMIT' || o.type === 'STOP')
-                  );
-                  if (!hasMatchingOpenOrder) {
-                    log.warn(`WS FILL FALLBACK: Order #${trade.binanceEntryOrderId} của ${trade.symbol} không tồn tại trên sàn và không có vị thế/lệnh mở nào → Hủy theo dõi ghost trade`);
-                    trade.status = 'cancelled';
-                    trade.closedAt = new Date().toISOString();
-                    trade.closeReason = 'ORDER_NOT_FOUND_ON_BINANCE';
-                    _fillCheckMs.delete(trade.id);
-                    const idx = activeTrades.indexOf(trade);
-                    if (idx !== -1) activeTrades.splice(idx, 1);
-                    saveTrades();
-                    continue;
-                  }
-                }
-              }
-              log.price(`${trade.symbol} ${trade.direction}: REST poll order #${trade.binanceEntryOrderId} status=${order?.status ?? 'unknown'} — tiếp tục chờ WS`);
-            } catch (e) {
-              log.warn(`WS FILL FALLBACK: lỗi khi kiểm tra order ${trade.symbol}`, { error: e.message });
-            }
-          }
-        }
         log.price(`${trade.symbol} ${trade.direction}: chờ Binance LIMIT #${trade.binanceEntryOrderId} fill...`);
         continue;
       }
