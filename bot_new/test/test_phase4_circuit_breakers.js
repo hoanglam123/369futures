@@ -148,7 +148,7 @@ runTest('4. Real-time BTC Flash Guard: Bắt biến tốc xả 0ms (Dump >= 0.70
 });
 
 // ── 4. BOUNCE CANCEL (HỦY LỆNH BẬT NẢY) ──────────────────────────────────────
-runTest('5. Bounce Cancel: Nhận diện giá tiếp cận <= 0.08% rồi nảy > 0.6% -> Tự động hủy lệnh Limit', () => {
+runTest('5. Bounce Cancel: Nhận diện giá tiếp cận <= 0.08% rồi nảy > 1.5% -> Tự động hủy lệnh Limit', () => {
   clearBounceCooldowns();
 
   const mockTrade = {
@@ -165,9 +165,9 @@ runTest('5. Bounce Cancel: Nhận diện giá tiếp cận <= 0.08% rồi nảy 
   const res1 = checkBounceCancel(mockTrade, 190.10);
   assert.strictEqual(res1.shouldCancel, false, 'Chỉ mới tiếp cận mốc, chưa nảy xa -> chưa hủy');
 
-  // Bước 2: Giá bật tăng vọt lên 191.50 (+0.79% > 0.60%) mà không khớp
-  const res2 = checkBounceCancel(mockTrade, 191.50);
-  assert.strictEqual(res2.shouldCancel, true, 'Giá nảy > 0.6% sau khi chạm sát mốc phải kích hoạt Bounce Cancel');
+  // Bước 2: Giá bật tăng vọt lên 193.50 (+1.84% > 1.50%) mà không khớp
+  const res2 = checkBounceCancel(mockTrade, 193.50);
+  assert.strictEqual(res2.shouldCancel, true, 'Giá nảy > 1.5% sau khi chạm sát mốc phải kích hoạt Bounce Cancel');
 
   // Kiểm tra mốc 190 của SOL đã bị đưa vào cooldown 60 phút
   assert.strictEqual(isLevelBounceCooldown('SOL', 190.0), true, 'Mốc giá vừa bị bounce phải rơi vào cooldown 60 phút');

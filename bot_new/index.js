@@ -16,7 +16,7 @@
 require('dotenv').config({ override: true });
 
 const cron = require('node-cron');
-const { runJob, run369AlertScan } = require('./src/job');
+const { runJob, run369AlertScan, initPriceTickListener } = require('./src/job');
 const { start369Stream } = require('./src/pp369/stream');
 const { checkBTCAlert } = require('./src/services/priceAlert');
 const { checkActiveTrades, getActiveTrades, sendActiveTradesSummary, runBacktest, initBinanceStream, syncManualPositions, consumeSignalScanFlag, onWsPush } = require('./src/services/tradeMonitor');
@@ -139,7 +139,23 @@ if (process.argv.includes('--run-now')) {
     await runJob({ silent: true, lookbackHours: 1 });
   }, { timezone: TIMEZONE, scheduled: true });
 
-  // Mỗi 1 phút: theo dõi lệnh active + BTC alert + funding + PP369 scan
+  // ─── LUỒNG 1: BẮT TICK GIÁ WEBSOCKET REAL-TIME 0ms (ĐỒNG BỘ BOT-H4) ───────────
+  if (typeof initPriceTickListener === 'function') {
+    initPriceTickListener();
+  }
+
+  // ─── LUỒNG 2: QUÉT POLLING DỰ PHÒNG 30 GIÂY CHO TOP 8 COIN SÁT MỐC (<=0.5%) ───
+  const FAST_SCAN_INTERVAL_MS = parseInt(process.env.FAST_SCAN_INTERVAL_MS || '30000', 10);
+  setInterval(() => {
+    run369AlertScan().catch(err => log.warn(`[FastScan] Lỗi: ${err.message}`));
+  }, FAST_SCAN_INTERVAL_MS);
+
+  // Kích hoạt quét ngay lần đầu sau 3 giây khởi động
+  setTimeout(() => {
+    run369AlertScan().catch(() => {});
+  }, 3000);
+
+  // Mỗi 1 phút: theo dõi lệnh active + BTC alert + funding
   // Nếu có _pendingSignalScan (vị thế thiếu TP/SL) → trigger AI signal scan ngay
   cron.schedule('*/1 * * * *', async () => {
     const needsScan = consumeSignalScanFlag();
@@ -147,7 +163,6 @@ if (process.argv.includes('--run-now')) {
       checkActiveTrades(),
       checkBTCAlert(),
       checkFundingPayments(),
-      run369AlertScan(),
       needsScan ? runJob({ silent: true }) : Promise.resolve(),
     ]);
   }, { timezone: TIMEZONE, scheduled: true });
