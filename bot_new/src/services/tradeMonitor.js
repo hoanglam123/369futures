@@ -1211,17 +1211,57 @@ async function syncManualPositions(source = 'internal') {
           .map(p => `${p.symbol.replace(/USDT$/, '')}_${parseFloat(p.positionAmt) > 0 ? 'LONG' : 'SHORT'}`)
       );
 
+      // ─── 0. Đồng bộ LỆNH LIMIT PENDING (chưa fill) với Binance openOrders ───
+      // Nếu user hủy lệnh limit trên Binance hoặc lệnh bị hủy/hết hạn, gỡ khỏi activeTrades
+      try {
+        const openOrders = await binanceTrader.getOpenOrders().catch(() => null);
+        if (Array.isArray(openOrders)) {
+          const openOrderIds = new Set(openOrders.map(o => String(o.orderId)));
+          const openPosSymbols = new Set(
+            positions
+              .filter(p => Math.abs(parseFloat(p.positionAmt)) > 0)
+              .map(p => p.symbol.replace(/USDT$/, ''))
+          );
+
+          for (const trade of [...activeTrades]) {
+            if (trade.status !== 'active' || trade.entryFilled) continue;
+
+            if (trade.binanceEntryOrderId) {
+              const orderIdStr = String(trade.binanceEntryOrderId);
+              const isOrderOpen = openOrderIds.has(orderIdStr);
+              const hasPosition = openPosSymbols.has(trade.symbol);
+
+              if (!isOrderOpen && !hasPosition) {
+                log.warn(`syncManualPositions: Lệnh limit pending #${orderIdStr} (${trade.symbol}) không còn trên Binance & không có vị thế → Đã bị hủy hoặc không tồn tại → Gỡ khỏi activeTrades`);
+                trade.status = 'canceled';
+                trade.closedAt = new Date();
+                trade.cancelReason = 'binance_order_not_found';
+
+                if (trade.binanceTpOrderId) binanceTrader.cancelOrderById(trade.symbol, trade.binanceTpOrderId).catch(() => {});
+                if (trade.binanceSlOrderId) binanceTrader.cancelAlgoOrderById(trade.symbol, trade.binanceSlOrderId).catch(() => {});
+
+                saveTrades();
+                _wsBroadcast('trades', activeTrades.filter(t => t.status === 'active'));
+              }
+            }
+          }
+        }
+      } catch (err) {
+        log.warn('syncManualPositions: lỗi đồng bộ open orders pending', { error: err.message });
+      }
+
       // ─── Safety brake ──────────────────────────────────────────────────────
       // Chặn mass-close khi Binance trả về ít positions bất thường so với bot đang theo dõi.
       // Scenario A: positions.length === 0 nhưng bot đang theo dõi ≥1 lệnh filled
       // Scenario B: ≥3 lệnh đang theo dõi, >60% sẽ bị đóng cùng lúc
-      // Cả hai có thể là dấu hiệu API glitch. Dùng /forcesync để override thủ công.
+      // Cả hai có thể là dấu hiệu API glitch. Dùng /forcesync hoặc nút Đồng bộ UI để override thủ công.
       const _eligibleTrades = activeTrades.filter(t => t.status === 'active' && t.entryFilled);
       const _wouldClose     = _eligibleTrades.filter(t => !openPosSet.has(`${t.symbol}_${t.direction}`));
       const _massCloseA     = _eligibleTrades.length > 0 && positions.length === 0;
       const _massCloseB     = _eligibleTrades.length >= 3 && _wouldClose.length >= Math.ceil(_eligibleTrades.length * 0.6);
 
-      if ((_massCloseA || _massCloseB) && !_forceSyncBrake) {
+      const isManualSync = source === 'api' || source === 'forcesync' || source === 'manual';
+      if ((_massCloseA || _massCloseB) && !_forceSyncBrake && !isManualSync) {
         _massCloseWarningAt = Date.now();
         const _reason = _massCloseA
           ? `Binance trả về 0 positions nhưng bot đang theo dõi ${_eligibleTrades.length} lệnh filled`
@@ -2808,6 +2848,37 @@ function updateActiveTrade(id, fields) {
   return { ok: true };
 }
 
+// Xóa một lệnh khỏi activeTrades (gọi từ dashboard API hoặc bot)
+async function removeActiveTrade(id) {
+  const trade = activeTrades.find(t => String(t.id) === String(id));
+  if (!trade) return { ok: false, error: 'Trade not found' };
+
+  if (binanceTrader.isEnabled()) {
+    if (trade.binanceEntryOrderId && !trade.entryFilled) {
+      await binanceTrader.cancelEntryOrder(trade).catch(() => {});
+    }
+    if (trade.binanceTpOrderId) {
+      await binanceTrader.cancelOrderById(trade.symbol, trade.binanceTpOrderId).catch(() => {});
+    }
+    if (trade.binanceSlOrderId) {
+      await binanceTrader.cancelAlgoOrderById(trade.symbol, trade.binanceSlOrderId).catch(() => {});
+    }
+  }
+
+  trade.status = 'canceled';
+  trade.closedAt = new Date();
+  trade.cancelReason = 'dashboard_user_removed';
+
+  const idx = activeTrades.indexOf(trade);
+  if (idx !== -1) {
+    activeTrades.splice(idx, 1);
+  }
+
+  saveTrades();
+  log.trade(`Dashboard xóa trade: #${trade.id} (${trade.symbol} ${trade.direction})`);
+  return { ok: true, id: trade.id, symbol: trade.symbol };
+}
+
 function forceSyncBrakeOverride() { _forceSyncBrake = true; }
 
-module.exports = { parseTrades, addTrades, checkActiveTrades, getActiveTrades, sendActiveTradesSummary, runBacktest, initBinanceStream, syncManualPositions, updateActiveTrade, consumeSignalScanFlag, onWsPush, forceSyncBrakeOverride };
+module.exports = { parseTrades, addTrades, checkActiveTrades, getActiveTrades, sendActiveTradesSummary, runBacktest, initBinanceStream, syncManualPositions, updateActiveTrade, removeActiveTrade, consumeSignalScanFlag, onWsPush, forceSyncBrakeOverride };

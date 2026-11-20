@@ -678,15 +678,16 @@ async function getAllPositions() {
 }
 
 /**
- * Lấy tất cả open orders của 1 symbol.
- * Dùng để tìm TP/SL do user đặt thủ công.
+ * Lấy tất cả open orders của 1 symbol (hoặc toàn bộ account nếu symbol = null).
+ * Dùng để tìm TP/SL do user đặt thủ công và đồng bộ trạng thái limit order pending.
  */
-async function getOpenOrders(symbol) {
+async function getOpenOrders(symbol = null) {
   if (!isEnabled()) return [];
   try {
-    return await api('GET', '/fapi/v1/openOrders', { symbol: `${symbol}USDT` });
+    const params = symbol ? { symbol: `${symbol.toUpperCase().replace(/USDT$/, '')}USDT` } : {};
+    return await api('GET', '/fapi/v1/openOrders', params);
   } catch (err) {
-    log.warn(`BINANCE: không lấy được open orders ${symbol}`, { error: err.message });
+    log.warn(`BINANCE: không lấy được open orders ${symbol || 'all'}`, { error: err.message });
     throw err;
   }
 }

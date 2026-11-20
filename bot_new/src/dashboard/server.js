@@ -296,6 +296,17 @@ function apiUpdateTrade(url) {
   return result ?? { ok: false, error: 'Trade not found' };
 }
 
+// ─── Delete active trade (called from dashboard UI) ──────────────────────────
+async function apiDeleteTrade(url, body = null) {
+  const p = new URLSearchParams(url.split('?')[1] || '');
+  const id = body?.id || p.get('id');
+  if (!id) return { ok: false, error: 'Missing id' };
+
+  const mod = tm();
+  if (!mod?.removeActiveTrade) return { ok: false, error: 'Trade monitor not available' };
+  return await mod.removeActiveTrade(id);
+}
+
 // ─── Sync manual positions (POST /api/sync) ──────────────────────────────────
 async function apiSync(req) {
   let _log;
@@ -520,6 +531,17 @@ function handleApi(req, res) {
       return true;
     }
 
+    if (urlPath === '/api/trades/delete') {
+      readBodyJson(req).then(body => apiDeleteTrade(req.url, body)).then(data => {
+        res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+        res.end(JSON.stringify(data));
+      }).catch(e => {
+        res.writeHead(500);
+        res.end(JSON.stringify({ error: e.message }));
+      });
+      return true;
+    }
+
     return false;
   }
 
@@ -527,6 +549,7 @@ function handleApi(req, res) {
   let handler = ROUTES[urlPath];
   if (!handler && urlPath === '/api/logs') handler = () => apiLogs(req.url);
   if (!handler && urlPath === '/api/trades/update') handler = () => apiUpdateTrade(req.url);
+  if (!handler && urlPath === '/api/trades/delete') handler = () => apiDeleteTrade(req.url);
   if (!handler) return false;
 
   Promise.resolve().then(() => handler()).then(data => {

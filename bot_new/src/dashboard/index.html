@@ -268,11 +268,16 @@ mark{background:rgba(227,179,65,.25);color:var(--yellow);border-radius:2px;paddi
 <!-- ══ TRADES ══ -->
 <div class="tab-content" id="tab-trades">
   <section>
-    <h2>⚡ Lệnh đang theo dõi <span class="cnt" id="activeCount">(0)</span></h2>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+      <h2>⚡ Lệnh đang theo dõi <span class="cnt" id="activeCount">(0)</span></h2>
+      <button id="btnSyncBinance" onclick="syncWithBinance()" style="background:#238636;color:#fff;border:none;padding:6px 14px;border-radius:6px;cursor:pointer;font-size:12px;font-weight:600;display:flex;align-items:center;gap:6px;box-shadow:0 1px 3px rgba(0,0,0,0.3)">
+        <span>🔄</span> Đồng bộ Binance
+      </button>
+    </div>
     <div class="tbl-wrap">
       <table>
-        <thead><tr><th>Symbol</th><th>Side</th><th>Lev</th><th>Entry</th><th>Giá hiện tại</th><th>Unrealized PnL</th><th>TP/SL Progress</th><th>TP</th><th>TP1 (+10%vốn)</th><th>TP2 (1:1 R:R)</th><th>SL</th><th>Liq</th><th>Mở từ</th></tr></thead>
-        <tbody id="activeBody"><tr><td colspan="13" class="empty">Không có lệnh đang theo dõi</td></tr></tbody>
+        <thead><tr><th>Symbol</th><th>Side</th><th>Lev</th><th>Entry</th><th>Giá hiện tại</th><th>Unrealized PnL</th><th>TP/SL Progress</th><th>TP</th><th>TP1 (+10%vốn)</th><th>TP2 (1:1 R:R)</th><th>SL</th><th>Liq</th><th>Mở từ</th><th>Thao tác</th></tr></thead>
+        <tbody id="activeBody"><tr><td colspan="14" class="empty">Không có lệnh đang theo dõi</td></tr></tbody>
       </table>
     </div>
   </section>
@@ -400,6 +405,7 @@ let pp369Ctx = {};
 // ── Tiny utils ───────────────────────────────────────────────────────────────
 const $ = id => document.getElementById(id);
 const get = url => fetch(url).then(r => r.json()).catch(() => null);
+const post = (url, body) => fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body || {}) }).then(r => r.json()).catch(() => null);
 const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 
 function fmt(n, d=2) {
@@ -692,7 +698,7 @@ let _cachedPnlMap = {};
 function renderActiveTrades(active, pnlMap, tb) {
   tb = tb || $('activeBody');
   if (!tb) return;
-  if (!active.length) { tb.innerHTML='<tr><td colspan="13" class="empty">Không có lệnh đang theo dõi</td></tr>'; return; }
+  if (!active.length) { tb.innerHTML='<tr><td colspan="14" class="empty">Không có lệnh đang theo dõi</td></tr>'; return; }
 
   tb.innerHTML = active.map(t => {
     const lv = pnlMap[t.id] || pnlMap[t.symbol] || {};
@@ -772,8 +778,50 @@ function renderActiveTrades(active, pnlMap, tb) {
       <td>${slCell}</td>
       <td>${liqCell}</td>
       <td style="color:var(--muted)">${ago(t.recommendedAt)} ${status}${monitorRow}</td>
+      <td style="text-align:center">
+        <button onclick="removeTrade('${t.id}', '${t.symbol}')" title="Xóa lệnh khỏi danh sách theo dõi" style="background:rgba(248,81,73,0.15);color:var(--red);border:1px solid rgba(248,81,73,0.35);padding:3px 8px;border-radius:4px;cursor:pointer;font-size:11px;font-weight:600;white-space:nowrap">✕ Xóa</button>
+      </td>
     </tr>`;
   }).join('');
+}
+
+async function syncWithBinance() {
+  const btn = $('btnSyncBinance');
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = '<span>⏳</span> Đang đồng bộ...';
+  }
+  try {
+    const res = await post('/api/sync', {});
+    if (res && res.ok) {
+      await loadTrades();
+    } else {
+      alert('Đồng bộ thất bại: ' + (res?.error || 'Lỗi không xác định'));
+    }
+  } catch (err) {
+    alert('Lỗi kết nối khi đồng bộ: ' + err.message);
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = '<span>🔄</span> Đồng bộ Binance';
+    }
+  }
+}
+
+async function removeTrade(id, sym) {
+  if (!confirm(`Bạn có chắc muốn gỡ lệnh ${sym} (#${id}) khỏi danh sách theo dõi?\nNếu lệnh còn trên Binance, bot sẽ cố gắng hủy.`)) {
+    return;
+  }
+  try {
+    const res = await post('/api/trades/delete', { id });
+    if (res && res.ok) {
+      await loadTrades();
+    } else {
+      alert('Không thể xóa lệnh: ' + (res?.error || 'Lỗi không xác định'));
+    }
+  } catch (err) {
+    alert('Lỗi kết nối khi xóa lệnh: ' + err.message);
+  }
 }
 
 async function loadTrades() {
