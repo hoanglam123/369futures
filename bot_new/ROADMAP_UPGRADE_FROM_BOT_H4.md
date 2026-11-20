@@ -405,19 +405,20 @@ Xóa bỏ 100% luồng kết nối API sang Gemini / Claude / DeepSeek trong to�
   - [x] Tích hợp cơ chế Top 1–2 Cap khi có nhiều mã đủ điểm + Cooldown 30 phút cho từng coin
   - [x] Viết bộ unit test `bot_new/test/test_phase2_universe_scorer.js` kiểm thử toàn diện các kịch bản: Tái sử dụng cache đĩa, Universe năng động (Lưới 2%-30%), SL 3 tầng, Smart Anchored TP, Weak S/R Bypass, Scorer giữ nguyên thang điểm chạm, và thực thi 100% offline không token
 
-- [ ] **Phase 3: Real-time WebSocket Price Engine**
-  - [ ] Tích hợp WebSocket Mark Price đa luồng
-  - [ ] Đấu nối cơ chế Dynamic Subscription
-  - [ ] Thiết lập chu kỳ kiểm tra kép (WebSocket 0ms + Poll 30s)
+- [x] **Phase 3: Real-time WebSocket Price Engine — [HOÀN THÀNH 100%]**
+  - [x] Tích hợp WebSocket Mark Price đa luồng (`wss://fstream.binance.com/market/stream`)
+  - [x] Đấu nối cơ chế Dynamic Subscription (phân nhóm chunk 50, duy trì BTC 24/7)
+  - [x] Thiết lập chu kỳ kiểm tra kép (WebSocket 0ms + Poll REST 30s fallback + Heartbeat ping 30s)
 
-- [ ] **Phase 4: Bộ phòng thủ & Ngắt mạch**
-  - [ ] Tích hợp `Directional Circuit Breaker`
-  - [ ] Tích hợp `Real-time BTC Flash Guard`
-  - [ ] Tích hợp `Bounce Cancel` cho các lệnh LIMIT treo lâu
+- [x] **Phase 4: Bộ phòng thủ & Ngắt mạch — [HOÀN THÀNH 100%]**
+  - [x] Tích hợp `Directional Circuit Breaker`: Khóa theo chiều (2 lệnh/40p khóa 60p, 3 lệnh/2h khóa 120p, mở khóa sớm qua 5 lệnh Shadow)
+  - [x] Tích hợp `Real-time BTC Flash Guard`: Cửa sổ trượt 180s bắt biến tốc xả 0ms (Dump >= 0.7% khóa LONG, Pump >= 0.7% khóa SHORT)
+  - [x] Tích hợp `Bounce Cancel`: Hủy lệnh Limit khi chạm sát mốc (<=0.08%) rồi bật nảy (>0.6%) và cooldown mốc 60p
+  - [x] Tích hợp `CooldownManager`: Khóa coin dính SL trong 6h chống revenge trading
 
-- [ ] **Phase 5: Shadow Tracking & Web Dashboard**
-  - [ ] Port module `shadowTracker.js`
-  - [ ] Tích hợp Dashboard Server WebSocket và Web UI
+- [x] **Phase 5: Shadow Tracking & Web Dashboard — [HOÀN THÀNH 100%]**
+  - [x] Port module `shadowTracker.js`: Theo dõi ảo các setup bị VETO, thống kê AI Saved vs AI Missed và Net USD
+  - [x] Tích hợp Dashboard Server WebSocket và Web UI: Cung cấp API Circuit Breaker, Flash Guard, Cooldowns, Shadow PnL và nút điều khiển khẩn cấp
 ```
 
 ---

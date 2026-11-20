@@ -437,7 +437,23 @@ const ROUTES = {
   '/api/watched-coins':   () => apiWatchedCoins(),
   '/api/health':          () => apiHealth(),
   '/api/log-dates':       () => apiLogDates(),
+  '/api/circuit-breaker': () => { try { return require('../services/directionalCircuitBreaker').getDirectionalStatus(); } catch (e) { return { error: e.message }; } },
+  '/api/btc-flash-guard': () => { try { const g = require('../services/btcFlashGuard'); return { ...g.checkBtcFlashStatus(), velocityPct: g.getBtcVelocity() }; } catch (e) { return { error: e.message }; } },
+  '/api/cooldowns':       () => { try { return require('../services/cooldownManager').getAllCooldowns(); } catch (e) { return { error: e.message }; } },
+  '/api/shadow-trades':   () => { try { const s = require('../services/shadowTracker'); return { active: s.getActiveShadowPositions(), stats: s.getShadowStats() }; } catch (e) { return { error: e.message }; } },
 };
+
+function readBodyJson(req) {
+  return new Promise((resolve) => {
+    let body = '';
+    req.on('data', chunk => { body += chunk; });
+    req.on('end', () => {
+      try { resolve(body ? JSON.parse(body) : {}); }
+      catch { resolve({}); }
+    });
+    req.on('error', () => resolve({}));
+  });
+}
 
 function handleApi(req, res) {
   const urlPath = req.url.split('?')[0];
@@ -454,6 +470,56 @@ function handleApi(req, res) {
       });
       return true;
     }
+
+    if (urlPath === '/api/circuit-breaker/unlock') {
+      readBodyJson(req).then(body => {
+        const { clearDirectionLock } = require('../services/directionalCircuitBreaker');
+        clearDirectionLock(body.side || 'LONG');
+        res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+        res.end(JSON.stringify({ ok: true, unlocked: body.side || 'LONG' }));
+      }).catch(e => {
+        res.writeHead(500);
+        res.end(JSON.stringify({ error: e.message }));
+      });
+      return true;
+    }
+
+    if (urlPath === '/api/circuit-breaker/clear-cooldown') {
+      readBodyJson(req).then(body => {
+        const { clearSymbolCooldown } = require('../services/cooldownManager');
+        if (body.symbol) clearSymbolCooldown(body.symbol);
+        res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+        res.end(JSON.stringify({ ok: true, cleared: body.symbol }));
+      }).catch(e => {
+        res.writeHead(500);
+        res.end(JSON.stringify({ error: e.message }));
+      });
+      return true;
+    }
+
+    if (urlPath === '/api/emergency/close-all') {
+      Promise.resolve().then(async () => {
+        const mod = tm();
+        const active = mod?.getActiveTrades ? mod.getActiveTrades() : [];
+        let closedCount = 0;
+        try {
+          const binanceTrader = require('../services/binanceTrader');
+          for (const t of active) {
+            if (binanceTrader.isEnabled()) {
+              await binanceTrader.closePosition(t.symbol).catch(() => {});
+              closedCount++;
+            }
+          }
+        } catch (_) {}
+        res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+        res.end(JSON.stringify({ ok: true, closedCount, total: active.length }));
+      }).catch(e => {
+        res.writeHead(500);
+        res.end(JSON.stringify({ error: e.message }));
+      });
+      return true;
+    }
+
     return false;
   }
 

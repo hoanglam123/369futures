@@ -37,7 +37,9 @@ pp369.setLogger(log); // dùng logger của project (ghi file data/logs/)
 const {
   get369SignalsForCoins, format369ForPrompt, getLevelCache, PROXIMITY_PCT,
   logSignal369, start369Stream, getNearbySymbols, getMarkPrice, format369Alert,
+  syncWebSocketSubscriptions, getPrices
 } = pp369;
+const { updateShadowPrices } = require('./services/shadowTracker');
 
 let _isRunning = false;        // full market report đang chạy
 let _isSilentRunning = false;  // signal scan (silent) đang chạy
@@ -467,6 +469,17 @@ async function run369AlertScan() {
     // Proximity filter: chỉ scan coin đang trong vùng ≤PROXIMITY_PCT% của mốc
     // Coin xa mốc → bỏ qua, tiết kiệm API call. Fail-open nếu chưa có WebSocket data.
     const toScan  = getNearbySymbols(symbols, getLevelCache(), PROXIMITY_PCT);
+
+    // Đồng bộ subscription động (Phase 3)
+    if (typeof syncWebSocketSubscriptions === 'function') {
+      syncWebSocketSubscriptions(toScan).catch(() => {});
+    }
+
+    // Cập nhật giá cho Shadow Tracker (Phase 5)
+    if (typeof updateShadowPrices === 'function' && typeof getPrices === 'function') {
+      try { updateShadowPrices(getPrices()); } catch (_) {}
+    }
+
     // Dùng WebSocket mark price từ Binance (~3s) thay vì nến 1m cuối (~1 phút trễ)
     const priceMap = Object.fromEntries(
       toScan.map(s => [s, { price: getMarkPrice(s) }]).filter(([, v]) => v.price != null)

@@ -157,6 +157,30 @@ function recordTradeResult({ trade, exitReason, result, closePrice, pnlPct }) {
   saveStats();
   appendHistory(trade, hit, exitReason, result, closePrice, pnlPct);
   log.trade(`Stats: ${stats.wins}W/${stats.losses}L | Win rate ${(stats.wins / stats.totalTrades * 100).toFixed(1)}%`);
+
+  // ─── Tích hợp Phase 4: Directional Circuit Breaker & Cooldown Manager ───
+  try {
+    const dirCB = require('./directionalCircuitBreaker');
+    if (dirCB && typeof dirCB.recordDirectionalTradeExit === 'function') {
+      dirCB.recordDirectionalTradeExit({
+        symbol: trade.symbol,
+        side: trade.direction,
+        isWin: result === 'win',
+        exitType: exitReason === 'sl' ? 'SL' : exitReason === 'tp' ? 'TP' : exitReason,
+        pnlPercent: pnlPct ?? 0,
+        pnlUsd: (pnlPct ?? 0) * 0.5
+      });
+    }
+
+    if (result === 'loss' || exitReason === 'sl') {
+      const cdMgr = require('./cooldownManager');
+      if (cdMgr && typeof cdMgr.addSymbolToCooldown === 'function') {
+        cdMgr.addSymbolToCooldown(trade.symbol, 6.0, `SL_EXIT: ${exitReason}`);
+      }
+    }
+  } catch (err) {
+    log.warn(`[TradeStats] Lỗi cập nhật CircuitBreaker/Cooldown: ${err.message}`);
+  }
 }
 
 // Ghi lịch sử khi lệnh bị đảo chiều (không có P&L rõ ràng)

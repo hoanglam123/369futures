@@ -36,10 +36,14 @@ module.exports = {
   PROXIMITY_PCT:         core.PROXIMITY_PCT,
 
   // ── WebSocket stream ─────────────────────────────────────────────────────
-  start369Stream:   stream.start369Stream,
-  stop369Stream:    stream.stop369Stream,
-  getMarkPrice:     stream.getMarkPrice,
-  getNearbySymbols: stream.getNearbySymbols,
+  start369Stream:             stream.start369Stream,
+  stop369Stream:              stream.stop369Stream,
+  getMarkPrice:               stream.getMarkPrice,
+  getPrices:                  stream.getPrices,
+  getNearbySymbols:           stream.getNearbySymbols,
+  syncWebSocketSubscriptions: stream.syncWebSocketSubscriptions,
+  updatePricesRest:           stream.updatePricesRest,
+  onPriceUpdate:              stream.onPriceUpdate,
 
   // ── Signal log ───────────────────────────────────────────────────────────
   logSignal369:      signalLog.logSignal369,

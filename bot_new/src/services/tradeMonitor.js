@@ -2316,6 +2316,38 @@ function _doRebuildCombinedMpWs() {
 
     _lastMarkPrices[symbol] = markPrice;
 
+    // ─── Tích hợp Phase 4: Real-time BTC Flash Guard 0ms ───────────────
+    if (symbol === 'BTC') {
+      try {
+        const btcFlashGuard = require('./btcFlashGuard');
+        btcFlashGuard.processBtcTick(markPrice);
+      } catch (_) {}
+    }
+
+    // ─── Tích hợp Phase 4: Bounce Cancel cho pending Limit orders ─────────
+    try {
+      const { checkBounceCancel } = require('./bounceCancel');
+      const pendingLimits = activeTrades.filter(t => t.status === 'active' && !t.entryFilled && t.symbol === symbol);
+      for (const pTrade of pendingLimits) {
+        const { shouldCancel, reason } = checkBounceCancel(pTrade, markPrice);
+        if (shouldCancel) {
+          log.warn(`[TradeMonitor] Bounce Cancel: Hủy lệnh LIMIT ${symbol} vì nảy mốc: ${reason}`);
+          pTrade.status = 'cancelled';
+          pTrade.closeReason = 'bounce_cancel';
+          saveTrades();
+          if (binanceTrader.isEnabled() && pTrade.binanceEntryOrderId) {
+            binanceTrader.cancelOrder(symbol, pTrade.binanceEntryOrderId).catch(() => {});
+          }
+        }
+      }
+    } catch (_) {}
+
+    // ─── Tích hợp Phase 5: Cập nhật giá cho Shadow Tracker ────────────────
+    try {
+      const shadowTracker = require('./shadowTracker');
+      shadowTracker.updateShadowPrices({ [symbol]: markPrice });
+    } catch (_) {}
+
     const trades = activeTrades.filter(t => t.status === 'active' && t.entryFilled && t.symbol === symbol);
     if (trades.length === 0) {
       _combinedMpSymbols.delete(symbol);
