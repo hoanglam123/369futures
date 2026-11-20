@@ -466,27 +466,7 @@ function updateShadowPrices(priceMap) {
       }
     }
 
-        // ⏱️ STALE POSITION GUARD (6 tiếng ~ 1.5 nến H4)
-    if (!resolvedOutcome && holdingHours >= 6.0 && !p.isTrendRunner) {
-      if (currentRoi > 0.5) {
-        // Lệnh đang có lãi -> Dời SL về Entry hòa vốn để tiếp tục gồng Full TP không rủi ro!
-        if (!p.isBeTriggered) {
-          p.isBeTriggered = true;
-          p.tierSlPrice = p.entryPrice;
-          _logger.system(`[Shadow PnL] ⏱️ [Stale BE Lock] ${p.symbol} (${p.signal}) ngâm ${holdingHours.toFixed(1)}h và ĐANG CÓ LÃI (ROI +${currentRoi.toFixed(2)}%) -> Dời SL về Entry hòa vốn để tiếp tục gồng TP không rủi ro!`);
-        }
-      } else if (currentRoi >= -3.0 && currentRoi <= 0.5) {
-        // Lệnh lình xình quanh Entry -> Thoát hòa vốn giải phóng vị thế
-        resolvedOutcome = 'SAVED_BE';
-        _logger.system(`[Shadow PnL] ⏱️ [Stale Position Exit] ${p.symbol} (${p.signal}) đã ngâm ${holdingHours.toFixed(1)}h (>= 6h - 1.5 nến H4) và giá đang lình xình quanh Entry (ROI ${currentRoi.toFixed(2)}%) -> Thoát hòa vốn giải phóng vị thế!`);
-      } else if (!p.isBeTriggered) {
-        // Lệnh đang âm -> Ép SL về vùng đệm an toàn (-0.5% Entry)
-        p.isBeTriggered = true;
-        const bufferDist = p.entryPrice * 0.005;
-        p.tierSlPrice = isLong ? (p.entryPrice - bufferDist) : (p.entryPrice + bufferDist);
-        _logger.system(`[Shadow PnL] ⏱️ [Stale SL Compression] ${p.symbol} (${p.signal}) ngâm ${holdingHours.toFixed(1)}h -> Ép SL về Vùng đệm an toàn (-0.5% Entry) để bảo vệ vốn!`);
-      }
-    }
+    // ⏱️ STALE POSITION GUARD: Đã vô hiệu hóa theo yêu cầu đòn bẩy thấp (để lệnh chạy tự nhiên)
 
     // Check timeout (tự động đóng sau 48h nếu không cắn TP/SL)
     if (!resolvedOutcome && holdingHours >= MAX_HOLDING_HOURS) {

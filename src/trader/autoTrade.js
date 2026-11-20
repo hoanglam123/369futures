@@ -4988,94 +4988,9 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
       }
 
       // ----------------------------------------------------
-      // 0b. STALE POSITION GUARD (Quản lý vị thế ứ đọng quá 6 giờ ~ 1.5 nến H4)
+      // 0b. STALE POSITION GUARD (ĐÃ VÔ HIỆU HÓA THEO YÊU CẦU ĐÒN BẨY THẤP)
+      //     Vì đòn bẩy thấp nên thời gian đạt TP sẽ lâu hơn, để lệnh chạy tự nhiên theo TP/SL, không can thiệp dời TP/thoát lệnh sau 6h.
       // ----------------------------------------------------
-      const holdingDurationMinutes = (Date.now() - (meta?.time || Date.now())) / 60000;
-      const holdingHours = holdingDurationMinutes / 60;
-      const STALE_TIMEOUT_HOURS = 6.0; // 6 tiếng (ứng với 1.5 cây nến H4)
-
-      if (meta && holdingHours >= STALE_TIMEOUT_HOURS && !meta.isTrendRunner) {
-        if (!meta.isStaleTimeoutActive) {
-          meta.isStaleTimeoutActive = true;
-          saveActiveTradesMetadata();
-          log.system(`[AutoTrade] ⏱️ [Stale Position Guard] ${sym} (${isLong ? 'LONG' : 'SHORT'}): Đã giữ lệnh ${holdingHours.toFixed(1)}h (>= 6h - 1.5 cây H4) không chạm TP -> Kích hoạt cơ chế vị thế ứ đọng!`);
-        }
-
-        // 👉 TRƯỜNG HỢP 1: Lệnh đang CÓ LÃI (ROI > +0.5%)
-        // Tuyệt đối KHÔNG đóng non! Dời SL về sát Entry (+ buffer bù phí) để bảo toàn vốn 100%,
-        // biến lệnh thành 'Free Trade' (rủi ro = 0) để tiếp tục gồng lãi Full TP!
-        if (roi > 0.5) {
-          if (!meta.isStaleBeMoved) {
-            meta.isStaleBeMoved = true;
-            saveActiveTradesMetadata();
-            log.system(`[AutoTrade] ⏱️ [Stale Position BE Lock] ${sym} (${isLong ? 'LONG' : 'SHORT'}): Đã giữ ${holdingHours.toFixed(1)}h và ĐANG CÓ LÃI (ROI +${roi.toFixed(2)}%) -> Dời SL về Entry hòa vốn để tiếp tục gồng Full TP không rủi ro!`);
-            sendTelegram(
-              `⏱️ <b>[AutoTrade] Khóa Hòa Vốn Vị Thế Sau 6 Giờ (Stale BE Lock)</b>\n` +
-              `• Coin: <b>#${sym} (${isLong ? 'LONG' : 'SHORT'})</b>\n` +
-              `• Thời gian giữ lệnh: <b>${holdingHours.toFixed(1)} giờ (>= 1.5 nến H4)</b>\n` +
-              `• Hiện tại: <b>$${markPrice}</b> | ROI: <b>+${roi.toFixed(2)}%</b>\n` +
-              `• Hành động: <b>Lệnh đang có lãi -> Tự động dời SL về Entry hòa vốn để tiếp tục gồng Full TP với RỦI RO = 0!</b>`
-            ).catch(() => { });
-          }
-        }
-        // 👉 TRƯỜNG HỢP 2: Lệnh đang LÌNH XÌNH HÒA VỐN / ÂM NHẸ (-3.0% <= ROI <= +0.5%)
-        // đã ngâm 6 tiếng không tạo được sóng: Chủ động đóng Market giải phóng margin đón cơ hội mới!
-        else if (roi >= -3.0 && roi <= 0.5) {
-          log.system(
-            `[AutoTrade] ⏱️ [Stale Position Exit] ${sym} (${isLong ? 'LONG' : 'SHORT'}): ` +
-            `đã giữ ${holdingHours.toFixed(1)}h (>= 6h - 1.5 nến H4) và giá đang lình xình quanh Entry (ROI ${roi.toFixed(2)}%, PnL $${unrealizedPnlUsd.toFixed(2)}) -> đóng Market giải phóng margin!`
-          );
-          try {
-            await closeRealPositionMarket(client, sym, oppositeSide, absAmt, openAlgoOrders, 'Stale Position Exit');
-            await sendTelegram(
-              `⏱️ <b>[AutoTrade] Thoát Vị Thế Ứ đọng Quá 6 Giờ (Stale Position Exit)</b>\n` +
-              `• Coin: <b>#${sym} (${isLong ? 'LONG' : 'SHORT'})</b>\n` +
-              `• Thời gian giữ lệnh: <b>${holdingHours.toFixed(1)} giờ (>= 1.5 nến H4)</b>\n` +
-              `• Giá đóng: <b>$${markPrice}</b> | ROI: <b>${roi >= 0 ? '+' : ''}${roi.toFixed(2)}%</b>\n` +
-              `• PnL: <b>${unrealizedPnlUsd >= 0 ? '+' : ''}${unrealizedPnlUsd.toFixed(2)} USDT</b>\n` +
-              `• Hành động: <b>Chủ động đóng Market giải phóng vốn sau 1.5 chu kỳ H4 đi ngang không bứt phá!</b>`
-            ).catch(() => { });
-
-            recordTradeExit({
-              tradeId: `${sym}-${meta.orderId || 'staleExit'}`,
-              orderId: String(meta.orderId || ''),
-              symbol: sym,
-              exitPrice: markPrice,
-              exitTimestamp: Date.now(),
-              exitType: 'STALE_POSITION_EXIT',
-              pnlPercent: roi,
-              pnlUsd: unrealizedPnlUsd,
-              holdingDurationMinutes: holdingDurationMinutes,
-              isWin: unrealizedPnlUsd >= 0,
-            });
-            recordDirectionalTradeExit({
-              symbol: sym,
-              side: isLong ? 'LONG' : 'SHORT',
-              isWin: unrealizedPnlUsd >= 0,
-              exitType: 'STALE_POSITION_EXIT',
-              pnlUsd: unrealizedPnlUsd,
-              pnlPercent: roi
-            });
-            recordRealTradeOutcome({
-              symbol: sym,
-              side: isLong ? 'LONG' : 'SHORT',
-              isWin: unrealizedPnlUsd >= 0,
-              exitType: 'STALE_POSITION_EXIT',
-              pnlUsd: unrealizedPnlUsd,
-              pnlPercent: roi
-            });
-            continue;
-          } catch (e) {
-            justClosedByBot.delete(sym);
-            log.error(`[AutoTrade] [Stale Position Exit] Lỗi đóng market vị thế ${sym}: ${e.message}`);
-          }
-        }
-        // 👉 TRƯỜNG HỢP 3: Lệnh đang ÂM (ROI < -3.0%)
-        // Dời TP về sát Entry hòa vốn để đón nhịp giật râu thoát hàng $0.00
-        else {
-          meta.isPanicEscape = true;
-        }
-      }
 
       // ----------------------------------------------------
       // 0. HARD MAX LOSS GUARD (Khống chế trần lỗ tối đa)
