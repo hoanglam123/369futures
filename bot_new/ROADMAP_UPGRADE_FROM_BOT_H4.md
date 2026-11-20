@@ -10,8 +10,8 @@
 | Tiêu chí | `bot-new` (Hiện tại) | `bot-h4` (Mục tiêu nâng cấp) | Mức độ ưu tiên |
 | :--- | :--- | :--- | :---: |
 | **Phạm vi quét thị trường** | Giới hạn ~20 coin tĩnh (`FIXED_COINS` + `TIER2_COINS`) | **Toàn bộ 400+ cặp** Binance Futures USDT-M | 🔴 **P1 (Cao)** |
-| **Cơ chế tính TP / SL** | **AI tự nhẩm số học** (Gemini/Claude tự tính TP/SL, dễ bị ảo giác, prompt ngốn ~3,500 token) | **Thuật toán toán học 100%** (`calculateTierSLTP` đo ATR & cấu trúc sóng swing S/R chuẩn xác, AI chỉ thẩm định Duyệt/Hủy) | 🚨 **P0 (Khẩn cấp)** |
-| **Quản trị Token AI** | Gửi toàn cảnh vĩ mô 20 coin (~3,500 token/lần), dễ chạm trần 429 | **Phễu lọc 4 tầng + Compact Features Vector (~180 tokens)**, Xoay vòng Multi-Key | 🔴 **P1 (Cao)** |
+| **Cơ chế tính TP / SL** | **AI tự nhẩm số học** (Gemini/Claude tự tính TP/SL, dễ bị ảo giác, prompt ngốn ~3,500 token) | **Thuật toán toán học 100%** (`calculateTierSLTP` đo ATR & cấu trúc sóng swing S/R chuẩn xác, hoàn toàn độc lập với AI) | 🚨 **P0 (Khẩn cấp)** |
+| **Vai trò & Chi phí AI** | Bắt buộc gọi AI ngoài (Gemini/Claude, ~3,500 token/lần), dễ chạm trần 429, trễ 5-10s | **BỎ HOÀN TOÀN LUỒNG GỌI MODEL AI NGOÀI (0 Token - 0ms - $0)**: Vận hành 100% Thuần Định Lượng kết hợp AI Cục Bộ (`aiReviewer.js`) | 🔴 **P1 (Cao)** |
 | **Cơ chế đặt Stop Loss** | **Client-side** (bot tự watch giá, khi chạm mới bắn lệnh Market Close) | **On-exchange Dual Bracket** (Đặt sẵn lệnh `STOP_MARKET` trực tiếp lên Binance) | 🚨 **P0 (Khẩn cấp)** |
 | **Cơ chế Dời SL & Dịch TP** | **Client-side trong RAM** (Chỉ đổi biến số trong bot, không đổi trên sàn) | **On-exchange Dynamic Ratchet** (Hủy lệnh cũ, đặt lệnh SL/TP mới trực tiếp lên Binance) | 🚨 **P0 (Khẩn cấp)** |
 | **Độ trễ phát hiện tín hiệu** | **Cron Polling 5 phút** (Dễ bị trễ giá, lỡ nhịp nảy nhanh) | **Hybrid Real-time 0ms** (WebSocket Event Stream từng tick + Polling 30s) | 🔴 **P1 (Cao)** |
@@ -28,7 +28,7 @@
 ```mermaid
 flowchart TD
     subgraph MarketUniverse ["TẦNG 1: QUÉT VŨ TRỤ THỊ TRƯỜNG NĂNG ĐỘNG (DYNAMIC FUTURES UNIVERSE)"]
-        A["Dynamic Futures Universe: 400+ Cặp Active Binance\n(Tự động nạp, độc lập mốc đầu năm của bot-h4)"] --> B["Fast Pre-filter: Kiểm tra Nến Tham Chiếu Hợp Lệ + Biên độ Grid 0.4% - 15%"]
+        A["Dynamic Futures Universe: 400+ Cặp Active Binance\n(Tự động nạp, độc lập mốc đầu năm của bot-h4)"] --> B["Fast Pre-filter: Kiểm tra Nến Tham Chiếu Hợp Lệ + Biên độ Grid 2% - 30%"]
         B --> C["Tái sử dụng Cache Nến trên Đĩa của bot-h4 (data/*_history_cache.json)\n[0ms - 0 REST Weight - Đọc dùng chung đĩa]"]
         C --> D["Adaptive Proximity Sorter\n(Ưu tiên Top 8 coin tiệm cận mốc <= 0.5%)"]
     end
@@ -37,8 +37,8 @@ flowchart TD
         D --> E1["Luồng 1: WebSocket Price Stream (0ms Ticks)"]
         D --> E2["Luồng 2: Polling Backup (30s)"]
         E1 & E2 --> F["Hard Filters + Deterministic Confluence Scorer\n(Bỏ phạt thời gian, Giữ nguyên thang điểm chạm mốc của bot-new: L1=+2đ, L2=+1đ, L3+=+1đ)"]
-        F -- "Score &ge; 7.0đ (Tier 1) / 8.5đ (Tier 2)" --> G1["Thuật toán tính sẵn TP/SL & R:R (calculateTierSLTP)\n[Hybrid Fibonacci 3-Tier SL + Smart Anchored TP + Bypass Cản Yếu]"]
-        G1 --> G2["AI Risk Gatekeeper: AI BẢN THÂN CỤC BỘ (aiReviewer.js)\n[0ms - 0 Token - Độc lập 100%]\n(Tùy chọn: External LLM Compact JSON 180t nếu bật cờ cấu hình)"]
+        F -- "Score &ge; 7.0đ (Tier 1) / 8.0đ (Tier 2)" --> G1["Thuật toán tính sẵn TP/SL & R:R (calculateTierSLTP)\n[Hybrid Fibonacci 3-Tier SL + Smart Anchored TP + Bypass Cản Yếu]"]
+        G1 --> G2["Risk Gatekeeper: AI BẢN THÂN CỤC BỘ (aiReviewer.js) HOẶC THUẦN ĐỊNH LƯỢNG\n[0ms - 0 Token - Triệt tiêu 100% External LLM]"]
     end
 
     subgraph SafetyGate ["TẦNG 3: BỘ PHÒNG THỦ & NGẮT MẠCH TOÀN DIỆN"]
@@ -56,7 +56,7 @@ flowchart TD
     end
 
     subgraph Analytics ["TẦNG 5: BÁO CÁO & TỰ HỌC TỰ ĐỘNG"]
-        G -- "Lệnh bị AI Veto" --> M["Shadow PnL Tracker (Theo dõi ảo)"]
+        G -- "Lệnh bị Gatekeeper / Risk Filter Veto" --> M["Shadow PnL Tracker (Theo dõi ảo)"]
         M --> N["Auto Retraining & AI Accuracy Scoring"]
         K & M --> O["Real-time Web Dashboard + Telegram Alerts"]
     end
@@ -178,13 +178,13 @@ sequenceDiagram
 
 ---
 
-### GIAI ĐOẠN 2: MỞ RỘNG VŨ TRỤ QUÉT 400+ COINS, THUẬT TOÁN TÍNH SẴN TP/SL & QUẢN TRỊ TOKEN AI CHUYÊN SÂU
+### GIAI ĐOẠN 2: MỞ RỘNG VŨ TRỤ QUÉT 400+ COINS (LƯỚI 2% - 30%), THUẬT TOÁN TÍNH SẴN TP/SL & TRIỆT TIÊU HOÀN TOÀN LUỒNG GỌI MODEL AI NGOÀI
 > **Mức độ ưu tiên**: 🔴 **P1 — RẤT CAO**  
-> **Mục tiêu**: Tăng gấp 20 lần số lượng cơ hội chất lượng cao từ toàn bộ 400+ cặp Binance Futures; chuyển giao việc tính toán TP/SL sang thuật toán toán học 100% chuẩn xác; tinh gọn Prompt AI từ ~3,500 tokens xuống ~180 tokens để triệt tiêu hoàn toàn nguy cơ kiệt quota (429) và tối ưu độ trễ vào lệnh.
+> **Mục tiêu**: Tăng gấp 20 lần số lượng cơ hội chất lượng cao từ toàn bộ 400+ cặp Binance Futures; áp dụng bộ lọc lưới bước giá chuẩn xác **$2.0\% \le \text{gridStepPct} \le 30\%$**; chuyển giao việc tính toán TP/SL sang thuật toán toán học 100% chuẩn xác (`calculateTierSLTP`); **loại bỏ hoàn toàn luồng hỏi model AI bên ngoài (Gemini/Claude)** để triệt tiêu 100% chi phí token, lỗi 429 quota, ảo giác số học và độ trễ vào lệnh.
 
 #### 1. Hiện trạng rủi ro và bất cập của `bot-new` hiện tại
 1. **Phạm vi quét hạn hẹp**:
-   - Chỉ quét cố định danh sách ~20 coin (`BTC, ETH, SOL, BNB, XRP, DOGE, ADA...`), bỏ lỡ những con sóng bùng nổ của các Altcoins vốn hóa vừa và nhỏ có điểm hợp lưu $\ge 8.5$đ - $9$đ.
+   - Chỉ quét cố định danh sách ~20 coin (`BTC, ETH, SOL, BNB, XRP, DOGE, ADA...`), bỏ lỡ những con sóng bùng nổ của các Altcoins vốn hóa vừa và nhỏ có điểm hợp lưu $\ge 8.0$đ - $9$đ.
 2. **Bắt AI làm "máy tính số học" tự tính TP/SL**:
    - Bot nạp toàn bộ nến và chỉ số vào Gemini/Claude để AI tự "nghĩ ra" mức giá Entry, TP, SL trong văn bản.
    - AI là mô hình ngôn ngữ, không phải máy tính số học $\rightarrow$ rất hay bị **ảo giác (hallucination)**, tính nhầm số thập phân, làm tròn sai bước giá `tickSize` của Binance hoặc cho tỷ lệ $R:R < 1.5$.
@@ -200,20 +200,20 @@ sequenceDiagram
 
 ```mermaid
 flowchart TD
-    A["Dynamic Active Universe: 400+ Cặp Binance Futures\n(Tự động nạp toàn bộ cặp USDT active, độc lập mốc đầu năm của bot-h4)"] -->|BƯỚC 1: Proximity Filter| B["getNearbySymbols: Sắp xếp độ gần mốc\nCHỈ LẤY TOP 8 MÃ SÁT MỐC NHẤT (slice 0,8)"]
+    A["Dynamic Active Universe: 400+ Cặp Binance Futures\n(Tự động nạp toàn bộ cặp USDT active, độc lập mốc đầu năm của bot-h4)"] -->|BƯỚC 1: Pre-filter Lưới 2% - 30% & Proximity| B["getNearbySymbols: Sắp xếp độ gần mốc\nCHỈ LẤY TOP 8 MÃ SÁT MỐC NHẤT (slice 0,8)"]
     B -->|BƯỚC 2: Hàng đợi tuần tự giãn cách 600ms| C["processSignalQueue:\nTránh nghẽn API & giật weight Binance"]
-    C -->|BƯỚC 3: Confluence Scorer 0 - 10đ\n(Bỏ phạt thời gian, Giữ nguyên thang chạm mốc bot-new: L1=+2đ, L2=+1đ, L3+=+1đ)| D{"Chốt chặn điểm:\nTier 1 &ge; 7.0đ\nTier 2 &ge; 8.5đ"}
+    C -->|BƯỚC 3: Confluence Scorer 0 - 10đ\n(Bỏ phạt thời gian, Giữ nguyên thang chạm mốc bot-new: L1=+2đ, L2=+1đ, L3+=+1đ)| D{"Chốt chặn điểm:\nTier 1 &ge; 7.0đ\nTier 2 &ge; 8.0đ"}
     D -- Không đạt --> E["Loại bỏ / Lưu Log"]
     D -- "Đạt chuẩn (10-20 mã)" --> F["Sắp xếp Confluence Score giảm dần\nCHỈ CHỌN TOP 1 (HOẶC TOP 2) CAO NHẤT"]
     F --> G["Thuật toán calculateTierSLTP MỚI (Hybrid Fibonacci & Cluster Zones):\n- Tái sử dụng Cache Nến trên đĩa của bot-h4: H1(300), H4(300), D1(180)\n- SL 3 Tầng: Cản gần -> Cản D1 -> Fibonacci 0.786 / Golden ATR\n- TP Neo Cản Thông Minh: Front-running 0.2% + Bypass Cản Yếu (R:R &ge; 1.5)\n- BE Trigger 35% TP: Dời SL khóa lãi +0.33% sau phí"]
     G --> H{"Kiểm tra Cooldown 30p?"}
     H -- "Trong Cooldown 30p" --> I["Bỏ qua để tránh spam (0 Token)"]
-    H -- "Setup mới hợp lệ" --> J["AI Risk Gatekeeper:\nAI BẢN THÂN CỤC BỘ (aiReviewer.js)\n[0.01ms - 0 Token - Hoàn toàn không cần gọi LLM ngoài]"]
+    H -- "Setup mới hợp lệ" --> J["Risk Gatekeeper:\nAI BẢN THÂN CỤC BỘ (aiReviewer.js) HOẶC THUẦN ĐỊNH LƯỢNG\n[0.01ms - 0 Token - Triệt tiêu 100% External LLM]"]
     J -->|Duyệt APPROVE| K["Đẩy lệnh lên sàn Binance"]
-    J -. Tùy chọn mở rộng (USE_EXTERNAL_LLM=true) .-> L["External LLM (Gemini/Claude):\nPrompt Compact JSON (~180 tokens) lấy nhận định chi tiết"]
+    J -->|VETO Từ chối| M["Shadow PnL Tracker / Bỏ qua"]
 ```
 
-#### Chi tiết 6 trụ cột kiến trúc Giai đoạn 2:
+#### Chi tiết 5 trụ cột kiến trúc Giai đoạn 2:
 
 ##### 1. Quản trị Vũ trụ Động (Dynamic Active Universe) & Tái sử dụng Cache Nến trên đĩa của `bot-h4`
 - **Tái sử dụng 100% Bộ nhớ đệm Nến trên đĩa của `bot-h4` (`data/*_history_cache.json`)**:
@@ -230,11 +230,11 @@ flowchart TD
   - Thay vào đó, `bot-new` xây dựng bộ nạp Universe động:
     1. Gọi `/fapi/v1/exchangeInfo` lấy toàn bộ các cặp USDT đang giao dịch `TRADING` (~420 cặp).
     2. Kiểm tra tính hợp lệ của nến tham chiếu theo chu kỳ riêng của `bot-new`.
-    3. Lọc bước giá lưới ($0.4\% \le \text{gridStepPct} \le 15\%$) và thanh khoản tối thiểu.
+    3. Lọc bước giá lưới (**$2.0\% \le \text{gridStepPct} \le 30\%$**) và thanh khoản tối thiểu.
     4. Tự động sinh ra danh sách `activeSymbols` chuẩn xác và độc lập cho `bot-new`.
 
 ##### 2. Chuyển giao tính toán TP/SL sang Thuật toán Hybrid Fibonacci & Cluster Zones (`calculateTierSLTP`)
-Thay vì để AI tự nhẩm hay nhân máy móc tỷ lệ cố định, **code thuật toán tự động tính toán chính xác 100% trong $0.01\text{ ms}$** trước khi gửi cho AI thẩm định:
+Thay vì để AI tự nhẩm hay nhân máy móc tỷ lệ cố định, **code thuật toán tự động tính toán chính xác 100% trong $0.01\text{ ms}$** hoàn toàn độc lập và không phụ thuộc vào LLM:
 - **Hệ thống Cluster Zones (Gom cụm S/R đa khung thời gian)**:
   - Tự động gom các đỉnh/đáy swing point H1, H4, D1 nằm trong dung sai $0.5\%$ thành các cụm hỗ trợ / kháng cự hợp lưu.
   - Phân loại rõ ràng:
@@ -277,59 +277,35 @@ Thay vì để AI tự nhẩm hay nhân máy móc tỷ lệ cố định, **code
   - *Thưởng Hợp lưu Siêu Sóng (3 Tầng Đồng thuận)*: Khi cả D1 + H4 + H1 cùng thuận chiều lệnh $\rightarrow$ Thưởng thêm **$+1.0$đ**.
 - **Phễu lọc 4 tầng phân tầng rõ rệt**:
   - *Tầng 1 (Proximity Filter)*: Chỉ đo khoảng cách toán học $\le 0.5\%$, sort tăng dần và cắt Top 8.
-  - *Tầng 2 (Hard Filter)*: Lưới gridStep $0.4\% - 15\%$, Funding rate không cực đoan, BB Bandwidth $\ge 2\%$.
-  - *Tầng 3 (Confluence Scorer 0 - 10đ)*: Chỉ những coin đạt $\ge 7.0$đ (Tier 1) hoặc $\ge 8.5$đ (Tier 2) mới được đi tiếp.
-  - *Tầng 4 (Top 1-2 Cap + 600ms Queue + Cooldown 30p)*: Chọn tối đa Top 1 hoặc Top 2 mã xuất sắc nhất gửi AI.
+  - *Tầng 2 (Hard Filter)*: Lưới gridStep $2\% - 30\%$, Funding rate không cực đoan, BB Bandwidth $\ge 2\%$.
+  - *Tầng 3 (Confluence Scorer 0 - 10đ)*: Chỉ những coin đạt $\ge 7.0$đ (Tier 1) hoặc $\ge 8.0$đ (Tier 2) mới được đi tiếp.
+  - *Tầng 4 (Top 1-2 Cap + 600ms Queue + Cooldown 30p)*: Chọn tối đa Top 1 hoặc Top 2 mã xuất sắc nhất đưa vào Gatekeeper thẩm định.
 
 ##### 4. AI Risk Gatekeeper: Tinh gọn AI Bản Thân Cục Bộ (`aiReviewer.js`), Triệt tiêu Phạt kép & Bỏ hẳn Turnover Guard
-- **Định vị cốt lõi**: Nếu đã có **AI Bản Thân (`aiReviewer.js`)**, hệ thống **HOÀN TOÀN KHÔNG CẦN gọi sang model AI ngoài (Gemini/Claude)** trong luồng giao dịch tiêu chuẩn!
+- **Định vị cốt lõi**: Hệ thống **HOÀN TOÀN BỎ LUỒNG HỎI MODEL AI NGOÀI (Gemini/Claude)**. 100% quyết định dựa trên Thuật toán Định lượng kết hợp mô hình AI Bản Thân Cục Bộ (`aiReviewer.js`) chạy offline!
 - **Tinh giản tiêu chí & Triệt tiêu hoàn toàn Phạt kép (Double-Penalty)**:
   - *Chuyển giao 100% sang Confluence Scorer*: Lược bỏ các tiêu chí trùng lặp (`trend`, `rsi`, `volume`, `price_action`, `sr_quality`, `adx_strength`, `oi_change`, `ls_flow`, `funding`, `rank_group`, `btc_wave`).
   - *Bỏ hẳn `turnover_guard`*: Không chặn các mã có Volume 24H cao (vốn là ưu tiên của bot-new), tin cậy vào `spread_slippage` để kiểm soát thanh khoản thời gian thực tại 0ms.
   - *Bỏ các tiêu chí phụ không hiệu quả*: Bỏ `trading_session`, `grid_width`, `economic_calendar`.
   - *Tối ưu hóa Lệnh Limit đón đầu*: Nến đang chạy tiếp cận mốc Limit là `HOLD_OR_HOVER` (baseline 1.00), tuyệt đối không phạt vì thiếu râu rút chân Pinbar, không phạt Marubozu dump khi giá chỉ đang tiến về mốc.
   - *Giữ lại `risk_interaction`*: Chốt chặn then chốt khi nhiều rủi ro lớn cùng lúc xuất hiện (`INTERACTION_STALE_BOUNCE_RUNAWAY`, `INTERACTION_HIGH_VOLATILITY_WEAK_SETUP`, `INTERACTION_PUNCTURE_RUNAWAY`).
-- **Tại sao AI Bản Thân vượt trội hoàn toàn cho việc thẩm định lệnh?**:
-- **Tại sao AI Bản Thân vượt trội hoàn toàn cho việc thẩm định lệnh?**:
+- **Tại sao AI Bản Thân Cục Bộ vượt trội hoàn toàn so với gọi LLM ngoài?**:
   - **Tốc độ $0.01\text{ ms}$**: Chạy trực tiếp trong bộ nhớ CPU máy chủ, đánh giá ngay lập tức khi giá chạm mốc, không có độ trễ 1-3 giây của mạng internet.
   - **Chi phí $0\text{ USD}$ (0 Token)**: Không tiêu tốn bất kỳ token nào, vĩnh viễn không bao giờ gặp lỗi 429 (Resource Exhausted) hay hết hạn mức ngày.
   - **Mô hình ML chuyên sâu**: Đã được huấn luyện sẵn trên hơn 10.000 mẫu (`v1.4.0-auto, mẫu N=10493`), tính toán xác suất thắng dựa trên độ lệch giá, vi cấu trúc nến, râu nến và biến tốc BTC.
 - **Cơ chế cấu hình phân tầng linh hoạt (`AI_GATEKEEPER_MODE`)**:
   - **Chế độ `LOCAL` (Mặc định & Khuyến nghị)**: 100% sử dụng **AI Bản Thân** (`aiReviewer.js`) làm Risk Gatekeeper. 0 Token, 0ms, tự chủ hoàn toàn.
-  - **Chế độ `HYBRID` (Tùy chọn mở rộng qua cờ `ENABLE_EXTERNAL_LLM=true`)**: AI Bản Thân lọc trước $0\text{ ms}$. Chỉ khi xuất hiện Siêu Kèo Tier 2 ($\ge 8.5$đ), bot mới tùy chọn gửi Compact JSON sang Gemini/Claude để lấy thêm tóm tắt tiếng Việt và nhận định thị trường gửi về Telegram.
-  - **Chế độ `DISABLED`**: Chỉ tin tưởng 100% vào Confluence Scorer và thuật toán `calculateTierSLTP`.
+  - **Chế độ `DISABLED`**: Thuần định lượng 100%, chỉ tin tưởng vào Confluence Scorer và thuật toán `calculateTierSLTP`.
 
-##### 5. Tinh gọn Prompt (Prompt Compression) cho Module External LLM Tùy chọn
-Dành riêng cho trường hợp người dùng bật cờ `ENABLE_EXTERNAL_LLM = true` để lấy phân tích tiếng Việt:
-- **Cắt bỏ hoàn toàn**: Dữ liệu Mempool BTC, Reddit posts, văn bản giải thích lý thuyết OI, và TA của 399 coin còn lại.
-- **Chuyển sang Compact JSON Features Vector**:
-  ```json
-  Bạn là Chuyên gia Quản trị Rủi ro Futures 369. Hãy thẩm định nhanh setup:
-  {
-    "coin": "NEARUSDT",
-    "signal": "LONG",
-    "entry": 4.521,
-    "tp": 4.880,
-    "sl": 4.350,
-    "rr": 2.12,
-    "sl_scenario": "TIER1_SWEET_SPOT",
-    "tp_scenario": "H1_SR_ANCHOR",
-    "be_trigger": 4.646,
-    "confluence_score": 8.5,
-    "btc_flash_180s": "STABLE",
-    "candle_m15": "PINBAR_REJECTION",
-    "opposing_wick_pct": 12,
-    "orderbook_wall_ahead": false,
-    "reasons": ["Mốc 369 H4 trùng Support D1", "Funding âm -0.015%", "Vol nảy 2.1x"]
-  }
-  Yêu cầu: Đánh giá xem có nên duyệt lệnh không. Trả về DUY NHẤT 1 JSON:
-  { "winProbability": 78, "isApproved": true, "reason": "Cấu trúc R:R tốt, không có cản lớn phía trước" }
-  ```
-- **Hiệu quả vượt trội khi kích hoạt**:
-  - Token đầu vào: **~180 tokens** (giảm $95\%$).
-  - Token đầu ra: **~60 tokens** (giảm $92\%$).
-  - Thời gian phản hồi: **0.8s – 1.2s** (nhanh gấp 6 lần).
-  - Tích hợp Xoay vòng Multi-Key (`GEMINI_API_KEY=key1,key2,key3`) và Fallback tự động về AI Bản Thân nếu mạng quốc tế bị nghẽn.
+##### 5. Triệt tiêu hoàn toàn luồng hỏi Model AI bên ngoài (Eliminate External LLM Calls)
+Xóa bỏ 100% luồng kết nối API sang Gemini / Claude / DeepSeek trong toàn bộ vòng đời phân tích và vào lệnh:
+- **Lý do loại bỏ triệt để**:
+  1. *Triệt tiêu ảo giác số học (Hallucination)*: Minh chứng thực tế từ kèo ETH ngày 19/11 cho thấy AI đặt TP 1690 xa mù khơi để ép ra R:R 1.63, bỏ qua bức tường cản D1 `[1748 - 1750]` khiến lệnh suýt dính SL khi giá dội ngược lại 1791.
+  2. *Triệt tiêu rủi ro kiệt hạn mức (Quota 429)*: Việc quét 400+ coin sẽ đánh sập ngay lập tức mọi quota API của Gemini/Claude nếu còn giữ thói quen gửi prompt vĩ mô.
+  3. *Tối ưu hóa độ trễ thực thi (0ms execution)*: Thị trường crypto biến động tính bằng tích-tắc; bỏ qua độ trễ mạng 3–8 giây của API LLM giúp bot đón đúng đỉnh/đáy nảy giá tại mốc 369.
+  4. *Đơn giản hóa mã nguồn*: Xóa bỏ hoàn toàn code trích xuất văn bản `parseTrades`, regex bóc tách JSON, xử lý lỗi rate limit và xoay vòng multi-key.
+- **Quy trình thực thi hoàn toàn định lượng & tự chủ (Pure Deterministic Pipeline)**:
+  `Dynamic Universe (Lưới 2%-30%) -> Sắp xếp Proximity Top 8 -> Confluence Score >= 7.0đ/8.0đ -> calculateTierSLTP (SL 3 tầng, Smart TP, Bypass cản yếu) -> Gatekeeper Cục bộ (aiReviewer.js / Pure Quant) -> Vào lệnh Binance Dual Bracket`
 
 ---
 
@@ -411,7 +387,7 @@ Dành riêng cho trường hợp người dùng bật cờ `ENABLE_EXTERNAL_LLM 
 
 - [ ] **Phase 2: Mở rộng Vũ trụ Động, Thuật toán Hybrid SL/TP & Tích hợp AI Bản Thân (Ưu tiên P1)**
   - [ ] Tái sử dụng Persistent Deep Candle Cache từ đĩa của `bot-h4`: Đọc dùng chung `data/*_history_cache.json` (H1 300, H4 300, D1 180), nạp RAM 0ms, tiêu thụ 0 REST API weight Binance
-  - [ ] Xây dựng bộ nạp Universe Năng Động (`getAllActiveFuturesSymbols()`): Tự động nạp toàn bộ cặp USDT active đang giao dịch, kiểm tra nến tham chiếu độc lập (không copy cứng danh sách đầu năm của `bot-h4`) + lọc lưới bước giá ($0.4\% \le \text{gridStepPct} \le 15\%$)
+  - [ ] Xây dựng bộ nạp Universe Năng Động (`getAllActiveFuturesSymbols()`): Tự động nạp toàn bộ cặp USDT active đang giao dịch, kiểm tra nến tham chiếu độc lập (không copy cứng danh sách đầu năm của `bot-h4`) + lọc lưới bước giá (**$2.0\% \le \text{gridStepPct} \le 30\%$**)
   - [ ] Port thuật toán `buildClusterZones`: Gom cụm S/R đa khung (H1/H4/D1, dung sai 0.5%), phân loại Cản Yếu (Minor 1 chạm) vs Cản Cứng (Major &ge; 2 chạm / D1 / Mốc 369)
   - [ ] Port thuật toán toán học `calculateTierSLTP` MỚI:
     - [ ] SL 3 Tầng: Cản gần [1.2x-2.0x ATR] &rarr; Cản D1 tầm trung (&le; 2.2x ATR / 4.0%) &rarr; Fibonacci Retracement 0.786 / Golden ATR 1.618x (Xóa bỏ trần 3.5% cứng)
@@ -424,10 +400,10 @@ Dành riêng cho trường hợp người dùng bật cờ `ENABLE_EXTERNAL_LLM 
     - [ ] Giữ nguyên thang điểm số lần chạm Mốc cản PP369 của `bot-new`: Lần 1 = +2đ, Lần 2 = +1đ, Lần 3+ = +1đ
   - [ ] Tích hợp phễu lọc `getNearbySymbols`: Sắp xếp khoảng cách tăng dần, chỉ lấy Top 8 mã sát mốc nhất (`slice(0, 8)`)
   - [ ] Xây dựng hàng đợi tuần tự `processSignalQueue` với giãn cách 600ms giữa các mã
-  - [ ] Tích hợp AI Risk Gatekeeper bằng **AI Bản Thân Cục Bộ (`aiReviewer.js`)**: Thẩm định siêu tốc 0.01ms, 0 Token, 100% offline không cần gọi External LLM
-  - [ ] Module mở rộng tùy chọn (`ENABLE_EXTERNAL_LLM`): Prompt Compact JSON (~180 tokens đầu vào, ~60 tokens đầu ra) + Xoay vòng Multi-Key
+  - [ ] Tích hợp Risk Gatekeeper bằng **AI Bản Thân Cục Bộ (`aiReviewer.js`) hoặc Thuần Định Lượng**: Thẩm định siêu tốc 0.01ms, 0 Token, 100% offline không gọi External LLM
+  - [ ] Triệt tiêu hoàn toàn luồng hỏi Model AI ngoài (Gemini/Claude) trong `tradeMonitor.js` & `signalScanner`: Loại bỏ `parseTrades` từ LLM, chuyển giao 100% quyết định vào lệnh sang hệ thống tính toán toán học chuẩn xác
   - [ ] Tích hợp cơ chế Top 1–2 Cap khi có nhiều mã đủ điểm + Cooldown 30 phút cho từng coin
-  - [ ] Viết bộ unit test `bot_new/test/test_phase2_universe_scorer.js` kiểm thử toàn diện các kịch bản: Tái sử dụng cache đĩa, Universe năng động, SL 3 tầng, Smart Anchored TP, Weak S/R Bypass, Scorer giữ nguyên thang điểm chạm, và AI Bản Thân 0ms/0t
+  - [ ] Viết bộ unit test `bot_new/test/test_phase2_universe_scorer.js` kiểm thử toàn diện các kịch bản: Tái sử dụng cache đĩa, Universe năng động (Lưới 2%-30%), SL 3 tầng, Smart Anchored TP, Weak S/R Bypass, Scorer giữ nguyên thang điểm chạm, và thực thi 100% offline không token
 
 - [ ] **Phase 3: Real-time WebSocket Price Engine**
   - [ ] Tích hợp WebSocket Mark Price đa luồng
