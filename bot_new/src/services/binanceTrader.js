@@ -70,16 +70,16 @@ async function getSymbolInfo(symbol) {
   const { data } = await axios.get(`${BASE_URL}/fapi/v1/exchangeInfo`, { timeout: 10000 });
   for (const s of data.symbols) {
     if (s.symbol !== `${s.baseAsset}USDT`) continue;
-    const lotSize     = s.filters.find(f => f.filterType === 'LOT_SIZE');
-    const minNotional = s.filters.find(f => f.filterType === 'MIN_NOTIONAL');
-    const priceFilter = s.filters.find(f => f.filterType === 'PRICE_FILTER');
+    const lotSize        = s.filters.find(f => f.filterType === 'LOT_SIZE');
+    const notionalFilter = s.filters.find(f => f.filterType === 'MIN_NOTIONAL' || f.filterType === 'NOTIONAL');
+    const priceFilter    = s.filters.find(f => f.filterType === 'PRICE_FILTER');
     symbolInfoCache.set(s.baseAsset, {
       quantityPrecision: s.quantityPrecision,
       pricePrecision:    s.pricePrecision,
-      stepSize:          lotSize     ? parseFloat(lotSize.stepSize)      : null,
-      minQty:            lotSize     ? parseFloat(lotSize.minQty)        : null,
-      minNotional:       minNotional ? parseFloat(minNotional.notional)  : null,
-      tickSize:          priceFilter ? parseFloat(priceFilter.tickSize)  : null,
+      stepSize:          lotSize ? parseFloat(lotSize.stepSize) : null,
+      minQty:            lotSize ? parseFloat(lotSize.minQty) : null,
+      minNotional:       notionalFilter ? parseFloat(notionalFilter.notional || notionalFilter.minNotional || 0) : null,
+      tickSize:          priceFilter ? parseFloat(priceFilter.tickSize) : null,
     });
   }
   return symbolInfoCache.get(symbol) || null;
@@ -233,12 +233,12 @@ async function placeNewTrade(trade) {
       quantity:    qty,
       price:       parseFloat(entryPrice.toFixed(info.pricePrecision)),
     });
-    trade.binanceEntryOrderId = entryOrder.orderId;
+    trade.binanceEntryOrderId = entryOrder.orderId != null ? String(entryOrder.orderId) : null;
     trade.binanceQty          = qty;
     log.trade(`BINANCE: entry LIMIT OK ${symbol} ${direction}`, { orderId: entryOrder.orderId, qty, price: entryPrice });
 
     _invalidateBalanceCache(); // balance đã thay đổi sau khi đặt lệnh
-    return { entryOrderId: entryOrder.orderId, qty, sizeUsdt, balance };
+    return { entryOrderId: trade.binanceEntryOrderId, qty, sizeUsdt, balance };
   } catch (err) {
     if (/TradFi|agreement/i.test(err.message)) {
       log.warn(`BINANCE: ${symbol} yêu cầu ký TradFi-Perps agreement — không retry cho đến khi ký`);
@@ -317,7 +317,7 @@ async function placeSLAfterFill(trade) {
   const slSide = direction === 'LONG' ? 'SELL' : 'BUY';
   try {
     const slRes = await placeStopOrder(symbol, slSide, 'STOP_MARKET', slPrice);
-    const slOrderId = slRes?.algoId || slRes?.orderId;
+    const slOrderId = (slRes?.algoId != null ? String(slRes.algoId) : (slRes?.orderId != null ? String(slRes.orderId) : null));
     trade.binanceSlOrderId = slOrderId;
     log.trade(`BINANCE: Hard STOP_MARKET SL OK ${symbol}`, { algoId: slOrderId, slPrice });
     return slOrderId;
@@ -350,7 +350,7 @@ async function moveSLToBreakeven(trade, newSlPrice) {
   // 2. Đặt SL mới tại mốc Breakeven
   try {
     const slRes = await placeStopOrder(symbol, slSide, 'STOP_MARKET', targetSlPrice);
-    const newSlId = slRes?.algoId || slRes?.orderId;
+    const newSlId = (slRes?.algoId != null ? String(slRes.algoId) : (slRes?.orderId != null ? String(slRes.orderId) : null));
     trade.binanceSlOrderId = newSlId;
     trade.slPrice = targetSlPrice;
     trade.slMovedToBreakeven = true;
@@ -396,7 +396,7 @@ async function replaceTPOrder(trade, newTargetPrice) {
       timeInForce: 'GTC',
       reduceOnly: 'true',
     });
-    trade.binanceTpOrderId = tpOrder.orderId;
+    trade.binanceTpOrderId = tpOrder.orderId != null ? String(tpOrder.orderId) : null;
     trade.targetPrice = newTargetPrice;
     log.trade(`BINANCE: Dịch TP Limit mới OK ${symbol}`, { orderId: tpOrder.orderId, newTP: tpPrice });
     return tpOrder.orderId;
@@ -441,7 +441,7 @@ async function placeTPAfterEntry(trade) {
       timeInForce: 'GTC',
       reduceOnly:  'true',
     });
-    trade.binanceTpOrderId = tpOrder.orderId;
+    trade.binanceTpOrderId = tpOrder.orderId != null ? String(tpOrder.orderId) : null;
     log.trade(`BINANCE: TP LIMIT OK ${symbol}`, { orderId: tpOrder.orderId, price: targetPrice });
     return tpOrder.orderId;
   } catch (err) {
@@ -537,7 +537,7 @@ async function placeMarketTrade(trade, currentPrice) {
       type:     'MARKET',
       quantity: qty,
     });
-    trade.binanceEntryOrderId = entryOrder.orderId;
+    trade.binanceEntryOrderId = entryOrder.orderId != null ? String(entryOrder.orderId) : null;
     trade.binanceQty          = qty;
     trade.entryFilled         = true;
 
@@ -563,7 +563,7 @@ async function placeMarketTrade(trade, currentPrice) {
       timeInForce: 'GTC',
       reduceOnly:  'true',
     });
-    trade.binanceTpOrderId = tpOrder.orderId;
+    trade.binanceTpOrderId = tpOrder.orderId != null ? String(tpOrder.orderId) : null;
     log.trade(`BINANCE MARKET: TP LIMIT OK ${symbol}`, { orderId: tpOrder.orderId, price: trade.targetPrice, fillPrice });
 
     // 6. Hard STOP_MARKET SL treo trực tiếp lên sàn Binance (/fapi/v1/algoOrder)
@@ -573,7 +573,7 @@ async function placeMarketTrade(trade, currentPrice) {
       return null;
     });
     if (slRes) {
-      trade.binanceSlOrderId = slRes.algoId || slRes.orderId;
+      trade.binanceSlOrderId = (slRes.algoId != null ? String(slRes.algoId) : (slRes.orderId != null ? String(slRes.orderId) : null));
       log.trade(`BINANCE MARKET: Hard STOP_MARKET SL OK ${symbol}`, { algoId: trade.binanceSlOrderId, slPrice });
     }
 

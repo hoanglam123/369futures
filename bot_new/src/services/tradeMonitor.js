@@ -1630,6 +1630,25 @@ async function checkActiveTrades() {
                   await recoverFill(actualAvgPrice, 'posAmt');
                   continue;
                 }
+
+                // Nếu order không tìm thấy trên Binance, posAmt = 0 và đã quá 5 phút: kiểm tra openOrders thực tế
+                if (posInfo !== null && posInfo.positionAmt === 0 && elapsedMin >= 5) {
+                  const openOrders = await binanceTrader.getOpenOrders(trade.symbol).catch(() => []);
+                  const hasMatchingOpenOrder = openOrders.some(o =>
+                    (o.side === (isLong ? 'BUY' : 'SELL')) && (o.type === 'LIMIT' || o.type === 'STOP')
+                  );
+                  if (!hasMatchingOpenOrder) {
+                    log.warn(`WS FILL FALLBACK: Order #${trade.binanceEntryOrderId} của ${trade.symbol} không tồn tại trên sàn và không có vị thế/lệnh mở nào → Hủy theo dõi ghost trade`);
+                    trade.status = 'cancelled';
+                    trade.closedAt = new Date().toISOString();
+                    trade.closeReason = 'ORDER_NOT_FOUND_ON_BINANCE';
+                    _fillCheckMs.delete(trade.id);
+                    const idx = activeTrades.indexOf(trade);
+                    if (idx !== -1) activeTrades.splice(idx, 1);
+                    saveTrades();
+                    continue;
+                  }
+                }
               }
               log.price(`${trade.symbol} ${trade.direction}: REST poll order #${trade.binanceEntryOrderId} status=${order?.status ?? 'unknown'} — tiếp tục chờ WS`);
             } catch (e) {

@@ -4491,20 +4491,22 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
 
     // Lấy danh sách lệnh thường và lệnh algo:
     // Trên Binance Futures, gọi theo từng symbol chỉ tốn 1 Weight/request thay vì 40 Weight khi không truyền symbol!
-    const ordersPromises = openSymbols.map(sym => client.getOpenOrders(sym).catch(() => []));
-    const algoPromises = openSymbols.map(sym => client.getOpenAlgoOrders(sym).catch(() => []));
+    const ordersPromises = openSymbols.map(sym => client.getOpenOrders(sym).catch(err => ({ error: err })));
+    const algoPromises = openSymbols.map(sym => client.getOpenAlgoOrders(sym).catch(err => ({ error: err })));
     const [ordersArr, algosArr] = await Promise.all([
       Promise.all(ordersPromises),
       Promise.all(algoPromises)
     ]);
-    const allOpenOrders = ordersArr.flat();
-    const allAlgoOrders = algosArr.flatMap(a => Array.isArray(a) ? a : (a?.orders ?? []));
 
-    const symbolOrdersResults = openSymbols.map((sym) => {
+    const symbolOrdersResults = openSymbols.map((sym, idx) => {
       const symUsdt = `${sym}USDT`;
-      const orders = allOpenOrders.filter(o => o.symbol === symUsdt);
-      const algoOrders = allAlgoOrders.filter(o => o.symbol === symUsdt);
-      return { sym, orders, algoOrders };
+      const ordRes = ordersArr[idx];
+      const algoRes = algosArr[idx];
+      const fetchFailed = !!(ordRes?.error || algoRes?.error);
+      const orders = Array.isArray(ordRes) ? ordRes.filter(o => o.symbol === symUsdt) : [];
+      const rawAlgos = Array.isArray(algoRes) ? algoRes : (algoRes?.orders ?? []);
+      const algoOrders = Array.isArray(rawAlgos) ? rawAlgos.filter(o => o.symbol === symUsdt) : [];
+      return { sym, orders, algoOrders, fetchFailed };
     });
 
     for (const p of positions) {
@@ -4596,6 +4598,7 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
       const symbolResult = symbolOrdersResults.find(r => r.sym === sym);
       const openOrders = symbolResult ? symbolResult.orders : [];
       const openAlgoOrders = symbolResult ? symbolResult.algoOrders : [];
+      const isFetchFailed = !!symbolResult?.fetchFailed;
 
       const realSlOrders = [
         ...openOrders.filter(o => o.type === 'STOP_MARKET' || o.type === 'STOP'),
@@ -5245,7 +5248,7 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
         } catch (e) {
           log.error(`[AutoTrade] Đặt TP thoát ${sym} thất bại: ${_binanceErr(e)}`);
         }
-      } else if (realTpOrders.length === 0) {
+      } else if (realTpOrders.length === 0 && !isFetchFailed) {
         try {
           const tpOrder = await client.placeStopOrder(sym, oppositeSide, 'TAKE_PROFIT_MARKET', targetTpPriceExact);
           const tpId = tpOrder.orderId || tpOrder.algoId || 'unknown';
@@ -5608,8 +5611,8 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
             justClosedByBot.delete(sym);
             log.error(`[AutoTrade] [${typeLabel}] Lỗi đóng vị thế ${sym}: ${e.message}`);
           }
-        } else {
-          // Chưa chạm mốc cắt lỗ -> Đặt lệnh SL thật lên sàn
+        } else if (!isFetchFailed) {
+          // Chưa chạm mốc cắt lỗ -> Đặt lệnh SL thật lên sàn (chỉ đặt khi truy vấn lệnh trước đó không bị lỗi/throttle)
           try {
             const slOrder = await client.placeStopOrder(sym, oppositeSide, 'STOP_MARKET', roundedTargetSl);
             const slId = slOrder.orderId || slOrder.algoId || 'unknown';
