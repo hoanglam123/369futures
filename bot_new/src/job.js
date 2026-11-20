@@ -21,6 +21,8 @@ const { analyzeMarket, analyze369Setup } = require('./services/aiAnalysis');
 const { sendMessages, sendErrorAlert } = require('./services/telegram');
 const { buildMarketMessage, buildAnalysisMessage } = require('./formatters/message');
 const { parseTrades, addTrades, getActiveTrades } = require('./services/tradeMonitor');
+const { processCandidateSetups } = require('./services/signalEngine');
+const { getAllActiveFuturesSymbols, filterSymbolsByGrid } = require('./services/dynamicUniverse');
 const { parseFundingTrades, addFundingTrades } = require('./services/fundingTracker');
 const { getTAReport, STABLECOINS } = require('./collectors/technicalAnalysis');
 const { getWhaleData } = require('./collectors/whaleData');
@@ -318,32 +320,26 @@ async function runJob({ silent = false, lookbackHours = null } = {}) {
       }
     }
 
-    // Silent mode: bỏ qua nếu AI bị tắt hoặc không có setup đủ điểm
-    if (silent) {
-      if (!AI_ANALYSIS_ENABLED) {
-        log.system('Signal scan: AI_ANALYSIS_ENABLED=false — bỏ qua');
-        return;
+    // ─── BƯỚC 2: THỰC THI GIAO DỊCH ĐỊNH LƯỢNG 100% (PHASE 2 UPGRADE) ───
+    log.system('Đang quét và tính toán lệnh định lượng (Tier 1 >= 7.0đ, Tier 2 >= 8.0đ)...');
+    try {
+      const quantTrades = await processCandidateSetups(allScores, marketData, 2);
+      if (quantTrades.length > 0) {
+        log.trade(`[SignalEngine] ${quantTrades.length} lệnh định lượng đủ điều kiện, bắt đầu theo dõi & đặt lệnh sàn`);
+        addTrades(quantTrades, marketData.ta ?? {});
+      } else {
+        log.system('[SignalEngine] Không có setup định lượng nào vượt qua bộ lọc & Gatekeeper');
       }
-      const hasPassingSetup = allScores.some(s => {
-        if (s.disqualified) return false;
-        const isTrusted = FIXED_COINS.includes(s.symbol) || TIER2_COINS.includes(s.symbol);
-        return s.total >= (isTrusted ? MIN_SCORE_SIGNAL : MIN_SCORE_EXTRA);
-      });
-      if (!hasPassingSetup) {
-        log.system(`Signal scan: không có setup đủ điểm (FIXED/T2≥${MIN_SCORE_SIGNAL}, liquid/gainers≥${MIN_SCORE_EXTRA}) — bỏ qua AI`);
-        return;
-      }
+    } catch (engineErr) {
+      log.error('[SignalEngine] Lỗi thực thi signalEngine:', { error: engineErr.message });
     }
 
-    const scoresText    = formatScoresForPrompt(allScores);
-    const signals369Text = format369ForPrompt(marketData.signals369);
-
-    // ─── BƯỚC 2: Phân tích AI ─────────────────────────────
+    // ─── BƯỚC 2.5: Phân tích AI chỉ chạy khi gửi bản tin sáng (!silent) ───
     let analysisText = null;
     let aiModel = null;
 
-    if (AI_ANALYSIS_ENABLED) {
-      log.ai('Gọi Gemini AI phân tích thị trường...');
+    if (!silent && AI_ANALYSIS_ENABLED) {
+      log.ai('Gọi Gemini AI viết nhận định bản tin sáng (narrative)...');
       const recentHistoryText = getRecentHistoryText(5);
       if (activeTrades.length > 0) {
         log.ai(`Truyền ${activeTrades.length} lệnh active vào AI context`);
@@ -354,50 +350,8 @@ async function runJob({ silent = false, lookbackHours = null } = {}) {
         analysisText = aiResult.analysis;
         aiModel = aiResult.model;
         log.ai(`Phân tích hoàn thành`, { model: aiModel, chars: analysisText.length });
-
-        // Parse và theo dõi lệnh giao dịch từ AI
-        // Lọc lệnh theo ngưỡng score per-category:
-        //   FIXED + TIER2 (vốn hoá lớn): ≥ MIN_SCORE_TRADE (7)
-        //   LIQUID CAO + GAINERS:         ≥ MIN_SCORE_EXTRA  (8)
-        const trades = parseTrades(analysisText);
-        if (trades.length > 0) {
-          const scoreMap = {};
-          for (const s of allScores) {
-            if (!s.disqualified) scoreMap[`${s.symbol}_${s.direction}`] = s;
-          }
-          const validTrades = trades.filter(t => {
-            const s = scoreMap[`${t.symbol}_${t.direction}`];
-            if (!s) {
-              log.warn(`Lọc lệnh ${t.symbol} ${t.direction} — không có TA data hoặc bị hard-filter`);
-              return false;
-            }
-            const isTrusted  = FIXED_COINS.includes(t.symbol) || TIER2_COINS.includes(t.symbol);
-            const minRequired = isTrusted ? MIN_SCORE_TRADE : MIN_SCORE_EXTRA;
-            if (s.total < minRequired) {
-              const cat = isTrusted ? 'FIXED/T2' : 'liquid/gainer';
-              log.warn(`Lọc lệnh ${t.symbol} ${t.direction} — score ${s.total}đ < ${minRequired} [${cat}] [${s.verdict}]`);
-              return false;
-            }
-            return true;
-          });
-          if (validTrades.length > 0) {
-            log.trade(`${validTrades.length}/${trades.length} lệnh đủ điểm, bắt đầu theo dõi`);
-            addTrades(validTrades, marketData.ta ?? {});
-          } else {
-            log.warn(`AI đề xuất ${trades.length} lệnh nhưng tất cả bị lọc (không đủ score theo category)`);
-          }
-        } else {
-          log.ai('Không có lệnh khuyến nghị trong bản tin này');
-        }
-
-        // Parse và theo dõi lệnh funding từ AI
-        const fundingTrades = parseFundingTrades(analysisText);
-        if (fundingTrades.length > 0) {
-          log.funding(`Tìm thấy ${fundingTrades.length} lệnh funding từ AI, bắt đầu theo dõi`);
-          addFundingTrades(fundingTrades);
-        }
       } catch (aiErr) {
-        log.error('Lỗi phân tích AI — bỏ qua chu kỳ này, thử lại sau 5 phút', { error: aiErr.message, stack: aiErr.stack?.split('\n')[1]?.trim() });
+        log.error('Lỗi phân tích AI — bỏ qua phân tích bản tin sáng', { error: aiErr.message });
         analysisText = [
           '<b>🎯 Tổng quan thị trường</b>',
           'Hiện tại không thể tạo phân tích AI do lỗi kết nối.',
@@ -407,8 +361,8 @@ async function runJob({ silent = false, lookbackHours = null } = {}) {
           '<i>⚠️ Đây là phân tích tham khảo, không phải lời khuyên đầu tư</i>'
         ].join('\n');
       }
-    } else {
-      log.system('AI_ANALYSIS_ENABLED=false — bỏ qua phân tích AI');
+    } else if (silent) {
+      log.system('Silent mode: hoàn thành chu kỳ quét định lượng (0 Token, 0ms AI call)');
     }
 
     // ─── BƯỚC 3: Format và gửi Telegram ─────────────────
@@ -538,6 +492,32 @@ async function run369AlertScan() {
       );
       return { ...sig, score };
     });
+
+    // ─── Phase 2: Thực thi định lượng ngay tại chu kỳ 1 phút nếu có setup đủ điểm ───
+    try {
+      const passingScores = enriched
+        .filter(s => s.score && !s.score.disqualified)
+        .map(s => ({
+          symbol: s.symbol,
+          direction: s.signal,
+          targetLevel: s.targetLevel || s.price,
+          total: s.score.total,
+          verdict: s.score.verdict,
+          confidence: s.score.confidence,
+          reasons: s.score.reasons || [],
+          disqualified: false
+        }));
+
+      if (passingScores.length > 0) {
+        const quantTrades1m = await processCandidateSetups(passingScores, _lastMarketData, 1);
+        if (quantTrades1m.length > 0) {
+          log.trade(`[PP369 1m Scan] Khớp ${quantTrades1m.length} setup định lượng, đẩy vào addTrades & đặt lệnh sàn`);
+          addTrades(quantTrades1m, _lastMarketData.ta ?? {});
+        }
+      }
+    } catch (e1m) {
+      log.warn('[PP369 1m Scan] Lỗi thực thi định lượng 1m', { error: e1m.message });
+    }
 
     // Bước 2: AI comment cho setup đủ điểm (chạy tuần tự để tránh spam Gemini)
     if (AI_ANALYSIS_ENABLED && _lastMarketData) {

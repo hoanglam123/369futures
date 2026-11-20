@@ -187,4 +187,5 @@ async function testAsync(name, fn) {
   console.log(`\n========================================================================`);
   console.log(`🏁 KẾT QUẢ KIỂM THỬ: ${pass}/${total} TESTS ĐẠT CHUẨN (${(pass/total*100).toFixed(1)}%)`);
   console.log(`========================================================================`);
+  process.exit(pass === total ? 0 : 1);
 })();

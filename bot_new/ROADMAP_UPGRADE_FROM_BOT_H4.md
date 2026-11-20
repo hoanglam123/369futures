@@ -385,25 +385,25 @@ Xóa bỏ 100% luồng kết nối API sang Gemini / Claude / DeepSeek trong to�
   - [x] Đấu nối `autoCleanOppositeOrder`: Khi TP khớp thì hủy SL Algo trên sàn, khi SL khớp thì hủy TP Limit trên sàn
   - [x] Viết bộ unit test `bot_new/test/test_phase1_dual_bracket.js` kiểm thử toàn diện 7/7 bài test vượt qua 100%
 
-- [ ] **Phase 2: Mở rộng Vũ trụ Động, Thuật toán Hybrid SL/TP & Tích hợp AI Bản Thân (Ưu tiên P1)**
-  - [ ] Tái sử dụng Persistent Deep Candle Cache từ đĩa của `bot-h4`: Đọc dùng chung `data/*_history_cache.json` (H1 300, H4 300, D1 180), nạp RAM 0ms, tiêu thụ 0 REST API weight Binance
-  - [ ] Xây dựng bộ nạp Universe Năng Động (`getAllActiveFuturesSymbols()`): Tự động nạp toàn bộ cặp USDT active đang giao dịch, kiểm tra nến tham chiếu độc lập (không copy cứng danh sách đầu năm của `bot-h4`) + lọc lưới bước giá (**$2.0\% \le \text{gridStepPct} \le 30\%$**)
-  - [ ] Port thuật toán `buildClusterZones`: Gom cụm S/R đa khung (H1/H4/D1, dung sai 0.5%), phân loại Cản Yếu (Minor 1 chạm) vs Cản Cứng (Major &ge; 2 chạm / D1 / Mốc 369)
-  - [ ] Port thuật toán toán học `calculateTierSLTP` MỚI:
-    - [ ] SL 3 Tầng: Cản gần [1.2x-2.0x ATR] &rarr; Cản D1 tầm trung (&le; 2.2x ATR / 4.0%) &rarr; Fibonacci Retracement 0.786 / Golden ATR 1.618x (Xóa bỏ trần 3.5% cứng)
-    - [ ] Kẹp biên an toàn thích ứng ATR (Sàn 1.8%, Trần 6.0%), né số tròn tâm lý (`evadeRoundNumber`), tickSize Binance
-    - [ ] Smart Anchored TP: Neo cụm cản đối diện với Front-running buffer 0.2% an toàn
-    - [ ] Cơ chế Bypass Cản Yếu (Tránh reject oan): Nhìn xuyên cản yếu H1 để vươn tới cản cứng tiếp theo hoặc Fibonacci Extension 1.272/1.618 hoặc Fallback Ratio R:R &ge; 1.5. Chỉ VETO khi vướng Cản Cứng thực sự
-    - [ ] Quản trị vị thế động: Break-Even Trigger @ 35% quãng đường TP (dời SL khóa lãi an toàn +0.33% sau phí)
-  - [ ] Đồng bộ `confluenceScorer.js` trong `bot_new`:
-    - [ ] Bỏ hoàn toàn hình phạt thời gian (`timePenalty = 0`)
-    - [ ] Giữ nguyên thang điểm số lần chạm Mốc cản PP369 của `bot-new`: Lần 1 = +2đ, Lần 2 = +1đ, Lần 3+ = +1đ
-  - [ ] Tích hợp phễu lọc `getNearbySymbols`: Sắp xếp khoảng cách tăng dần, chỉ lấy Top 8 mã sát mốc nhất (`slice(0, 8)`)
-  - [ ] Xây dựng hàng đợi tuần tự `processSignalQueue` với giãn cách 600ms giữa các mã
-  - [ ] Tích hợp Risk Gatekeeper bằng **AI Bản Thân Cục Bộ (`aiReviewer.js`) hoặc Thuần Định Lượng**: Thẩm định siêu tốc 0.01ms, 0 Token, 100% offline không gọi External LLM
-  - [ ] Triệt tiêu hoàn toàn luồng hỏi Model AI ngoài (Gemini/Claude) trong `tradeMonitor.js` & `signalScanner`: Loại bỏ `parseTrades` từ LLM, chuyển giao 100% quyết định vào lệnh sang hệ thống tính toán toán học chuẩn xác
-  - [ ] Tích hợp cơ chế Top 1–2 Cap khi có nhiều mã đủ điểm + Cooldown 30 phút cho từng coin
-  - [ ] Viết bộ unit test `bot_new/test/test_phase2_universe_scorer.js` kiểm thử toàn diện các kịch bản: Tái sử dụng cache đĩa, Universe năng động (Lưới 2%-30%), SL 3 tầng, Smart Anchored TP, Weak S/R Bypass, Scorer giữ nguyên thang điểm chạm, và thực thi 100% offline không token
+- [x] **Phase 2: Mở rộng Vũ trụ Động, Thuật toán Hybrid SL/TP & Tích hợp AI Bản Thân (Ưu tiên P1) — [HOÀN THÀNH 100%]**
+  - [x] Tái sử dụng Persistent Deep Candle Cache từ đĩa của `bot-h4`: Đọc dùng chung `data/*_history_cache.json` (H1 300, H4 300, D1 180), nạp RAM 0ms, tiêu thụ 0 REST API weight Binance
+  - [x] Xây dựng bộ nạp Universe Năng Động (`getAllActiveFuturesSymbols()`): Tự động nạp toàn bộ cặp USDT active đang giao dịch, kiểm tra nến tham chiếu độc lập (không copy cứng danh sách đầu năm của `bot-h4`) + lọc lưới bước giá (**$2.0\% \le \text{gridStepPct} \le 30\%$**)
+  - [x] Port thuật toán `buildClusterZones`: Gom cụm S/R đa khung (H1/H4/D1, dung sai 0.5%), phân loại Cản Yếu (Minor 1 chạm) vs Cản Cứng (Major &ge; 2 chạm / D1 / Mốc 369)
+  - [x] Port thuật toán toán học `calculateTierSLTP` MỚI:
+    - [x] SL 3 Tầng: Cản gần [1.2x-2.0x ATR] &rarr; Cản D1 tầm trung (&le; 2.2x ATR / 4.0%) &rarr; Fibonacci Retracement 0.786 / Golden ATR 1.618x (Xóa bỏ trần 3.5% cứng)
+    - [x] Kẹp biên an toàn thích ứng ATR (Sàn 1.8%, Trần 6.0%), né số tròn tâm lý (`evadeRoundNumber`), tickSize Binance
+    - [x] Smart Anchored TP: Neo cụm cản đối diện với Front-running buffer 0.2% an toàn
+    - [x] Cơ chế Bypass Cản Yếu (Tránh reject oan): Nhìn xuyên cản yếu H1 để vươn tới cản cứng tiếp theo hoặc Fibonacci Extension 1.272/1.618 hoặc Fallback Ratio R:R &ge; 1.5. Chỉ VETO khi vướng Cản Cứng thực sự
+    - [x] Quản trị vị thế động: Break-Even Trigger @ 35% quãng đường TP (dời SL khóa lãi an toàn +0.33% sau phí)
+  - [x] Đồng bộ `confluenceScorer.js` trong `bot_new`:
+    - [x] Bỏ hoàn toàn hình phạt thời gian (`timePenalty = 0`)
+    - [x] Giữ nguyên thang điểm số lần chạm Mốc cản PP369 của `bot-new`: Lần 1 = +2đ, Lần 2 = +1đ, Lần 3+ = +1đ
+  - [x] Tích hợp phễu lọc `getNearbySymbols`: Sắp xếp khoảng cách tăng dần, chỉ lấy Top 8 mã sát mốc nhất (`slice(0, 8)`)
+  - [x] Xây dựng hàng đợi tuần tự `processSignalQueue` với giãn cách 600ms giữa các mã
+  - [x] Tích hợp Risk Gatekeeper bằng **AI Bản Thân Cục Bộ (`aiReviewer.js`) hoặc Thuần Định Lượng**: Thẩm định siêu tốc 0.01ms, 0 Token, 100% offline không gọi External LLM
+  - [x] Triệt tiêu hoàn toàn luồng hỏi Model AI ngoài (Gemini/Claude) trong `tradeMonitor.js` & `signalScanner`: Loại bỏ `parseTrades` từ LLM, chuyển giao 100% quyết định vào lệnh sang hệ thống tính toán toán học chuẩn xác
+  - [x] Tích hợp cơ chế Top 1–2 Cap khi có nhiều mã đủ điểm + Cooldown 30 phút cho từng coin
+  - [x] Viết bộ unit test `bot_new/test/test_phase2_universe_scorer.js` kiểm thử toàn diện các kịch bản: Tái sử dụng cache đĩa, Universe năng động (Lưới 2%-30%), SL 3 tầng, Smart Anchored TP, Weak S/R Bypass, Scorer giữ nguyên thang điểm chạm, và thực thi 100% offline không token
 
 - [ ] **Phase 3: Real-time WebSocket Price Engine**
   - [ ] Tích hợp WebSocket Mark Price đa luồng

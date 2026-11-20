@@ -2306,7 +2306,7 @@ function _doRebuildCombinedMpWs() {
   _combinedMpWs = ws;
   log.system(`Mark price WS: combined stream [${symbols.join(',')}]`);
 
-  ws.on('message', (raw) => {
+  ws.on('message', async (raw) => {
     let streamData;
     try { const d = JSON.parse(raw); streamData = d.data || d; } catch { return; }
     const rawSym    = (streamData.s || '').toUpperCase();
