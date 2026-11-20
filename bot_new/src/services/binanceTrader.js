@@ -110,8 +110,23 @@ function _invalidateBalanceCache() {
   _balanceCache.fetchedAt = 0;
 }
 
+/**
+ * Làm tròn giá theo tickSize của sàn Binance để tránh lỗi "Price not increased by tick size".
+ */
+function roundPrice(price, info) {
+  if (!price || isNaN(price)) return price;
+  const tickSize = info?.tickSize;
+  if (tickSize && tickSize > 0) {
+    const rounded = Math.round(price / tickSize) * tickSize;
+    const dec = Math.max(0, Math.round(-Math.log10(tickSize)));
+    return parseFloat(rounded.toFixed(dec));
+  }
+  const prec = info?.pricePrecision ?? 4;
+  return parseFloat(price.toFixed(prec));
+}
+
 // Tính số lượng coin cần mua/bán
-// - Hỗ trợ targetMargin từ trade.margin (Tier setup) hoặc TRADE_SIZE_PCT % balance
+// - Ưu tiên TRADE_SIZE_PCT % balance nếu được cấu hình (ví dụ 5%)
 // - Capped trong [TRADE_MIN_USDT, TRADE_MAX_USDT] hoặc targetMargin
 // - Đảm bảo thỏa mãn cả minNotional VÀ minQty/stepSize (tránh lỗi floor về 0 trên BTC/ETH giá cao)
 async function calcQty(symbol, entryPrice, leverage, info, targetMargin = null, overrideBalance = null) {
@@ -120,11 +135,11 @@ async function calcQty(symbol, entryPrice, leverage, info, targetMargin = null, 
     : await getUsdtBalance();
 
   let sizeUsdt;
-  if (typeof targetMargin === 'number' && targetMargin > 0) {
-    sizeUsdt = Math.min(targetMargin, balance);
-  } else if (balance > BALANCE_THRESHOLD && TRADE_SIZE_PCT > 0) {
+  if (balance > BALANCE_THRESHOLD && TRADE_SIZE_PCT > 0) {
     const rawSize = (balance * TRADE_SIZE_PCT) / 100;
     sizeUsdt = Math.min(Math.max(rawSize, TRADE_MIN_USDT), TRADE_MAX_USDT, balance);
+  } else if (typeof targetMargin === 'number' && targetMargin > 0) {
+    sizeUsdt = Math.min(targetMargin, balance);
   } else {
     sizeUsdt = Math.min(FLAT_TRADE_USDT, balance);
   }
@@ -227,8 +242,8 @@ async function placeNewTrade(trade) {
       log.warn(`BINANCE: slPrice hoặc entryPrice null cho ${symbol} — hủy`);
       return null;
     }
-    const slFmt  = parseFloat(slPrice.toFixed(info.pricePrecision));
-    const entFmt = parseFloat(entryPrice.toFixed(info.pricePrecision));
+    const slFmt  = roundPrice(slPrice, info);
+    const entFmt = roundPrice(entryPrice, info);
     if (isLong && slFmt >= entFmt) {
       log.error(`BINANCE: SL ${slFmt} >= entry ${entFmt} cho LONG — hủy, không đặt lệnh`);
       return null;
@@ -246,7 +261,7 @@ async function placeNewTrade(trade) {
       type:        'LIMIT',
       timeInForce: 'GTC',
       quantity:    qty,
-      price:       parseFloat(entryPrice.toFixed(info.pricePrecision)),
+      price:       roundPrice(entryPrice, info),
     });
     trade.binanceEntryOrderId = entryOrder.orderId != null ? String(entryOrder.orderId) : null;
     trade.binanceQty          = qty;
@@ -399,8 +414,7 @@ async function replaceTPOrder(trade, newTargetPrice) {
   // 2. Đặt TP Limit mới
   try {
     const info = await getSymbolInfo(symbol);
-    const pricePrecision = info?.pricePrecision ?? 4;
-    const tpPrice = parseFloat(newTargetPrice.toFixed(pricePrecision));
+    const tpPrice = roundPrice(newTargetPrice, info);
     const qty = trade.binanceQty;
     const tpOrder = await api('POST', '/fapi/v1/order', {
       symbol: `${symbol}USDT`,
@@ -446,7 +460,7 @@ async function placeTPAfterEntry(trade) {
       return null;
     }
     const tpSide  = direction === 'LONG' ? 'SELL' : 'BUY';
-    const tpPrice = parseFloat(targetPrice.toFixed(info.pricePrecision));
+    const tpPrice = roundPrice(targetPrice, info);
     const tpOrder = await api('POST', '/fapi/v1/order', {
       symbol:      `${symbol}USDT`,
       side:        tpSide,
@@ -457,7 +471,7 @@ async function placeTPAfterEntry(trade) {
       reduceOnly:  'true',
     });
     trade.binanceTpOrderId = tpOrder.orderId != null ? String(tpOrder.orderId) : null;
-    log.trade(`BINANCE: TP LIMIT OK ${symbol}`, { orderId: tpOrder.orderId, price: targetPrice });
+    log.trade(`BINANCE: TP LIMIT OK ${symbol}`, { orderId: tpOrder.orderId, price: tpPrice });
     return tpOrder.orderId;
   } catch (err) {
     log.error(`BINANCE: lỗi đặt TP ${symbol}`, { error: err.message });
@@ -539,8 +553,8 @@ async function placeMarketTrade(trade, currentPrice) {
       log.warn(`BINANCE MARKET: slPrice null cho ${symbol} — hủy`);
       return null;
     }
-    const slFmt    = parseFloat(slPrice.toFixed(info.pricePrecision));
-    const priceFmt = parseFloat(currentPrice.toFixed(info.pricePrecision));
+    const slFmt    = roundPrice(slPrice, info);
+    const priceFmt = roundPrice(currentPrice, info);
     if (isLong && slFmt >= priceFmt) {
       log.error(`BINANCE MARKET: SL ${slFmt} >= giá ${priceFmt} cho LONG — hủy`);
       return null;
@@ -574,7 +588,7 @@ async function placeMarketTrade(trade, currentPrice) {
       return { entryOrderId: entryOrder.orderId, tpOrderId: null, qty, sizeUsdt, balance };
     }
     const tpSide   = isLong ? 'SELL' : 'BUY';
-    const tpPrice  = parseFloat(trade.targetPrice.toFixed(info.pricePrecision));
+    const tpPrice  = roundPrice(trade.targetPrice, info);
     const tpOrder  = await api('POST', '/fapi/v1/order', {
       symbol:      `${symbol}USDT`,
       side:        tpSide,
@@ -585,7 +599,7 @@ async function placeMarketTrade(trade, currentPrice) {
       reduceOnly:  'true',
     });
     trade.binanceTpOrderId = tpOrder.orderId != null ? String(tpOrder.orderId) : null;
-    log.trade(`BINANCE MARKET: TP LIMIT OK ${symbol}`, { orderId: tpOrder.orderId, price: trade.targetPrice, fillPrice });
+    log.trade(`BINANCE MARKET: TP LIMIT OK ${symbol}`, { orderId: tpOrder.orderId, price: tpPrice, fillPrice });
 
     // 6. Hard STOP_MARKET SL treo trực tiếp lên sàn Binance (/fapi/v1/algoOrder)
     const slSide = isLong ? 'SELL' : 'BUY';

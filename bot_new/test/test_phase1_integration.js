@@ -184,8 +184,8 @@ async function testAsync(name, fn) {
     assert.deepStrictEqual(cancelledAlgos, ['sl_algo_456']);
   });
 
-  // Test 7: Fix BTC limit order calculation (auto-bump margin to cover minQty 0.001 BTC @ $62k x5)
-  await testAsync('Test 7: calcQty tự động bump margin cho BTC khi số dư đủ (Fix qty=0 trên coin giá cao)', async () => {
+  // Test 7: Fix BTC limit order calculation (auto-bump leverage to cover minQty 0.001 BTC @ $62k x5 while keeping margin ~5%)
+  await testAsync('Test 7: calcQty tự động nâng đòn bẩy cho BTC để giữ đúng ký quỹ 5% (Fix qty=0 trên coin giá cao)', async () => {
     const btcInfo = {
       quantityPrecision: 3,
       pricePrecision: 1,
@@ -197,16 +197,17 @@ async function testAsync(name, fn) {
     const leverage = 5;
     const balance = 88.90;
 
-    // Test trường hợp không có targetMargin (tự tính từ % balance: 88.90 * 5% = 4.45 -> min 5 USDT)
-    // 5 USDT * 5x = 25 notional < 62.13 notional tối thiểu của 0.001 BTC -> phải tự bump lên 12.43 USDT
+    // Test trường hợp tự tính từ % balance: 88.90 * 5% = 4.45 -> min 5 USDT
+    // 5 USDT * 5x = 25 notional < 62.13 notional tối thiểu của 0.001 BTC -> tự bump leverage lên >= 13x
     const res = await binanceTrader.calcQty('BTC', entryPrice, leverage, btcInfo, null, balance);
     assert.strictEqual(res.qty, 0.001);
-    assert.strictEqual(res.sizeUsdt >= 12.43, true);
+    assert.strictEqual(res.sizeUsdt, 5); // Bảo toàn ký quỹ 5% (~5 USDT)
+    assert.strictEqual(res.effectiveLeverage >= 13, true); // Nâng từ 5x lên >= 13x
     assert.strictEqual(res.qty * entryPrice >= 5, true);
   });
 
-  // Test 8: calcQty với targetMargin từ Tier 1 (20 USDT)
-  await testAsync('Test 8: calcQty sử dụng targetMargin=20 USDT cho Tier 1 BTC', async () => {
+  // Test 8: calcQty ưu tiên TRADE_SIZE_PCT=5% bảo toàn tỷ trọng vốn
+  await testAsync('Test 8: calcQty ưu tiên TRADE_SIZE_PCT=5% bảo toàn tỷ trọng vốn (5 USDT thay vì hardcode 20 USDT)', async () => {
     const btcInfo = {
       quantityPrecision: 3,
       pricePrecision: 1,
@@ -221,12 +222,12 @@ async function testAsync(name, fn) {
 
     const res = await binanceTrader.calcQty('BTC', entryPrice, leverage, btcInfo, targetMargin, balance);
     assert.strictEqual(res.qty, 0.001);
-    assert.strictEqual(res.sizeUsdt, 20);
+    assert.strictEqual(res.sizeUsdt, 5); // 5% của 88.90 là 4.45 USDT, min là 5 USDT
     assert.strictEqual(res.qty * entryPrice >= 5, true);
   });
 
-  // Test 9: calcQty khi số dư thực sự không đủ cho 1 lot tối thiểu
-  await testAsync('Test 9: calcQty trả về qty=0 khi số dư không đủ ký quỹ tối thiểu cho 1 lot BTC', async () => {
+  // Test 9: calcQty khi số dư thực sự không đủ cho 1 lot tối thiểu (kể cả kịch trần 50x)
+  await testAsync('Test 9: calcQty trả về qty=0 khi số dư không đủ ký quỹ tối thiểu cho 1 lot BTC kể cả khi nâng đòn bẩy 50x', async () => {
     const btcInfo = {
       quantityPrecision: 3,
       pricePrecision: 1,
@@ -236,7 +237,7 @@ async function testAsync(name, fn) {
     };
     const entryPrice = 62126.2;
     const leverage = 5;
-    const smallBalance = 8.00; // Cần ~12.43 USDT margin
+    const smallBalance = 1.00; // 1 lot BTC @ 50x cần 62.13 / 50 = 1.25 USDT > 1.00 USDT balance
 
     const res = await binanceTrader.calcQty('BTC', entryPrice, leverage, btcInfo, null, smallBalance);
     assert.strictEqual(res.qty, 0);

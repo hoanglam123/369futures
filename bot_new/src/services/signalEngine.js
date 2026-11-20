@@ -22,6 +22,7 @@ const { checkBtcFlashStatus }     = require('./btcFlashGuard');
 const { registerShadowTrade }     = require('./shadowTracker');
 const { getMarkPrice }            = require('../pp369/stream');
 const { fetchH1Historical }       = require('./candleCache');
+const { getSymbolInfo, getUsdtBalance } = require('./binanceTrader');
 const { log }                     = require('./logger');
 
 const FIXED_COINS = ['BTC', 'ETH', 'SOL', 'BNB', 'XRP', 'DOGE', 'ADA', 'TRX', 'AVAX', 'LINK', 'TON', 'SUI', 'APT', 'NEAR'];
@@ -122,17 +123,39 @@ async function generateQuantitativeTrade(setup, marketData = null) {
   let tierSetup = null;
   const effGridWidth = setup.gridWidthPct || (sig369?.step && currentPrice > 0 ? (sig369.step / currentPrice) * 100 : null);
   try {
+    const symInfo = await getSymbolInfo(symbol).catch(() => null);
+    const symTickSize = symInfo?.tickSize || null;
+
+    const tradeSizePct = parseFloat(process.env.TRADE_SIZE_PCT || '0');
+    let customMargin = null;
+    if (tradeSizePct > 0) {
+      try {
+        const bal = await getUsdtBalance();
+        if (bal > 0) {
+          const raw = (bal * tradeSizePct) / 100;
+          const minU = parseFloat(process.env.TRADE_MIN_USDT || '5');
+          const maxU = parseFloat(process.env.TRADE_MAX_USDT || '200');
+          customMargin = Math.min(Math.max(raw, minU), maxU, bal);
+        }
+      } catch (_) {}
+    }
+    if (!customMargin) {
+      customMargin = isTier1 ? parseFloat(process.env.TRADE_AMOUNT_TIER1 || '20') : parseFloat(process.env.TRADE_AMOUNT_TIER2 || '10');
+    }
+
     tierSetup = await calculateTierSLTP(
       symbol,
       direction,
       entryPrice,
       null, // h4Ref
-      null, // tickSize (auto detect)
+      symTickSize, // tickSize (từ Binance exchangeInfo)
       10,   // maxExchangeLeverage
       3.0,  // targetLossUSD ($3.00)
       1.5,  // target tpRatio
       isTier1 ? 20 : 100, // rank
-      effGridWidth
+      effGridWidth,
+      null, // customKlines
+      customMargin
     );
   } catch (err) {
     log.error(`[AutoTrade] Lỗi calculateTierSLTP ${symbol}: ${err.message}`);
@@ -229,11 +252,28 @@ async function generateQuantitativeTrade(setup, marketData = null) {
 async function processCandidateSetups(allScores, marketData = null, topCap = MAX_CONCURRENT_NEW_TRADES) {
   if (!Array.isArray(allScores) || allScores.length === 0) return [];
 
+  const tradeSizePct = parseFloat(process.env.TRADE_SIZE_PCT || '0');
+  let estMargin = null;
+  if (tradeSizePct > 0) {
+    try {
+      const bal = await getUsdtBalance();
+      if (bal > 0) {
+        const raw = (bal * tradeSizePct) / 100;
+        const minU = parseFloat(process.env.TRADE_MIN_USDT || '5');
+        const maxU = parseFloat(process.env.TRADE_MAX_USDT || '200');
+        estMargin = Math.min(Math.max(raw, minU), maxU, bal);
+      }
+    } catch (_) {}
+  }
+
   // Ghi nhận log Confluence Filter và Pass tương tự bot-h4
   for (const s of allScores.slice(0, 10)) {
     const isTier1 = FIXED_COINS.includes(s.symbol);
     const minRequired = isTier1 ? MIN_SCORE_TIER1 : MIN_SCORE_TIER2;
     const rankTierLabel = isTier1 ? 'Tier 1 Top 50' : 'Tier 2 Altcoin';
+    const marginStr = estMargin
+      ? `$${estMargin.toFixed(2)}`
+      : (isTier1 ? `$${parseFloat(process.env.TRADE_AMOUNT_TIER1 || '20').toFixed(2)}` : `$${parseFloat(process.env.TRADE_AMOUNT_TIER2 || '10').toFixed(2)}`);
 
     if (s.disqualified) {
       if (_shouldLogSignal(s.symbol, s.direction, 'disqualified', 10 * 60 * 1000)) {
@@ -246,7 +286,7 @@ async function processCandidateSetups(allScores, marketData = null, topCap = MAX
     } else {
       if (_shouldLogSignal(s.symbol, s.direction, 'confluence_pass', 10 * 60 * 1000)) {
         const estEntry = s.targetLevel || s.price || marketData?.ta?.[s.symbol]?.price || 'Market';
-        log.system(`[AutoTrade] 🎯 [CONFLUENCE PASS] ${s.symbol} → ${s.direction} (${s.total.toFixed(1)}đ >= ${minRequired}đ [${rankTierLabel}] | Ký quỹ: $10.00) tại $${estEntry}`);
+        log.system(`[AutoTrade] 🎯 [CONFLUENCE PASS] ${s.symbol} → ${s.direction} (${s.total.toFixed(1)}đ >= ${minRequired}đ [${rankTierLabel}] | Ký quỹ: ${marginStr}) tại $${estEntry}`);
       }
     }
   }
