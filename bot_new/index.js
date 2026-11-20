@@ -161,16 +161,13 @@ if (process.argv.includes('--run-now')) {
       console.error(`❌ SYNC_POSITIONS_CRON không hợp lệ: "${syncCron}"`);
     } else {
       cron.schedule(syncCron, async () => {
-        const t0 = Date.now();
-        log.trade('Auto-sync: bắt đầu quét vị thế Binance', { trigger: 'cron', cron: syncCron });
         try {
           await syncManualPositions('cron');
-          log.trade(`Auto-sync: hoàn thành`, { trigger: 'cron', durationMs: Date.now() - t0 });
         } catch (e) {
-          log.error('Auto-sync: thất bại', { trigger: 'cron', error: e.message, durationMs: Date.now() - t0 });
+          log.error('Auto-sync: thất bại', { trigger: 'cron', error: e.message });
         }
       }, { timezone: TIMEZONE, scheduled: true });
-      log.system(`Auto-sync vị thế Binance: ${syncCron} (có thể tắt bằng SYNC_POSITIONS_CRON=false)`);
+      log.system(`Auto-sync vị thế Binance: ${syncCron}`);
     }
   }
 
@@ -211,13 +208,8 @@ if (process.argv.includes('--run-now')) {
 
   createDashboard();
   onWsPush(broadcastWs);
-  log.system('Bot đã sẵn sàng');
-  log.system(`Bản tin thị trường: ${CRON_SCHEDULE} (${TIMEZONE})`);
-  log.system(`Signal scan: ${SIGNAL_SCAN_CRON}, lookback 1h — chỉ bắn Telegram khi có lệnh mới`);
-  log.system(`BTC Alert: mỗi 1 phút, ngưỡng ±${process.env.BTC_ALERT_THRESHOLD || 2}%, cooldown 30 phút`);
-  log.system('PP369 Alert: mỗi 1 phút (độc lập với AI, dùng coin list từ scan 5p gần nhất)');
-  log.system('Trade Monitor: theo dõi lệnh AI mỗi 1 phút, alert khi TP/SL');
-  log.system('Funding Rate: hiển thị cơ hội trong bản tin, không tự động theo dõi');
+  log.system('[PP369] [AutoTrade] ✓ Khởi động hệ thống giao dịch tự động định lượng 369 Futures');
+  log.system(`[PP369] [AutoTrade] Chu kỳ quét định lượng: ${SIGNAL_SCAN_CRON} | Auto-sync vị thế: ${syncCron}`);
 
   // Gửi Telegram summary nếu có lệnh đang theo dõi sau khi restart
   const restored = getActiveTrades();

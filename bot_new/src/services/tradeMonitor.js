@@ -1452,7 +1452,9 @@ async function syncManualPositions(source = 'internal') {
       }
     }
 
-    log.trade(`syncManualPositions: hoàn thành | source=${source} durationMs=${Date.now() - _t0} activeTrades=${activeTrades.filter(t => t.status === 'active').length}`);
+    if (source !== 'cron') {
+      log.trade(`syncManualPositions: hoàn thành | source=${source} durationMs=${Date.now() - _t0} activeTrades=${activeTrades.filter(t => t.status === 'active').length}`);
+    }
   } finally {
     _syncRunning = false;
   }

@@ -115,11 +115,10 @@ async function runJob({ silent = false, lookbackHours = null } = {}) {
     _isRunning = true;
   }
   const jobStart = Date.now();
-  log.system(silent ? '=== BẮT ĐẦU SIGNAL SCAN ===' : '=== BẮT ĐẦU CHẠY JOB ===');
-
-  try {
-    // ─── BƯỚC 1: Thu thập dữ liệu song song ─────────────
+  if (!silent) {
+    log.system('=== BẮT ĐẦU CHẠY JOB ===');
     log.system('Thu thập dữ liệu từ các nguồn...');
+  }
 
     const [globalResult, coinsResult, fearGreedResult, newsResult, fundingResult] = await Promise.allSettled([
       getGlobalMarket(),
@@ -155,7 +154,7 @@ async function runJob({ silent = false, lookbackHours = null } = {}) {
       marketData.funding ? 'Funding OK' : null
     ].filter(Boolean).join(', ');
 
-    log.system(`Thu thập OK: ${dataCount || 'không có dữ liệu'}`);
+    if (!silent) log.system(`Thu thập OK: ${dataCount || 'không có dữ liệu'}`);
 
     // Kiểm tra dữ liệu tối thiểu để gửi được bản tin
     if (!marketData.topCoins.length && !marketData.globalMarket) {
@@ -209,9 +208,11 @@ async function runJob({ silent = false, lookbackHours = null } = {}) {
     } catch {}
 
 
-    log.system(`Fixed: [${FIXED_COINS.join(',')}] | Tier2 (≥${MIN_SCORE_TRADE}đ): [${tier2Active.join(',')}]`);
-    log.system(`Extra liquid (≥${MIN_SCORE_EXTRA}đ): [${topLiquidExtra.join(',')}] | Gainers (≥${MIN_SCORE_EXTRA}đ): [${gainersFiltered.join(',')}]`);
-    log.system(`TA + Whale: ${taSymbols.length} coins → [${taSymbols.join(', ')}]`);
+    if (!silent) {
+      log.system(`Fixed: [${FIXED_COINS.join(',')}] | Tier2 (≥${MIN_SCORE_TRADE}đ): [${tier2Active.join(',')}]`);
+      log.system(`Extra liquid (≥${MIN_SCORE_EXTRA}đ): [${topLiquidExtra.join(',')}] | Gainers (≥${MIN_SCORE_EXTRA}đ): [${gainersFiltered.join(',')}]`);
+      log.system(`TA + Whale: ${taSymbols.length} coins → [${taSymbols.join(', ')}]`);
+    }
 
     const [taResult, whaleResult, derivResult, onchainResult, socialResult, signals369Result] = await Promise.allSettled([
       getTAReport(taSymbols),
@@ -224,11 +225,11 @@ async function runJob({ silent = false, lookbackHours = null } = {}) {
 
     logSourceStatus('Technical Analysis', taResult);
     marketData.ta = resolveSettled(taResult, {});
-    log.system(`TA hoàn thành: ${Object.keys(marketData.ta).join(', ') || 'không có'}`);
+    if (!silent) log.system(`TA hoàn thành: ${Object.keys(marketData.ta).join(', ') || 'không có'}`);
 
     logSourceStatus('Whale Data (Binance+OKX)', whaleResult);
     marketData.whale = resolveSettled(whaleResult, null);
-    if (marketData.whale) {
+    if (marketData.whale && !silent) {
       const flowKeys = Object.keys(marketData.whale.takerFlow    || {});
       const bnKeys   = Object.keys(marketData.whale.binanceLarge || {});
       log.system(`Whale: Flow [${flowKeys.join(',')||'—'}] | BN [${bnKeys.join(',')||'—'}]`);
@@ -236,7 +237,7 @@ async function runJob({ silent = false, lookbackHours = null } = {}) {
 
     logSourceStatus('Derivatives (Binance OI/L/S)', derivResult);
     marketData.derivatives = resolveSettled(derivResult, null);
-    if (marketData.derivatives) {
+    if (marketData.derivatives && !silent) {
       log.system(`Derivatives: ${Object.keys(marketData.derivatives).join(', ') || '—'}`);
     }
 
@@ -245,7 +246,7 @@ async function runJob({ silent = false, lookbackHours = null } = {}) {
 
     logSourceStatus('Reddit Sentiment', socialResult);
     marketData.social = resolveSettled(socialResult, null);
-    if (marketData.social) {
+    if (marketData.social && !silent) {
       const s = marketData.social;
       log.system(`Reddit: ${s.sentiment} (${s.bullishPct}% bull / ${s.bearishPct}% bear, ${s.totalPosts} posts)`);
     }
@@ -255,8 +256,6 @@ async function runJob({ silent = false, lookbackHours = null } = {}) {
     const sig369Active = Object.values(marketData.signals369).filter(s => s.signal !== 'NONE');
     if (sig369Active.length > 0) {
       log.system(`PP369: ${sig369Active.map(s => `${s.symbol}=${s.signal}(${s.strength})`).join(' | ')}`);
-    } else {
-      log.system('PP369: Không có tín hiệu 369 hiện tại');
     }
 
     // Cache cho PP369 scan 1 phút (confluence re-score + AI comment)
@@ -305,10 +304,6 @@ async function runJob({ silent = false, lookbackHours = null } = {}) {
     const bestScore  = allScores.filter(s => !s.disqualified)[0]?.total ?? 0;
     const passCount  = allScores.filter(s => !s.disqualified && s.total >= 5).length;
     log.system(`Confluence scores: best=${bestScore}đ | pass(≥5đ)=${passCount}/${allScores.length} setups`);
-    allScores.slice(0, 4).forEach(s => {
-      if (s.disqualified) log.system(`  ${s.symbol} ${s.direction}: LOẠI (${s.disqualifyReason})`);
-      else log.system(`  ${s.symbol} ${s.direction}: ${s.total}đ [${s.verdict}]`);
-    });
 
     // ─── PP369: Alert độc lập khi có tín hiệu mới (cả silent lẫn normal mode) ──
     const new369Alerts = detect369Changes(marketData.signals369);
@@ -366,8 +361,6 @@ async function runJob({ silent = false, lookbackHours = null } = {}) {
           '<i>⚠️ Đây là phân tích tham khảo, không phải lời khuyên đầu tư</i>'
         ].join('\n');
       }
-    } else if (silent) {
-      log.system('Silent mode: hoàn thành chu kỳ quét định lượng (0 Token, 0ms AI call)');
     }
 
     // ─── BƯỚC 3: Format và gửi Telegram ─────────────────
@@ -380,12 +373,10 @@ async function runJob({ silent = false, lookbackHours = null } = {}) {
       const targetLabel = NEWS_CHAT_ID ? `news channel (${NEWS_CHAT_ID})` : 'channel chính';
       log.telegram(`Gửi bản tin: ${msgs.map(m => m.length + 'c').join(' + ')} → ${targetLabel}`);
       await sendMessages(msgs, 1500, NEWS_CHAT_ID);
-    } else {
-      log.system('Silent mode: bỏ qua gửi bản tin thị trường');
-    }
 
-    const elapsed = ((Date.now() - jobStart) / 1000).toFixed(1);
-    log.system(`=== ${silent ? 'SIGNAL SCAN' : 'JOB'} HOÀN THÀNH (${elapsed}s) ===`);
+      const elapsed = ((Date.now() - jobStart) / 1000).toFixed(1);
+      log.system(`=== JOB HOÀN THÀNH (${elapsed}s) ===`);
+    }
 
   } catch (err) {
     const elapsed = ((Date.now() - jobStart) / 1000).toFixed(1);
@@ -415,9 +406,7 @@ function resolveSettled(result, fallback) {
  * Ghi log trạng thái của từng nguồn dữ liệu
  */
 function logSourceStatus(name, result) {
-  if (result.status === 'fulfilled') {
-    log.system(`[OK] ${name}`);
-  } else {
+  if (result.status !== 'fulfilled') {
     log.warn(`[FAIL] ${name}`, { error: result.reason?.message ?? 'Lỗi không xác định' });
   }
 }

@@ -41,7 +41,9 @@ function write(category, message, data) {
 const log = {
   system:   (msg, data) => write('SYSTEM',   msg, data),
   trade:    (msg, data) => write('TRADE',    msg, data),
-  price:    (msg, data) => write('PRICE',    msg, data),
+  price:    (msg, data) => {
+    if (process.env.LOG_PRICE === 'true') write('PRICE', msg, data);
+  },
   ai:       (msg, data) => write('AI',       msg, data),
   funding:  (msg, data) => write('FUNDING',  msg, data),
   telegram: (msg, data) => write('TELEGRAM', msg, data),
