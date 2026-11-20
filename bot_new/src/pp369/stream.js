@@ -15,6 +15,7 @@
 const WebSocket = require('ws');
 const axios     = require('axios');
 const { log }   = require('./_logger');
+const { isIpBanned } = require('../services/rateLimitGuard');
 
 const FSTREAM         = 'wss://fstream.binance.com/market/stream';
 const RECONNECT_DELAY = 5000;
@@ -31,9 +32,11 @@ const _priceCallbacks = new Set();
 
 // ─── REST Price Fallback ──────────────────────────────────────────────────────
 async function updatePricesRest() {
+  if (isIpBanned()) return false;
   const url = 'https://fapi.binance.com/fapi/v1/ticker/price';
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
+      if (isIpBanned()) return false;
       const res = await axios.get(url, { timeout: 10000 });
       if (Array.isArray(res.data)) {
         const now = Date.now();

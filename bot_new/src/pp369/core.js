@@ -16,6 +16,7 @@
 
 const axios = require('axios');
 const { log } = require('./_logger');
+const { isIpBanned } = require('../services/rateLimitGuard');
 
 // ─── Cấu hình ─────────────────────────────────────────────────────────────────
 
@@ -97,17 +98,35 @@ function buildLevelGrid(upperPrice, lowerPrice, step, decimals, levelsRange = LE
   );
 }
 
-// ─── Lấy nến từ Binance Futures ───────────────────────────────────────────────
+// ─── Lấy nến từ Binance Futures (Có Cache 30s & IP Ban Guard như bot-h4) ──────
+
+const _klinesCache = new Map();
+const KLINES_CACHE_TTL_MS = 30 * 1000; // 30 giây cache cho nến ngắn hạn
+const MAX_KLINES_CACHE_SIZE = 500;      // Giới hạn số lượng entries chống rò rỉ RAM
 
 async function fetchBinanceKlines(symbol, interval, startTimeMs, limit = 1500) {
+  if (isIpBanned()) {
+    return [];
+  }
+
+  const normStartTime = startTimeMs != null ? Math.floor(startTimeMs / 60000) * 60000 : 'null';
+  const cacheKey = `${symbol}_${interval}_${normStartTime}_${limit}`;
+  const cached = _klinesCache.get(cacheKey);
+  if (cached && (Date.now() - cached.timestamp < KLINES_CACHE_TTL_MS)) {
+    return cached.data;
+  }
+
   const url = 'https://fapi.binance.com/fapi/v1/klines';
-  for (let attempt = 0; attempt < 4; attempt++) {
+  for (let attempt = 0; attempt < 3; attempt++) {
     try {
+      if (isIpBanned()) return [];
+      const params = { symbol: `${symbol}USDT`, interval, limit };
+      if (startTimeMs != null) params.startTime = startTimeMs;
       const res = await axios.get(url, {
-        params: { symbol: `${symbol}USDT`, interval, startTime: startTimeMs, limit },
+        params,
         timeout: 15000,
       });
-      return (res.data || []).map(c => ({
+      const data = (res.data || []).map(c => ({
         openTime: c[0],
         open:     parseFloat(c[1]),
         high:     parseFloat(c[2]),
@@ -115,14 +134,24 @@ async function fetchBinanceKlines(symbol, interval, startTimeMs, limit = 1500) {
         close:    parseFloat(c[4]),
         volume:   parseFloat(c[5]),
       }));
+      if (_klinesCache.size >= MAX_KLINES_CACHE_SIZE) {
+        const firstKey = _klinesCache.keys().next().value;
+        _klinesCache.delete(firstKey);
+      }
+      _klinesCache.set(cacheKey, { timestamp: Date.now(), data });
+      return data;
     } catch (err) {
-      if (err?.response?.status === 429 && attempt < 3) {
-        await new Promise(r => setTimeout(r, (attempt + 1) * 2000));
+      if (isIpBanned() || err?.response?.status === 418 || err?.response?.status === 429) {
+        throw err;
+      }
+      if (attempt < 2) {
+        await new Promise(r => setTimeout(r, (attempt + 1) * 1500));
         continue;
       }
       throw err;
     }
   }
+  return [];
 }
 
 // Lấy nến H1 đầu tháng có cache — chỉ gọi API khi tháng mới hoặc chưa có cache
@@ -156,52 +185,118 @@ async function fetchH1Cached(symbol) {
   return entry;
 }
 
-// Lấy nến 1m incremental — lần đầu fetch toàn bộ, sau đó chỉ fetch nến mới
-async function fetchM1Incremental(symbol) {
-  const startMs = monthStartMs();
-  let cache = _m1Cache[symbol];
+// Làm tròn timestamp xuống boundary H1 gần nhất
+function floorToH1(tsMs) {
+  const H1_MS = 60 * 60 * 1000;
+  return Math.floor(tsMs / H1_MS) * H1_MS;
+}
 
-  // Reset khi sang tháng mới
+const _h1MonthCache = {};
+const _m1CurrCache = {};
+
+/**
+ * Lấy nến H1 lịch sử từ đầu tháng đến H1 hiện tại (incremental, đồng bộ kiến trúc Hybrid từ bot-h4).
+ * Tối đa ~744 nến H1 trong cả tháng -> Chỉ tốn 1 API call lần đầu, các lần sau trong cùng giờ tốn 0 API call!
+ */
+async function fetchH1MonthHistorical(symbol) {
+  const H1_MS = 60 * 60 * 1000;
+  const startMs = monthStartMs();
+  const currentH1Start = floorToH1(Date.now());
+
+  let cache = _h1MonthCache[symbol];
   if (!cache || cache.monthStart !== startMs) {
     cache = { monthStart: startMs, candles: [], cursor: startMs };
-    _m1Cache[symbol] = cache;
+    _h1MonthCache[symbol] = cache;
   }
 
-  const LIMIT = 1500;
-  const fetched = [];
-  let cursor = cache.cursor;
-
-  // Fetch từ cursor (overlap nến cuối để bắt update của nến đang hình thành)
-  while (true) {
-    const batch = await fetchBinanceKlines(symbol, '1m', cursor, LIMIT);
-    if (!batch.length) break;
-    fetched.push(...batch);
-    if (batch.length < LIMIT) break;
-    cursor = batch[batch.length - 1].openTime + 60_000;
+  // Nếu đã có đủ nến H1 tới giờ vừa đóng -> 0 API calls
+  const lastClosedTime = cache.candles.length > 0 ? cache.candles[cache.candles.length - 1].openTime : 0;
+  if (cache.candles.length > 0 && lastClosedTime + H1_MS >= currentH1Start) {
+    return cache.candles;
   }
 
-  if (fetched.length > 0) {
+  // Tận dụng disk cache từ candleCache nếu có sẵn nến trong tháng
+  if (cache.candles.length === 0) {
+    try {
+      const { _h1HistCache } = require('../services/candleCache');
+      const diskCandles = _h1HistCache?.[symbol]?.candles;
+      if (Array.isArray(diskCandles) && diskCandles.length > 0 && diskCandles[0].openTime <= startMs) {
+        const monthCandles = diskCandles.filter(c => c.openTime >= startMs && c.openTime < currentH1Start);
+        if (monthCandles.length > 0) {
+          cache.candles = monthCandles;
+          cache.cursor = monthCandles[monthCandles.length - 1].openTime + H1_MS;
+          if (cache.cursor >= currentH1Start) {
+            return cache.candles;
+          }
+        }
+      }
+    } catch (_) {}
+  }
+
+  const missingFrom = cache.candles.length > 0 ? (lastClosedTime + H1_MS) : startMs;
+  if (missingFrom >= currentH1Start) return cache.candles;
+
+  const missingHours = Math.max(2, Math.ceil((currentH1Start - missingFrom) / H1_MS) + 2);
+  const batch = await fetchBinanceKlines(symbol, '1h', missingFrom, Math.min(missingHours, 1000));
+  const closedNew = (batch || []).filter(c => c.openTime >= missingFrom && c.openTime < currentH1Start);
+
+  if (closedNew.length > 0) {
+    cache.candles.push(...closedNew);
+    cache.cursor = cache.candles[cache.candles.length - 1].openTime + H1_MS;
+  }
+  return cache.candles;
+}
+
+/**
+ * Lấy nến M1 từ đầu H1 hiện tại đến bây giờ (incremental, reset khi H1 mới mở).
+ * Tối đa 60 nến M1 / giờ — 1 API call duy nhất (limit=60, weight=1), kèm 10s REST API Shield như bot-h4.
+ */
+async function fetchM1Current(symbol) {
+  const currentH1Start = floorToH1(Date.now());
+  let cache = _m1CurrCache[symbol];
+
+  if (!cache || cache.h1Start !== currentH1Start) {
+    cache = { h1Start: currentH1Start, candles: [], cursor: currentH1Start, lastFetchTime: 0 };
+    _m1CurrCache[symbol] = cache;
+  }
+
+  // 🛡️ REST API SHIELD: Nếu vừa fetch trong vòng 10s gần đây, trả về cache ngay lập tức (0 API call).
+  if (cache.candles.length > 0 && (Date.now() - (cache.lastFetchTime || 0) < 10000)) {
+    return cache.candles;
+  }
+
+  cache.lastFetchTime = Date.now();
+  const batch = await fetchBinanceKlines(symbol, '1m', cache.cursor, 60);
+  if (batch && batch.length > 0) {
     if (cache.candles.length > 0) {
-      // Thay thế nến cuối đã cache (có thể là nến chưa hoàn chỉnh) bằng dữ liệu mới
-      const lastCachedTime = cache.candles[cache.candles.length - 1].openTime;
-      const overlapIdx = fetched.findIndex(c => c.openTime > lastCachedTime);
+      const lastTime = cache.candles[cache.candles.length - 1].openTime;
+      const overlapIdx = batch.findIndex(c => c.openTime > lastTime);
       if (overlapIdx > 0) {
-        cache.candles[cache.candles.length - 1] = fetched[0]; // cập nhật nến cuối
-        cache.candles.push(...fetched.slice(overlapIdx));
+        cache.candles[cache.candles.length - 1] = batch[0];
+        cache.candles.push(...batch.slice(overlapIdx));
       } else if (overlapIdx === 0) {
-        cache.candles.push(...fetched);
+        cache.candles.push(...batch);
       } else {
-        // Toàn bộ fetched là cũ — chỉ cập nhật nến cuối
-        cache.candles[cache.candles.length - 1] = fetched[fetched.length - 1];
+        cache.candles[cache.candles.length - 1] = batch[batch.length - 1];
       }
     } else {
-      cache.candles.push(...fetched);
+      cache.candles.push(...batch);
     }
-    // cursor = openTime của nến cuối (không +60s → lần sau overlap để refresh nến đang hình thành)
     cache.cursor = cache.candles[cache.candles.length - 1].openTime;
   }
 
   return cache.candles;
+}
+
+/**
+ * Hybrid Candles (Đồng bộ từ bot-h4):
+ * Kết hợp H1 lịch sử (đầu tháng → H1 đang mở) + M1 hiện tại (H1 đang mở → bây giờ).
+ * Giảm 200x lượng REST API weight so với việc quét 28.800 nến 1m từ đầu tháng.
+ */
+async function fetchM1Incremental(symbol) {
+  const h1Candles = await fetchH1MonthHistorical(symbol);
+  const m1Candles = await fetchM1Current(symbol);
+  return [...h1Candles, ...m1Candles];
 }
 
 // Nến H1 đầu tháng = nến bắt đầu lúc 00:00:00 UTC (múi giờ Binance mặc định).
@@ -457,11 +552,12 @@ async function get369SignalsForCoins(symbols, taMap = {}) {
   const map = {};
 
   for (const sym of symbols) {
+    if (isIpBanned()) break;
     try {
       map[sym] = await get369Signal(sym, taMap[sym]?.price ?? null);
     } catch (err) {
-      if (err?.response?.status === 418) {
-        log.warn(`[369] IP bị Binance soft-ban (418) — dừng toàn bộ klines scan`);
+      if (err?.response?.status === 418 || err?.response?.status === 429 || isIpBanned()) {
+        log.warn(`[369] IP bị Binance giới hạn (${err?.response?.status || 'RateLimit'}) — dừng toàn bộ klines scan`);
         break;
       }
       map[sym] = { signal: 'NONE', symbol: sym, reason: err?.message ?? 'unknown' };

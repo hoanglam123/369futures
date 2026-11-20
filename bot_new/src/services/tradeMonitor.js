@@ -17,6 +17,7 @@ const { recordTradeResult, updateReversedResult } = require('./tradeStats');
 const binanceTrader  = require('./binanceTrader');
 const binanceStream  = require('./binanceStream');
 const bracketManager = require('./bracketManager');
+const { isIpBanned } = require('./rateLimitGuard');
 
 const NEWS_CHAT_ID = process.env.TELEGRAM_NEWS_CHAT_ID || null;
 
@@ -1540,6 +1541,7 @@ async function syncManualPositions(source = 'internal') {
 // ─── Price check loop ─────────────────────────────────────────────────────────
 
 async function checkActiveTrades() {
+  if (isIpBanned()) return;
   const active = activeTrades.filter(t => t.status === 'active');
   if (!active.length) return;
 

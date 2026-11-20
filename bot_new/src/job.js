@@ -41,6 +41,7 @@ const {
 } = pp369;
 const { updateShadowPrices, getShadowStats, getActiveShadowPositions } = require('./services/shadowTracker');
 const { checkMonthTransition } = require('./services/h1RefCache');
+const { isIpBanned } = require('./services/rateLimitGuard');
 
 let _isRunning = false;        // full market report đang chạy
 let _isSilentRunning = false;  // signal scan (silent) đang chạy
@@ -506,10 +507,13 @@ function parseCronIntervalHours(cron) {
   return 4;
 }
 
-// ─── STATE QUẢN LÝ QUÉT & CONCURRENCY (ĐỒNG BỘ TỪ BOT-H4) ─────────────
+// ─── STATE QUẢN LÝ QUÉT & CONCURRENCY POOL (ĐỒNG BỘ TỪ BOT-H4) ─────────────
 let _isAlertScanRunning = false;
 const _processingSymbols = new Set();
 const _symbolSignalCooldown = {};
+const MAX_CONCURRENT_SIGNAL_CHECKS = 1;
+let _activeSignalChecks = 0;
+const _signalCheckQueue = [];
 
 /**
  * Scan PP369 nhẹ & nhanh — đồng bộ 2 tầng từ bot-h4:
@@ -519,19 +523,19 @@ const _symbolSignalCooldown = {};
  * 4. Alert Telegram độc lập khi có tín hiệu mới (dùng detect369Changes để chống spam)
  */
 async function run369AlertScan() {
-  if (_isAlertScanRunning) return;
+  if (_isAlertScanRunning || isIpBanned()) return;
   _isAlertScanRunning = true;
   try {
     const symbols = await getUniverseSymbols();
     // Tự động kiểm tra chuyển giao mốc H1 đầu tháng khi sang tháng mới
-    if (typeof checkMonthTransition === 'function') {
+    if (typeof checkMonthTransition === 'function' && !isIpBanned()) {
       try {
         await checkMonthTransition(symbols, getPrices());
       } catch (_) {}
     }
 
     let levelCache = getLevelCache();
-    if (Object.keys(levelCache).length === 0) {
+    if (Object.keys(levelCache).length === 0 && !isIpBanned()) {
       const { initH1RefCache, prePopulateLevelCache } = require('./services/h1RefCache');
       await initH1RefCache(symbols);
       prePopulateLevelCache(symbols, getPrices());
@@ -539,7 +543,7 @@ async function run369AlertScan() {
     }
 
     // 1. Cập nhật lại giá REST của toàn bộ coin để kiểm tra biến động (1 call nhẹ, weight=1) giống bot-h4
-    if (typeof updatePricesRest === 'function') {
+    if (typeof updatePricesRest === 'function' && !isIpBanned()) {
       try { await updatePricesRest(); } catch (_) {}
     }
 
@@ -575,7 +579,7 @@ async function run369AlertScan() {
       } catch (_) {}
     }
 
-    if (!scanNearby.length) return;
+    if (!scanNearby.length || isIpBanned()) return;
 
     // Sắp xếp theo khoảng cách tới mốc và chỉ lấy Top 8 mã sát nhất (Adaptive Proximity Sorter)
     scanNearby.sort((a, b) => {
@@ -599,73 +603,75 @@ async function run369AlertScan() {
     // ── TÁCH RỜI LUỒNG TÍNH LỆNH ĐỊNH LƯỢNG KHỎI LUỒNG TELEGRAM ALERT (ĐỒNG BỘ BOT-H4) ──
     const validSignals = Object.values(signals369).filter(s => s && (s.signal === 'LONG' || s.signal === 'SHORT'));
 
-    let enriched = [];
-    if (validSignals.length > 0) {
-      enriched = await Promise.all(validSignals.map(async sig => {
-        let ta = _lastMarketData?.ta?.[sig.symbol];
-        if (!ta) {
-          try {
-            ta = await getFullTA(sig.symbol);
-            if (ta) {
-              if (!_lastMarketData) _lastMarketData = {};
-              if (!_lastMarketData.ta) _lastMarketData.ta = {};
-              _lastMarketData.ta[sig.symbol] = ta;
-            }
-          } catch (e) {
-            log.warn(`[FastScan] Không lấy được TA on-demand cho ${sig.symbol}: ${e.message}`);
+    // Chạy tuần tự có kiểm soát Rate Limit thay vì Promise.all ồ ạt
+    const enriched = [];
+    for (const sig of validSignals) {
+      if (isIpBanned()) break;
+      let ta = _lastMarketData?.ta?.[sig.symbol];
+      if (!ta) {
+        try {
+          ta = await getFullTA(sig.symbol);
+          if (ta) {
+            if (!_lastMarketData) _lastMarketData = {};
+            if (!_lastMarketData.ta) _lastMarketData.ta = {};
+            _lastMarketData.ta[sig.symbol] = ta;
           }
+          await new Promise(r => setTimeout(r, 300)); // Giãn cách nhẹ khi nạp TA mới
+        } catch (e) {
+          log.warn(`[FastScan] Không lấy được TA on-demand cho ${sig.symbol}: ${e.message}`);
         }
-        if (!ta) return null;
+      }
+      if (!ta) continue;
 
-        const btcTA = _lastMarketData?.ta?.['BTC'] ?? null;
-        const score = scoreSetup(
-          sig.symbol, sig.signal,
-          ta,
-          _lastMarketData?.whale ?? {},
-          _lastMarketData?.derivatives ?? {},
-          _lastMarketData?.funding ?? null,
-          _lastMarketData?.fearGreed ?? { value: 50 },
-          _lastMarketData?.social ?? {},
-          btcTA,
-          signals369[sig.symbol] ?? null,
-        );
-        return { ...sig, score };
-      }));
-      enriched = enriched.filter(Boolean);
+      const btcTA = _lastMarketData?.ta?.['BTC'] ?? null;
+      const score = scoreSetup(
+        sig.symbol, sig.signal,
+        ta,
+        _lastMarketData?.whale ?? {},
+        _lastMarketData?.derivatives ?? {},
+        _lastMarketData?.funding ?? null,
+        _lastMarketData?.fearGreed ?? { value: 50 },
+        _lastMarketData?.social ?? {},
+        btcTA,
+        signals369[sig.symbol] ?? null,
+      );
+      enriched.push({ ...sig, score });
     }
 
     // ─── Phase 2: Thực thi định lượng ngay tại chu kỳ quét nhanh (Top 8 sát mốc) ───
-    try {
-      const activeTrades = getActiveTrades();
-      const activeMap = Object.fromEntries(activeTrades.map(t => [t.symbol, t.direction]));
+    if (!isIpBanned() && enriched.length > 0) {
+      try {
+        const activeTrades = getActiveTrades();
+        const activeMap = Object.fromEntries(activeTrades.map(t => [t.symbol, t.direction]));
 
-      const passingScores = enriched
-        .filter(s => s.score)
-        .map(s => {
-          const activeDir = activeMap[s.symbol];
-          const isSameDir = activeDir === s.signal;
-          return {
-            symbol: s.symbol,
-            direction: s.signal,
-            targetLevel: s.targetLevel || s.price,
-            total: s.score.total,
-            verdict: s.score.verdict,
-            confidence: s.score.confidence,
-            reasons: s.score.reasons || [],
-            disqualified: isSameDir || s.score.disqualified,
-            disqualifyReason: isSameDir ? `Đang có lệnh ${activeDir} active` : (s.score.disqualifyReason || '')
-          };
-        });
+        const passingScores = enriched
+          .filter(s => s.score)
+          .map(s => {
+            const activeDir = activeMap[s.symbol];
+            const isSameDir = activeDir === s.signal;
+            return {
+              symbol: s.symbol,
+              direction: s.signal,
+              targetLevel: s.targetLevel || s.price,
+              total: s.score.total,
+              verdict: s.score.verdict,
+              confidence: s.score.confidence,
+              reasons: s.score.reasons || [],
+              disqualified: isSameDir || s.score.disqualified,
+              disqualifyReason: isSameDir ? `Đang có lệnh ${activeDir} active` : (s.score.disqualifyReason || '')
+            };
+          });
 
-      if (passingScores.length > 0) {
-        const quantTrades = await processCandidateSetups(passingScores, { ..._lastMarketData, signals369 }, 2);
-        if (quantTrades.length > 0) {
-          log.trade(`[FastScan] Khớp ${quantTrades.length} setup định lượng, đẩy vào addTrades & đặt lệnh sàn`);
-          addTrades(quantTrades, _lastMarketData?.ta ?? {});
+        if (passingScores.length > 0) {
+          const quantTrades = await processCandidateSetups(passingScores, { ..._lastMarketData, signals369 }, 2);
+          if (quantTrades.length > 0) {
+            log.trade(`[FastScan] Khớp ${quantTrades.length} setup định lượng, đẩy vào addTrades & đặt lệnh sàn`);
+            addTrades(quantTrades, _lastMarketData?.ta ?? {});
+          }
         }
+      } catch (eScan) {
+        log.warn('[FastScan] Lỗi thực thi định lượng nhanh', { error: eScan.message });
       }
-    } catch (eScan) {
-      log.warn('[FastScan] Lỗi thực thi định lượng nhanh', { error: eScan.message });
     }
 
     // ─── PP369 Telegram Alert (Chỉ gửi khi có tín hiệu MỚI để chống spam người dùng) ───
@@ -698,13 +704,116 @@ async function run369AlertScan() {
 }
 
 /**
+ * Xử lý tuần tự 1 symbol từ hàng đợi tín hiệu (Concurrency = 1, giãn cách 600ms như bot-h4)
+ */
+async function processSingleSymbolSignal(sym, price) {
+  if (isIpBanned()) return;
+  if (!sym || !price || _processingSymbols.has(sym)) return;
+
+  _processingSymbols.add(sym);
+  try {
+    const activeTrades = getActiveTrades();
+    const activeDir = activeTrades.find(t => t.symbol === sym)?.direction;
+
+    const sig = await pp369.get369Signal(sym, price);
+    if (!sig || (sig.signal !== 'LONG' && sig.signal !== 'SHORT')) return;
+    if (activeDir && activeDir === sig.signal) return;
+    if (isIpBanned()) return;
+
+    let ta = _lastMarketData?.ta?.[sym];
+    if (!ta) {
+      try {
+        ta = await getFullTA(sym);
+        if (ta) {
+          if (!_lastMarketData) _lastMarketData = {};
+          if (!_lastMarketData.ta) _lastMarketData.ta = {};
+          _lastMarketData.ta[sym] = ta;
+        }
+      } catch (_) {}
+    }
+    if (!ta || isIpBanned()) return;
+
+    const btcTA = _lastMarketData?.ta?.['BTC'] ?? null;
+    const score = scoreSetup(
+      sym, sig.signal,
+      ta,
+      _lastMarketData?.whale ?? {},
+      _lastMarketData?.derivatives ?? {},
+      _lastMarketData?.funding ?? null,
+      _lastMarketData?.fearGreed ?? { value: 50 },
+      _lastMarketData?.social ?? {},
+      btcTA,
+      sig
+    );
+
+    const isReversal = activeDir && activeDir !== sig.signal;
+    const minScore = isReversal ? 9.0 : (FIXED_COINS.includes(sym) ? 7.0 : 8.0);
+    if (score.disqualified || score.total < minScore) return;
+
+    const candidates = [{
+      symbol: sym,
+      direction: sig.signal,
+      targetLevel: sig.targetLevel || price,
+      total: score.total,
+      verdict: score.verdict,
+      confidence: score.confidence,
+      reasons: score.reasons || [],
+      disqualified: false
+    }];
+
+    const quantTrades = await processCandidateSetups(candidates, { ..._lastMarketData, signals369: { [sym]: sig } }, 1);
+    if (quantTrades.length > 0) {
+      log.trade(`[WS Tick 0ms] Khớp lệnh định lượng ${sym} ${sig.signal} tại $${sig.targetLevel}`);
+      addTrades(quantTrades, _lastMarketData?.ta ?? {});
+    }
+  } catch (err) {
+    if (!isIpBanned()) {
+      log.warn(`[WS Tick 0ms] Lỗi xử lý ${sym}: ${err.message}`);
+    }
+  } finally {
+    _processingSymbols.delete(sym);
+  }
+}
+
+function processSignalQueue() {
+  if (isIpBanned()) {
+    _signalCheckQueue.length = 0;
+    return;
+  }
+  if (_activeSignalChecks >= MAX_CONCURRENT_SIGNAL_CHECKS || _signalCheckQueue.length === 0) return;
+
+  const task = _signalCheckQueue.shift();
+  if (!task) return;
+
+  _activeSignalChecks++;
+  processSingleSymbolSignal(task.sym, task.price)
+    .catch(() => {})
+    .finally(() => {
+      _activeSignalChecks--;
+      setTimeout(processSignalQueue, 600); // Sleep 600ms giữa các symbol để bảo đảm an toàn API và giãn cách weight Binance
+    });
+}
+
+function enqueueSymbolSignal(sym, price) {
+  if (isIpBanned()) return;
+  if (!sym || !price || _processingSymbols.has(sym)) return;
+  if (_signalCheckQueue.some(item => item.sym === sym)) return;
+  // Giới hạn hàng đợi tối đa 8 mã sát mốc để không tích tụ backlog
+  if (_signalCheckQueue.length >= 8) return;
+
+  _signalCheckQueue.push({ sym, price });
+  processSignalQueue();
+}
+
+/**
  * Luồng 1 (0ms WebSocket): Bắt tick giá real-time từ stream khi coin tiến sát mốc <= 0.3%
- * Đồng bộ kiến trúc với bot-h4 src/trader/autoTrade.js
+ * Đưa vào hàng đợi tuần tự (Concurrency = 1, giãn cách 600ms) đồng bộ 100% với bot-h4 src/trader/autoTrade.js
  */
 function initPriceTickListener() {
   if (typeof pp369.onPriceUpdate !== 'function') return;
 
-  pp369.onPriceUpdate(async (sym, price) => {
+  pp369.onPriceUpdate((sym, price) => {
+    if (isIpBanned()) return;
     if (!sym || !price || _processingSymbols.has(sym)) return;
 
     const now = Date.now();
@@ -727,64 +836,7 @@ function initPriceTickListener() {
     }
 
     _symbolSignalCooldown[sym] = now;
-    _processingSymbols.add(sym);
-
-    try {
-      const sig = await pp369.get369Signal(sym, price);
-      if (!sig || (sig.signal !== 'LONG' && sig.signal !== 'SHORT')) return;
-      if (activeDir && activeDir === sig.signal) return;
-
-      let ta = _lastMarketData?.ta?.[sym];
-      if (!ta) {
-        try {
-          ta = await getFullTA(sym);
-          if (ta) {
-            if (!_lastMarketData) _lastMarketData = {};
-            if (!_lastMarketData.ta) _lastMarketData.ta = {};
-            _lastMarketData.ta[sym] = ta;
-          }
-        } catch (_) {}
-      }
-      if (!ta) return;
-
-      const btcTA = _lastMarketData?.ta?.['BTC'] ?? null;
-      const score = scoreSetup(
-        sym, sig.signal,
-        ta,
-        _lastMarketData?.whale ?? {},
-        _lastMarketData?.derivatives ?? {},
-        _lastMarketData?.funding ?? null,
-        _lastMarketData?.fearGreed ?? { value: 50 },
-        _lastMarketData?.social ?? {},
-        btcTA,
-        sig
-      );
-
-      const isReversal = activeDir && activeDir !== sig.signal;
-      const minScore = isReversal ? 9.0 : (FIXED_COINS.includes(sym) ? 7.0 : 8.0);
-      if (score.disqualified || score.total < minScore) return;
-
-      const candidates = [{
-        symbol: sym,
-        direction: sig.signal,
-        targetLevel: sig.targetLevel || price,
-        total: score.total,
-        verdict: score.verdict,
-        confidence: score.confidence,
-        reasons: score.reasons || [],
-        disqualified: false
-      }];
-
-      const quantTrades = await processCandidateSetups(candidates, { ..._lastMarketData, signals369: { [sym]: sig } }, 1);
-      if (quantTrades.length > 0) {
-        log.trade(`[WS Tick 0ms] Khớp lệnh định lượng ${sym} ${sig.signal} tại $${sig.targetLevel}`);
-        addTrades(quantTrades, _lastMarketData?.ta ?? {});
-      }
-    } catch (err) {
-      log.warn(`[WS Tick 0ms] Lỗi xử lý ${sym}: ${err.message}`);
-    } finally {
-      _processingSymbols.delete(sym);
-    }
+    enqueueSymbolSignal(sym, price);
   });
 }
 

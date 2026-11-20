@@ -3,6 +3,7 @@
 const fs = require('fs');
 const path = require('path');
 const axios = require('axios');
+const { isIpBanned } = require('../services/rateLimitGuard');
 
 const BINANCE   = 'https://fapi.binance.com';
 const OKX       = 'https://www.okx.com';
@@ -109,22 +110,24 @@ async function fetchKlinesDirect(symbol, interval, limit, startTimeMs = null) {
   const bnInterval = interval.toLowerCase();
   const cleanSym = symbol.replace(/USDT$/, '');
 
-  // 1. Binance Futures klines (ưu tiên)
-  try {
-    const params = { symbol: `${cleanSym}USDT`, interval: bnInterval, limit: Math.min(limit, 1500) };
-    if (startTimeMs != null) params.startTime = startTimeMs;
-    const { data } = await axios.get(`${BINANCE}/fapi/v1/klines`, {
-      params,
-      headers: HEADERS,
-      timeout: 12000,
-    });
-    if (Array.isArray(data) && data.length > 0) {
-      return data.map(k => toBotNewCandle({
-        t: k[0], o: parseFloat(k[1]), h: parseFloat(k[2]),
-        l: parseFloat(k[3]), c: parseFloat(k[4]), v: parseFloat(k[5]),
-      }));
-    }
-  } catch { /* fall through to OKX */ }
+  // 1. Binance Futures klines (ưu tiên nếu IP không bị hạ nhiệt/khóa)
+  if (!isIpBanned()) {
+    try {
+      const params = { symbol: `${cleanSym}USDT`, interval: bnInterval, limit: Math.min(limit, 1500) };
+      if (startTimeMs != null) params.startTime = startTimeMs;
+      const { data } = await axios.get(`${BINANCE}/fapi/v1/klines`, {
+        params,
+        headers: HEADERS,
+        timeout: 12000,
+      });
+      if (Array.isArray(data) && data.length > 0) {
+        return data.map(k => toBotNewCandle({
+          t: k[0], o: parseFloat(k[1]), h: parseFloat(k[2]),
+          l: parseFloat(k[3]), c: parseFloat(k[4]), v: parseFloat(k[5]),
+        }));
+      }
+    } catch { /* fall through to OKX */ }
+  }
 
   // 2. OKX fallback
   try {

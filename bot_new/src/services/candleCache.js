@@ -13,6 +13,7 @@ const fs = require('fs');
 const path = require('path');
 const axios = require('axios');
 const { log } = require('./logger');
+const { isIpBanned } = require('./rateLimitGuard');
 
 const CACHE_MAX_H1 = 300; // 300 nến H1 ≈ 12.5 ngày
 const CACHE_MAX_H4 = 300; // 300 nến H4 ≈ 50 ngày
@@ -76,6 +77,7 @@ log.system(`[PP369] [369] ✓ Đã nạp cache nến từ đĩa máy chủ: ${Ob
  * Fetch klines từ Binance Futures REST API
  */
 async function fetchBinanceKlines(symbol, interval, startTimeMs = null, limit = 500) {
+  if (isIpBanned()) return [];
   const url = 'https://fapi.binance.com/fapi/v1/klines';
   const cleanSym = symbol.toUpperCase().replace(/USDT$/, '');
   const params = { symbol: `${cleanSym}USDT`, interval, limit };
@@ -83,6 +85,7 @@ async function fetchBinanceKlines(symbol, interval, startTimeMs = null, limit = 
 
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
+      if (isIpBanned()) return [];
       const res = await axios.get(url, { params, timeout: 10000 });
       return (res.data || []).map(c => ({
         openTime: c[0],

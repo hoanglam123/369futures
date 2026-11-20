@@ -173,6 +173,15 @@ runTest('5. Bounce Cancel: Nhận diện giá tiếp cận <= 0.08% rồi nảy 
   assert.strictEqual(isLevelBounceCooldown('SOL', 190.0), true, 'Mốc giá vừa bị bounce phải rơi vào cooldown 60 phút');
 });
 
+// ── 5. RATE LIMIT & IP BAN CIRCUIT BREAKER ────────────────────────────────────
+runTest('6. RateLimit Guard: Binance IP Weight >= 1800/2400 tự động hạ nhiệt REST API 8s', () => {
+  const { updateUsedWeight, isIpBanned, resetRateLimitForTest } = require('../src/services/rateLimitGuard');
+  updateUsedWeight({ 'x-mbx-used-weight-1m': '1950' });
+  assert.strictEqual(isIpBanned(), true, 'Weight >= 1800 phải kích hoạt hạ nhiệt REST API 8s');
+  resetRateLimitForTest();
+  assert.strictEqual(isIpBanned(), false, 'Sau khi reset thì REST API hoạt động lại bình thường');
+});
+
 console.log('\n================================================================');
 console.log(`🎉 KẾT QUẢ KIỂM THỬ: ${passedTests}/${totalTests} BÀI TEST THÀNH CÔNG (${((passedTests/totalTests)*100).toFixed(0)}%)`);
 console.log('================================================================');
