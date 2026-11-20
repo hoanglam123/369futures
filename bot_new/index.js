@@ -180,7 +180,7 @@ if (process.argv.includes('--run-now')) {
   // ─── Khởi tạo Dynamic Futures Universe 400+ coin (Giai đoạn 2) ─────────────
   const { getAllActiveFuturesSymbols, filterSymbolsByGrid } = require('./src/services/dynamicUniverse');
   const { initH1RefCache, prePopulateLevelCache } = require('./src/services/h1RefCache');
-  const { updatePricesRest, getPrices } = require('./src/pp369/stream');
+  const { updatePricesRest, getPrices, getNearbySymbols, getLevelCache } = require('./src/pp369');
   const { FIXED_COINS, setUniverseSymbols } = require('./src/job');
 
   let activeCoinList = FIXED_COINS;
@@ -200,8 +200,10 @@ if (process.argv.includes('--run-now')) {
     log.warn(`[AutoTrade] Khởi tạo Universe thất bại: ${err.message} — fallback về ${FIXED_COINS.length} coin.`);
   }
 
-  // Khởi động PP369 markPrice stream với toàn bộ Universe
-  start369Stream(activeCoinList);
+  // Khởi động WebSocket stream và đăng ký (subscribe) chỉ các mã đang gần mốc (1.0%) + BTC giống bot-h4
+  const initialLevelCache = getLevelCache();
+  const initialNearby = getNearbySymbols(activeCoinList, initialLevelCache, 0.01);
+  start369Stream(initialNearby);
 
   // Ghi danh sách symbols vào pp369_symbols.json
   try {

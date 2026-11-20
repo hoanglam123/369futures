@@ -39,7 +39,7 @@ const {
   logSignal369, start369Stream, getNearbySymbols, getMarkPrice, format369Alert,
   syncWebSocketSubscriptions, getPrices, updatePricesRest
 } = pp369;
-const { updateShadowPrices, getShadowStats } = require('./services/shadowTracker');
+const { updateShadowPrices, getShadowStats, getActiveShadowPositions } = require('./services/shadowTracker');
 const { checkMonthTransition } = require('./services/h1RefCache');
 
 let _isRunning = false;        // full market report đang chạy
@@ -238,9 +238,8 @@ async function runJob({ silent = false, lookbackHours = null } = {}) {
     const whaleSymbols = [...taSymbols];
     _lastTaSymbols = [...taSymbols];  // cache cho scan PP369 1 phút
 
-    // Giữ WebSocket stream lắng nghe toàn bộ Universe 470+ coin
+    // Đồng bộ danh sách Universe 470+ coin ra file để dashboard đọc
     const allMonitoredUniverse = await getUniverseSymbols();
-    start369Stream(allMonitoredUniverse);
 
     // Lưu danh sách coin đang theo dõi ra file để dashboard đọc
     try {
@@ -527,12 +526,27 @@ async function run369AlertScan() {
       levelCache = getLevelCache();
     }
 
-    // Cập nhật giá REST toàn bộ 470 coin trước khi lọc (1 call nhẹ, weight=1)
+    // 1. Cập nhật lại giá REST của toàn bộ coin để kiểm tra biến động (1 call nhẹ, weight=1) giống bot-h4
     if (typeof updatePricesRest === 'function') {
       try { await updatePricesRest(); } catch (_) {}
     }
 
-    // Scan sát mốc (<=0.5%) với strict = true
+    // 2. WebSocket đón trước: Lắng nghe các coin trong bán kính 1.0% + coin có vị thế active + shadow + BTC
+    const wsNearby = getNearbySymbols(symbols, levelCache, 0.01);
+    const activeSymbols = getActiveTrades().map(t => t.symbol);
+    const activeShadows = typeof getActiveShadowPositions === 'function' ? getActiveShadowPositions() : {};
+    const shadowSyms = Object.values(activeShadows).map(p => p.symbol);
+    const wsAllSymbols = Array.from(new Set([...wsNearby, ...activeSymbols, ...shadowSyms, 'BTC']));
+    if (typeof syncWebSocketSubscriptions === 'function') {
+      syncWebSocketSubscriptions(wsAllSymbols).catch(() => {});
+    }
+
+    // Cập nhật giá cho Shadow Tracker (Phase 5)
+    if (typeof updateShadowPrices === 'function' && typeof getPrices === 'function') {
+      try { updateShadowPrices(getPrices()); } catch (_) {}
+    }
+
+    // 3. Vòng lặp Scan định kỳ chỉ xử lý các coin đang thực sự TIỆM CẬN SÁT MỐC (<= 0.5%) để tối ưu tốc độ vào lệnh
     const scanNearby = getNearbySymbols(symbols, levelCache, 0.005, true);
 
     // ─── ĐỒNG BỘ LOG ĐỊNH KỲ 15 PHÚT TỪ BOT-H4 ───
@@ -563,16 +577,6 @@ async function run369AlertScan() {
     });
 
     const toScan = scanNearby.slice(0, 8);
-
-    // Đồng bộ subscription động (Phase 3)
-    if (typeof syncWebSocketSubscriptions === 'function') {
-      syncWebSocketSubscriptions(toScan).catch(() => {});
-    }
-
-    // Cập nhật giá cho Shadow Tracker (Phase 5)
-    if (typeof updateShadowPrices === 'function' && typeof getPrices === 'function') {
-      try { updateShadowPrices(getPrices()); } catch (_) {}
-    }
 
     // Dùng WebSocket mark price từ Binance (~3s) thay vì nến 1m cuối (~1 phút trễ)
     const priceMap = Object.fromEntries(
