@@ -658,18 +658,20 @@ function addTrades(trades, taMap = {}) {
       continue;
     }
 
-    // ── SL auto-adjust: nâng lên tối thiểu MIN_SL_ATR_MULT × ATR (anti stop-hunt) ──
-    const atrAbs = taMap[t.symbol]?.atr ?? null;
-    if (atrAbs && atrAbs > 0) {
-      const actualSlDist = Math.abs(t.entryPrice - t.slPrice);
-      const minSlDist    = atrAbs * MIN_SL_ATR_MULT;
-      if (actualSlDist < minSlDist) {
-        const adjusted = parseFloat((isLongNew
-          ? t.entryPrice - minSlDist
-          : t.entryPrice + minSlDist).toFixed(t.entryPrice >= 1 ? 2 : 6));
-        log.trade(`SL AUTO-ADJUST ${t.symbol}: AI ${((actualSlDist / t.entryPrice) * 100).toFixed(2)}% < ${MIN_SL_ATR_MULT}×ATR ${((minSlDist / t.entryPrice) * 100).toFixed(2)}% → ${fmtPrice(adjusted)}`);
-        t.slPrice = adjusted;
-        t.slPct   = parseFloat((Math.abs(t.entryPrice - t.slPrice) / t.entryPrice * 100).toFixed(2));
+    // ── SL auto-adjust: chỉ áp dụng cho lệnh AI cũ, các lệnh định lượng toán học (tierSLTP) đã tính chuẩn 3 tầng ──
+    if (t.source !== 'quantitative_deterministic') {
+      const atrAbs = taMap[t.symbol]?.atr ?? null;
+      if (atrAbs && atrAbs > 0) {
+        const actualSlDist = Math.abs(t.entryPrice - t.slPrice);
+        const minSlDist    = atrAbs * MIN_SL_ATR_MULT;
+        if (actualSlDist < minSlDist) {
+          const adjusted = parseFloat((isLongNew
+            ? t.entryPrice - minSlDist
+            : t.entryPrice + minSlDist).toFixed(t.entryPrice >= 1 ? 2 : 6));
+          log.trade(`SL AUTO-ADJUST ${t.symbol}: AI ${((actualSlDist / t.entryPrice) * 100).toFixed(2)}% < ${MIN_SL_ATR_MULT}×ATR ${((minSlDist / t.entryPrice) * 100).toFixed(2)}% → ${fmtPrice(adjusted)}`);
+          t.slPrice = adjusted;
+          t.slPct   = parseFloat((Math.abs(t.entryPrice - t.slPrice) / t.entryPrice * 100).toFixed(2));
+        }
       }
     }
 
