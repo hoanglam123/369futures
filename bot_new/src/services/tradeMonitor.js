@@ -484,6 +484,22 @@ function addTrades(trades, taMap = {}) {
       log.trade(`UPDATE ${t.symbol} ${t.direction}`, {
         prev, new: { entry: t.entryPrice, tp: t.targetPrice, sl: t.slPrice, leverage: t.leverage },
       });
+
+      // On-Exchange Dynamic Ratchet: Tự động dịch chuyển TP / SL trực tiếp trên sàn Binance nếu vị thế đã fill
+      if (sameDir.entryFilled && binanceTrader.isEnabled()) {
+        (async () => {
+          if (t.targetPrice && t.targetPrice !== prev.tp) {
+            await binanceTrader.replaceTPOrder(sameDir, t.targetPrice).catch(e => {
+              log.warn(`UPDATE: Dịch TP sàn thất bại ${t.symbol}`, { error: e.message });
+            });
+          }
+          if (t.slPrice && t.slPrice !== prev.sl && !sameDir.slMovedToBreakeven) {
+            await binanceTrader.moveSLToBreakeven(sameDir, t.slPrice).catch(e => {
+              log.warn(`UPDATE: Dịch SL sàn thất bại ${t.symbol}`, { error: e.message });
+            });
+          }
+        })();
+      }
       const liqPriceUpd = calcLiqPrice(t.entryPrice, t.direction, sameDir.leverage);
       sendMessages([
         `🔄 <b>CẬP NHẬT LỆNH — ${t.symbol} ${t.direction === 'LONG' ? '🟢 LONG' : '🔴 SHORT'}${sameDir.leverage ? ` ⚡x${sameDir.leverage}` : ''}</b>\n` +
@@ -915,7 +931,11 @@ async function checkPendingAutoEntry(prices) {
   }
 
   if (result) {
+    if (result.slOrderId) trade.binanceSlOrderId = result.slOrderId;
     saveTrades();
+    const slLine = trade.binanceSlOrderId
+      ? `🛑 SL:  <code>#${trade.binanceSlOrderId}</code>  tại  <code>${fmtPrice(trade.slPrice)}</code>  <i>(STOP_MARKET trên Binance)</i>\n`
+      : `🛡️ SL:  bot theo dõi tại  <code>${fmtPrice(trade.slPrice)}</code>  <i>(client-side)</i>\n`;
     sendMessages([
       `🚀 <b>AUTO MARKET ENTRY — ${trade.symbol} ${dirLabel} ⚡x${trade.leverage || 10}</b>\n` +
       `━━━━━━━━━━━━━━━━\n` +
@@ -923,10 +943,10 @@ async function checkPendingAutoEntry(prices) {
       `🏳️ TP1: bot theo dõi tại  <code>${fmtPrice(trade.tp1Price)}</code>  <i>(+10% vốn → dời SL)</i>\n` +
       `🥈 TP2: bot theo dõi tại  <code>${fmtPrice(trade.tp2Price)}</code>  <i>(1:1 R:R ban đầu)</i>\n` +
       `🎯 TP:  <code>#${result.tpOrderId}</code>  tại  <code>${fmtPrice(trade.targetPrice)}</code>  <i>(đặt trên Binance)</i>\n` +
-      `🛡️ SL:  bot theo dõi tại  <code>${fmtPrice(trade.slPrice)}</code>  <i>(client-side)</i>\n` +
+      slLine +
       `💵 Balance còn: <b>${result.balance.toFixed(2)} USDT</b>\n` +
       `━━━━━━━━━━━━━━━━\n` +
-      `<i>${bestImprovePct > 0 ? `Giá tốt hơn entry ${bestImprovePct.toFixed(2)}%` : `Giá đúng vùng entry`} — vào MARKET thay lệnh chờ</i>`,
+      `<i>${bestImprovePct > 0 ? `Giá tốt hơn entry ${bestImprovePct.toFixed(2)}%` : `Giá đúng vùng entry`} — vào MARKET thay lệnh chờ (Dual Bracket on-exchange)</i>`,
     ], 1500, NEWS_CHAT_ID).catch(() => {});
   } else {
     // Lỗi API tạm thời (network, timeout...) → KHÔNG set marketEntryFailed, sẽ retry lần sau
@@ -1123,6 +1143,17 @@ async function syncManualPositions(source = 'internal') {
                 `<i>Phục hồi từ trade gốc bị expire do WS miss</i>`
               : `⚠️ <b>TP thất bại — ${symbol} ${dirLabel2}</b>\nKiểm tra và đặt TP thủ công trên Binance!`,
           ], 1500, NEWS_CHAT_ID).catch(() => {});
+        });
+      }
+
+      // Auto-place Hard STOP_MARKET SL trên Binance nếu biết slPrice và chưa có order
+      if (!slOrder && recoveredSl) {
+        setImmediate(async () => {
+          const slId = await binanceTrader.placeSLAfterFill(trade).catch(e => {
+            log.error(`syncManualPositions: đặt Hard STOP_MARKET SL thất bại ${symbol}`, { error: e.message });
+            return null;
+          });
+          if (slId) saveTrades();
         });
       }
 
@@ -1474,14 +1505,23 @@ async function checkActiveTrades() {
                 log.warn(`EXPIRY RECOVERY: đặt TP thất bại ${trade.symbol}`, { error: e.message });
                 return null;
               });
+              if (!trade.binanceSlOrderId && trade.slPrice) {
+                await binanceTrader.placeSLAfterFill(trade).catch(e => {
+                  log.warn(`EXPIRY RECOVERY: đặt Hard STOP_MARKET SL thất bại ${trade.symbol}`, { error: e.message });
+                  return null;
+                });
+              }
               saveTrades();
+              const slLine = trade.binanceSlOrderId
+                ? `🛑 SL sàn đã đặt:  <code>#${trade.binanceSlOrderId}</code>  tại  <code>${fmtPrice(trade.slPrice)}</code>\n`
+                : `🛡️ Bot tiếp tục theo dõi TP/SL\n`;
               sendMessages([
                 `⚠️ <b>PHỤC HỒI LỆNH — ${trade.symbol} ${isLong ? '🟢 LONG' : '🔴 SHORT'}${trade.leverage ? ` ⚡x${trade.leverage}` : ''}</b>\n` +
                 `━━━━━━━━━━━━━━━━\n` +
                 `Bot phát hiện lệnh đã fill trên Binance nhưng WS event bị mất (${pendingH}h)\n` +
                 `💰 Entry:  <code>${fmtPrice(trade.entryPrice)}</code>\n` +
                 (erTpOrderId ? `🎯 TP đã đặt:  <code>#${erTpOrderId}</code>  tại  <code>${fmtPrice(trade.targetPrice)}</code>\n` : `⚠️ TP đặt thất bại — kiểm tra ngay!\n`) +
-                `🛡️ Bot tiếp tục theo dõi TP/SL`,
+                slLine,
               ], 1500, NEWS_CHAT_ID).catch(() => {});
               continue;
             }
@@ -1545,16 +1585,25 @@ async function checkActiveTrades() {
                   log.warn(`WS FILL FALLBACK (${source}): đặt TP thất bại ${trade.symbol}`, { error: e.message });
                   return null;
                 });
+                if (!trade.binanceSlOrderId && trade.slPrice) {
+                  await binanceTrader.placeSLAfterFill(trade).catch(e => {
+                    log.warn(`WS FILL FALLBACK (${source}): đặt Hard STOP_MARKET SL thất bại ${trade.symbol}`, { error: e.message });
+                    return null;
+                  });
+                }
                 saveTrades();
                 const dirLabel = isLong ? '🟢 LONG' : '🔴 SHORT';
+                const slLine = trade.binanceSlOrderId
+                  ? `🛑 SL sàn đã đặt:  <code>#${trade.binanceSlOrderId}</code>  tại  <code>${fmtPrice(trade.slPrice)}</code>\n`
+                  : `🛡️ SL:  bot theo dõi tại  <code>${fmtPrice(trade.slPrice)}</code>  (real-time)\n`;
                 sendMessages([
                   `⚠️ <b>WS FILL FALLBACK — ${trade.symbol} ${dirLabel}${trade.leverage ? ` ⚡x${trade.leverage}` : ''}</b>\n` +
                   `━━━━━━━━━━━━━━━━\n` +
                   `Bot phát hiện entry fill qua ${source} sau ${elapsedMin}m (WS event bị miss)\n` +
                   `💹 Fill tại:   <code>${fmtPrice(avgPrice)}</code>\n` +
                   (tpOrderId ? `🎯 TP đã đặt:  <code>#${tpOrderId}</code>  tại  <code>${fmtPrice(trade.targetPrice)}</code>\n` : `⚠️ TP đặt thất bại — kiểm tra ngay!\n`) +
-                  `🛡️ SL:  bot theo dõi tại  <code>${fmtPrice(trade.slPrice)}</code>  (real-time)\n` +
-                  `<i>🤖 WS event bị Binance drop — đã tự phục hồi qua ${source} fallback</i>`,
+                  slLine +
+                  `<i>🤖 WS event bị Binance drop — đã tự phục hồi qua ${source} fallback (Dual Bracket on-exchange)</i>`,
                 ], 1500, NEWS_CHAT_ID).catch(() => {});
               };
               if (order?.status === 'FILLED') {
@@ -1846,10 +1895,15 @@ async function checkActiveTrades() {
         const { rawPct: tp1Raw, netPct: tp1Net } = calcPnl(trade.entryPrice, trade.tp1Price, trade.direction, trade.leverage);
         log.trade(`TP1 ${trade.symbol} ${trade.direction} tại ${fmtPrice(price)} → dời SL về +1% lãi ${fmtPrice(newSlPrice)}`);
 
-        if (binanceTrader.isEnabled() && trade.binanceEntryOrderId) {
+        if (binanceTrader.isEnabled() && (trade.binanceEntryOrderId || trade.binanceQty || trade.binanceSlOrderId)) {
           (async () => {
-            const newSlId = await binanceTrader.moveSLToBreakeven(trade, newSlPrice);
-            if (newSlId) saveTrades();
+            const res = await bracketManager.ratchetBreakeven({
+              client: binanceTrader,
+              sym: trade.symbol,
+              meta: trade,
+              beSlPrice: newSlPrice,
+            });
+            if (res?.success) saveTrades();
           })();
         }
 
@@ -1860,14 +1914,14 @@ async function checkActiveTrades() {
           `🏳️ TP1 hit: <code>${fmtPrice(price)}</code>  <b>+${tp1Raw.toFixed(2)}%</b>${trade.leverage ? `  <i>(vốn +${tp1Net.toFixed(1)}%)</i>` : ''}\n` +
           `🥈 TP2:     <code>${fmtPrice(trade.tp2Price)}</code>  <i>(1:1 R:R ban đầu)</i>\n` +
           `🎯 TP:      <code>${fmtPrice(trade.targetPrice)}</code>\n` +
-          `🔒 SL mới:  <code>${fmtPrice(newSlPrice)}</code>  <i>(khoá lãi +1% vốn)</i>\n` +
+          `🔒 SL mới:  <code>${fmtPrice(newSlPrice)}</code>  <i>(khoá lãi +1% vốn trên Binance)</i>\n` +
           `━━━━━━━━━━━━━━━━\n` +
           `<i>💡 Vị thế vẫn mở, tiếp tục chạy về TP2 / TP</i>`,
         ]).catch(() => {});
       }
     }
 
-    // Alert TP2 (1:1 R:R ban đầu) — chạm SAU, chỉ alert không dời SL
+    // Alert TP2 (1:1 R:R ban đầu) — chạm SAU, dời SL lên TP1 để khóa lãi
     if (trade.tp2Price && !trade.tp2Hit) {
       const tp2Reached = isLong ? price >= trade.tp2Price : price <= trade.tp2Price;
       if (tp2Reached) {
@@ -1875,8 +1929,26 @@ async function checkActiveTrades() {
         saveTrades();
         const { rawPct: tp2Raw, netPct: tp2Net } = calcPnl(trade.entryPrice, trade.tp2Price, trade.direction, trade.leverage);
         log.trade(`TP2 ${trade.symbol} ${trade.direction} tại ${fmtPrice(price)}`);
+
+        // Dynamic On-Exchange Ratchet: Dời SL sàn lên mức TP1 (+10% vốn) để khóa lãi
+        if (trade.tp1Price && binanceTrader.isEnabled() && (trade.binanceEntryOrderId || trade.binanceQty || trade.binanceSlOrderId)) {
+          (async () => {
+            const res = await bracketManager.ratchetTrailingFractal({
+              client: binanceTrader,
+              sym: trade.symbol,
+              meta: trade,
+              newTrailingSlPrice: trade.tp1Price,
+              label: 'TP2 Profit Lock',
+            });
+            if (res?.success) {
+              trade.slPrice = trade.tp1Price;
+              saveTrades();
+            }
+          })();
+        }
+
         const slLine = trade.slMovedToBreakeven
-          ? `🔒 SL:      <code>${fmtPrice(trade.slPrice)}</code>  <i>(khoá lãi +1% vốn)</i>\n`
+          ? `🔒 SL:      <code>${fmtPrice(trade.slPrice)}</code>  <i>(khoá lãi trên sàn Binance)</i>\n`
           : `🛑 SL:      <code>${fmtPrice(trade.slPrice)}</code>\n`;
         sendMessages([
           `🥈 <b>TP2 (1:1 R:R ban đầu) — ${trade.symbol} ${isLong ? '🟢 LONG' : '🔴 SHORT'}${trade.leverage ? ` ⚡x${trade.leverage}` : ''}</b>\n` +
@@ -1886,7 +1958,7 @@ async function checkActiveTrades() {
           `🎯 TP tiếp: <code>${fmtPrice(trade.targetPrice)}</code>\n` +
           slLine +
           `━━━━━━━━━━━━━━━━\n` +
-          `<i>💡 Có thể chốt một phần, để lại lệnh chạy về TP cuối</i>`,
+          `<i>💡 Đã kích hoạt Trailing SL khóa lãi trên sàn Binance</i>`,
         ]).catch(() => {});
       }
     }
@@ -1909,20 +1981,16 @@ async function checkActiveTrades() {
     trade.closedAt = new Date();
     saveTrades();
 
-    // Client-side SL: đặt MARKET close ngay khi phát hiện giá chạm SL
+    // Client-side SL fallback: đặt MARKET close nếu giá chạm SL
     if (hit === 'SL' && binanceTrader.isEnabled() && trade.binanceQty) {
       binanceTrader.placeMarketClose(trade).catch(e => {
         log.error(`SL hit: MARKET close thất bại ${trade.symbol}`, { error: e.message });
       });
     }
 
-    // Hủy lệnh còn lại trên Binance (SL algo nếu TP hit, TP LIMIT nếu SL hit)
+    // Tự động dọn dẹp sạch lệnh đối ứng trên Binance (SL algo nếu TP hit, TP LIMIT nếu SL hit)
     if (binanceTrader.isEnabled()) {
-      if (hit === 'TP' && trade.binanceSlOrderId) {
-        binanceTrader.cancelAlgoOrderById(trade.binanceSlOrderId).catch(() => {});
-      } else if (hit === 'SL' && trade.binanceTpOrderId) {
-        binanceTrader.cancelOrderById(trade.symbol, trade.binanceTpOrderId).catch(() => {});
-      }
+      await bracketManager.autoCleanOppositeOrder({ client: binanceTrader, sym: trade.symbol, filledType: hit, meta: trade });
     }
 
     const closePrice = hit === 'TP' ? trade.targetPrice : trade.slPrice;
@@ -2287,10 +2355,15 @@ function _doRebuildCombinedMpWs() {
           saveTrades();
           const { rawPct: tp1Raw, netPct: tp1Net } = calcPnl(trade.entryPrice, trade.tp1Price, trade.direction, trade.leverage);
           log.trade(`WS TP1 ${symbol} ${trade.direction} tại ${fmtPrice(markPrice)} → dời SL về +1% lãi ${fmtPrice(newSlPrice)}`);
-          if (binanceTrader.isEnabled() && trade.binanceEntryOrderId) {
+          if (binanceTrader.isEnabled() && (trade.binanceEntryOrderId || trade.binanceQty || trade.binanceSlOrderId)) {
             (async () => {
-              const newSlId = await binanceTrader.moveSLToBreakeven(trade, newSlPrice);
-              if (newSlId) saveTrades();
+              const res = await bracketManager.ratchetBreakeven({
+                client: binanceTrader,
+                sym: trade.symbol,
+                meta: trade,
+                beSlPrice: newSlPrice,
+              });
+              if (res?.success) saveTrades();
             })();
           }
           sendMessages([
@@ -2300,14 +2373,14 @@ function _doRebuildCombinedMpWs() {
             `🏳️ TP1 hit: <code>${fmtPrice(markPrice)}</code>  <b>+${tp1Raw.toFixed(2)}%</b>${trade.leverage ? `  <i>(vốn +${tp1Net.toFixed(1)}%)</i>` : ''}\n` +
             `🥈 TP2:     <code>${fmtPrice(trade.tp2Price)}</code>  <i>(1:1 R:R ban đầu)</i>\n` +
             `🎯 TP:      <code>${fmtPrice(trade.targetPrice)}</code>\n` +
-            `🔒 SL mới:  <code>${fmtPrice(newSlPrice)}</code>  <i>(khoá lãi +1% vốn)</i>\n` +
+            `🔒 SL mới:  <code>${fmtPrice(newSlPrice)}</code>  <i>(khoá lãi +1% vốn trên Binance)</i>\n` +
             `━━━━━━━━━━━━━━━━\n` +
             `<i>💡 Vị thế vẫn mở, tiếp tục chạy về TP2 / TP</i>`,
           ]).catch(() => {});
         }
       }
 
-      // ── Alert TP2 (1:1 R:R) ──────────────────────────────────────────────
+      // ── Alert TP2 (1:1 R:R) & Dời Trailing SL khóa lãi trên sàn ──────────
       if (trade.tp2Price && !trade.tp2Hit) {
         const tp2Reached = isLong ? markPrice >= trade.tp2Price : markPrice <= trade.tp2Price;
         if (tp2Reached) {
@@ -2315,8 +2388,26 @@ function _doRebuildCombinedMpWs() {
           saveTrades();
           const { rawPct: tp2Raw, netPct: tp2Net } = calcPnl(trade.entryPrice, trade.tp2Price, trade.direction, trade.leverage);
           log.trade(`WS TP2 ${symbol} ${trade.direction} tại ${fmtPrice(markPrice)}`);
+
+          // Dynamic On-Exchange Ratchet: Dời SL sàn lên mức TP1 (+10% vốn) để khóa lãi
+          if (trade.tp1Price && binanceTrader.isEnabled() && (trade.binanceEntryOrderId || trade.binanceQty || trade.binanceSlOrderId)) {
+            (async () => {
+              const res = await bracketManager.ratchetTrailingFractal({
+                client: binanceTrader,
+                sym: trade.symbol,
+                meta: trade,
+                newTrailingSlPrice: trade.tp1Price,
+                label: 'TP2 Profit Lock',
+              });
+              if (res?.success) {
+                trade.slPrice = trade.tp1Price;
+                saveTrades();
+              }
+            })();
+          }
+
           const slLine = trade.slMovedToBreakeven
-            ? `🔒 SL:      <code>${fmtPrice(trade.slPrice)}</code>  <i>(khoá lãi +1% vốn)</i>\n`
+            ? `🔒 SL:      <code>${fmtPrice(trade.slPrice)}</code>  <i>(khoá lãi trên sàn Binance)</i>\n`
             : `🛑 SL:      <code>${fmtPrice(trade.slPrice)}</code>\n`;
           sendMessages([
             `🥈 <b>TP2 (1:1 R:R ban đầu) — ${symbol} ${dirLabel}${trade.leverage ? ` ⚡x${trade.leverage}` : ''}</b>\n` +
@@ -2326,7 +2417,7 @@ function _doRebuildCombinedMpWs() {
             `🎯 TP tiếp: <code>${fmtPrice(trade.targetPrice)}</code>\n` +
             slLine +
             `━━━━━━━━━━━━━━━━\n` +
-            `<i>💡 Có thể chốt một phần, để lại lệnh chạy về TP cuối</i>`,
+            `<i>💡 Đã kích hoạt Trailing SL khóa lãi trên sàn Binance</i>`,
           ]).catch(() => {});
         }
       }
@@ -2341,14 +2432,13 @@ function _doRebuildCombinedMpWs() {
 
       log.trade(`WS SL hit ${symbol} — mark=${fmtPrice(markPrice)}, sl=${fmtPrice(trade.slPrice)}`);
 
-      if (binanceTrader.isEnabled() && trade.binanceQty) {
-        binanceTrader.placeMarketClose(trade).catch(e =>
-          log.error(`WS SL: MARKET close thất bại ${symbol}`, { error: e.message })
-        );
-      }
-      if (trade.binanceTpOrderId) {
-        binanceTrader.cancelOrderById(trade.symbol, trade.binanceTpOrderId).catch(() => {});
-        trade.binanceTpOrderId = null;
+      if (binanceTrader.isEnabled()) {
+        if (trade.binanceQty) {
+          binanceTrader.placeMarketClose(trade).catch(e =>
+            log.error(`WS SL: MARKET close thất bại ${symbol}`, { error: e.message })
+          );
+        }
+        await bracketManager.autoCleanOppositeOrder({ client: binanceTrader, sym: trade.symbol, filledType: 'SL', meta: trade });
       }
 
       const closePrice = trade.slPrice;
@@ -2435,7 +2525,7 @@ function ensureMarkPriceWS(symbol) {
  * Hàm này phải gọi 1 lần duy nhất khi khởi động (trước startStream).
  */
 function initBinanceStream() {
-  binanceStream.onEntryFill(async ({ orderId, symbol, avgPrice, side, reduceOnly }) => {
+  binanceStream.onEntryFill(async ({ orderId, symbol, avgPrice, side, reduceOnly, algoId, orderType }) => {
 
     // ── Entry fill ──────────────────────────────────────────────────────────────
     const trade = activeTrades.find(
@@ -2516,7 +2606,11 @@ function initBinanceStream() {
 
     // ── SL fill: STOP_MARKET kích hoạt → vị thế đóng ───────────────────────────
     const slTrade = activeTrades.find(
-      t => t.status === 'active' && t.binanceSlOrderId === orderId
+      t => t.status === 'active' && (
+        t.binanceSlOrderId === orderId ||
+        (algoId && t.binanceSlOrderId === algoId) ||
+        (orderType === 'STOP_MARKET' && t.symbol === symbol)
+      )
     );
     if (slTrade) {
       await bracketManager.autoCleanOppositeOrder({ client: binanceTrader, sym: slTrade.symbol, filledType: 'SL', meta: slTrade });

@@ -72,12 +72,14 @@ async function getSymbolInfo(symbol) {
     if (s.symbol !== `${s.baseAsset}USDT`) continue;
     const lotSize     = s.filters.find(f => f.filterType === 'LOT_SIZE');
     const minNotional = s.filters.find(f => f.filterType === 'MIN_NOTIONAL');
+    const priceFilter = s.filters.find(f => f.filterType === 'PRICE_FILTER');
     symbolInfoCache.set(s.baseAsset, {
       quantityPrecision: s.quantityPrecision,
       pricePrecision:    s.pricePrecision,
       stepSize:          lotSize     ? parseFloat(lotSize.stepSize)      : null,
       minQty:            lotSize     ? parseFloat(lotSize.minQty)        : null,
       minNotional:       minNotional ? parseFloat(minNotional.notional)  : null,
+      tickSize:          priceFilter ? parseFloat(priceFilter.tickSize)  : null,
     });
   }
   return symbolInfoCache.get(symbol) || null;
@@ -136,7 +138,11 @@ async function calcQty(symbol, entryPrice, leverage, info) {
   const step    = info.stepSize || Math.pow(10, -info.quantityPrecision);
   const floored = Math.floor(rawQty / step) * step;
   const decimals = step.toString().includes('.') ? step.toString().split('.')[1].length : 0;
-  const qty     = parseFloat(floored.toFixed(decimals));
+  let qty     = parseFloat(floored.toFixed(decimals));
+  // Bảo đảm notional sau khi làm tròn không bị hụt dưới minNotional sàn (tránh lỗi Binance notional < 20)
+  if (qty > 0 && (qty * entryPrice) < minNotional) {
+    qty = parseFloat((qty + step).toFixed(decimals));
+  }
   return { qty, sizeUsdt, balance };
 }
 
@@ -223,10 +229,10 @@ async function placeStopOrder(symbol, side, type, stopPrice) {
   const cleanSym = (symbol || '').toUpperCase().replace(/USDT$/, '');
   const info = await getSymbolInfo(cleanSym);
   const pricePrecision = info?.pricePrecision ?? 4;
-  const tickSize = info?.stepSize || Math.pow(10, -pricePrecision);
+  const tickSize = info?.tickSize || (info?.pricePrecision ? Math.pow(10, -info.pricePrecision) : 0.01);
 
   let finalStopPriceStr;
-  if (tickSize) {
+  if (tickSize && tickSize > 0) {
     const roundedPrice = Math.round(stopPrice / tickSize) * tickSize;
     const dec = Math.max(0, Math.round(-Math.log10(tickSize)));
     finalStopPriceStr = roundedPrice.toFixed(dec);

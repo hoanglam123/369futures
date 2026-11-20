@@ -84,6 +84,7 @@ function handleMessage(raw) {
   const orderId   = o.i;
   const symbol    = o.s.replace(/USDT$/, '');
   const orderType = o.ot;
+  const algoId    = o.si || o.aid || null;
 
   if (o.X === 'FILLED') {
     const avgPrice   = parseFloat(o.ap) || 0;
@@ -91,7 +92,7 @@ function handleMessage(raw) {
     const reduceOnly = o.R === true || o.R === 'true';
     log.trade(`WS FILL: ${symbol} ${side} ${orderType} #${orderId} avgPrice=${avgPrice} reduceOnly=${reduceOnly}`);
     for (const cb of _fillCallbacks) {
-      try { cb({ orderId, symbol, avgPrice, side, orderType, reduceOnly }); } catch (e) {
+      try { cb({ orderId, symbol, avgPrice, side, orderType, reduceOnly, algoId }); } catch (e) {
         log.warn('binanceStream: fill callback lỗi', { error: e.message });
       }
     }
