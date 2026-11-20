@@ -32,8 +32,8 @@ const MIN_HOLD_BEFORE_REVERSAL_MS  = parseInt(process.env.MIN_HOLD_HOURS_REVERSA
 const MIN_PRICE_CHANGE_TO_UPDATE   = parseFloat(process.env.MIN_TP_SL_UPDATE_PCT || '1.5');
 // ENTRY_EXPIRY_HOURS: hủy lệnh pending nếu giá không fill sau X giờ (market đã thay đổi)
 const ENTRY_EXPIRY_MS              = parseInt(process.env.ENTRY_EXPIRY_HOURS || '4', 10) * 3_600_000;
-// WS_FILL_FALLBACK_MINUTES: khoảng cách giữa các lần poll REST để phát hiện WS fill event bị miss (1 phút)
-const WS_FILL_FALLBACK_MS          = parseInt(process.env.WS_FILL_FALLBACK_MINUTES || '1', 10) * 60_000;
+// WS_FILL_FALLBACK_MINUTES: khoảng cách giữa các lần poll REST để phát hiện WS fill event bị miss (mặc định 5 phút để tiết kiệm API weight)
+const WS_FILL_FALLBACK_MS          = parseInt(process.env.WS_FILL_FALLBACK_MINUTES || '5', 10) * 60_000;
 // TRADE_COOLDOWN_HOURS: không vào lại cùng coin trong X giờ sau khi đóng lệnh (TP/SL/reversed)
 const TRADE_COOLDOWN_MS            = parseInt(process.env.TRADE_COOLDOWN_HOURS || '6', 10) * 3_600_000;
 // MIN_SL_ATR_MULT: SL tối thiểu phải cách entry X lần ATR (tránh stop-hunt trong vùng noise)
@@ -1570,7 +1570,7 @@ async function checkActiveTrades() {
           if (Date.now() - lastCheck > WS_FILL_FALLBACK_MS) {
             _fillCheckMs.set(trade.id, Date.now());
             const elapsedMin = Math.round(pendingMs / 60_000);
-            log.warn(`WS FILL FALLBACK: kiểm tra order #${trade.binanceEntryOrderId} ${trade.symbol} — WS chưa fire sau ${elapsedMin}m`);
+            log.price(`[Limit Fallback Poll] Kiểm tra order #${trade.binanceEntryOrderId} ${trade.symbol} sau ${elapsedMin}m`);
             try {
               const order = await binanceTrader.getOrderStatus(trade.symbol, trade.binanceEntryOrderId);
               // Helper: recover fill từ avgPrice (dùng lại cho cả order-based và posAmt-based)
