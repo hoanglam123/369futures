@@ -33,6 +33,8 @@ module.exports = {
   score369Method:        core.score369Method,
   format369ForPrompt:    core.format369ForPrompt,
   getLevelCache:         core.getLevelCache,
+  setLevelCacheEntry:    core.setLevelCacheEntry,
+  mergeLevelCache:       core.mergeLevelCache,
   PROXIMITY_PCT:         core.PROXIMITY_PCT,
 
   // ── WebSocket stream ─────────────────────────────────────────────────────

@@ -36,11 +36,15 @@ async function getAllActiveFuturesSymbols(forceRefresh = false) {
       const rawSymbols = res.data?.symbols || [];
       const active = [];
 
+      const STABLECOINS = new Set(['USDT', 'USDC', 'BUSD', 'DAI', 'TUSD', 'FDUSD', 'EUR', 'GBP']);
       for (const s of rawSymbols) {
         if (
           s.status === 'TRADING' &&
           s.contractType === 'PERPETUAL' &&
-          s.quoteAsset === 'USDT'
+          s.quoteAsset === 'USDT' &&
+          s.baseAsset &&
+          !STABLECOINS.has(s.baseAsset) &&
+          /^[A-Z0-9]+$/.test(s.baseAsset)
         ) {
           active.push(s.baseAsset);
         }

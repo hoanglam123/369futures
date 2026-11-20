@@ -107,6 +107,7 @@ if (process.argv.includes('--run-now')) {
   });
 
 } else {
+  (async () => {
   // ─── Chế độ daemon: lên lịch chạy tự động ──────────────────────────────────
   console.log('🚀 Crypto News Bot đang khởi động...');
   console.log(`📅 Lịch gửi tin: ${CRON_SCHEDULE} (${TIMEZONE})`);
@@ -176,29 +177,45 @@ if (process.argv.includes('--run-now')) {
   // Đồng bộ vị thế thủ công đang mở (sau 3s để REST API ổn định)
   setTimeout(() => syncManualPositions('startup').catch(() => {}), 3000);
 
-  // Khởi động PP369 markPrice stream với FIXED_COINS (sẽ cập nhật sau runJob đầu tiên)
-  const { FIXED_COINS } = require('./src/job');
-  start369Stream(FIXED_COINS);
+  // ─── Khởi tạo Dynamic Futures Universe 400+ coin (Giai đoạn 2) ─────────────
+  const { getAllActiveFuturesSymbols, filterSymbolsByGrid } = require('./src/services/dynamicUniverse');
+  const { initH1RefCache, prePopulateLevelCache } = require('./src/services/h1RefCache');
+  const { updatePricesRest, getPrices } = require('./src/pp369/stream');
+  const { FIXED_COINS, setUniverseSymbols } = require('./src/job');
 
-  // Ghi FIXED_COINS vào pp369_symbols.json ngay khi khởi động
-  // (job sẽ cập nhật với full list khi chạy lần đầu)
+  let activeCoinList = FIXED_COINS;
+  try {
+    const allSymbols = await getAllActiveFuturesSymbols();
+    await updatePricesRest().catch(() => {});
+    const prices = getPrices();
+    const validSymbols = filterSymbolsByGrid(allSymbols, prices);
+    if (validSymbols.length > 0) {
+      activeCoinList = validSymbols;
+      setUniverseSymbols(validSymbols);
+      await initH1RefCache(validSymbols);
+      const prePopCount = prePopulateLevelCache(validSymbols, prices);
+      log.system(`[AutoTrade] ✓ Khởi tạo Dynamic Universe: ${validSymbols.length} coin (Pre-populated ${prePopCount} mốc 369)`);
+    }
+  } catch (err) {
+    log.warn(`[AutoTrade] Khởi tạo Universe thất bại: ${err.message} — fallback về ${FIXED_COINS.length} coin.`);
+  }
+
+  // Khởi động PP369 markPrice stream với toàn bộ Universe
+  start369Stream(activeCoinList);
+
+  // Ghi danh sách symbols vào pp369_symbols.json
   try {
     const fs   = require('fs');
     const path = require('path');
     const dataDir = path.join(__dirname, 'data');
     if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
     const symFile = path.join(dataDir, 'pp369_symbols.json');
-    const existing = fs.existsSync(symFile)
-      ? JSON.parse(fs.readFileSync(symFile, 'utf8'))
-      : null;
-    // Chỉ ghi nếu chưa có file hoặc file chỉ có FIXED_COINS (chưa qua job lần nào)
-    if (!existing || existing.symbols?.length <= FIXED_COINS.length) {
-      fs.writeFileSync(symFile, JSON.stringify({
-        symbols: FIXED_COINS, fixed: FIXED_COINS,
-        liquid: [], gainers: [],
-        updatedAt: new Date().toISOString(), source: 'startup',
-      }), 'utf8');
-    }
+    fs.writeFileSync(symFile, JSON.stringify({
+      symbols: activeCoinList,
+      fixed: FIXED_COINS,
+      updatedAt: new Date().toISOString(),
+      source: 'dynamic_universe',
+    }), 'utf8');
   } catch {}
 
   // Kết nối runJob vào Telegram command /runnow
@@ -216,6 +233,9 @@ if (process.argv.includes('--run-now')) {
     log.system(`Khôi phục ${restored.length} lệnh — gửi summary lên Telegram`);
     sendActiveTradesSummary().catch(e => log.warn('Không thể gửi trade summary', { error: e.message }));
   }
+  })().catch(err => {
+    log.error('Lỗi khởi động daemon bot-new', { error: err.message, stack: err.stack });
+  });
 
   // Giữ tiến trình Node.js chạy liên tục
   process.on('SIGINT', () => {

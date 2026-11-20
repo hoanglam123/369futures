@@ -40,13 +40,50 @@ const {
   syncWebSocketSubscriptions, getPrices
 } = pp369;
 const { updateShadowPrices, getShadowStats } = require('./services/shadowTracker');
+const { checkMonthTransition } = require('./services/h1RefCache');
 
 let _isRunning = false;        // full market report đang chạy
 let _isSilentRunning = false;  // signal scan (silent) đang chạy
 const _prev369State = {};      // { [symbol]: key } tránh gửi alert PP369 trùng lặp
 let _lastTaSymbols  = null;    // coin list cache từ lần runJob() gần nhất, dùng cho scan 1p
+let _universeSymbols = null;   // Universe 400+ coin năng động từ Binance Futures
 let _lastMarketData = null;    // market data cache (TA/whale/deriv) cho confluence re-score trong scan 1p
 let _lastHeartbeatTime = 0;    // Heartbeat định kỳ 15 phút đồng bộ bot-h4
+
+async function getUniverseSymbols() {
+  if (_universeSymbols && _universeSymbols.length > 0) {
+    return _universeSymbols;
+  }
+  try {
+    const fs = require('fs');
+    const path = require('path');
+    const symFile = path.join(__dirname, '..', 'data', 'pp369_symbols.json');
+    if (fs.existsSync(symFile)) {
+      const data = JSON.parse(fs.readFileSync(symFile, 'utf8'));
+      if (Array.isArray(data.symbols) && data.symbols.length > 0) {
+        _universeSymbols = data.symbols;
+        return _universeSymbols;
+      }
+    }
+  } catch (_) {}
+
+  try {
+    const all = await getAllActiveFuturesSymbols();
+    const valid = filterSymbolsByGrid(all, getPrices());
+    if (valid.length > 0) {
+      _universeSymbols = valid;
+      return _universeSymbols;
+    }
+  } catch (_) {}
+
+  return _lastTaSymbols ?? FIXED_COINS;
+}
+
+function setUniverseSymbols(syms) {
+  if (Array.isArray(syms) && syms.length > 0) {
+    _universeSymbols = [...syms];
+  }
+}
 
 // ─── Tham số cấu hình (đọc từ .env, có giá trị mặc định hợp lý) ──────────────
 
@@ -457,17 +494,30 @@ function parseCronIntervalHours(cron) {
  * Gọi mỗi 1 phút để alert kịp thời hơn so với signal scan 5p.
  */
 async function run369AlertScan() {
-  const symbols = _lastTaSymbols ?? FIXED_COINS;
+  const symbols = await getUniverseSymbols();
   try {
-    // Proximity filter: chỉ scan coin đang trong vùng ≤PROXIMITY_PCT% của mốc
-    // Coin xa mốc → bỏ qua, tiết kiệm API call. Fail-open nếu chưa có WebSocket data.
-    const toScan  = getNearbySymbols(symbols, getLevelCache(), PROXIMITY_PCT);
+    // Tự động kiểm tra chuyển giao mốc H1 đầu tháng khi sang tháng mới
+    if (typeof checkMonthTransition === 'function') {
+      try {
+        await checkMonthTransition(symbols, getPrices());
+      } catch (_) {}
+    }
+
+    let levelCache = getLevelCache();
+    if (Object.keys(levelCache).length === 0) {
+      const { initH1RefCache, prePopulateLevelCache } = require('./services/h1RefCache');
+      await initH1RefCache(symbols);
+      prePopulateLevelCache(symbols, getPrices());
+      levelCache = getLevelCache();
+    }
+
+    // Scan sát mốc (<=0.5%) với strict = true
+    const scanNearby = getNearbySymbols(symbols, levelCache, 0.005, true);
 
     // ─── ĐỒNG BỘ LOG ĐỊNH KỲ 15 PHÚT TỪ BOT-H4 ───
     const nowTime = Date.now();
     if (nowTime - _lastHeartbeatTime >= 15 * 60 * 1000) {
       _lastHeartbeatTime = nowTime;
-      const scanNearby = getNearbySymbols(symbols, getLevelCache(), 0.005);
       log.system(`[AutoTrade] 🟢 Hệ thống hoạt động bình thường | Theo dõi: ${symbols.length} coin | Tiệm cận sát mốc (<=0.5%): ${scanNearby.length} coin`);
 
       try {
@@ -477,6 +527,21 @@ async function run369AlertScan() {
         }
       } catch (_) {}
     }
+
+    if (!scanNearby.length) return;
+
+    // Sắp xếp theo khoảng cách tới mốc và chỉ lấy Top 8 mã sát nhất (Adaptive Proximity Sorter)
+    scanNearby.sort((a, b) => {
+      const pa = getMarkPrice(a) || _lastMarketData?.ta?.[a]?.price || 1;
+      const pb = getMarkPrice(b) || _lastMarketData?.ta?.[b]?.price || 1;
+      const la = levelCache[a];
+      const lb = levelCache[b];
+      const da = la ? Math.min(Math.abs(pa - la.longEntry), Math.abs(la.shortEntry - pa)) / pa : 999;
+      const db = lb ? Math.min(Math.abs(pb - lb.longEntry), Math.abs(lb.shortEntry - pb)) / pb : 999;
+      return da - db;
+    });
+
+    const toScan = scanNearby.slice(0, 8);
 
     // Đồng bộ subscription động (Phase 3)
     if (typeof syncWebSocketSubscriptions === 'function') {
@@ -562,4 +627,11 @@ async function run369AlertScan() {
   }
 }
 
-module.exports = { runJob, isJobRunning, run369AlertScan, FIXED_COINS };
+module.exports = {
+  runJob,
+  isJobRunning,
+  run369AlertScan,
+  FIXED_COINS,
+  getUniverseSymbols,
+  setUniverseSymbols
+};

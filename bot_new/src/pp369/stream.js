@@ -248,19 +248,23 @@ function getSubscribedSymbols() {
   return Array.from(_subscribed);
 }
 
-function getNearbySymbols(symbols, levelCache, threshold = 0.02) {
+function getNearbySymbols(symbols, levelCache, threshold = 0.02, strict = false) {
   return (symbols || []).filter(sym => {
     const price  = _prices[sym];
     const levels = levelCache ? levelCache[sym] : null;
 
-    if (!price || !levels?.longEntry || !levels?.shortEntry) return true;
+    // Chưa có giá nhưng đã có level -> tạm thời skip để đợi WS nhận giá
+    if (levels?.longEntry && levels?.shortEntry && !price) return false;
 
-    const adaptiveThreshold = levels.step
-      ? Math.max(threshold, (levels.step / price) * 0.6)
-      : threshold;
+    // Chưa có level -> include để tính mốc
+    if (!levels?.longEntry || !levels?.shortEntry) return true;
 
-    const distLong  = (price - levels.longEntry)  / price;
-    const distShort = (levels.shortEntry - price) / price;
+    const adaptiveThreshold = (strict || !levels.step)
+      ? threshold
+      : Math.max(threshold, (levels.step / price) * 0.50);
+
+    const distLong  = Math.abs(price - levels.longEntry)  / price;
+    const distShort = Math.abs(levels.shortEntry - price) / price;
 
     return distLong <= adaptiveThreshold || distShort <= adaptiveThreshold;
   });

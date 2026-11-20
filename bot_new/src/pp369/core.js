@@ -131,6 +131,15 @@ async function fetchH1Cached(symbol) {
   const cached  = _h1Cache[symbol];
   if (cached && cached.monthStart === startMs) return cached;
 
+  try {
+    const { getH1RefCache } = require('../services/h1RefCache');
+    const diskCache = getH1RefCache();
+    if (diskCache && diskCache[symbol] && diskCache[symbol].monthStart === startMs) {
+      _h1Cache[symbol] = diskCache[symbol];
+      return _h1Cache[symbol];
+    }
+  } catch (_) {}
+
   const candles = await fetchBinanceKlines(symbol, '1h', startMs, 2);
   if (!candles.length) return null;
 
@@ -283,33 +292,64 @@ async function get369Signal(symbol, currentPrice = null) {
 
     const { openPrice, closePrice, step, decimals, upperPrice, lowerPrice } = h1;
 
+    const price = currentPrice;
+
+    // Dùng step từ GIÁ HIỆN TẠI thay vì H1 open — đảm bảo khoảng cách mốc phù hợp
+    // khi coin đã tăng/giảm mạnh so với đầu tháng (VD: coin 10x → step tăng 10x theo)
+    const effectiveStep     = getStep(price || openPrice);
+    const effectiveDecimals = getDecimals(price || openPrice);
+
+    // Fast pre-check: Nếu có currentPrice, kiểm tra lưới và cự ly trước khi fetch nến 1m (tiết kiệm API)
+    if (price != null && price > 0) {
+      const distTicks = Math.ceil(Math.max(
+        Math.abs(upperPrice - price),
+        Math.abs(lowerPrice - price),
+      ) / effectiveStep);
+      const levelsRange = Math.max(LEVELS_RANGE, distTicks + 5);
+
+      const grid = buildLevelGrid(upperPrice, lowerPrice, effectiveStep, effectiveDecimals, levelsRange);
+      const longEntry  = grid.filter(l => l.type === 'tren' && l.value < price).pop();
+      const shortEntry = grid.find(l   => l.type === 'duoi' && l.value > price);
+
+      if (longEntry && shortEntry) {
+        _levelCache[symbol] = { longEntry: longEntry.value, shortEntry: shortEntry.value, step: effectiveStep };
+
+        const nearTol   = price * NEAR_LEVEL_PCT * 2; // 0.2% dung sai chạm
+        const nearLong  = (price - longEntry.value)  <= nearTol;
+        const nearShort = (shortEntry.value - price) <= nearTol;
+
+        if (!nearLong && !nearShort) {
+          return {
+            signal: 'NONE', symbol, month, openPrice, closePrice, step: effectiveStep,
+            targetLevel: null,
+            reason: `Giá ${price} chưa chạm mốc 369`
+          };
+        }
+      }
+    }
+
     const m1Candles = await fetchM1Incremental(symbol);
 
     if (!m1Candles.length) {
       return { signal: 'NONE', symbol, month, reason: 'Không lấy được nến 1m tháng này' };
     }
 
-    const price = currentPrice ?? m1Candles[m1Candles.length - 1].close;
-
-    // Dùng step từ GIÁ HIỆN TẠI thay vì H1 open — đảm bảo khoảng cách mốc phù hợp
-    // khi coin đã tăng/giảm mạnh so với đầu tháng (VD: coin 10x → step tăng 10x theo)
-    const effectiveStep     = getStep(price);
-    const effectiveDecimals = getDecimals(price);
+    const finalPrice = price ?? m1Candles[m1Candles.length - 1].close;
 
     const distTicks = Math.ceil(Math.max(
-      Math.abs(upperPrice - price),
-      Math.abs(lowerPrice - price),
+      Math.abs(upperPrice - finalPrice),
+      Math.abs(lowerPrice - finalPrice),
     ) / effectiveStep);
     const levelsRange = Math.max(LEVELS_RANGE, distTicks + 5);
 
     const grid = buildLevelGrid(upperPrice, lowerPrice, effectiveStep, effectiveDecimals, levelsRange);
 
-    const longEntry  = grid.filter(l => l.type === 'tren' && l.value < price).pop();
-    const shortEntry = grid.find(l   => l.type === 'duoi' && l.value > price);
+    const longEntry  = grid.filter(l => l.type === 'tren' && l.value < finalPrice).pop();
+    const shortEntry = grid.find(l   => l.type === 'duoi' && l.value > finalPrice);
 
     if (!longEntry || !shortEntry) {
       return { signal: 'NONE', symbol, month, openPrice, closePrice, step: effectiveStep,
-               reason: `Giá ${price} nằm ngoài vùng lưới mốc` };
+               reason: `Giá ${finalPrice} nằm ngoài vùng lưới mốc` };
     }
 
     _levelCache[symbol] = { longEntry: longEntry.value, shortEntry: shortEntry.value, step: effectiveStep };
@@ -484,7 +524,20 @@ function format369ForPrompt(signals369Map) {
 
 function getLevelCache() { return _levelCache; }
 
+function setLevelCacheEntry(symbol, data) {
+  if (symbol && data) {
+    _levelCache[symbol] = data;
+  }
+}
+
+function mergeLevelCache(entries) {
+  if (entries && typeof entries === 'object') {
+    Object.assign(_levelCache, entries);
+  }
+}
+
 module.exports = {
   get369Signal, get369SignalsForCoins, score369Method, format369ForPrompt,
-  getLevelCache, PROXIMITY_PCT,
+  getLevelCache, setLevelCacheEntry, mergeLevelCache, PROXIMITY_PCT,
+  buildLevelGrid, getStep, getDecimals, LEVELS_RANGE,
 };
