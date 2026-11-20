@@ -143,10 +143,15 @@ function saveTrades() {
 const activeTrades = loadTrades();
 if (activeTrades.length > 0) {
   log.system(`Khôi phục ${activeTrades.length} lệnh đang theo dõi từ file`);
-  // Kết nối mark price WS cho các lệnh đã fill (setTimeout để hàm kịp được định nghĩa)
+  // Kết nối mark price WS cho toàn bộ lệnh active (cả filled lẫn pending limit)
   setTimeout(() => {
     for (const t of activeTrades) {
-      if (t.status === 'active' && t.entryFilled) ensureMarkPriceWS(t.symbol);
+      if (t.status === 'active') {
+        ensureMarkPriceWS(t.symbol);
+        if (!t.entryFilled) {
+          try { require('./bounceCancel').trackPendingLimit(t); } catch (_) {}
+        }
+      }
     }
   }, 0);
 }
@@ -811,6 +816,8 @@ function addTrades(trades, taMap = {}) {
             `<i>Bot vẫn theo dõi TP/SL tín hiệu này. Nạp thêm USDT để auto trade hoạt động.</i>`,
           ], 1500, NEWS_CHAT_ID).catch(() => {});
         } else if (result) {
+          ensureMarkPriceWS(tradeRef.symbol);
+          try { require('./bounceCancel').trackPendingLimit(tradeRef); } catch (_) {}
           saveTrades();
           sendMessages([
             `🤖 <b>AUTO TRADE BINANCE — ${tradeRef.symbol} ${dirLabel} ⚡x${tradeRef.leverage || 10}</b>\n` +
@@ -1631,9 +1638,78 @@ async function checkActiveTrades() {
       // Lệnh LIMIT đang treo trên sàn Binance chờ giá khớp.
       // - Khớp lệnh được bắt tức thì qua WebSocket User Data Stream (ORDER_TRADE_UPDATE)
       // - Dự phòng rớt mạng WebSocket qua chu kỳ syncManualPositions() (getAllPositions)
-      // - Hủy lệnh tự động nếu giá bật nảy ra xa (checkBounceCancel) hoặc chờ quá 90p (ENTRY_EXPIRY_MS)
-      // Không cần poll REST orderId liên tục để tiết kiệm API weight và giữ log sạch sẽ.
+      // - Hủy lệnh tự động nếu giá bật nảy ra xa (checkBounceCancel >= 1.5%) hoặc timeout chạm entry (10p) / timeout chờ (15p)
       if (trade.binanceEntryOrderId) {
+        ensureMarkPriceWS(trade.symbol);
+
+        // 1. Nhận diện chạm mốc Entry (chuẩn bot-h4)
+        const isTouch = isLong
+          ? price <= trade.entryPrice * 1.0015
+          : price >= trade.entryPrice * 0.9985;
+        if (isTouch) {
+          if (!trade.hasTouchedEntry) {
+            trade.hasTouchedEntry = true;
+            trade.touchedTime = Date.now();
+            saveTrades();
+            log.trade(`[TradeMonitor] ${trade.symbol} ${trade.direction}: Đã chạm mốc Entry (${fmtPrice(trade.entryPrice)}) — kích hoạt bộ đếm timeout chạm 10p`);
+          }
+        }
+
+        // 2. Kiểm tra Bounce Cancel (Giá chạm/tiệm cận mốc rồi bật nảy >= 1.5% ra xa)
+        try {
+          const { checkBounceCancel } = require('./bounceCancel');
+          const { shouldCancel, reason } = checkBounceCancel(trade, price);
+          if (shouldCancel) {
+            log.system(`[AutoTrade] [BounceCancel] ${trade.symbol} ${trade.direction}: ${reason} → Hủy LIMIT ngay lập tức`);
+            await binanceTrader.cancelEntryOrder(trade).catch(() => {});
+            trade.status = 'canceled';
+            trade.closedAt = new Date();
+            trade.cancelReason = 'bounce_cancel';
+            saveTrades();
+            _wsBroadcast('trades', activeTrades.filter(t => t.status === 'active'));
+            sendMessages([
+              `🔄 <b>[AutoTrade] Hủy LIMIT (Bounce Cancel)</b>\n` +
+              `━━━━━━━━━━━━━━━━\n` +
+              `• Coin: <b>${trade.symbol} ${isLong ? '🟢 LONG' : '🔴 SHORT'}</b>\n` +
+              `• Entry: <code>${fmtPrice(trade.entryPrice)}</code> | Giá hiện tại: <code>${fmtPrice(price)}</code>\n` +
+              `• <b>Giá đã nảy ≥ 1.5% ra xa mốc sau khi chạm entry → Hủy lệnh bảo vệ vốn!</b>\n` +
+              `<i>🤖 Tránh rủi ro khi giá quay lại test lần 2 (dễ thủng cản).</i>`
+            ], 1500, NEWS_CHAT_ID).catch(() => {});
+            continue;
+          }
+        } catch (_) {}
+
+        // 3. Dual Timeout chuẩn bot-h4:
+        // - LIMIT_TOUCHED_TIMEOUT: Đã chạm Entry mà quá 10 phút không khớp -> Hủy
+        // - LIMIT_TIMEOUT: Quá 15 phút mà giá không về đón Entry -> Hủy
+        const now = Date.now();
+        const limitTouchedTimeoutMs = parseInt(process.env.LIMIT_TOUCHED_TIMEOUT_MINUTES || '10', 10) * 60_000;
+        const limitTimeoutMs = parseInt(process.env.LIMIT_TIMEOUT_MINUTES || '15', 10) * 60_000;
+        const isTouchedTimeout = trade.hasTouchedEntry === true && (now - trade.touchedTime > limitTouchedTimeoutMs);
+        const isNormalTimeout  = !trade.hasTouchedEntry && (now - new Date(trade.recommendedAt).getTime() > limitTimeoutMs);
+
+        if (isTouchedTimeout || isNormalTimeout) {
+          const typeLabel = isTouchedTimeout
+            ? `đã chạm Entry (${fmtPrice(trade.entryPrice)}) quá ${Math.round(limitTouchedTimeoutMs / 60000)} phút không khớp`
+            : `chờ quá ${Math.round(limitTimeoutMs / 60000)} phút giá không về vùng Entry`;
+          log.system(`[TradeMonitor] Lệnh LIMIT của ${trade.symbol} ${typeLabel} → Tiến hành hủy...`);
+          await binanceTrader.cancelEntryOrder(trade).catch(() => {});
+          trade.status = 'canceled';
+          trade.closedAt = new Date();
+          trade.cancelReason = isTouchedTimeout ? 'limit_touched_timeout' : 'limit_timeout';
+          saveTrades();
+          _wsBroadcast('trades', activeTrades.filter(t => t.status === 'active'));
+          sendMessages([
+            `⏰ <b>HỦY LỆNH LIMIT (${isTouchedTimeout ? 'TOUCH TIMEOUT' : 'TIMEOUT'})</b>\n` +
+            `━━━━━━━━━━━━━━━━\n` +
+            `• Coin: <b>${trade.symbol} ${isLong ? '🟢 LONG' : '🔴 SHORT'}</b>\n` +
+            `• Entry: <code>${fmtPrice(trade.entryPrice)}</code>\n` +
+            `• Lý do: <b>${typeLabel}</b>\n` +
+            `<i>🤖 Tự động hủy lệnh để giải phóng vốn và loại bỏ rủi ro khớp muộn.</i>`
+          ], 1500, NEWS_CHAT_ID).catch(() => {});
+          continue;
+        }
+
         log.price(`${trade.symbol} ${trade.direction}: chờ Binance LIMIT #${trade.binanceEntryOrderId} fill...`);
         continue;
       }
@@ -2358,11 +2434,13 @@ function _doRebuildCombinedMpWs() {
         const { shouldCancel, reason } = checkBounceCancel(pTrade, markPrice);
         if (shouldCancel) {
           log.warn(`[TradeMonitor] Bounce Cancel: Hủy lệnh LIMIT ${symbol} vì nảy mốc: ${reason}`);
-          pTrade.status = 'cancelled';
-          pTrade.closeReason = 'bounce_cancel';
+          pTrade.status = 'canceled';
+          pTrade.closedAt = new Date();
+          pTrade.cancelReason = 'bounce_cancel';
           saveTrades();
+          _wsBroadcast('trades', activeTrades.filter(t => t.status === 'active'));
           if (binanceTrader.isEnabled() && pTrade.binanceEntryOrderId) {
-            binanceTrader.cancelOrder(symbol, pTrade.binanceEntryOrderId).catch(() => {});
+            binanceTrader.cancelEntryOrder(pTrade).catch(() => {});
           }
         }
       }

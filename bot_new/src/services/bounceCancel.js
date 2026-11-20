@@ -11,8 +11,8 @@
 
 const { log } = require('./logger');
 
-const CLOSE_PROXIMITY_PCT = 0.08; // 0.08% xem như đã tiệm cận mốc
-const BOUNCE_AWAY_PCT     = 0.60; // 0.60% bật nảy ra xa
+const CLOSE_PROXIMITY_PCT = parseFloat(process.env.CLOSE_PROXIMITY_PCT || '0.20'); // 0.20% xem như đã tiệm cận mốc (chuẩn bot-h4)
+const BOUNCE_AWAY_PCT     = parseFloat(process.env.BOUNCE_AWAY_PCT || '1.50');     // 1.50% bật nảy ra xa (thích ứng đòn bẩy thấp 3x-7x)
 const BOUNCE_COOLDOWN_MS  = 60 * 60 * 1000; // 60 phút cooldown cho mốc
 
 // key: `${symbol}_${targetLevel}` -> { nearestPrice, peakPrice, setAt, ... }
@@ -84,36 +84,48 @@ function checkBounceCancel(trade, currentPrice) {
     tracker.minDistancePct = distPct;
   }
 
-  // Đã từng tiếp cận sát mốc (<= 0.08%)
-  if (distPct <= CLOSE_PROXIMITY_PCT) {
+  // Đã từng tiếp cận sát mốc (<= 0.20% hoặc chạm/xuyên qua entry chuẩn bot-h4)
+  const isLong = tracker.direction === 'LONG' || tracker.direction === 'BUY';
+  const isTouch = isLong ? currentPrice <= entry * 1.0015 : currentPrice >= entry * 0.9985;
+  if (distPct <= CLOSE_PROXIMITY_PCT || isTouch) {
     tracker.hasApproached = true;
+    if (!tracker.touchedTime) tracker.touchedTime = Date.now();
   }
 
   // Cập nhật giá nảy cực đại sau khi đã tiếp cận
-  const isLong = tracker.direction === 'LONG' || tracker.direction === 'BUY';
   if (tracker.hasApproached) {
     if (isLong) {
-      // LONG: Chờ đón ở dưới, giá bật tăng ngược lên trên entry
+      // LONG: Chờ đón ở dưới, theo dõi đỉnh nảy cao nhất và kiểm tra bật tăng ngược lên trên entry
+      if (tracker.peakPrice == null || currentPrice > tracker.peakPrice) {
+        tracker.peakPrice = currentPrice;
+      }
       const bouncePct = ((currentPrice - entry) / entry) * 100;
-      if (bouncePct >= BOUNCE_AWAY_PCT) {
+      const maxBouncePct = ((tracker.peakPrice - entry) / entry) * 100;
+      const effBounce = Math.max(bouncePct, maxBouncePct);
+      if (effBounce >= BOUNCE_AWAY_PCT) {
         _trackedLimits.delete(key);
         _bounceCooldowns.set(key, Date.now() + BOUNCE_COOLDOWN_MS);
-        log.system(`[AutoTrade] [BounceCancel] ${sym} LONG: entry=$${entry}, current=$${currentPrice} (+${bouncePct.toFixed(2)}% >= ${BOUNCE_AWAY_PCT.toFixed(2)}%) → Hủy LIMIT ngay lập tức`);
+        log.system(`[AutoTrade] [BounceCancel] ${sym} LONG: entry=$${entry}, current=$${currentPrice} (nảy +${effBounce.toFixed(2)}% >= ${BOUNCE_AWAY_PCT.toFixed(2)}%) → Hủy LIMIT ngay lập tức`);
         return {
           shouldCancel: true,
-          reason: `Bounce Cancel: Giá đã nảy +${bouncePct.toFixed(2)}% ra xa mốc sau khi tiệm cận ${tracker.minDistancePct.toFixed(3)}%`
+          reason: `Bounce Cancel: Giá đã nảy +${effBounce.toFixed(2)}% ra xa mốc sau khi chạm entry (tiệm cận ${tracker.minDistancePct.toFixed(3)}%)`
         };
       }
     } else {
-      // SHORT: Chờ đón ở trên, giá bật giảm ngược xuống dưới entry
+      // SHORT: Chờ đón ở trên, theo dõi đáy dội thấp nhất và kiểm tra bật giảm ngược xuống dưới entry
+      if (tracker.lowestPrice == null || currentPrice < tracker.lowestPrice) {
+        tracker.lowestPrice = currentPrice;
+      }
       const bouncePct = ((entry - currentPrice) / entry) * 100;
-      if (bouncePct >= BOUNCE_AWAY_PCT) {
+      const maxBouncePct = ((entry - tracker.lowestPrice) / entry) * 100;
+      const effBounce = Math.max(bouncePct, maxBouncePct);
+      if (effBounce >= BOUNCE_AWAY_PCT) {
         _trackedLimits.delete(key);
         _bounceCooldowns.set(key, Date.now() + BOUNCE_COOLDOWN_MS);
-        log.system(`[AutoTrade] [BounceCancel] ${sym} SHORT: entry=$${entry}, current=$${currentPrice} (+${bouncePct.toFixed(2)}% >= ${BOUNCE_AWAY_PCT.toFixed(2)}%) → Hủy LIMIT ngay lập tức`);
+        log.system(`[AutoTrade] [BounceCancel] ${sym} SHORT: entry=$${entry}, current=$${currentPrice} (dội -${effBounce.toFixed(2)}% >= ${BOUNCE_AWAY_PCT.toFixed(2)}%) → Hủy LIMIT ngay lập tức`);
         return {
           shouldCancel: true,
-          reason: `Bounce Cancel: Giá đã dội -${bouncePct.toFixed(2)}% ra xa mốc sau khi tiệm cận ${tracker.minDistancePct.toFixed(3)}%`
+          reason: `Bounce Cancel: Giá đã dội -${effBounce.toFixed(2)}% ra xa mốc sau khi chạm entry (tiệm cận ${tracker.minDistancePct.toFixed(3)}%)`
         };
       }
     }

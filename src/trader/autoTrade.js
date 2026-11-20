@@ -1987,9 +1987,9 @@ async function startAutoTrade(coins) {
               const entryPrice = parseFloat(order.price);
               const stepVal = meta.step || getStep(entryPrice);
               const unit = stepVal / 3;
-              const touchThresholdPct = 0.12;             // fixed 0.12% — khoảng cách tuyệt đối từ entry (không phụ thuộc grid)
-              const bounceDistance = unit * 0.40;         // Cố định 40 ticks (0.40 * unit) nảy khỏi entry/điểm chạm là hủy LIMIT ngay
-              const bouncePct = (bounceDistance / entryPrice) * 100;
+              const touchThresholdPct = 0.15;             // fixed 0.15% — khoảng cách tuyệt đối từ entry (không phụ thuộc grid)
+              const bounceDistance = Math.max(unit * 0.40, entryPrice * 0.015); // Tối thiểu 1.50% nảy khỏi entry/điểm chạm để thích ứng đòn bẩy thấp (3x-7x)
+              const bouncePct = Math.max((bounceDistance / entryPrice) * 100, 1.50);
 
               if (order.side === 'BUY') {
                 // LONG: kiểm tra xem giá hiện tại có bật nảy đi xa mốc entry hay chưa
@@ -2833,12 +2833,12 @@ async function startAutoTrade(coins) {
         }
       }
 
-      // Ngưỡng nảy xa trước khi đặt lệnh (Pre-entry bounce): Thích ứng theo 25% độ rộng Grid (min 0.60%, max 1.50%)
+      // Ngưỡng nảy xa trước khi đặt lệnh (Pre-entry bounce): Thích ứng theo độ rộng Grid (min 1.50%, max 3.00%)
       const entryPrice = sig.targetLevel;
       const stepVal = sig.step || getStep(entryPrice);
       const unit = stepVal / 3;
       const effGridPct = (sig.gridWidthPct && sig.gridWidthPct > 0) ? sig.gridWidthPct : ((stepVal / entryPrice) * 100);
-      const preEntryBouncePct = Math.min(Math.max(effGridPct * 0.25, 0.60), 1.50);
+      const preEntryBouncePct = Math.min(Math.max(effGridPct * 0.35, 1.50), 3.00);
       const touchThresholdPct = 0.12;
       let maxRecentBouncePct = null;
 
@@ -3552,9 +3552,9 @@ async function checkPendingLimits(client, activeSymbols) {
       const entry = meta.entryPrice;
       const stepVal = meta.step || getStep(entry);
       const unit = stepVal / 3;
-      // Ngưỡng nảy xa hủy lệnh LIMIT: Đồng bộ theo 25% độ rộng Grid (min 0.60%, max 1.50%)
+      // Ngưỡng nảy xa hủy lệnh LIMIT: Đồng bộ theo độ rộng Grid thích ứng đòn bẩy thấp (min 1.50%, max 3.00%)
       const effGridPct = (meta.gridWidthPct && meta.gridWidthPct > 0) ? meta.gridWidthPct : ((stepVal / entry) * 100);
-      const bouncePct = Math.min(Math.max(effGridPct * 0.25, 0.60), 1.50);
+      const bouncePct = Math.min(Math.max(effGridPct * 0.35, 1.50), 3.00);
 
       // 🛡️ BƯỚC 1: AI PRE-FILL LIMIT CANCEL (Kiểm tra vi cấu trúc thông minh khi giá áp sát cực gần Entry)
       if (ENABLE_AI_PREFILL_CANCEL) {
@@ -3970,7 +3970,7 @@ async function checkH1RetestSignals(client, activeSymbols, leverageInfo = {}) {
           //     → nảy từ $0.07539 xuống $0.074x → đã test mốc → xóa
           const nearTouchRange = step * 0.1; // ~10% bước giá = 10 ticks cho coin bước 0.001
           const unit = step / 3;
-          const bouncePct = (unit * 0.40 / targetLevel) * 100; // Cố định 40 ticks (0.40 * unit) nảy khỏi cản là hủy khỏi Watchlist
+          const bouncePct = Math.max((unit * 0.40 / targetLevel) * 100, 1.50); // Tối thiểu 1.50% nảy khỏi cản để thích ứng đòn bẩy thấp
 
           if (isLong) {
             const isNearTouched = h1MinLow <= targetLevel + nearTouchRange;
