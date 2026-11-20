@@ -120,6 +120,7 @@ async function runJob({ silent = false, lookbackHours = null } = {}) {
     log.system('Thu thập dữ liệu từ các nguồn...');
   }
 
+  try {
     const [globalResult, coinsResult, fearGreedResult, newsResult, fundingResult] = await Promise.allSettled([
       getGlobalMarket(),
       getTopCoins(20), // lấy top 20 để có đủ coin liquid sau khi lọc fixed list
