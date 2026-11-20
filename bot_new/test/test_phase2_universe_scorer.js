@@ -276,19 +276,19 @@ async function runAsyncTest(name, fn) {
     assert.strictEqual(MIN_SCORE_TIER2, 8.0, 'Ngưỡng Tier 2 phải là 8.0đ');
 
     const mockCandidates = [
-      { symbol: 'BTC', direction: 'LONG', total: 7.5, verdict: 'CONFIDENT', targetLevel: 90000 },  // Tier 1 đạt
-      { symbol: 'ETH', direction: 'SHORT', total: 6.5, verdict: 'CAUTIOUS', targetLevel: 1800 },    // Tier 1 không đạt (<7)
-      { symbol: 'SUI', direction: 'LONG', total: 8.5, verdict: 'STRONG', targetLevel: 3.2 },       // Tier 2 đạt (>=8)
-      { symbol: 'APT', direction: 'LONG', total: 7.5, verdict: 'CONFIDENT', targetLevel: 8.5 },    // Tier 2 không đạt (<8)
-      { symbol: 'SOL', direction: 'LONG', total: 9.0, verdict: 'BEST', targetLevel: 190.0 }        // Tier 1 đạt
+      { symbol: 'BTC', direction: 'LONG', total: 7.5, verdict: 'CONFIDENT' },                       // Không có targetLevel (thực tế từ scoreAllSetups)
+      { symbol: 'ETH', direction: 'SHORT', total: 6.5, verdict: 'CAUTIOUS' },                      // Tier 1 không đạt (<7)
+      { symbol: 'SUI', direction: 'LONG', total: 8.5, verdict: 'STRONG' },                         // Tier 2 đạt (>=8)
+      { symbol: 'APT', direction: 'LONG', total: 7.5, verdict: 'CONFIDENT' },                      // Tier 2 không đạt (<8)
+      { symbol: 'SOL', direction: 'LONG', total: 9.0, verdict: 'BEST' }                            // Tier 1 đạt
     ];
 
-    // Market data giả lập
+    // Market data giả lập đúng chuẩn thực tế: ta có .price chứ không phải .close
     const mockMarket = {
       ta: {
-        BTC: { close: 90000 },
-        SOL: { close: 190.0 },
-        SUI: { close: 3.2 }
+        BTC: { price: 90000 },
+        SOL: { price: 190.0 },
+        SUI: { price: 3.2 }
       }
     };
 
@@ -304,6 +304,10 @@ async function runAsyncTest(name, fn) {
       } else {
         assert(t.confluenceScore >= 8.0, `Lệnh Tier 2 ${t.symbol} điểm phải >= 8.0`);
       }
+      assert(t.entryPrice > 0, `entryPrice phải > 0, thực tế: ${t.entryPrice}`);
+      assert(t.targetPct > 0, `targetPct phải > 0, thực tế: ${t.targetPct}`);
+      assert(t.slPct > 0, `slPct phải > 0, thực tế: ${t.slPct}`);
+      assert(t.recommendedAt, 'recommendedAt phải được định nghĩa');
       assert(t.rrRatio >= 1.48, 'Mọi lệnh sinh ra phải có R:R >= 1.48');
       assert.strictEqual(t.source, 'quantitative_deterministic', 'Nguồn lệnh phải là quantitative_deterministic');
     });

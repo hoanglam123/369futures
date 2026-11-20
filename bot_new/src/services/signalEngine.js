@@ -20,6 +20,8 @@ const { isSymbolInCooldown }      = require('./cooldownManager');
 const { isLevelBounceCooldown }   = require('./bounceCancel');
 const { checkBtcFlashStatus }     = require('./btcFlashGuard');
 const { registerShadowTrade }     = require('./shadowTracker');
+const { getMarkPrice }            = require('../pp369/stream');
+const { fetchH1Historical }       = require('./candleCache');
 const { log }                     = require('./logger');
 
 const FIXED_COINS = ['BTC', 'ETH', 'SOL', 'BNB', 'XRP', 'DOGE', 'ADA', 'TRX', 'AVAX', 'LINK', 'TON', 'SUI', 'APT', 'NEAR'];
@@ -72,14 +74,24 @@ async function generateQuantitativeTrade(setup, marketData = null) {
   // 1. Xác định mức giá Entry
   const ta = marketData?.ta?.[symbol];
   const sig369 = marketData?.signals369?.[symbol];
-  const currentPrice = ta?.close || sig369?.price || setup.targetLevel || setup.price;
+  const markPrice = (typeof getMarkPrice === 'function') ? getMarkPrice(symbol) : null;
+  const topCoinPrice = marketData?.topCoins?.find(c => c.symbol === symbol)?.price;
+
+  const currentPrice = ta?.price || ta?.close || ta?.lastPrice || markPrice || sig369?.currentPrice || sig369?.price || topCoinPrice || setup.targetLevel || setup.price;
 
   if (!currentPrice || currentPrice <= 0) {
     log.warn(`[SignalEngine] ${symbol} ${direction}: Không có giá hợp lệ — bỏ qua`);
     return null;
   }
 
-  const entryPrice = setup.targetLevel || currentPrice;
+  // Ưu tiên: setup.targetLevel -> nếu sig369 có targetLevel cùng chiều -> currentPrice
+  let entryPrice = setup.targetLevel;
+  if (!entryPrice && sig369 && sig369.signal === direction && sig369.targetLevel) {
+    entryPrice = sig369.targetLevel;
+  }
+  if (!entryPrice) {
+    entryPrice = currentPrice;
+  }
 
   // ─── CHỐT CHẶN 4: BOUNCE CANCEL COOLDOWN (MỐC VỪA BẬT NẢY) ─────────
   if (isLevelBounceCooldown(symbol, entryPrice)) {
@@ -89,6 +101,7 @@ async function generateQuantitativeTrade(setup, marketData = null) {
 
   // 2. Tính toán TP/SL & Đòn bẩy bằng Thuật toán Định Lượng (0.01ms)
   let tierSetup = null;
+  const effGridWidth = setup.gridWidthPct || (sig369?.step && currentPrice > 0 ? (sig369.step / currentPrice) * 100 : null);
   try {
     tierSetup = await calculateTierSLTP(
       symbol,
@@ -100,7 +113,7 @@ async function generateQuantitativeTrade(setup, marketData = null) {
       3.0,  // targetLossUSD ($3.00)
       1.5,  // target tpRatio
       isTier1 ? 20 : 100, // rank
-      setup.gridWidthPct || null
+      effGridWidth
     );
   } catch (err) {
     log.error(`[SignalEngine] Lỗi calculateTierSLTP ${symbol}: ${err.message}`);
@@ -120,8 +133,18 @@ async function generateQuantitativeTrade(setup, marketData = null) {
   }
 
   // 3. Thẩm định vi cấu trúc nến qua Risk Gatekeeper (AI Bản Thân Cục Bộ, 0ms, 0 Token)
+  let lastH1 = ta?.candleH1 || null;
+  if (!lastH1) {
+    try {
+      const h1Candles = await fetchH1Historical(symbol);
+      if (Array.isArray(h1Candles) && h1Candles.length > 0) {
+        lastH1 = h1Candles[h1Candles.length - 1];
+      }
+    } catch (_) {}
+  }
+
   const marketContext = {
-    candleH1: ta?.candleH1 || null,
+    candleH1: lastH1,
     candleM15: ta?.candleM15 || null,
     btcFlash: btcFlash.activeFlash || 'NORMAL',
     orderbookWall: 'CLEAR'
@@ -153,7 +176,9 @@ async function generateQuantitativeTrade(setup, marketData = null) {
     direction: direction,
     entryPrice: entryPrice,
     targetPrice: tierSetup.tpPrice,
+    targetPct: tierSetup.tpPct,
     slPrice: tierSetup.slPrice,
+    slPct: tierSetup.slPct,
     beTriggerPrice: tierSetup.beTriggerPrice,
     beSlPrice: tierSetup.beSlPrice,
     leverage: tierSetup.leverage,
@@ -161,6 +186,7 @@ async function generateQuantitativeTrade(setup, marketData = null) {
     confluenceScore: score,
     confidence: setup.confidence || 75,
     rrRatio: tierSetup.rrRatio,
+    recommendedAt: new Date().toISOString(),
     reason: `QUANT 369 | Score ${score}đ [${setup.verdict}] | SL: ${tierSetup.slScenario} (+${tierSetup.slPct}%) | TP: ${tierSetup.tpAnchorType} (-${tierSetup.tpPct}%) | R:R = ${tierSetup.rrRatio} | Gate: ${(gateResult.winProbability * 100).toFixed(0)}%`,
     source: 'quantitative_deterministic'
   };
