@@ -200,6 +200,8 @@ async function generateQuantitativeTrade(setup, marketData = null) {
     confluenceScore: score,
     confidence: setup.confidence || 75,
     rrRatio: tierSetup.rrRatio,
+    entryFilled: false,
+    status: 'active',
     recommendedAt: new Date().toISOString(),
     reason: `QUANT 369 | Score ${score}đ [${setup.verdict}] | SL: ${tierSetup.slScenario} (+${tierSetup.slPct}%) | TP: ${tierSetup.tpAnchorType} (-${tierSetup.tpPct}%) | R:R = ${tierSetup.rrRatio} | Gate: ${(gateResult.winProbability * 100).toFixed(0)}%`,
     source: 'quantitative_deterministic'

@@ -32,8 +32,8 @@ const MIN_HOLD_BEFORE_REVERSAL_MS  = parseInt(process.env.MIN_HOLD_HOURS_REVERSA
 const MIN_PRICE_CHANGE_TO_UPDATE   = parseFloat(process.env.MIN_TP_SL_UPDATE_PCT || '1.5');
 // ENTRY_EXPIRY_HOURS: hủy lệnh pending nếu giá không fill sau X giờ (market đã thay đổi)
 const ENTRY_EXPIRY_MS              = parseInt(process.env.ENTRY_EXPIRY_HOURS || '4', 10) * 3_600_000;
-// WS_FILL_FALLBACK_MINUTES: khoảng cách giữa các lần poll REST để phát hiện WS fill event bị miss
-const WS_FILL_FALLBACK_MS          = parseInt(process.env.WS_FILL_FALLBACK_MINUTES || '5', 10) * 60_000;
+// WS_FILL_FALLBACK_MINUTES: khoảng cách giữa các lần poll REST để phát hiện WS fill event bị miss (1 phút)
+const WS_FILL_FALLBACK_MS          = parseInt(process.env.WS_FILL_FALLBACK_MINUTES || '1', 10) * 60_000;
 // TRADE_COOLDOWN_HOURS: không vào lại cùng coin trong X giờ sau khi đóng lệnh (TP/SL/reversed)
 const TRADE_COOLDOWN_MS            = parseInt(process.env.TRADE_COOLDOWN_HOURS || '6', 10) * 3_600_000;
 // MIN_SL_ATR_MULT: SL tối thiểu phải cách entry X lần ATR (tránh stop-hunt trong vùng noise)
@@ -448,6 +448,9 @@ function parseTrades(aiText) {
 function addTrades(trades, taMap = {}) {
   let changed = 0;
   for (const t of trades) {
+    // Đảm bảo trade luôn có status='active' và entryFilled=false nếu chưa xác định
+    t.status = t.status || 'active';
+    if (t.entryFilled === undefined) t.entryFilled = false;
 
     // Cùng coin, cùng chiều → cập nhật TP/SL chỉ khi thay đổi đủ lớn (tránh micro-adjustment)
     const sameDir = activeTrades.find(a => a.symbol === t.symbol && a.direction === t.direction && a.status === 'active');
@@ -1694,20 +1697,21 @@ async function checkActiveTrades() {
       }
     }
 
-    // Recovery: nếu entry đã fill nhưng TP vẫn chưa được đặt (e.g., API lỗi khi fill),
+    // Recovery: nếu entry đã fill nhưng TP hoặc SL vẫn chưa được đặt (e.g., API lỗi khi fill hoặc WS miss),
     // Kiểm tra position thực tế trước, thử đặt lại 1 lần/session để tránh trùng lệnh.
     if (trade.entryFilled && trade.binanceEntryOrderId && binanceTrader.isEnabled()) {
       const tradeKey = String(trade.binanceEntryOrderId);
       const needTP = !trade.binanceTpOrderId;
-      if (needTP && !_slTpRecoveryDone.has(tradeKey)) {
+      const needSL = !trade.binanceSlOrderId;
+      if ((needTP || needSL) && !_slTpRecoveryDone.has(tradeKey)) {
         _slTpRecoveryDone.add(tradeKey);
-        log.warn(`Recovery: ${trade.symbol} ${trade.direction} — thiếu TP LIMIT, kiểm tra position...`);
+        log.warn(`Recovery: ${trade.symbol} ${trade.direction} — thiếu ${needTP ? 'TP' : ''}${needTP && needSL ? ' & ' : ''}${needSL ? 'SL' : ''}, kiểm tra position...`);
         (async () => {
           // Bước 1: kiểm tra position thực tế — tránh báo nhầm khi vị thế đã đóng
           const posAmt = await binanceTrader.getPositionAmt(trade.symbol).catch(() => null);
           if (posAmt !== null) {
             const expectedSign = trade.direction === 'LONG' ? 1 : -1;
-            const hasPosition  = Math.sign(posAmt) === expectedSign;
+            const hasPosition  = Math.sign(posAmt) === expectedSign && Math.abs(posAmt) > 0;
             if (!hasPosition) {
               log.warn(`Recovery: ${trade.symbol} — không có position trên Binance (posAmt=${posAmt}), đóng trade`);
               trade.status   = 'manual_close';
@@ -1754,24 +1758,45 @@ async function checkActiveTrades() {
             }
           }
 
-          // Bước 2: có position → thử đặt TP
-          const tpId = await binanceTrader.placeTPAfterEntry(trade).catch(e => {
-            log.error(`Recovery: đặt TP thất bại ${trade.symbol}`, { error: e.message });
-            return null;
-          });
-          if (!tpId) {
-            // Đợi 5s xem WS fill handler có đặt TP rồi không — tránh báo lỗi giả
-            await new Promise(r => setTimeout(r, 5000));
-            if (trade.binanceTpOrderId) return;
+          // Bước 2: có position → đặt Dual Bracket nếu thiếu cả 2, hoặc bù lệnh thiếu
+          if (needTP && needSL) {
+            await bracketManager.placeDualBracket({
+              client: binanceTrader,
+              sym: trade.symbol,
+              side: trade.direction === 'LONG' ? 'BUY' : 'SELL',
+              qty: trade.binanceQty,
+              entryPrice: trade.entryPrice,
+              targetPrice: trade.targetPrice,
+              slPrice: trade.slPrice,
+              meta: trade,
+            }).catch(e => {
+              log.error(`Recovery: đặt Dual Bracket thất bại ${trade.symbol}`, { error: e.message });
+              return null;
+            });
+          } else {
+            if (needTP) {
+              await binanceTrader.placeTPAfterEntry(trade).catch(e => {
+                log.error(`Recovery: đặt TP thất bại ${trade.symbol}`, { error: e.message });
+                return null;
+              });
+            }
+            if (needSL) {
+              await binanceTrader.placeSLAfterFill(trade).catch(e => {
+                log.error(`Recovery: đặt Hard STOP_MARKET SL thất bại ${trade.symbol}`, { error: e.message });
+                return null;
+              });
+            }
           }
+
           saveTrades();
           const dirLabel = trade.direction === 'LONG' ? '🟢 LONG' : '🔴 SHORT';
+          const tpStr = trade.binanceTpOrderId ? `🎯 TP sàn đã đặt:  <code>#${trade.binanceTpOrderId}</code>  tại  <code>${fmtPrice(trade.targetPrice)}</code>\n` : `⚠️ TP đặt thất bại — kiểm tra ngay!\n`;
+          const slStr = trade.binanceSlOrderId ? `🛑 SL sàn đã đặt:  <code>#${trade.binanceSlOrderId}</code>  tại  <code>${fmtPrice(trade.slPrice)}</code>\n` : `⚠️ SL đặt thất bại — kiểm tra ngay!\n`;
           sendMessages([
-            `🔄 <b>RECOVERY TP — ${trade.symbol} ${dirLabel} ⚡x${trade.leverage || 10}</b>\n` +
+            `🔄 <b>RECOVERY DUAL BRACKET — ${trade.symbol} ${dirLabel} ⚡x${trade.leverage || 10}</b>\n` +
             `━━━━━━━━━━━━━━━━\n` +
-            (tpId ? `🎯 TP đặt lại:  <code>#${tpId}</code>  tại  <code>${fmtPrice(trade.targetPrice)}</code>\n` : `⚠️ TP thất bại — đặt thủ công trên Binance!\n`) +
-            `🛡️ SL:  bot theo dõi tại  <code>${fmtPrice(trade.slPrice)}</code>  (real-time)\n` +
-            `<i>Đặt lại tự động do lỗi API trước đó</i>`,
+            tpStr + slStr +
+            `<i>⚡ Cặp lệnh TP/SL đã tự động đặt lại sau khi phát hiện thiếu trên Binance</i>`,
           ], 1500, NEWS_CHAT_ID).catch(() => {});
         })();
       }
@@ -2561,7 +2586,9 @@ function initBinanceStream() {
 
     // ── Entry fill ──────────────────────────────────────────────────────────────
     const trade = activeTrades.find(
-      t => t.status === 'active' && t.binanceEntryOrderId === orderId && !t.entryFilled
+      t => t.status === 'active' &&
+        (String(t.binanceEntryOrderId) === String(orderId) || (!t.binanceEntryOrderId && t.symbol === symbol && !t.entryFilled)) &&
+        !t.entryFilled
     );
     if (trade) {
       trade.entryFilled = true;
@@ -2614,7 +2641,7 @@ function initBinanceStream() {
 
     // ── TP fill: TAKE_PROFIT_MARKET tại targetPrice → vị thế đóng ──────────────
     const tpTrade = activeTrades.find(
-      t => t.status === 'active' && t.binanceTpOrderId === orderId
+      t => t.status === 'active' && String(t.binanceTpOrderId) === String(orderId)
     );
     if (tpTrade) {
       await bracketManager.autoCleanOppositeOrder({ client: binanceTrader, sym: tpTrade.symbol, filledType: 'TP', meta: tpTrade });
@@ -2640,8 +2667,8 @@ function initBinanceStream() {
     // ── SL fill: STOP_MARKET kích hoạt → vị thế đóng ───────────────────────────
     const slTrade = activeTrades.find(
       t => t.status === 'active' && (
-        t.binanceSlOrderId === orderId ||
-        (algoId && t.binanceSlOrderId === algoId) ||
+        String(t.binanceSlOrderId) === String(orderId) ||
+        (algoId && String(t.binanceSlOrderId) === String(algoId)) ||
         (orderType === 'STOP_MARKET' && t.symbol === symbol)
       )
     );
@@ -2687,12 +2714,10 @@ function initBinanceStream() {
     const manualTrade = activeTrades.find(t => {
       if (t.status !== 'active' || !t.entryFilled || !t.binanceEntryOrderId) return false;
       if (t.symbol !== symbol) return false;
-      const isOurOrder = orderId === t.binanceEntryOrderId ||
-                         orderId === t.binanceTpOrderId   ||
-                         orderId === t.binanceSlOrderId;
-      if (isOurOrder) return false;
-      const closingSide = t.direction === 'LONG' ? 'SELL' : 'BUY';
-      return side === closingSide;
+      const isOurOrder = String(orderId) === String(t.binanceEntryOrderId) ||
+                         String(orderId) === String(t.binanceTpOrderId)   ||
+                         String(orderId) === String(t.binanceSlOrderId);
+      return !isOurOrder;
     });
     if (manualTrade) {
       const t = manualTrade;
