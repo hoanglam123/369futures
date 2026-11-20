@@ -24,7 +24,7 @@ const { parseTrades, addTrades, getActiveTrades } = require('./services/tradeMon
 const { processCandidateSetups } = require('./services/signalEngine');
 const { getAllActiveFuturesSymbols, filterSymbolsByGrid } = require('./services/dynamicUniverse');
 const { parseFundingTrades, addFundingTrades } = require('./services/fundingTracker');
-const { getTAReport, STABLECOINS } = require('./collectors/technicalAnalysis');
+const { getTAReport, getFullTA, STABLECOINS } = require('./collectors/technicalAnalysis');
 const { getWhaleData } = require('./collectors/whaleData');
 const { getDerivatives } = require('./collectors/derivatives');
 const { getBTCOnchain } = require('./collectors/onchain');
@@ -221,11 +221,26 @@ async function runJob({ silent = false, lookbackHours = null } = {}) {
       .filter(s => isValidSymbol(s) && topCoinSymbols.has(s) && !FIXED_COINS.includes(s) && !TIER2_COINS.includes(s))
       .slice(0, MAX_GAINER_COINS);
 
-    // TA + Whale: FIXED → TIER2 → LIQUID → GAINERS, dedup, tối đa MAX_TA_COINS
-    const taSymbols    = [...new Set([...FIXED_COINS, ...tier2Active, ...topLiquidExtra, ...gainersFiltered])].slice(0, MAX_TA_COINS);
+    // Lấy thêm các coin trong Universe 470+ đang TIỆM CẬN SÁT MỐC (<=0.5%)
+    let universeNearby = [];
+    try {
+      const levelCache = getLevelCache();
+      const allUniverse = await getUniverseSymbols();
+      const scanNearby = getNearbySymbols(allUniverse, levelCache, 0.005, true);
+      universeNearby = scanNearby
+        .filter(s => isValidSymbol(s) && !FIXED_COINS.includes(s) && !TIER2_COINS.includes(s))
+        .slice(0, 15);
+    } catch (_) {}
+
+    // TA + Whale: FIXED → TIER2 → UNIVERSE_NEARBY → LIQUID → GAINERS, dedup
+    const maxTaLimit   = Math.max(MAX_TA_COINS, 30);
+    const taSymbols    = [...new Set([...FIXED_COINS, ...tier2Active, ...universeNearby, ...topLiquidExtra, ...gainersFiltered])].slice(0, maxTaLimit);
     const whaleSymbols = [...taSymbols];
     _lastTaSymbols = [...taSymbols];  // cache cho scan PP369 1 phút
-    start369Stream(taSymbols);        // cập nhật WebSocket stream nếu coin list thay đổi
+
+    // Giữ WebSocket stream lắng nghe toàn bộ Universe 470+ coin
+    const allMonitoredUniverse = await getUniverseSymbols();
+    start369Stream(allMonitoredUniverse);
 
     // Lưu danh sách coin đang theo dõi ra file để dashboard đọc
     try {
@@ -233,9 +248,10 @@ async function runJob({ silent = false, lookbackHours = null } = {}) {
       require('fs').writeFileSync(
         require('path').join(dataDir, 'pp369_symbols.json'),
         JSON.stringify({
-          symbols:  taSymbols,
+          symbols:  allMonitoredUniverse,
           fixed:    FIXED_COINS,
           tier2:    tier2Active,
+          nearby:   universeNearby,
           liquid:   topLiquidExtra,
           gainers:  gainersFiltered,
           updatedAt: new Date().toISOString(),
@@ -561,23 +577,37 @@ async function run369AlertScan() {
     const newAlerts  = detect369Changes(signals369);
     if (newAlerts.length === 0) return;
 
-    // Bước 1: Confluence score từ cached market data (không gọi API thêm)
-    const enriched = newAlerts.map(sig => {
-      if (!_lastMarketData?.ta?.[sig.symbol]) return sig;
-      const btcTA = _lastMarketData.ta['BTC'] ?? null;
+    // Bước 1: Confluence score từ cached market data hoặc on-demand TA cho altcoin universe
+    const enriched = await Promise.all(newAlerts.map(async sig => {
+      let ta = _lastMarketData?.ta?.[sig.symbol];
+      if (!ta) {
+        try {
+          ta = await getFullTA(sig.symbol);
+          if (ta) {
+            if (!_lastMarketData) _lastMarketData = {};
+            if (!_lastMarketData.ta) _lastMarketData.ta = {};
+            _lastMarketData.ta[sig.symbol] = ta;
+          }
+        } catch (e) {
+          log.warn(`[PP369 1m] Không lấy được TA on-demand cho ${sig.symbol}: ${e.message}`);
+        }
+      }
+      if (!ta) return sig;
+
+      const btcTA = _lastMarketData?.ta?.['BTC'] ?? null;
       const score = scoreSetup(
         sig.symbol, sig.signal,
-        _lastMarketData.ta[sig.symbol],
-        _lastMarketData.whale,
-        _lastMarketData.derivatives,
-        _lastMarketData.funding,
-        _lastMarketData.fearGreed,
-        _lastMarketData.social,
+        ta,
+        _lastMarketData?.whale ?? {},
+        _lastMarketData?.derivatives ?? {},
+        _lastMarketData?.funding ?? null,
+        _lastMarketData?.fearGreed ?? { value: 50 },
+        _lastMarketData?.social ?? {},
         btcTA,
         signals369[sig.symbol] ?? null,
       );
       return { ...sig, score };
-    });
+    }));
 
     // ─── Phase 2: Thực thi định lượng ngay tại chu kỳ 1 phút nếu có setup đủ điểm ───
     try {
