@@ -98,7 +98,7 @@ function checkBounceCancel(trade, currentPrice) {
       if (bouncePct >= BOUNCE_AWAY_PCT) {
         _trackedLimits.delete(key);
         _bounceCooldowns.set(key, Date.now() + BOUNCE_COOLDOWN_MS);
-        log.warn(`[BounceCancel] ↩️ [BOUNCE CANCEL] ${sym} LONG @ ${entry}: Giá đã chạm sát mốc (min dist ${tracker.minDistancePct.toFixed(3)}%) rồi nảy lên +${bouncePct.toFixed(2)}% mà chưa fill -> HỦY LỆNH LIMIT & KHÓA MỐC 60P!`);
+        log.system(`[AutoTrade] [BounceCancel] ${sym} LONG: entry=$${entry}, current=$${currentPrice} (+${bouncePct.toFixed(2)}% >= ${BOUNCE_AWAY_PCT.toFixed(2)}%) → Hủy LIMIT ngay lập tức`);
         return {
           shouldCancel: true,
           reason: `Bounce Cancel: Giá đã nảy +${bouncePct.toFixed(2)}% ra xa mốc sau khi tiệm cận ${tracker.minDistancePct.toFixed(3)}%`
@@ -110,7 +110,7 @@ function checkBounceCancel(trade, currentPrice) {
       if (bouncePct >= BOUNCE_AWAY_PCT) {
         _trackedLimits.delete(key);
         _bounceCooldowns.set(key, Date.now() + BOUNCE_COOLDOWN_MS);
-        log.warn(`[BounceCancel] ↩️ [BOUNCE CANCEL] ${sym} SHORT @ ${entry}: Giá đã chạm sát mốc (min dist ${tracker.minDistancePct.toFixed(3)}%) rồi dội xuống -${bouncePct.toFixed(2)}% mà chưa fill -> HỦY LỆNH LIMIT & KHÓA MỐC 60P!`);
+        log.system(`[AutoTrade] [BounceCancel] ${sym} SHORT: entry=$${entry}, current=$${currentPrice} (+${bouncePct.toFixed(2)}% >= ${BOUNCE_AWAY_PCT.toFixed(2)}%) → Hủy LIMIT ngay lập tức`);
         return {
           shouldCancel: true,
           reason: `Bounce Cancel: Giá đã dội -${bouncePct.toFixed(2)}% ra xa mốc sau khi tiệm cận ${tracker.minDistancePct.toFixed(3)}%`

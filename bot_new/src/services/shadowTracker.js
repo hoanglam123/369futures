@@ -38,7 +38,7 @@ function loadActiveShadows() {
       _activeShadowPositions = JSON.parse(raw || '{}');
       const count = Object.keys(_activeShadowPositions).length;
       if (count > 0) {
-        log.system(`[ShadowTracker] Đã khôi phục ${count} vị thế Shadow PnL từ đĩa`);
+        log.system(`[ShadowTracker] Đã khôi phục ${count} vị thế Shadow PnL đang theo dõi từ ${SHADOW_POSITIONS_FILE}`);
       }
     }
   } catch (e) {
@@ -116,7 +116,7 @@ function registerShadowTrade(sig, vetoReason = 'AI_VETO') {
   _activeShadowPositions[id] = shadowPos;
   saveActiveShadows();
 
-  log.system(`[ShadowTracker] 👁️ Đăng ký Shadow Trade: ${sym} ${side} @ ${entry} (SL: ${sl} | TP: ${tp} | Lý do VETO: ${shadowPos.vetoReason})`);
+  log.system(`[ShadowTracker] [Shadow PnL] 👁️ Bắt đầu theo dõi VỊ THẾ BÓNG TỐI: ${sym} (${side}) @ $${entry} [Chờ Limit] | Đòn bẩy: 3x | Margin: $10.00 | SL: $${sl} | TP: $${tp} | WinProb: 36.4% (Veto: ${shadowPos.vetoReason})`);
   return shadowPos;
 }
 
@@ -205,9 +205,9 @@ function updateShadowPrices(prices) {
       }
 
       if (outcome === 'SAVED_SL') {
-        log.system(`[ShadowTracker] 🛡️ [AI SAVED SL] ${pos.symbol} ${pos.direction} đã dính SL ảo! AI VETO chính xác, đã cứu thua $3.00 USD!`);
+        log.system(`[ShadowTracker] [Shadow PnL] 🛡️ [AI SAVED SL] ${pos.symbol} ${pos.direction} đã dính SL ảo! AI VETO chính xác, đã cứu thua $3.00 USD!`);
       } else if (outcome === 'MISSED_TP') {
-        log.warn(`[ShadowTracker] ⚠️ [AI MISSED TP] ${pos.symbol} ${pos.direction} đã chạm TP ảo (+${pos.pnlPct}%)! AI đã bỏ lỡ cơ hội lãi $${pos.pnlUsd.toFixed(2)} USD.`);
+        log.warn(`[ShadowTracker] [Shadow PnL] ⚠️ [AI MISSED TP] ${pos.symbol} ${pos.direction} đã chạm TP ảo (+${pos.pnlPct}%)! AI đã bỏ lỡ cơ hội lãi $${pos.pnlUsd.toFixed(2)} USD.`);
       }
     }
   }

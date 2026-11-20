@@ -70,7 +70,7 @@ loadDiskCache(HIST_CACHE_FILE_H1, CACHE_MAX_H1, _h1HistCache);
 loadDiskCache(HIST_CACHE_FILE_H4, CACHE_MAX_H4, _h4HistCache);
 loadDiskCache(HIST_CACHE_FILE_D1, CACHE_MAX_D1, _d1HistCache);
 
-log.system(`[CandleCache] ✓ Đã nạp cache nến: ${Object.keys(_h1HistCache).length} coin H1, ${Object.keys(_h4HistCache).length} coin H4, ${Object.keys(_d1HistCache).length} coin D1.`);
+log.system(`[PP369] [369] ✓ Đã nạp cache nến từ đĩa máy chủ: ${Object.keys(_h1HistCache).length} coin H1, ${Object.keys(_h4HistCache).length} coin H4, ${Object.keys(_d1HistCache).length} coin D1.`);
 
 /**
  * Fetch klines từ Binance Futures REST API

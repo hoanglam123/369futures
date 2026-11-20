@@ -35,7 +35,7 @@ function loadModel() {
     if (fs.existsSync(MODEL_PATH)) {
       const raw = fs.readFileSync(MODEL_PATH, 'utf8');
       _modelConfig = JSON.parse(raw);
-      log.system(`[RiskGatekeeper] ✓ Đã nạp mô hình AI Bản Thân (v${_modelConfig.version || '1.0'}, mẫu N=${_modelConfig.totalSamples || 0})`);
+      log.system(`[PP369] [AI Reviewer] ✓ Đã nạp thành công mô hình AI (v${_modelConfig.version || '1.4.0-auto'}, mẫu N=${_modelConfig.totalSamples || 0})`);
     } else {
       log.warn(`[RiskGatekeeper] Chưa tìm thấy ${MODEL_PATH}. Sử dụng trọng số mặc định.`);
     }

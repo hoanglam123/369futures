@@ -42,7 +42,7 @@ function processBtcTick(price) {
 
   // Tự động giải phóng trạng thái khóa nếu hết thời gian
   if (_flashState.lockedUntil && now >= _flashState.lockedUntil) {
-    log.system(`[BTCFlashGuard] 🟢 Thị trường BTC đã qua đợt biến động giật. Mở khóa giao dịch bình thường.`);
+    log.system(`[AutoTrade] 🔄 [BTC Guard] Thị trường BTC đã hạ nhiệt an toàn. Mở khóa giao dịch bình thường.`);
     _flashState = { activeFlash: null, lockedUntil: 0, reason: '', velocityPct: 0 };
   }
 
@@ -110,7 +110,7 @@ function triggerFlashDump({ reason, velocityPct = -1.0 }) {
     reason: reason || 'BTC FLASH DUMP DETECTED',
     velocityPct
   };
-  log.warn(`[BTCFlashGuard] 🚨🚨 [BTC FLASH DUMP] ${reason} -> TẠM KHÓA TOÀN BỘ LỆNH LONG ALTCOIN!`);
+  log.warn(`[AutoTrade] 🚨 [BTC Flash Dump Guard] Kích hoạt khóa LONG Altcoin trong 15 phút (${reason})`);
   return _flashState;
 }
 
@@ -122,7 +122,7 @@ function triggerFlashPump({ reason, velocityPct = 1.0 }) {
     reason: reason || 'BTC FLASH PUMP DETECTED',
     velocityPct
   };
-  log.warn(`[BTCFlashGuard] 🚨🚨 [BTC FLASH PUMP] ${reason} -> TẠM KHÓA TOÀN BỘ LỆNH SHORT ALTCOIN!`);
+  log.warn(`[AutoTrade] 🚨 [BTC Flash Pump Guard] Kích hoạt khóa SHORT Altcoin trong 15 phút (${reason})`);
   return _flashState;
 }
 

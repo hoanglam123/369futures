@@ -126,7 +126,7 @@ function recordDirectionalShadowOutcome({ symbol, signal, outcome, pnlUsd = 0, r
 
     const isStable = totalShadowPnl >= 0 && (goodCount / count) >= 0.60;
     if (isStable) {
-      log.system(`[DirectionalCB] 🚀 [AI Market Recovery] 5 coin Shadow chiều ${normSide} đã ổn định -> TỰ ĐỘNG MỞ KHÓA CHIỀU ${normSide} SỚM!`);
+      log.system(`[AutoTrade] 🔓 [CIRCUIT BREAKER] 5 coin Shadow chiều ${normSide} đã ổn định -> TỰ ĐỘNG MỞ KHÓA CHIỀU ${normSide} SỚM!`);
       dirData.lockedUntil = 0;
       dirData.lockedAt = 0;
       dirData.lockReason = '';
@@ -172,7 +172,7 @@ function recordDirectionalTradeExit({ symbol, side, isWin, exitType, pnlUsd = 0,
     const count2h = recentLosses.length;
     const countFlash = recentLosses.filter(l => (now - l.exitTime) <= FLASH_WINDOW_MS).length;
 
-    log.warn(`[DirectionalCB] ⚠️ Ghi nhận lệnh ${normSide} dính SL: ${symbol} (${exitType} | PnL: $${Number(pnlUsd).toFixed(2)} USD). Tổng SL chiều ${normSide} 2h: ${count2h} lệnh (40p: ${countFlash} lệnh).`);
+    log.warn(`[AutoTrade] ⚠️ [DirectionalCB] Ghi nhận lệnh ${normSide} dính SL: ${symbol} (${exitType} | PnL: $${Number(pnlUsd).toFixed(2)} USD). Tổng SL chiều ${normSide} 2h: ${count2h} lệnh (40p: ${countFlash} lệnh).`);
 
     let shouldLock = false;
     let lockReason = '';
@@ -197,7 +197,7 @@ function recordDirectionalTradeExit({ symbol, side, isWin, exitType, pnlUsd = 0,
       _state[normSide].shadowTrades = [];
       saveState();
 
-      log.warn(`[DirectionalCB] 🚨 [CIRCUIT BREAKER] KÍCH HOẠT KHÓA CHIỀU ${normSide} TRONG ${lockHours} GIỜ! Lý do: ${lockReason}`);
+      log.warn(`[AutoTrade] 🚨 [CIRCUIT BREAKER] KÍCH HOẠT KHÓA CHIỀU ${normSide} TRONG ${lockHours} GIỜ! Lý do: ${lockReason}`);
     } else {
       saveState();
     }
@@ -232,7 +232,7 @@ function isDirectionLocked(side) {
   }
 
   if (dirData.lockedUntil && now >= dirData.lockedUntil) {
-    log.system(`[DirectionalCB] 🟢 Hết thời gian ngắt mạch chiều ${normSide}. Tự động khôi phục giao dịch ${normSide}!`);
+    log.system(`[AutoTrade] 🔓 [CIRCUIT BREAKER] Hết thời gian ngắt mạch chiều ${normSide}. Tự động khôi phục giao dịch ${normSide}!`);
     dirData.lockedUntil = 0;
     dirData.lockedAt = 0;
     dirData.lockReason = '';
@@ -258,7 +258,7 @@ function clearDirectionLock(side) {
     _state[normSide].losses = [];
     _state[normSide].shadowTrades = [];
     saveState();
-    log.system(`[DirectionalCB] 🔓 Đã giải phóng khóa chiều ${normSide}`);
+    log.system(`[AutoTrade] 🔓 [CIRCUIT BREAKER] Đã giải phóng khóa chiều ${normSide}`);
   }
 }
 

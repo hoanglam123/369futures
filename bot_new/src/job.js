@@ -39,13 +39,14 @@ const {
   logSignal369, start369Stream, getNearbySymbols, getMarkPrice, format369Alert,
   syncWebSocketSubscriptions, getPrices
 } = pp369;
-const { updateShadowPrices } = require('./services/shadowTracker');
+const { updateShadowPrices, getShadowStats } = require('./services/shadowTracker');
 
 let _isRunning = false;        // full market report đang chạy
 let _isSilentRunning = false;  // signal scan (silent) đang chạy
 const _prev369State = {};      // { [symbol]: key } tránh gửi alert PP369 trùng lặp
 let _lastTaSymbols  = null;    // coin list cache từ lần runJob() gần nhất, dùng cho scan 1p
 let _lastMarketData = null;    // market data cache (TA/whale/deriv) cho confluence re-score trong scan 1p
+let _lastHeartbeatTime = 0;    // Heartbeat định kỳ 15 phút đồng bộ bot-h4
 
 // ─── Tham số cấu hình (đọc từ .env, có giá trị mặc định hợp lý) ──────────────
 
@@ -471,6 +472,21 @@ async function run369AlertScan() {
     // Proximity filter: chỉ scan coin đang trong vùng ≤PROXIMITY_PCT% của mốc
     // Coin xa mốc → bỏ qua, tiết kiệm API call. Fail-open nếu chưa có WebSocket data.
     const toScan  = getNearbySymbols(symbols, getLevelCache(), PROXIMITY_PCT);
+
+    // ─── ĐỒNG BỘ LOG ĐỊNH KỲ 15 PHÚT TỪ BOT-H4 ───
+    const nowTime = Date.now();
+    if (nowTime - _lastHeartbeatTime >= 15 * 60 * 1000) {
+      _lastHeartbeatTime = nowTime;
+      const scanNearby = getNearbySymbols(symbols, getLevelCache(), 0.005);
+      log.system(`[AutoTrade] 🟢 Hệ thống hoạt động bình thường | Theo dõi: ${symbols.length} coin | Tiệm cận sát mốc (<=0.5%): ${scanNearby.length} coin`);
+
+      try {
+        const shadowStats = getShadowStats();
+        if (shadowStats && (shadowStats.activeCount > 0 || shadowStats.totalSavedSl > 0 || shadowStats.totalMissedTp > 0)) {
+          log.system(`[Shadow PnL] 📊 Thống kê AI Veto: Đang theo dõi: ${shadowStats.activeCount} lệnh | Đã cứu SL: ${shadowStats.totalSavedSl} lệnh (+$${shadowStats.savedUsd}) | Bỏ lỡ TP: ${shadowStats.totalMissedTp} lệnh (-$${shadowStats.missedUsd}) | Giá trị AI ròng: +$${shadowStats.netSavedUsd} USD (Độ chính xác Veto: ${shadowStats.vetoAccuracyPct}%)`);
+        }
+      } catch (_) {}
+    }
 
     // Đồng bộ subscription động (Phase 3)
     if (typeof syncWebSocketSubscriptions === 'function') {

@@ -29,6 +29,17 @@ const MIN_SCORE_TIER1 = 7.0; // Tier 1: BTC, ETH, Top coin >= 7.0đ
 const MIN_SCORE_TIER2 = 8.0; // Tier 2: Altcoins >= 8.0đ
 const MAX_CONCURRENT_NEW_TRADES = 2; // Giới hạn tối đa 2 setup mới mỗi lượt quét
 
+const _loggedSignals = new Map();
+function _shouldLogSignal(sym, dir, type, cooldownMs = 10 * 60 * 1000) {
+  const key = `${sym}_${dir}_${type}`;
+  const now = Date.now();
+  if (_loggedSignals.has(key) && (now - _loggedSignals.get(key)) < cooldownMs) {
+    return false;
+  }
+  _loggedSignals.set(key, now);
+  return true;
+}
+
 /**
  * Thẩm định và tạo lệnh giao dịch định lượng cho một setup
  */
@@ -37,6 +48,7 @@ async function generateQuantitativeTrade(setup, marketData = null) {
   const direction = setup.direction;
   const score = setup.total;
   const isTier1 = FIXED_COINS.includes(symbol);
+  const rankTierLabel = isTier1 ? 'Tier 1 Top 50' : 'Tier 2 Altcoin';
 
   const minRequired = isTier1 ? MIN_SCORE_TIER1 : MIN_SCORE_TIER2;
   if (score < minRequired) {
@@ -46,14 +58,14 @@ async function generateQuantitativeTrade(setup, marketData = null) {
   // ─── CHỐT CHẶN 1: DIRECTIONAL CIRCUIT BREAKER (KHÓA THEO CHIỀU) ───
   const dirLock = isDirectionLocked(direction);
   if (dirLock.isLocked) {
-    log.warn(`[SignalEngine] VETO Directional CB ${symbol} ${direction}: Chiều ${direction} đang bị khóa còn ${dirLock.remainingMinutes}p (${dirLock.reason})`);
+    log.system(`[AutoTrade] 🛑 [VETO Directional CB] ${symbol} ${direction}: Chiều ${direction} đang bị khóa còn ${dirLock.remainingMinutes}p (${dirLock.reason})`);
     registerShadowTrade(setup, `DIRECTIONAL_CB_LOCKED: ${dirLock.reason}`);
     return null;
   }
 
   // ─── CHỐT CHẶN 2: COOLDOWN TỪNG COIN (SL COOLDOWN) ───────────────
   if (isSymbolInCooldown(symbol)) {
-    log.warn(`[SignalEngine] VETO Cooldown ${symbol} ${direction}: Coin đang trong thời gian hồi chiêu sau SL`);
+    log.system(`[AutoTrade] 🛑 [VETO Cooldown] ${symbol} ${direction}: Coin đang trong thời gian hồi chiêu sau SL`);
     registerShadowTrade(setup, 'SYMBOL_IN_SL_COOLDOWN');
     return null;
   }
@@ -61,12 +73,12 @@ async function generateQuantitativeTrade(setup, marketData = null) {
   // ─── CHỐT CHẶN 3: REAL-TIME BTC FLASH GUARD ───────────────────────
   const btcFlash = checkBtcFlashStatus();
   if (btcFlash.activeFlash === 'FLASH_DUMP' && direction === 'LONG') {
-    log.warn(`[SignalEngine] VETO BTC Flash Guard ${symbol} LONG: Đang có bão BTC Flash Dump (${btcFlash.reason})`);
+    log.system(`[AutoTrade] 🛑 [VETO BTC Flash Guard] ${symbol} LONG: Đang có bão BTC Flash Dump (${btcFlash.reason})`);
     registerShadowTrade(setup, `BTC_FLASH_DUMP: ${btcFlash.reason}`);
     return null;
   }
   if (btcFlash.activeFlash === 'FLASH_PUMP' && direction === 'SHORT') {
-    log.warn(`[SignalEngine] VETO BTC Flash Guard ${symbol} SHORT: Đang có bão BTC Flash Pump (${btcFlash.reason})`);
+    log.system(`[AutoTrade] 🛑 [VETO BTC Flash Guard] ${symbol} SHORT: Đang có bão BTC Flash Pump (${btcFlash.reason})`);
     registerShadowTrade(setup, `BTC_FLASH_PUMP: ${btcFlash.reason}`);
     return null;
   }
@@ -80,7 +92,7 @@ async function generateQuantitativeTrade(setup, marketData = null) {
   const currentPrice = ta?.price || ta?.close || ta?.lastPrice || markPrice || sig369?.currentPrice || sig369?.price || topCoinPrice || setup.targetLevel || setup.price;
 
   if (!currentPrice || currentPrice <= 0) {
-    log.warn(`[SignalEngine] ${symbol} ${direction}: Không có giá hợp lệ — bỏ qua`);
+    log.warn(`[AutoTrade] ${symbol} ${direction}: Không có giá hợp lệ — bỏ qua`);
     return null;
   }
 
@@ -95,7 +107,7 @@ async function generateQuantitativeTrade(setup, marketData = null) {
 
   // ─── CHỐT CHẶN 4: BOUNCE CANCEL COOLDOWN (MỐC VỪA BẬT NẢY) ─────────
   if (isLevelBounceCooldown(symbol, entryPrice)) {
-    log.warn(`[SignalEngine] VETO Bounce Cancel ${symbol} ${direction} @ ${entryPrice}: Mốc vừa nảy giá không khớp, đang cooldown`);
+    log.system(`[AutoTrade] 🛑 [VETO Bounce Cancel] ${symbol} ${direction} @ ${entryPrice}: Mốc vừa nảy giá không khớp, đang cooldown`);
     return null;
   }
 
@@ -116,13 +128,13 @@ async function generateQuantitativeTrade(setup, marketData = null) {
       effGridWidth
     );
   } catch (err) {
-    log.error(`[SignalEngine] Lỗi calculateTierSLTP ${symbol}: ${err.message}`);
+    log.error(`[AutoTrade] Lỗi calculateTierSLTP ${symbol}: ${err.message}`);
     return null;
   }
 
   if (!tierSetup || !tierSetup.valid) {
     const vetoReason = tierSetup?.reason || 'Không đạt chuẩn R:R';
-    log.warn(`[SignalEngine] VETO toán học ${symbol} ${direction}: ${vetoReason}`);
+    log.system(`[AutoTrade] 🛑 [VETO Toán học] ${symbol} ${direction}: ${vetoReason}`);
     registerShadowTrade({
       ...setup,
       entryPrice,
@@ -159,7 +171,7 @@ async function generateQuantitativeTrade(setup, marketData = null) {
   }, marketContext);
 
   if (!gateResult.isApproved) {
-    log.warn(`[SignalEngine] VETO Risk Gatekeeper ${symbol} ${direction}: ${gateResult.reason}`);
+    log.system(`[AutoTrade] 🛑 [AI VETO] ${symbol} (${direction}): ${gateResult.reason} — Bỏ qua`);
     registerShadowTrade({
       ...setup,
       entryPrice,
@@ -168,6 +180,8 @@ async function generateQuantitativeTrade(setup, marketData = null) {
     }, `GATEKEEPER_VETO: ${gateResult.reason}`);
     return null;
   }
+
+  log.system(`[AutoTrade] 🟢 [AI APPROVED] ${symbol} (${direction}) — Xác suất thắng ${(gateResult.winProbability * 100).toFixed(1)}% >= 40% [Risk Gatekeeper]`);
 
   // 4. Sinh đối tượng trade chuẩn cho bot_new
   const trade = {
@@ -191,7 +205,8 @@ async function generateQuantitativeTrade(setup, marketData = null) {
     source: 'quantitative_deterministic'
   };
 
-  log.system(`[SignalEngine] ✓ TẠO LỆNH ĐỊNH LƯỢNG HỢP LỆ: ${symbol} ${direction} @ ${entryPrice} | SL: ${trade.slPrice} | TP: ${trade.targetPrice} | R:R: ${trade.rrRatio} | x${trade.leverage}`);
+  log.system(`[AutoTrade] Set leverage ${symbol}USDT = ${trade.leverage}x (Tier SL: $${trade.slPrice} (-${trade.slPct}%), TP: $${trade.targetPrice} (+${trade.targetPct}%), BE Trigger: $${trade.beTriggerPrice} | Ký quỹ: $${trade.margin})`);
+  log.system(`[AutoTrade] ✓ TẠO LỆNH ĐỊNH LƯỢNG HỢP LỆ: ${symbol} ${direction} @ ${entryPrice} | SL: ${trade.slPrice} | TP: ${trade.targetPrice} | R:R: ${trade.rrRatio} | x${trade.leverage}`);
   return trade;
 }
 
@@ -204,6 +219,28 @@ async function generateQuantitativeTrade(setup, marketData = null) {
  */
 async function processCandidateSetups(allScores, marketData = null, topCap = MAX_CONCURRENT_NEW_TRADES) {
   if (!Array.isArray(allScores) || allScores.length === 0) return [];
+
+  // Ghi nhận log Confluence Filter và Pass tương tự bot-h4
+  for (const s of allScores.slice(0, 10)) {
+    const isTier1 = FIXED_COINS.includes(s.symbol);
+    const minRequired = isTier1 ? MIN_SCORE_TIER1 : MIN_SCORE_TIER2;
+    const rankTierLabel = isTier1 ? 'Tier 1 Top 50' : 'Tier 2 Altcoin';
+
+    if (s.disqualified) {
+      if (_shouldLogSignal(s.symbol, s.direction, 'disqualified', 10 * 60 * 1000)) {
+        log.system(`[AutoTrade] 🛑 [Confluence Filter] ${s.symbol} (${s.direction}): ${s.disqualifyReason || 'Bị loại'} — Bỏ qua`);
+      }
+    } else if (s.total < minRequired) {
+      if (s.total >= 4.0 && _shouldLogSignal(s.symbol, s.direction, 'low_score', 10 * 60 * 1000)) {
+        log.system(`[AutoTrade] 🛑 [Confluence Filter] ${s.symbol} (${s.direction}): Score ${s.total.toFixed(1)}đ < ${minRequired}đ [${rankTierLabel}] — Bỏ qua (Chưa đủ điểm)`);
+      }
+    } else {
+      if (_shouldLogSignal(s.symbol, s.direction, 'confluence_pass', 10 * 60 * 1000)) {
+        const estEntry = s.targetLevel || s.price || marketData?.ta?.[s.symbol]?.price || 'Market';
+        log.system(`[AutoTrade] 🎯 [CONFLUENCE PASS] ${s.symbol} → ${s.direction} (${s.total.toFixed(1)}đ >= ${minRequired}đ [${rankTierLabel}] | Ký quỹ: $10.00) tại $${estEntry}`);
+      }
+    }
+  }
 
   const eligible = allScores.filter(s => {
     if (s.disqualified) return false;

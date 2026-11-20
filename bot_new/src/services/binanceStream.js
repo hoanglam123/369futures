@@ -178,7 +178,7 @@ async function startStream() {
   _keepaliveTimer = setInterval(async () => {
     try {
       await refreshListenKey(_listenKey);
-      log.system('Binance WS: keepalive OK');
+      log.system('[PP369] [BinanceStream] Keepalive listenKey thành công');
     } catch (e) {
       log.warn('Binance WS: keepalive thất bại', { error: e.message });
       // HTTP 400 = listenKey đã hết hạn → lấy key mới + reconnect WS
