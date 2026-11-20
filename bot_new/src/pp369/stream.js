@@ -161,6 +161,12 @@ function _connect() {
         _prices[sym] = price;
         _priceTimestamps[sym] = Date.now();
 
+        // ─── Phase 4 & 5: Tự động truyền dữ liệu real-time 0ms ──────────────
+        if (sym === 'BTC') {
+          try { require('../services/btcFlashGuard').processBtcTick(price); } catch (_) {}
+        }
+        try { require('../services/shadowTracker').updateShadowPrices({ [sym]: price }); } catch (_) {}
+
         if (_priceCallbacks.size > 0) {
           for (const cb of _priceCallbacks) {
             try { cb(sym, price); } catch (_) {}

@@ -134,7 +134,16 @@ function updateShadowPrices(prices) {
     if (pos.status !== 'ACTIVE') continue;
 
     const price = prices[pos.symbol];
-    if (!price || price <= 0) continue;
+    if (!price || price <= 0) {
+      if ((now - pos.openedAtMs) > 48 * 3600 * 1000) {
+        pos.status = 'EXPIRED';
+        pos.closedAt = new Date(now).toISOString();
+        appendShadowHistory(pos);
+        delete _activeShadowPositions[id];
+        resolved.push(pos);
+      }
+      continue;
+    }
 
     const isLong = pos.direction === 'LONG' || pos.direction === 'BUY';
     let outcome = null;

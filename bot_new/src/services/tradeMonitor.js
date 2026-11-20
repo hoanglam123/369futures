@@ -2565,6 +2565,7 @@ function initBinanceStream() {
     );
     if (trade) {
       trade.entryFilled = true;
+      try { require('./bounceCancel').untrackLimit(trade.symbol, trade.targetLevel || trade.entryPrice); } catch (_) {}
 
       // Cập nhật TP1 (+10% vốn) theo giá fill thực tế (chính xác hơn entryPrice limit)
       if (avgPrice > 0) {

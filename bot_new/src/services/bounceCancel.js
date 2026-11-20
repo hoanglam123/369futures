@@ -26,6 +26,14 @@ function trackPendingLimit(trade) {
   const level = trade.targetLevel || trade.entryPrice;
   const key = `${sym}_${level}`;
 
+  // Tự động dọn các entry cũ hơn 4 giờ
+  const now = Date.now();
+  for (const [k, v] of _trackedLimits.entries()) {
+    if (now - (v.setAt || 0) > 4 * 3600 * 1000) {
+      _trackedLimits.delete(k);
+    }
+  }
+
   if (!_trackedLimits.has(key)) {
     _trackedLimits.set(key, {
       symbol: sym,
@@ -36,9 +44,15 @@ function trackPendingLimit(trade) {
       minDistancePct: Infinity,
       bouncePeakPrice: trade.entryPrice,
       hasApproached: false,
-      setAt: Date.now()
+      setAt: now
     });
   }
+}
+
+function untrackLimit(sym, level) {
+  const cleanSym = (sym || '').replace('USDT', '').toUpperCase();
+  const key = `${cleanSym}_${level}`;
+  _trackedLimits.delete(key);
 }
 
 /**
@@ -136,6 +150,7 @@ function clearBounceCooldowns() {
 
 module.exports = {
   trackPendingLimit,
+  untrackLimit,
   checkBounceCancel,
   isLevelBounceCooldown,
   getBounceCooldowns,

@@ -343,6 +343,8 @@ async function runJob({ silent = false, lookbackHours = null } = {}) {
     if (!silent && AI_ANALYSIS_ENABLED) {
       log.ai('Gọi Gemini AI viết nhận định bản tin sáng (narrative)...');
       const recentHistoryText = getRecentHistoryText(5);
+      const scoresText = formatScoresForPrompt(allScores);
+      const signals369Text = format369ForPrompt(marketData.signals369);
       if (activeTrades.length > 0) {
         log.ai(`Truyền ${activeTrades.length} lệnh active vào AI context`);
       }
