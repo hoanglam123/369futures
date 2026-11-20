@@ -223,6 +223,22 @@ function getActiveShadowPositions() {
   return { ..._activeShadowPositions };
 }
 
+/**
+ * Kiểm tra xem symbol có đang có vị thế Shadow PnL active không (Đồng bộ cơ chế với bot-h4)
+ */
+function isShadowPositionActive(sym, side = null) {
+  if (!sym) return false;
+  const cleanSym = sym.replace('USDT', '').toUpperCase();
+  for (const pos of Object.values(_activeShadowPositions)) {
+    if (pos.symbol === cleanSym && pos.status === 'ACTIVE') {
+      if (!side || pos.direction === side.toUpperCase()) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
 function getShadowStats() {
   let totalSavedSl = 0;
   let totalMissedTp = 0;
@@ -272,6 +288,7 @@ module.exports = {
   registerShadowTrade,
   updateShadowPrices,
   getActiveShadowPositions,
+  isShadowPositionActive,
   getShadowStats,
   clearActiveShadowsForTest
 };

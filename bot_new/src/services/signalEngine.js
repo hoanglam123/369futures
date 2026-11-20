@@ -19,7 +19,7 @@ const { isDirectionLocked }       = require('./directionalCircuitBreaker');
 const { isSymbolInCooldown }      = require('./cooldownManager');
 const { isLevelBounceCooldown }   = require('./bounceCancel');
 const { checkBtcFlashStatus }     = require('./btcFlashGuard');
-const { registerShadowTrade }     = require('./shadowTracker');
+const { registerShadowTrade, isShadowPositionActive } = require('./shadowTracker');
 const { getMarkPrice }            = require('../pp369/stream');
 const { fetchH1Historical }       = require('./candleCache');
 const { getSymbolInfo, getUsdtBalance } = require('./binanceTrader');
@@ -39,6 +39,30 @@ function _shouldLogSignal(sym, dir, type, cooldownMs = 10 * 60 * 1000) {
   }
   _loggedSignals.set(key, now);
   return true;
+}
+
+// Quản lý VETO Cooldown: Khi một setup bị VETO Toán học (cản cứng) hoặc AI VETO,
+// đưa vào hồi chiêu 30 phút để nhường slot duyệt cho các coin khác (Đồng bộ triệt để với bot-h4)
+const _vetoCooldown = new Map();
+
+function _setVetoCooldown(sym, dir, cooldownMs = 30 * 60 * 1000) {
+  const key = `${sym}_${dir}`;
+  _vetoCooldown.set(key, Date.now() + cooldownMs);
+}
+
+function _isVetoInCooldown(sym, dir) {
+  const key = `${sym}_${dir}`;
+  const expire = _vetoCooldown.get(key);
+  if (!expire) return false;
+  if (Date.now() > expire) {
+    _vetoCooldown.delete(key);
+    return false;
+  }
+  return true;
+}
+
+function _clearVetoCooldownForTest() {
+  _vetoCooldown.clear();
 }
 
 /**
@@ -164,7 +188,10 @@ async function generateQuantitativeTrade(setup, marketData = null) {
 
   if (!tierSetup || !tierSetup.valid) {
     const vetoReason = tierSetup?.reason || 'Không đạt chuẩn R:R';
-    log.system(`[AutoTrade] 🛑 [VETO Toán học] ${symbol} ${direction}: ${vetoReason}`);
+    _setVetoCooldown(symbol, direction, 30 * 60 * 1000);
+    if (_shouldLogSignal(symbol, direction, 'math_veto', 30 * 60 * 1000)) {
+      log.system(`[AutoTrade] 🛑 [VETO Toán học] ${symbol} ${direction}: ${vetoReason}`);
+    }
     registerShadowTrade({
       ...setup,
       entryPrice,
@@ -201,7 +228,10 @@ async function generateQuantitativeTrade(setup, marketData = null) {
   }, marketContext);
 
   if (!gateResult.isApproved) {
-    log.system(`[AutoTrade] 🛑 [AI VETO] ${symbol} (${direction}): ${gateResult.reason} — Bỏ qua`);
+    _setVetoCooldown(symbol, direction, 30 * 60 * 1000);
+    if (_shouldLogSignal(symbol, direction, 'gatekeeper_veto', 30 * 60 * 1000)) {
+      log.system(`[AutoTrade] 🛑 [AI VETO] ${symbol} (${direction}): ${gateResult.reason} — Bỏ qua`);
+    }
     registerShadowTrade({
       ...setup,
       entryPrice,
@@ -275,16 +305,24 @@ async function processCandidateSetups(allScores, marketData = null, topCap = MAX
       ? `$${estMargin.toFixed(2)}`
       : (isTier1 ? `$${parseFloat(process.env.TRADE_AMOUNT_TIER1 || '20').toFixed(2)}` : `$${parseFloat(process.env.TRADE_AMOUNT_TIER2 || '10').toFixed(2)}`);
 
+    const isShadow = isShadowPositionActive(s.symbol, s.direction);
+    const inVetoCd = _isVetoInCooldown(s.symbol, s.direction);
+
     if (s.disqualified) {
       if (_shouldLogSignal(s.symbol, s.direction, 'disqualified', 10 * 60 * 1000)) {
         log.system(`[AutoTrade] 🛑 [Confluence Filter] ${s.symbol} (${s.direction}): ${s.disqualifyReason || 'Bị loại'} — Bỏ qua`);
+      }
+    } else if (isShadow || inVetoCd) {
+      if (_shouldLogSignal(s.symbol, s.direction, 'shadow_veto_bypass', 15 * 60 * 1000)) {
+        const reason = isShadow ? 'Đang theo dõi Shadow PnL' : 'Đang trong VETO Cooldown (Cản cứng chặn)';
+        log.system(`[AutoTrade] 🛑 [Confluence Filter] ${s.symbol} (${s.direction}): ${reason} — Bỏ qua`);
       }
     } else if (s.total < minRequired) {
       if (s.total >= 4.0 && _shouldLogSignal(s.symbol, s.direction, 'low_score', 10 * 60 * 1000)) {
         log.system(`[AutoTrade] 🛑 [Confluence Filter] ${s.symbol} (${s.direction}): Score ${s.total.toFixed(1)}đ < ${minRequired}đ [${rankTierLabel}] — Bỏ qua (Chưa đủ điểm)`);
       }
     } else {
-      if (_shouldLogSignal(s.symbol, s.direction, 'confluence_pass', 10 * 60 * 1000)) {
+      if (_shouldLogSignal(s.symbol, s.direction, 'confluence_pass', 15 * 60 * 1000)) {
         const estEntry = s.targetLevel || s.price || marketData?.ta?.[s.symbol]?.price || 'Market';
         log.system(`[AutoTrade] 🎯 [CONFLUENCE PASS] ${s.symbol} → ${s.direction} (${s.total.toFixed(1)}đ >= ${minRequired}đ [${rankTierLabel}] | Ký quỹ: ${marginStr}) tại $${estEntry}`);
       }
@@ -293,6 +331,8 @@ async function processCandidateSetups(allScores, marketData = null, topCap = MAX
 
   const eligible = allScores.filter(s => {
     if (s.disqualified) return false;
+    if (isShadowPositionActive(s.symbol, s.direction)) return false;
+    if (_isVetoInCooldown(s.symbol, s.direction)) return false;
     const isTier1 = FIXED_COINS.includes(s.symbol);
     const minRequired = isTier1 ? MIN_SCORE_TIER1 : MIN_SCORE_TIER2;
     return s.total >= minRequired;
@@ -327,6 +367,7 @@ async function processCandidateSetups(allScores, marketData = null, topCap = MAX
 module.exports = {
   generateQuantitativeTrade,
   processCandidateSetups,
+  _clearVetoCooldownForTest,
   MIN_SCORE_TIER1,
   MIN_SCORE_TIER2,
   MAX_CONCURRENT_NEW_TRADES
