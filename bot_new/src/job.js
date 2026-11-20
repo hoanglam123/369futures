@@ -37,7 +37,7 @@ pp369.setLogger(log); // dùng logger của project (ghi file data/logs/)
 const {
   get369SignalsForCoins, format369ForPrompt, getLevelCache, PROXIMITY_PCT,
   logSignal369, start369Stream, getNearbySymbols, getMarkPrice, format369Alert,
-  syncWebSocketSubscriptions, getPrices
+  syncWebSocketSubscriptions, getPrices, updatePricesRest
 } = pp369;
 const { updateShadowPrices, getShadowStats } = require('./services/shadowTracker');
 const { checkMonthTransition } = require('./services/h1RefCache');
@@ -525,6 +525,11 @@ async function run369AlertScan() {
       await initH1RefCache(symbols);
       prePopulateLevelCache(symbols, getPrices());
       levelCache = getLevelCache();
+    }
+
+    // Cập nhật giá REST toàn bộ 470 coin trước khi lọc (1 call nhẹ, weight=1)
+    if (typeof updatePricesRest === 'function') {
+      try { await updatePricesRest(); } catch (_) {}
     }
 
     // Scan sát mốc (<=0.5%) với strict = true
