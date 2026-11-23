@@ -237,6 +237,9 @@ function addToGridBlacklist(symbol, reason, xVal, yVal) {
 // H4 reference cache (yearly): { symbol: { yearStart, openPrice, closePrice, step, decimals, upperPrice, lowerPrice } }
 const _h4RefCache = {};
 
+// H1 reference cache (monthly fallback): { symbol: { monthStart, openPrice, closePrice, failed } }
+const _h1Cache = {};
+
 // H1 historical candle cache: { symbol: { yearStart, candles: [], cursor } } — toàn bộ H1 đã đóng từ đầu năm
 const _h1HistCache = {};
 
@@ -1128,7 +1131,14 @@ async function get369Signal(symbol, currentPrice = null) {
         const minGridPct = getMinGridPct(symbol);
 
         if (y < minGridPct || y > GRID_MAX_PCT) {
-          _levelCache[symbol] = { longEntry: longEntry.value, shortEntry: shortEntry.value, step: step };
+          // Giữ lại lastSideOverride đã đặt từ overrideLevelLastSide (chống mất khóa Bounce/Pre-Fill Cancel)
+    const prevOverride = _levelCache[symbol]?.lastSideOverride;
+    _levelCache[symbol] = {
+      longEntry: longEntry.value,
+      shortEntry: shortEntry.value,
+      step: step,
+      ...(prevOverride ? { lastSideOverride: prevOverride } : {}),
+    };
           return {
             signal: 'NONE', symbol, month, openPrice, closePrice, step: step,
             reason: `Khoảng cách giữa 2 mốc kẹp y=${y.toFixed(2)}% không đạt yêu cầu ${minGridPct}-${GRID_MAX_PCT}%`
@@ -1140,7 +1150,14 @@ async function get369Signal(symbol, currentPrice = null) {
         const nearShort = (currentPrice >= shortEntry.value - nearTolPre) && (currentPrice <= shortEntry.value + gridWidthStepPre * 0.50);
 
         if (!nearLong && !nearShort) {
-          _levelCache[symbol] = { longEntry: longEntry.value, shortEntry: shortEntry.value, step: step };
+          // Giữ lại lastSideOverride đã đặt từ overrideLevelLastSide (chống mất khóa Bounce/Pre-Fill Cancel)
+    const prevOverride = _levelCache[symbol]?.lastSideOverride;
+    _levelCache[symbol] = {
+      longEntry: longEntry.value,
+      shortEntry: shortEntry.value,
+      step: step,
+      ...(prevOverride ? { lastSideOverride: prevOverride } : {}),
+    };
           return {
             signal: 'NONE', symbol, month, openPrice, closePrice, step: step,
             reason: `Giá ${currentPrice} đang ở xa các mốc (không chạm)`
@@ -1177,7 +1194,14 @@ async function get369Signal(symbol, currentPrice = null) {
       };
     }
 
-    _levelCache[symbol] = { longEntry: longEntry.value, shortEntry: shortEntry.value, step: step };
+    // Giữ lại lastSideOverride đã đặt từ overrideLevelLastSide (chống mất khóa Bounce/Pre-Fill Cancel)
+    const prevOverride = _levelCache[symbol]?.lastSideOverride;
+    _levelCache[symbol] = {
+      longEntry: longEntry.value,
+      shortEntry: shortEntry.value,
+      step: step,
+      ...(prevOverride ? { lastSideOverride: prevOverride } : {}),
+    };
 
     const pairLow = longEntry.value;
     const pairHigh = shortEntry.value;
@@ -1284,7 +1308,7 @@ async function get369Signal(symbol, currentPrice = null) {
     if (status === 400) {
       // 400: symbol không hợp lệ → đánh dấu vào h1Cache để không gọi lại
       const entry = { yearStart: YEAR_START_MS, failed: true, reason: `Status ${status}` };
-      _h1RefCache[symbol] = entry;
+      _h1Cache[symbol] = entry;
       try {
         let data = {};
         if (fs.existsSync(FILE_PATH)) data = JSON.parse(fs.readFileSync(FILE_PATH, 'utf8'));
@@ -3088,7 +3112,14 @@ function getLevelCache(forceRefresh = false) {
         const longEntry  = grid.filter(l => l.type === 'tren' && l.value <= price).pop();
         const shortEntry = grid.find(l => l.type === 'duoi' && l.value > (longEntry ? longEntry.value : price));
         if (longEntry && shortEntry) {
-          _levelCache[symbol] = { longEntry: longEntry.value, shortEntry: shortEntry.value, step: step };
+          // Giữ lại lastSideOverride đã đặt từ overrideLevelLastSide (chống mất khóa Bounce/Pre-Fill Cancel)
+    const prevOverride = _levelCache[symbol]?.lastSideOverride;
+    _levelCache[symbol] = {
+      longEntry: longEntry.value,
+      shortEntry: shortEntry.value,
+      step: step,
+      ...(prevOverride ? { lastSideOverride: prevOverride } : {}),
+    };
         }
       }
     } catch (err) {

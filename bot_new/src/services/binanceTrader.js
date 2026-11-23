@@ -128,25 +128,31 @@ function _invalidateBalanceCache() {
 }
 
 /**
- * Làm tròn giá theo tickSize của sàn Binance để tránh lỗi "Price not increased by tick size".
+ * Làm tròn giá theo tickSize của sàn Binance, trả về chuỗi thập phân cố định
+ * (tránh ký pháp khoa học kiểu "5e-7" bị Binance từ chối lỗi -1100).
  */
-function roundPrice(price, info) {
-  if (!price || isNaN(price)) return price;
+function formatPriceStr(price, info) {
+  if (!price || isNaN(price)) return String(price);
   const tickSize = info?.tickSize;
   if (tickSize && tickSize > 0) {
     const rounded = Math.round(price / tickSize) * tickSize;
     const dec = Math.max(0, Math.round(-Math.log10(tickSize)));
-    return parseFloat(rounded.toFixed(dec));
+    return rounded.toFixed(dec);
   }
   const prec = info?.pricePrecision ?? 4;
-  return parseFloat(price.toFixed(prec));
+  return Number(price).toFixed(prec);
+}
+
+function roundPrice(price, info) {
+  if (!price || isNaN(price)) return price;
+  return formatPriceStr(price, info);
 }
 
 // Tính số lượng coin cần mua/bán
 // - Ưu tiên TRADE_SIZE_PCT % balance nếu được cấu hình (ví dụ 5%)
 // - Capped trong [TRADE_MIN_USDT, TRADE_MAX_USDT] hoặc targetMargin
-// - Đảm bảo thỏa mãn cả minNotional VÀ minQty/stepSize (tránh lỗi floor về 0 trên BTC/ETH giá cao)
-async function calcQty(symbol, entryPrice, leverage, info, targetMargin = null, overrideBalance = null) {
+// - Bảo vệ giá thanh lý: khi có slPct, TUYỆT ĐỐI không đẩy đòn bẩy vượt quá ngưỡng cháy trước SL
+async function calcQty(symbol, entryPrice, leverage, info, targetMargin = null, overrideBalance = null, slPct = null) {
   const balance = (overrideBalance !== null && overrideBalance !== undefined)
     ? overrideBalance
     : await getUsdtBalance();
@@ -164,31 +170,31 @@ async function calcQty(symbol, entryPrice, leverage, info, targetMargin = null, 
   const step = info?.stepSize || Math.pow(10, -(info?.quantityPrecision || 3));
   const minQty = Math.max(info?.minQty || 0, step);
   const minNotionalFilter = info?.minNotional || MIN_NOTIONAL_USDT;
-  // Binance Futures yêu cầu cả 2 điều kiện: notional >= minNotional VÀ qty >= minQty
-  // Với coin giá cao như BTC (~62k-100k), 1 lot tối thiểu (0.001 BTC) đòi hỏi notional ~$62-100!
   const minRequiredNotional = Math.max(minNotionalFilter, minQty * entryPrice);
 
   let effectiveLeverage = leverage;
   let notional = sizeUsdt * effectiveLeverage;
 
   if (notional < minRequiredNotional) {
-    // 🛡️ TỰ ĐỘNG NÂNG ĐÒN BẨY ĐỂ BẢO TOÀN KÝ QUỸ (~5% BALANCE)
-    // Ví dụ BTC $90k, minQty 0.001 -> notional $90. Margin $5 -> nâng leverage = Math.ceil(90 / 5) = 18x-20x
-    const maxSafeBumpLev = (symbol === 'BTC' || symbol === 'ETH') ? 50 : 25;
-    const neededLeverage = Math.ceil(minRequiredNotional / sizeUsdt);
+    const hardCapLev = (symbol === 'BTC' || symbol === 'ETH') ? 50 : 25;
+    // Nếu biết slPct thực của lệnh -> khóa trần đòn bẩy chống thanh lý trước SL: 1 / (1.5 * slPct + 1% MMR)
+    const liqSafeCap = (typeof slPct === 'number' && slPct > 0)
+      ? Math.max(1, Math.floor(1.0 / (1.5 * (slPct / 100) + 0.01)))
+      : hardCapLev;
+    const maxSafeBumpLev = Math.min(hardCapLev, liqSafeCap);
+    const neededLeverage = Math.ceil(minRequiredNotional / Math.max(sizeUsdt, 0.01));
 
     if (neededLeverage <= maxSafeBumpLev) {
       effectiveLeverage = Math.max(effectiveLeverage, neededLeverage);
       notional = sizeUsdt * effectiveLeverage;
     } else {
-      // Nếu đòn bẩy chạm trần an toàn mà vẫn thiếu -> nâng đòn bẩy kịch trần rồi mới bù thêm margin
-      effectiveLeverage = maxSafeBumpLev;
+      effectiveLeverage = Math.max(effectiveLeverage, maxSafeBumpLev);
       const neededMargin = Math.ceil((minRequiredNotional / effectiveLeverage) * 100) / 100;
       if (neededMargin <= balance) {
         sizeUsdt = neededMargin;
         notional = sizeUsdt * effectiveLeverage;
       } else {
-        log.warn(`calcQty: số dư $${balance.toFixed(2)} USDT không đủ margin tối thiểu $${neededMargin.toFixed(2)} USDT (cần notional $${minRequiredNotional.toFixed(2)} cho ${symbol} tại đòn bẩy ${effectiveLeverage}x)`);
+        log.warn(`calcQty: số dư $${balance.toFixed(2)} USDT không đủ margin tối thiểu $${neededMargin.toFixed(2)} USDT (cần notional $${minRequiredNotional.toFixed(2)} cho ${symbol} tại đòn bẩy an toàn ${effectiveLeverage}x)`);
         return { qty: 0, sizeUsdt, balance, effectiveLeverage };
       }
     }
@@ -196,19 +202,25 @@ async function calcQty(symbol, entryPrice, leverage, info, targetMargin = null, 
 
   const rawQty = notional / entryPrice;
   const floored = Math.floor(rawQty / step) * step;
-  const decimals = step.toString().includes('.') ? step.toString().split('.')[1].length : 0;
+  // Tính số thập phân bằng -log10(step) để không lỗi khi step = 1e-7
+  const decimals = step < 1 ? Math.max(0, Math.round(-Math.log10(step))) : 0;
   let qty = parseFloat(floored.toFixed(decimals));
 
-  // Nếu sau khi floor bị nhỏ hơn minQty
   if (qty < minQty) {
     qty = parseFloat(minQty.toFixed(decimals));
     notional = qty * entryPrice;
   }
 
-  // Bảo đảm notional sau khi làm tròn không bị hụt dưới minNotionalFilter sàn
   if (qty > 0 && (qty * entryPrice) < minNotionalFilter) {
     qty = parseFloat((qty + step).toFixed(decimals));
     notional = qty * entryPrice;
+  }
+
+  // Hậu kiểm: sau khi bump qty cho minNotionalFilter, bảo đảm margin yêu cầu không vượt quá balance
+  const finalRequiredMargin = (qty * entryPrice) / Math.max(1, effectiveLeverage);
+  if (qty > 0 && finalRequiredMargin > balance * 1.02) {
+    log.warn(`calcQty: sau làm tròn minNotional, margin yêu cầu $${finalRequiredMargin.toFixed(2)} > số dư $${balance.toFixed(2)} cho ${symbol} — từ chối`);
+    return { qty: 0, sizeUsdt, balance, effectiveLeverage };
   }
 
   return { qty, sizeUsdt, balance, effectiveLeverage };
@@ -234,8 +246,9 @@ async function placeNewTrade(trade) {
       return { symbolNotSupported: true };
     }
 
-    // 1. Tính qty (hỗ trợ targetMargin từ trade.margin & tự động nâng đòn bẩy nếu notional không đủ minRequiredNotional)
-    const { qty, sizeUsdt, balance, effectiveLeverage } = await calcQty(symbol, entryPrice, leverage, info, trade.margin);
+    // 1. Tính qty (truyền trade.slPct để KHÓA TRẦN đòn bẩy an toàn, không bao giờ cháy trước SL)
+    const slPctEst = trade.slPct || (slPrice && entryPrice ? Math.abs(entryPrice - slPrice) / entryPrice * 100 : null);
+    const { qty, sizeUsdt, balance, effectiveLeverage } = await calcQty(symbol, entryPrice, leverage, info, trade.margin, null, slPctEst);
     if (qty <= 0) {
       const minStep = info?.minQty || info?.stepSize || 0.001;
       const minLotCost = ((minStep * entryPrice) / leverage).toFixed(2);
@@ -252,8 +265,7 @@ async function placeNewTrade(trade) {
     // 2. Đặt đòn bẩy trên sàn
     await api('POST', '/fapi/v1/leverage', { symbol: `${symbol}USDT`, leverage });
 
-    // Validate SL direction trước khi đặt bất kỳ order nào.
-    // Nếu sai chiều → Binance sẽ reject SL sau khi entry đã vào → vị thế không có protection.
+    // Validate SL direction trước khi đặt bất kỳ order nào (so sánh số học parseFloat)
     const isLong = direction === 'LONG';
     if (!slPrice || !entryPrice) {
       log.warn(`BINANCE: slPrice hoặc entryPrice null cho ${symbol} — hủy`);
@@ -261,11 +273,13 @@ async function placeNewTrade(trade) {
     }
     const slFmt  = roundPrice(slPrice, info);
     const entFmt = roundPrice(entryPrice, info);
-    if (isLong && slFmt >= entFmt) {
+    const slNum  = parseFloat(slFmt);
+    const entNum = parseFloat(entFmt);
+    if (isLong && slNum >= entNum) {
       log.error(`BINANCE: SL ${slFmt} >= entry ${entFmt} cho LONG — hủy, không đặt lệnh`);
       return null;
     }
-    if (!isLong && slFmt <= entFmt) {
+    if (!isLong && slNum <= entNum) {
       log.error(`BINANCE: SL ${slFmt} <= entry ${entFmt} cho SHORT — hủy, không đặt lệnh`);
       return null;
     }
@@ -382,6 +396,7 @@ async function moveSLToBreakeven(trade, newSlPrice) {
   if (!isEnabled() || !trade) return null;
   const { symbol, direction } = trade;
   const targetSlPrice = newSlPrice || trade.entryPrice;
+  const prevSlPrice = trade.slPrice;
   const slSide = direction === 'LONG' ? 'SELL' : 'BUY';
 
   // 1. Hủy SL cũ trên sàn nếu có
@@ -389,12 +404,13 @@ async function moveSLToBreakeven(trade, newSlPrice) {
     try {
       await cancelAlgoOrder(symbol, trade.binanceSlOrderId);
       log.trade(`BINANCE: đã hủy SL cũ #${trade.binanceSlOrderId} của ${symbol}`);
+      trade.binanceSlOrderId = null;
     } catch (err) {
       log.warn(`BINANCE: hủy SL cũ #${trade.binanceSlOrderId} thất bại hoặc đã khớp: ${err.message}`);
     }
   }
 
-  // 2. Đặt SL mới tại mốc Breakeven
+  // 2. Đặt SL mới tại mốc Breakeven (rollback SL cũ nếu đặt lỗi)
   try {
     const slRes = await placeStopOrder(symbol, slSide, 'STOP_MARKET', targetSlPrice);
     const newSlId = (slRes?.algoId != null ? String(slRes.algoId) : (slRes?.orderId != null ? String(slRes.orderId) : null));
@@ -405,6 +421,16 @@ async function moveSLToBreakeven(trade, newSlPrice) {
     return newSlId;
   } catch (err) {
     log.error(`BINANCE: lỗi đặt SL Breakeven ${symbol}`, { error: err.message });
+    if (prevSlPrice && prevSlPrice !== targetSlPrice) {
+      try {
+        const restoreRes = await placeStopOrder(symbol, slSide, 'STOP_MARKET', prevSlPrice);
+        const rId = restoreRes?.algoId ?? restoreRes?.orderId ?? null;
+        if (rId != null) trade.binanceSlOrderId = String(rId);
+        log.warn(`BINANCE: đã khôi phục SL cũ ${symbol} @ ${prevSlPrice}`);
+      } catch (reErr) {
+        log.error(`BINANCE: khôi phục SL cũ ${symbol} thất bại`, { error: reErr.message });
+      }
+    }
     return null;
   }
 }
@@ -414,15 +440,22 @@ async function moveSLToBreakeven(trade, newSlPrice) {
  * Hủy TP Limit cũ -> Đặt TP Limit mới tại newTargetPrice (reduceOnly: true).
  */
 async function replaceTPOrder(trade, newTargetPrice) {
-  if (!isEnabled() || !trade) return null;
+  if (!isEnabled() || !trade || !newTargetPrice) return null;
   const { symbol, direction } = trade;
   const tpSide = direction === 'LONG' ? 'SELL' : 'BUY';
+  const info = await getSymbolInfo(symbol);
+  const qty = trade.binanceQty;
+  if (!info || !qty) {
+    log.warn(`BINANCE: thiếu info hoặc qty cho ${symbol} — bỏ qua replaceTPOrder`);
+    return null;
+  }
 
   // 1. Hủy TP Limit cũ trên sàn nếu có
   if (trade.binanceTpOrderId) {
     try {
       await cancelOrderById(symbol, trade.binanceTpOrderId);
       log.trade(`BINANCE: đã hủy TP cũ #${trade.binanceTpOrderId} của ${symbol}`);
+      trade.binanceTpOrderId = null;
     } catch (err) {
       log.warn(`BINANCE: hủy TP cũ #${trade.binanceTpOrderId} thất bại: ${err.message}`);
     }
@@ -430,9 +463,7 @@ async function replaceTPOrder(trade, newTargetPrice) {
 
   // 2. Đặt TP Limit mới
   try {
-    const info = await getSymbolInfo(symbol);
     const tpPrice = roundPrice(newTargetPrice, info);
-    const qty = trade.binanceQty;
     const tpOrder = await api('POST', '/fapi/v1/order', {
       symbol: `${symbol}USDT`,
       side: tpSide,
@@ -444,8 +475,8 @@ async function replaceTPOrder(trade, newTargetPrice) {
     });
     trade.binanceTpOrderId = tpOrder.orderId != null ? String(tpOrder.orderId) : null;
     trade.targetPrice = newTargetPrice;
-    log.trade(`BINANCE: Dịch TP Limit mới OK ${symbol}`, { orderId: tpOrder.orderId, newTP: tpPrice });
-    return tpOrder.orderId;
+    log.trade(`BINANCE: Dịch TP Limit mới OK ${symbol}`, { orderId: trade.binanceTpOrderId, newTP: tpPrice });
+    return trade.binanceTpOrderId;
   } catch (err) {
     log.error(`BINANCE: lỗi đặt TP Limit mới ${symbol}`, { error: err.message });
     return null;
@@ -560,8 +591,9 @@ async function placeMarketTrade(trade, currentPrice) {
       return { symbolNotSupported: true };
     }
 
-    // 1. Tính qty (hỗ trợ targetMargin từ trade.margin & tự động nâng đòn bẩy nếu notional không đủ minRequiredNotional)
-    const { qty, sizeUsdt, balance, effectiveLeverage } = await calcQty(symbol, currentPrice, leverage, info, trade?.margin);
+    // 1. Tính qty (truyền slPctEst để KHÓA TRẦN đòn bẩy an toàn, không cháy trước SL)
+    const slPctEst = trade.slPct || (slPrice && currentPrice ? Math.abs(currentPrice - slPrice) / currentPrice * 100 : null);
+    const { qty, sizeUsdt, balance, effectiveLeverage } = await calcQty(symbol, currentPrice, leverage, info, trade?.margin, null, slPctEst);
     if (qty <= 0) {
       const minStep = info?.minQty || info?.stepSize || 0.001;
       const minLotCost = ((minStep * currentPrice) / leverage).toFixed(2);
@@ -578,7 +610,7 @@ async function placeMarketTrade(trade, currentPrice) {
     // 2. Leverage trên sàn
     await api('POST', '/fapi/v1/leverage', { symbol: `${symbol}USDT`, leverage });
 
-    // 3. Validate SL hợp lệ so với giá thị trường
+    // 3. Validate SL hợp lệ so với giá thị trường (so sánh số học parseFloat)
     const isLong   = direction === 'LONG';
     if (!slPrice) {
       log.warn(`BINANCE MARKET: slPrice null cho ${symbol} — hủy`);
@@ -586,11 +618,13 @@ async function placeMarketTrade(trade, currentPrice) {
     }
     const slFmt    = roundPrice(slPrice, info);
     const priceFmt = roundPrice(currentPrice, info);
-    if (isLong && slFmt >= priceFmt) {
+    const slNum    = parseFloat(slFmt);
+    const priceNum = parseFloat(priceFmt);
+    if (isLong && slNum >= priceNum) {
       log.error(`BINANCE MARKET: SL ${slFmt} >= giá ${priceFmt} cho LONG — hủy`);
       return null;
     }
-    if (!isLong && slFmt <= priceFmt) {
+    if (!isLong && slNum <= priceNum) {
       log.error(`BINANCE MARKET: SL ${slFmt} <= giá ${priceFmt} cho SHORT — hủy`);
       return null;
     }

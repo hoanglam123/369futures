@@ -68,8 +68,13 @@ async function placeDualBracket({ client, sym, side, qty, entryPrice, targetPric
     // 2. Lệnh 1: LIMIT TP (Reduce-Only) treo sẵn trên sổ lệnh
     log.system(`[BracketManager] 🎯 Bắn LIMIT TP ${sym} ${oppositeSide} qty=${qty} @ $${targetPrice} (R:R=${rrRatio.toFixed(2)})`);
     const tpRes = await client.placeLimit(sym, oppositeSide, qty, targetPrice, decimals, true);
-    tpOrderId = tpRes?.orderId || tpRes?.id || 'unknown';
-    log.system(`[BracketManager] ✓ LIMIT TP đã treo thành công: orderId=${tpOrderId}`);
+    const rawTpId = tpRes?.orderId ?? tpRes?.id ?? null;
+    tpOrderId = rawTpId != null ? String(rawTpId) : null;
+    if (tpOrderId) {
+      log.system(`[BracketManager] ✓ LIMIT TP đã treo thành công: orderId=${tpOrderId}`);
+    } else {
+      log.error(`[BracketManager] ❌ LIMIT TP ${sym} trả về response rỗng/thiếu orderId`);
+    }
   } catch (err) {
     log.error(`[BracketManager] ❌ Đặt LIMIT TP ${sym} thất bại: ${err.message}`);
   }
@@ -78,20 +83,25 @@ async function placeDualBracket({ client, sym, side, qty, entryPrice, targetPric
     // 3. Lệnh 2: STOP_MARKET (Hard Disaster SL) treo trên hệ thống sàn
     log.system(`[BracketManager] 🛑 Bắn Hard STOP_MARKET SL ${sym} ${oppositeSide} @ $${slPrice}`);
     const slRes = await client.placeStopOrder(sym, oppositeSide, 'STOP_MARKET', slPrice);
-    slOrderId = slRes?.orderId || slRes?.algoId || 'unknown';
-    log.system(`[BracketManager] ✓ Hard STOP_MARKET SL đã treo thành công: orderId=${slOrderId}`);
+    const rawSlId = slRes?.algoId ?? slRes?.orderId ?? null;
+    slOrderId = rawSlId != null ? String(rawSlId) : null;
+    if (slOrderId) {
+      log.system(`[BracketManager] ✓ Hard STOP_MARKET SL đã treo thành công: orderId=${slOrderId}`);
+    } else {
+      log.error(`[BracketManager] ❌ Hard STOP_MARKET SL ${sym} trả về response rỗng/thiếu algoId`);
+    }
   } catch (err) {
     log.error(`[BracketManager] ❌ Đặt Hard STOP_MARKET SL ${sym} thất bại: ${err.message}`);
   }
 
   // 4. Cập nhật metadata
-  meta.tpOrderId = tpOrderId;
-  meta.slOrderId = slOrderId;
+  if (tpOrderId) meta.tpOrderId = tpOrderId;
+  if (slOrderId) meta.slOrderId = slOrderId;
   meta.targetTpPrice = targetPrice;
   meta.tierSlPrice = slPrice;
   meta.currentSlPrice = slPrice;
   meta.rrRatio = rrRatio;
-  meta.isDualBracketActive = !!(tpOrderId && slOrderId);
+  meta.isDualBracketActive = !!(meta.tpOrderId && meta.slOrderId);
 
   return {
     success: !!(tpOrderId || slOrderId),
@@ -107,8 +117,10 @@ async function placeDualBracket({ client, sym, side, qty, entryPrice, targetPric
 
 /**
  * 2. Dời SL lên mốc Breakeven 35% (Entry ± 1% phí) trên sàn Binance.
+ * - Kiểm tra an toàn với currentPrice & one-way ratchet trước khi hủy SL cũ.
+ * - Nếu đặt SL mới lỗi -> lập tức khôi phục (rollback) SL cũ để KHÔNG BAO GIỜ để vị thế trần SL.
  */
-async function ratchetBreakeven({ client, sym, meta, beSlPrice }) {
+async function ratchetBreakeven({ client, sym, meta, beSlPrice, currentPrice = null }) {
   if (!client || !meta) return { success: false, reason: 'INVALID_PARAMS' };
 
   if (meta.isBreakeven === true) {
@@ -117,6 +129,20 @@ async function ratchetBreakeven({ client, sym, meta, beSlPrice }) {
 
   const isLong = meta.side === 'BUY' || meta.side === 'LONG';
   const oppositeSide = isLong ? 'SELL' : 'BUY';
+  const prevSlPrice = meta.currentSlPrice || meta.tierSlPrice || null;
+
+  // One-way ratchet: không kéo SL xấu hơn SL hiện tại
+  if (prevSlPrice && ((isLong && beSlPrice <= prevSlPrice) || (!isLong && beSlPrice >= prevSlPrice))) {
+    return { success: true, skippedNotBetter: true, reason: 'SL_NOT_IMPROVED' };
+  }
+
+  // Sanity guard so với giá hiện tại để tránh -2021 immediately trigger
+  if (currentPrice && currentPrice > 0) {
+    const safe = isLong ? (currentPrice > beSlPrice * 1.0005) : (currentPrice < beSlPrice * 0.9995);
+    if (!safe) {
+      return { success: false, reason: 'UNSAFE_VS_MARK_PRICE', beSlPrice, currentPrice };
+    }
+  }
 
   log.system(`[BracketManager] 🛡️ [Breakeven 35% TP] ${sym}: Dời SL sàn về Entry ± 1% ($${beSlPrice}) (Risk-Free)`);
 
@@ -126,7 +152,9 @@ async function ratchetBreakeven({ client, sym, meta, beSlPrice }) {
   // Đặt SL mới tại mốc Breakeven
   try {
     const slRes = await client.placeStopOrder(sym, oppositeSide, 'STOP_MARKET', beSlPrice);
-    const newSlId = slRes?.orderId || slRes?.algoId || 'unknown';
+    const rawNewId = slRes?.algoId ?? slRes?.orderId ?? null;
+    if (!rawNewId) throw new Error('placeStopOrder returned empty ID');
+    const newSlId = String(rawNewId);
 
     meta.isBreakeven = true;
     meta.currentSlPrice = beSlPrice;
@@ -135,15 +163,26 @@ async function ratchetBreakeven({ client, sym, meta, beSlPrice }) {
 
     return { success: true, newSlOrderId: newSlId, beSlPrice };
   } catch (err) {
-    log.error(`[BracketManager] ❌ Dời SL Breakeven ${sym} thất bại: ${err.message}`);
+    log.error(`[BracketManager] ❌ Dời SL Breakeven ${sym} thất bại: ${err.message} — Rollback SL cũ @ $${prevSlPrice}`);
+    meta.slOrderId = null;
+    if (prevSlPrice && prevSlPrice !== beSlPrice) {
+      try {
+        const rbRes = await client.placeStopOrder(sym, oppositeSide, 'STOP_MARKET', prevSlPrice);
+        const rbId = rbRes?.algoId ?? rbRes?.orderId ?? null;
+        if (rbId != null) meta.slOrderId = String(rbId);
+        log.warn(`[BracketManager] 🔄 Đã khôi phục (rollback) Hard SL cũ ${sym} @ $${prevSlPrice} (id=${meta.slOrderId})`);
+      } catch (rbErr) {
+        log.error(`[BracketManager] 🚨 Rollback SL cũ ${sym} cũng thất bại: ${rbErr.message}`);
+      }
+    }
     return { success: false, error: err.message };
   }
 }
 
 /**
- * 3. Dời SL theo Williams Fractal H1/M15 (Bám sát sóng).
+ * 3. Dời SL theo Williams Fractal H1/M15 (Bám sát sóng) kèm Rollback nếu lỗi.
  */
-async function ratchetTrailingFractal({ client, sym, meta, newFractalSlPrice, timeframe = 'H1' }) {
+async function ratchetTrailingFractal({ client, sym, meta, newFractalSlPrice, timeframe = 'H1', currentPrice = null }) {
   if (!client || !meta) return { success: false, reason: 'INVALID_PARAMS' };
 
   const isLong = meta.side === 'BUY' || meta.side === 'LONG';
@@ -160,6 +199,14 @@ async function ratchetTrailingFractal({ client, sym, meta, newFractalSlPrice, ti
     }
   }
 
+  // Sanity guard so với giá hiện tại
+  if (currentPrice && currentPrice > 0) {
+    const safe = isLong ? (currentPrice > newFractalSlPrice * 1.0005) : (currentPrice < newFractalSlPrice * 0.9995);
+    if (!safe) {
+      return { success: false, reason: 'UNSAFE_VS_MARK_PRICE', newFractalSlPrice, currentPrice };
+    }
+  }
+
   log.system(`[BracketManager] 🌊 [Fractal ${timeframe} Trailing SL] ${sym}: Dời SL sàn từ $${currentSl} -> $${newFractalSlPrice}`);
 
   // Hủy SL cũ
@@ -168,7 +215,9 @@ async function ratchetTrailingFractal({ client, sym, meta, newFractalSlPrice, ti
   // Đặt SL Fractal mới
   try {
     const slRes = await client.placeStopOrder(sym, oppositeSide, 'STOP_MARKET', newFractalSlPrice);
-    const newSlId = slRes?.orderId || slRes?.algoId || 'unknown';
+    const rawNewId = slRes?.algoId ?? slRes?.orderId ?? null;
+    if (!rawNewId) throw new Error('placeStopOrder returned empty ID');
+    const newSlId = String(rawNewId);
 
     meta.currentSlPrice = newFractalSlPrice;
     meta.slOrderId = newSlId;
@@ -177,7 +226,18 @@ async function ratchetTrailingFractal({ client, sym, meta, newFractalSlPrice, ti
 
     return { success: true, newSlOrderId: newSlId, newSlPrice: newFractalSlPrice, timeframe };
   } catch (err) {
-    log.error(`[BracketManager] ❌ Dời SL Fractal ${sym} thất bại: ${err.message}`);
+    log.error(`[BracketManager] ❌ Dời SL Fractal ${sym} thất bại: ${err.message} — Rollback SL cũ @ $${currentSl}`);
+    meta.slOrderId = null;
+    if (currentSl && currentSl !== newFractalSlPrice) {
+      try {
+        const rbRes = await client.placeStopOrder(sym, oppositeSide, 'STOP_MARKET', currentSl);
+        const rbId = rbRes?.algoId ?? rbRes?.orderId ?? null;
+        if (rbId != null) meta.slOrderId = String(rbId);
+        log.warn(`[BracketManager] 🔄 Đã khôi phục (rollback) Hard SL cũ ${sym} @ $${currentSl} (id=${meta.slOrderId})`);
+      } catch (rbErr) {
+        log.error(`[BracketManager] 🚨 Rollback SL cũ ${sym} cũng thất bại: ${rbErr.message}`);
+      }
+    }
     return { success: false, error: err.message };
   }
 }

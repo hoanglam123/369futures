@@ -216,57 +216,51 @@ async function apiLivePnl() {
   });
 }
 
-// ─── PP369 context — nến H1 đầu tiên của tháng (00:00 UTC ngày 1) ────────────
+// ─── PP369 context — đọc trực tiếp từ h1RefCache (0 REST weight, chống IP Ban 418) ──
 async function apiPp369Context() {
-  // Cache 1 giờ — open/close H1 đầu tháng không đổi trong tháng
-  return cached('pp369-ctx', 60 * 60_000, async () => {
-    const HDR = { 'User-Agent': 'crypto-news-bot/1.0' };
-
-    // Timestamp 00:00 UTC ngày 1 của tháng hiện tại
-    const now = new Date();
-    const monthStartMs = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1, 0, 0, 0);
-
-    // Ưu tiên đọc danh sách coin đang được theo dõi từ file (ghi bởi job.js)
-    // Fallback: lấy từ signal log (chỉ coin đã từng bắn tín hiệu)
-    let symbols = [];
-    try {
-      const symFile = path.join(DATA_DIR, 'pp369_symbols.json');
-      if (fs.existsSync(symFile)) {
-        const { symbols: s } = JSON.parse(fs.readFileSync(symFile, 'utf8'));
-        symbols = Array.isArray(s) ? s : [];
-      }
-    } catch {}
-    if (!symbols.length) {
-      try {
-        const sigFile = path.join(DATA_DIR, '369_signals.jsonl');
-        if (fs.existsSync(sigFile)) {
-          const lines = fs.readFileSync(sigFile, 'utf8').split('\n').filter(Boolean);
-          symbols = [...new Set(lines.map(l => JSON.parse(l).symbol))];
-        }
-      } catch {}
-    }
-    if (!symbols.length) return {};
-
+  return cached('pp369-ctx', 60_000, async () => {
     const ctx = {};
-    await Promise.allSettled(symbols.map(async sym => {
-      try {
-        // Lấy đúng nến H1 tại 00:00 UTC ngày 1 tháng
-        const { data } = await axios.get('https://fapi.binance.com/fapi/v1/klines', {
-          params: { symbol: `${sym}USDT`, interval: '1h', startTime: monthStartMs, limit: 1 },
-          timeout: 4000, headers: HDR,
-        });
-        if (Array.isArray(data) && data.length) {
-          const c = data[0];
+    try {
+      const h1Ref = require('../services/h1RefCache');
+      const cacheMap = typeof h1Ref.getH1RefCache === 'function' ? h1Ref.getH1RefCache() : (h1Ref.loadH1RefCache ? h1Ref.loadH1RefCache() : {});
+      if (cacheMap && typeof cacheMap === 'object') {
+        for (const [sym, item] of Object.entries(cacheMap)) {
+          if (!item || typeof item.openPrice !== 'number') continue;
           ctx[sym] = {
-            h1Open:  parseFloat(c[1]),  // Open  nến H1 đầu tháng → mốc gốc PP369
-            h1Close: parseFloat(c[4]),  // Close nến H1 đầu tháng → mốc gốc PP369
-            h1High:  parseFloat(c[2]),
-            h1Low:   parseFloat(c[3]),
-            candleTime: new Date(c[0]).toISOString(),
+            h1Open:  item.openPrice,
+            h1Close: item.closePrice ?? item.openPrice,
+            h1High:  item.highPrice ?? item.upperPrice ?? item.openPrice,
+            h1Low:   item.lowPrice ?? item.lowerPrice ?? item.openPrice,
+            candleTime: item.monthStart ? new Date(item.monthStart).toISOString() : null,
           };
         }
-      } catch {}
-    }));
+      }
+    } catch {}
+    // Fallback nhẹ: đọc trực tiếp file h1_ref_cache.json trên đĩa nếu RAM cache chưa khởi tạo
+    if (Object.keys(ctx).length === 0) {
+      const candidates = [
+        path.join(DATA_DIR, 'h1_ref_cache.json'),
+        path.resolve(DATA_DIR, '..', '..', 'data', 'h1_ref_cache.json'),
+      ];
+      for (const f of candidates) {
+        try {
+          if (!fs.existsSync(f)) continue;
+          const raw = JSON.parse(fs.readFileSync(f, 'utf8'));
+          const items = raw?.items || raw || {};
+          for (const [sym, item] of Object.entries(items)) {
+            if (!item || typeof item.openPrice !== 'number') continue;
+            ctx[sym] = {
+              h1Open:  item.openPrice,
+              h1Close: item.closePrice ?? item.openPrice,
+              h1High:  item.highPrice ?? item.upperPrice ?? item.openPrice,
+              h1Low:   item.lowPrice ?? item.lowerPrice ?? item.openPrice,
+              candleTime: raw?.monthStart ? new Date(raw.monthStart).toISOString() : null,
+            };
+          }
+          if (Object.keys(ctx).length > 0) break;
+        } catch {}
+      }
+    }
     return ctx;
   });
 }
@@ -276,15 +270,18 @@ function apiFundingStats()   { return readJson('funding_stats.json', {}); }
 function apiFundingTrades()  { return readJson('funding_trades.json', []).filter(t => t.status === 'active'); }
 function apiFundingHistory() { return readJson('funding_history.json', []).slice().reverse(); }
 
-// ─── Update active trade TP/SL (called from dashboard UI) ────────────────────
-function apiUpdateTrade(url) {
-  const p = new URLSearchParams(url.split('?')[1] || '');
-  const id = p.get('id');
+// ─── Update active trade TP/SL (called from dashboard UI via POST) ───────────
+function apiUpdateTrade(url, body = null) {
+  const p = new URLSearchParams((url || '').split('?')[1] || '');
+  const id = body?.id || p.get('id');
   if (!id) return { ok: false, error: 'Missing id' };
 
   const fields = {};
   for (const key of ['targetPrice', 'slPrice', 'tp1Price', 'tp2Price']) {
-    if (p.has(key)) {
+    if (body && Object.prototype.hasOwnProperty.call(body, key)) {
+      const raw = body[key];
+      fields[key] = (raw === '' || raw == null) ? null : (parseFloat(raw) || null);
+    } else if (p.has(key)) {
       const raw = p.get(key).trim();
       fields[key] = raw === '' ? null : parseFloat(raw) || null;
     }
@@ -345,14 +342,23 @@ function apiSignals() {
   } catch { return []; }
 }
 
-// ─── Logs ────────────────────────────────────────────────────────────────────
+// ─── Logs (Chống Path Traversal & NaN slice) ─────────────────────────────────
 function apiLogs(url) {
-  const p      = new URLSearchParams(url.split('?')[1] || '');
-  const date   = p.get('date') || todayStr();
+  const p      = new URLSearchParams((url || '').split('?')[1] || '');
+  const rawDate = String(p.get('date') || todayStr()).trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(rawDate)) {
+    return { date: rawDate, lines: [], error: 'Invalid date format (expected YYYY-MM-DD)' };
+  }
+  const date   = rawDate;
   const filter = p.get('filter') || '';
-  const n      = Math.min(parseInt(p.get('lines') || '300', 10), 1000);
+  const parsedN = parseInt(p.get('lines') || '300', 10);
+  const n      = Math.max(1, Math.min(Number.isFinite(parsedN) ? parsedN : 300, 1000));
 
-  const file = path.join(LOGS_DIR, `bot-${date}.log`);
+  const logsRoot = path.resolve(LOGS_DIR);
+  const file = path.resolve(logsRoot, `bot-${date}.log`);
+  if (!file.startsWith(logsRoot + path.sep)) {
+    return { date, lines: [], error: 'Forbidden path' };
+  }
   if (!fs.existsSync(file)) return { date, lines: [] };
 
   const cats = filter ? filter.toUpperCase().split(',').map(s => s.trim()) : [];
@@ -497,31 +503,77 @@ const ROUTES = {
   },
 };
 
+const MAX_BODY_BYTES = 64 * 1024; // Giới hạn 64 KB chống DoS tràn RAM
+
 function readBodyJson(req) {
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
     let body = '';
-    req.on('data', chunk => { body += chunk; });
+    let totalBytes = 0;
+    let aborted = false;
+    req.on('data', chunk => {
+      if (aborted) return;
+      totalBytes += chunk.length;
+      if (totalBytes > MAX_BODY_BYTES) {
+        aborted = true;
+        const err = new Error('Payload Too Large');
+        err.statusCode = 413;
+        reject(err);
+        req.destroy();
+        return;
+      }
+      body += chunk;
+    });
     req.on('end', () => {
+      if (aborted) return;
       try { resolve(body ? JSON.parse(body) : {}); }
       catch { resolve({}); }
     });
-    req.on('error', () => resolve({}));
+    req.on('error', () => { if (!aborted) resolve({}); });
   });
+}
+
+function _getCorsHeaders(req) {
+  const headers = { 'Content-Type': 'application/json' };
+  const allowedOrigin = (process.env.DASHBOARD_CORS_ORIGIN || '').trim();
+  const reqOrigin = req?.headers?.origin;
+  if (allowedOrigin && reqOrigin && reqOrigin === allowedOrigin) {
+    headers['Access-Control-Allow-Origin'] = allowedOrigin;
+    headers['Vary'] = 'Origin';
+  }
+  return headers;
+}
+
+function _isAuthorized(req) {
+  const token = (process.env.DASHBOARD_AUTH_TOKEN || '').trim();
+  if (!token) return true; // Cho phép truy cập nội bộ khi không cấu hình token (server mặc định chỉ bind 127.0.0.1)
+  const auth = String(req?.headers?.authorization || '');
+  if (auth === `Bearer ${token}`) return true;
+  try {
+    const p = new URLSearchParams((req?.url || '').split('?')[1] || '');
+    if (p.get('token') === token) return true;
+  } catch {}
+  return false;
+}
+
+function _sendJson(req, res, statusCode, payload) {
+  res.writeHead(statusCode, _getCorsHeaders(req));
+  res.end(JSON.stringify(payload));
 }
 
 function handleApi(req, res) {
   const urlPath = req.url.split('?')[0];
 
+  if (!_isAuthorized(req)) {
+    _sendJson(req, res, 401, { error: 'Unauthorized' });
+    return true;
+  }
+
   // ── POST endpoints ──────────────────────────────────────────────────────────
   if (req.method === 'POST') {
+    const handlePostErr = (e) => _sendJson(req, res, e?.statusCode || 500, { error: e.message });
+
     if (urlPath === '/api/sync') {
-      Promise.resolve().then(() => apiSync(req)).then(data => {
-        res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
-        res.end(JSON.stringify(data));
-      }).catch(e => {
-        res.writeHead(500);
-        res.end(JSON.stringify({ error: e.message }));
-      });
+      Promise.resolve().then(() => apiSync(req)).then(data => _sendJson(req, res, 200, data)).catch(handlePostErr);
       return true;
     }
 
@@ -529,12 +581,8 @@ function handleApi(req, res) {
       readBodyJson(req).then(body => {
         const { clearDirectionLock } = require('../services/directionalCircuitBreaker');
         clearDirectionLock(body.side || 'LONG');
-        res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
-        res.end(JSON.stringify({ ok: true, unlocked: body.side || 'LONG' }));
-      }).catch(e => {
-        res.writeHead(500);
-        res.end(JSON.stringify({ error: e.message }));
-      });
+        _sendJson(req, res, 200, { ok: true, unlocked: body.side || 'LONG' });
+      }).catch(handlePostErr);
       return true;
     }
 
@@ -542,24 +590,16 @@ function handleApi(req, res) {
       readBodyJson(req).then(body => {
         const { clearSymbolCooldown } = require('../services/cooldownManager');
         if (body.symbol) clearSymbolCooldown(body.symbol);
-        res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
-        res.end(JSON.stringify({ ok: true, cleared: body.symbol }));
-      }).catch(e => {
-        res.writeHead(500);
-        res.end(JSON.stringify({ error: e.message }));
-      });
+        _sendJson(req, res, 200, { ok: true, cleared: body.symbol });
+      }).catch(handlePostErr);
       return true;
     }
 
     if (urlPath === '/api/btc-flash-guard/reset') {
       try {
         require('../services/btcFlashGuard').resetFlashGuard();
-        res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
-        res.end(JSON.stringify({ ok: true }));
-      } catch (e) {
-        res.writeHead(500);
-        res.end(JSON.stringify({ error: e.message }));
-      }
+        _sendJson(req, res, 200, { ok: true });
+      } catch (e) { handlePostErr(e); }
       return true;
     }
 
@@ -572,16 +612,12 @@ function handleApi(req, res) {
         if (typeof body.shadowOnlyMode === 'boolean' && typeof job.setShadowOnlyMode === 'function') {
           job.setShadowOnlyMode(body.shadowOnlyMode);
         }
-        res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
-        res.end(JSON.stringify({
+        _sendJson(req, res, 200, {
           ok: true,
           scanPaused: typeof job.isScanPaused === 'function' ? job.isScanPaused() : false,
           shadowOnlyMode: typeof job.isShadowOnlyMode === 'function' ? job.isShadowOnlyMode() : false,
-        }));
-      }).catch(e => {
-        res.writeHead(500);
-        res.end(JSON.stringify({ error: e.message }));
-      });
+        });
+      }).catch(handlePostErr);
       return true;
     }
 
@@ -614,42 +650,39 @@ function handleApi(req, res) {
         } catch (eOuter) {
           errors.push(eOuter.message);
         }
-        res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
-        res.end(JSON.stringify({ ok: true, closedCount, total: active.length, errors }));
-      }).catch(e => {
-        res.writeHead(500);
-        res.end(JSON.stringify({ error: e.message }));
-      });
+        _sendJson(req, res, 200, { ok: true, closedCount, total: active.length, errors });
+      }).catch(handlePostErr);
+      return true;
+    }
+
+    if (urlPath === '/api/trades/update') {
+      readBodyJson(req).then(body => apiUpdateTrade(req.url, body)).then(data => _sendJson(req, res, 200, data)).catch(handlePostErr);
       return true;
     }
 
     if (urlPath === '/api/trades/delete') {
-      readBodyJson(req).then(body => apiDeleteTrade(req.url, body)).then(data => {
-        res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
-        res.end(JSON.stringify(data));
-      }).catch(e => {
-        res.writeHead(500);
-        res.end(JSON.stringify({ error: e.message }));
-      });
+      readBodyJson(req).then(body => apiDeleteTrade(req.url, body)).then(data => _sendJson(req, res, 200, data)).catch(handlePostErr);
       return true;
     }
 
     return false;
   }
 
+  // Từ chối các hành động ghi/xóa qua GET (chống CSRF)
+  if (req.method === 'GET' && (urlPath === '/api/trades/update' || urlPath === '/api/trades/delete')) {
+    _sendJson(req, res, 405, { error: 'Method Not Allowed — use POST' });
+    return true;
+  }
+
   // ── GET endpoints ───────────────────────────────────────────────────────────
   let handler = ROUTES[urlPath];
   if (!handler && urlPath === '/api/logs') handler = () => apiLogs(req.url);
-  if (!handler && urlPath === '/api/trades/update') handler = () => apiUpdateTrade(req.url);
-  if (!handler && urlPath === '/api/trades/delete') handler = () => apiDeleteTrade(req.url);
   if (!handler) return false;
 
   Promise.resolve().then(() => handler()).then(data => {
-    res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
-    res.end(JSON.stringify(data));
+    _sendJson(req, res, 200, data);
   }).catch(e => {
-    res.writeHead(500);
-    res.end(JSON.stringify({ error: e.message }));
+    _sendJson(req, res, 500, { error: e.message });
   });
   return true;
 }
@@ -657,6 +690,7 @@ function handleApi(req, res) {
 // ─── Server ───────────────────────────────────────────────────────────────────
 function createServer(port) {
   port = port || parseInt(process.env.DASHBOARD_PORT || '3000', 10);
+  const host = (process.env.DASHBOARD_HOST || '127.0.0.1').trim();
   const server = http.createServer((req, res) => {
     if (req.url.startsWith('/api/')) {
       if (!handleApi(req, res)) { res.writeHead(404); res.end('Not found'); }
@@ -677,14 +711,18 @@ function createServer(port) {
       res.end(html);
     } catch { res.writeHead(500); res.end('Dashboard HTML not found'); }
   });
-  server.listen(port, () => {
-    try { require('../services/logger').log.system(`Dashboard running at http://localhost:${port}`); }
-    catch { console.log(`Dashboard running at http://localhost:${port}`); }
+  server.listen(port, host, () => {
+    try { require('../services/logger').log.system(`Dashboard running at http://${host}:${port}`); }
+    catch { console.log(`Dashboard running at http://${host}:${port}`); }
   });
 
-  // WebSocket server — dùng chung port với HTTP
+  // WebSocket server — dùng chung port với HTTP (kiểm tra auth nếu DASHBOARD_AUTH_TOKEN được đặt)
   const wss = new WebSocketServer({ server });
-  wss.on('connection', (ws) => {
+  wss.on('connection', (ws, req) => {
+    if (!_isAuthorized(req)) {
+      ws.close(1008, 'Unauthorized');
+      return;
+    }
     _wsClients.add(ws);
     // Gửi trạng thái lệnh hiện tại ngay khi kết nối
     try {
@@ -703,4 +741,4 @@ function createServer(port) {
   return server;
 }
 
-module.exports = { createServer, broadcastWs };
+module.exports = { createServer, broadcastWs, apiLogs, apiUpdateTrade, handleApi };

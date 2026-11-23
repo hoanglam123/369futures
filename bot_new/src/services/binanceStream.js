@@ -16,19 +16,22 @@
 const WebSocket = require('ws');
 const axios     = require('axios');
 const { log }   = require('./logger');
+const { isIpBanned } = require('./rateLimitGuard');
 
 const BASE_URL  = 'https://fapi.binance.com';
 const WS_URL    = 'wss://fstream.binance.com/ws';
 const API_KEY   = process.env.BINANCE_API_KEY || '';
 
 const KEEPALIVE_INTERVAL_MS = 30 * 60 * 1000; // 30 phút (listenKey hết hạn sau 60 phút)
-const RECONNECT_DELAY_MS    = 5_000;           // 5 giây trước khi thử lại
+const RECONNECT_DELAY_MS    = 5_000;           // 5 giây cơ sở (exponential backoff tối đa 60s)
+const MAX_RECONNECT_DELAY_MS = 60_000;
 
-let _ws             = null;
-let _listenKey      = null;
-let _keepaliveTimer = null;
-let _reconnectTimer = null;
-let _stopped        = false;
+let _ws               = null;
+let _listenKey        = null;
+let _keepaliveTimer   = null;
+let _reconnectTimer   = null;
+let _reconnectAttempt = 0;
+let _stopped          = false;
 
 // Danh sách callback đăng ký nhận event fill / cancel
 const _fillCallbacks   = [];
@@ -87,10 +90,11 @@ function handleMessage(raw) {
   if (msg.e !== 'ORDER_TRADE_UPDATE') return;
 
   const o = msg.o;
-  const orderId   = o.i;
-  const symbol    = o.s.replace(/USDT$/, '');
+  const orderId   = o.i != null ? String(o.i) : null;
+  const symbol    = (o.s || '').replace(/USDT$/, '');
   const orderType = o.ot;
-  const algoId    = o.si || o.aid || null;
+  const rawAlgoId = o.si ?? o.aid ?? null;
+  const algoId    = rawAlgoId != null ? String(rawAlgoId) : null;
 
   if (o.X === 'FILLED') {
     const avgPrice   = parseFloat(o.ap) || 0;
@@ -98,7 +102,12 @@ function handleMessage(raw) {
     const reduceOnly = o.R === true || o.R === 'true';
     log.trade(`WS FILL: ${symbol} ${side} ${orderType} #${orderId} avgPrice=${avgPrice} reduceOnly=${reduceOnly}`);
     for (const cb of _fillCallbacks) {
-      try { cb({ orderId, symbol, avgPrice, side, orderType, reduceOnly, algoId }); } catch (e) {
+      try {
+        const r = cb({ orderId, symbol, avgPrice, side, orderType, reduceOnly, algoId });
+        if (r && typeof r.catch === 'function') {
+          r.catch(e => log.warn('binanceStream: fill async callback lỗi', { error: e?.message || String(e) }));
+        }
+      } catch (e) {
         log.warn('binanceStream: fill callback lỗi', { error: e.message });
       }
     }
@@ -108,7 +117,12 @@ function handleMessage(raw) {
   if (o.X === 'CANCELED' || o.X === 'EXPIRED') {
     log.trade(`WS CANCEL: ${symbol} ${orderType} #${orderId} status=${o.X}`);
     for (const cb of _cancelCallbacks) {
-      try { cb({ orderId, symbol, orderType }); } catch (e) {
+      try {
+        const r = cb({ orderId, symbol, orderType });
+        if (r && typeof r.catch === 'function') {
+          r.catch(e => log.warn('binanceStream: cancel async callback lỗi', { error: e?.message || String(e) }));
+        }
+      } catch (e) {
         log.warn('binanceStream: cancel callback lỗi', { error: e.message });
       }
     }
@@ -124,6 +138,7 @@ function connect() {
   _ws = new WebSocket(`${WS_URL}/${_listenKey}`);
 
   _ws.on('open', () => {
+    _reconnectAttempt = 0;
     log.system('Binance WS: kết nối thành công');
   });
 
@@ -131,10 +146,10 @@ function connect() {
     handleMessage(data.toString());
   });
 
-  _ws.on('close', (code, reason) => {
+  _ws.on('close', (code) => {
     _ws = null;
     if (_stopped) return;
-    log.warn(`Binance WS: mất kết nối (${code}) — thử lại sau ${RECONNECT_DELAY_MS / 1000}s`);
+    log.warn(`Binance WS: mất kết nối (${code}) — lên lịch kết nối lại`);
     scheduleReconnect();
   });
 
@@ -146,8 +161,16 @@ function connect() {
 
 function scheduleReconnect() {
   if (_stopped || _reconnectTimer) return;
+  const delayMs = Math.min(MAX_RECONNECT_DELAY_MS, RECONNECT_DELAY_MS * Math.pow(2, Math.min(_reconnectAttempt, 4)));
+  _reconnectAttempt++;
   _reconnectTimer = setTimeout(async () => {
     _reconnectTimer = null;
+    if (_stopped) return;
+    if (isIpBanned()) {
+      log.warn('Binance WS: đang bị IP Ban/429 — hoãn reconnect');
+      scheduleReconnect();
+      return;
+    }
     try {
       // Tạo listenKey mới (key cũ có thể đã hết hạn khi offline lâu)
       _listenKey = await createListenKey();
@@ -156,32 +179,15 @@ function scheduleReconnect() {
       log.warn('Binance WS: không thể tạo listenKey khi reconnect — thử lại...', { error: e.message });
       scheduleReconnect();
     }
-  }, RECONNECT_DELAY_MS);
+  }, delayMs);
 }
 
 // ─── Public API ───────────────────────────────────────────────────────────────
 
-async function startStream() {
-  if (!isEnabled()) {
-    log.system('Binance WS: TRADE_ENABLED=false hoặc thiếu API key — bỏ qua');
-    return;
-  }
-
-  _stopped = false;
-
-  try {
-    _listenKey = await createListenKey();
-    log.system(`Binance WS: listenKey tạo thành công (${_listenKey.slice(0, 10)}...)`);
-  } catch (e) {
-    log.warn('Binance WS: không thể tạo listenKey khi khởi động — thử lại sau', { error: e.message });
-    scheduleReconnect();
-    return;
-  }
-
-  connect();
-
-  // Giữ listenKey sống: PUT mỗi 30 phút
+function _ensureKeepaliveTimer() {
+  if (_keepaliveTimer) return;
   _keepaliveTimer = setInterval(async () => {
+    if (_stopped || !_listenKey || isIpBanned()) return;
     try {
       await refreshListenKey(_listenKey);
       log.system('[PP369] [BinanceStream] Keepalive listenKey thành công');
@@ -197,6 +203,28 @@ async function startStream() {
       }
     }
   }, KEEPALIVE_INTERVAL_MS);
+}
+
+async function startStream() {
+  if (!isEnabled()) {
+    log.system('Binance WS: TRADE_ENABLED=false hoặc thiếu API key — bỏ qua');
+    return;
+  }
+
+  _stopped = false;
+  // Luôn khởi động keepalive timer kể cả khi lần createListenKey đầu thất bại rồi reconnect sau
+  _ensureKeepaliveTimer();
+
+  try {
+    _listenKey = await createListenKey();
+    log.system(`Binance WS: listenKey tạo thành công (${_listenKey.slice(0, 10)}...)`);
+  } catch (e) {
+    log.warn('Binance WS: không thể tạo listenKey khi khởi động — thử lại sau', { error: e.message });
+    scheduleReconnect();
+    return;
+  }
+
+  connect();
 }
 
 function stopStream() {

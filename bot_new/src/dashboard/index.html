@@ -473,9 +473,11 @@ let pp369Ctx = {};
 
 // ── Tiny utils ───────────────────────────────────────────────────────────────
 const $ = id => document.getElementById(id);
-const get = url => fetch(url).then(r => r.json()).catch(() => null);
-const post = (url, body) => fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body || {}) }).then(r => r.json()).catch(() => null);
-const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+const _authToken = new URLSearchParams(location.search).get('token') || '';
+const _authHeaders = _authToken ? { 'Authorization': `Bearer ${_authToken}` } : {};
+const get = url => fetch(url, { headers: _authHeaders }).then(r => r.json()).catch(() => null);
+const post = (url, body) => fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json', ..._authHeaders }, body: JSON.stringify(body || {}) }).then(r => r.json()).catch(() => null);
+const esc = s => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 
 function fmt(n, d=2) {
   if (n == null || isNaN(n)) return '—';
@@ -1345,17 +1347,17 @@ async function saveTPSL() {
   const tp2 = $('dlgTP2').value.trim();
   const sl  = $('dlgSL').value.trim();
 
-  const params = new URLSearchParams({ id });
-  if (tp  !== '') params.set('targetPrice', tp);
-  if (tp1 !== '') params.set('tp1Price', tp1);
-  if (tp2 !== '') params.set('tp2Price', tp2);
-  if (sl  !== '') params.set('slPrice', sl);
+  const payload = { id };
+  if (tp  !== '') payload.targetPrice = tp;
+  if (tp1 !== '') payload.tp1Price = tp1;
+  if (tp2 !== '') payload.tp2Price = tp2;
+  if (sl  !== '') payload.slPrice = sl;
 
   const btn = $('dlgSaveBtn');
   btn.textContent = 'Đang lưu...';
   btn.disabled = true;
 
-  const result = await get(`/api/trades/update?${params}`);
+  const result = await post('/api/trades/update', payload);
   btn.textContent = 'Lưu';
   btn.disabled = false;
 

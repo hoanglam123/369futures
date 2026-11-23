@@ -72,6 +72,19 @@ function updateUsedWeight(headers) {
   }
 }
 
+// Cài đặt Request Interceptor toàn cục: chặn ngay mọi request tới binance.com khi IP đang bị Ban/429/Throttle
+axios.interceptors.request.use((config) => {
+  const url = String(config?.url || '');
+  if (url.includes('binance.com') && !config._bypassRateLimitGuard) {
+    if (isIpBanned()) {
+      const err = new Error('[IP_BAN_CIRCUIT_BREAKER] Chặn request tới Binance vì đang trong thời gian phạt/hạ nhiệt.');
+      err.code = 'EBINANCE_CIRCUIT_OPEN';
+      return Promise.reject(err);
+    }
+  }
+  return config;
+});
+
 // Cài đặt Interceptor toàn cục cho axios để tự động giám sát mọi response từ Binance
 axios.interceptors.response.use(
   (response) => {

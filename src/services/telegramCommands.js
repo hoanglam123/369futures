@@ -287,8 +287,14 @@ async function fetchTelegramUpdates() {
 
 async function pollOnce() {
   const updates = await fetchTelegramUpdates();
+  const allowedChatId = process.env.TELEGRAM_CHAT_ID ? String(process.env.TELEGRAM_CHAT_ID).trim() : '';
   for (const update of updates) {
     _offset = update.update_id + 1;
+    const msgChatId = update.message?.chat?.id != null ? String(update.message.chat.id) : '';
+    if (!allowedChatId || msgChatId !== allowedChatId) {
+      log.warn(`[TelegramCommands] 🚫 Từ chối tin nhắn từ chat_id không hợp lệ: ${msgChatId || 'unknown'}`);
+      continue;
+    }
     const text = update.message?.text?.trim();
     if (!text) continue;
 

@@ -20,10 +20,12 @@ const { sendTelegram } = require('../pp369/telegram');
 
 const MASS_CLOSE_PERCENT_THRESHOLD = 0.60; // 60%
 const MIN_TRADES_FOR_PERCENT_BRAKE = 3;
+const BRAKE_ALERT_COOLDOWN_MS = 5 * 60 * 1000; // Tối đa 1 cảnh báo Telegram mỗi 5 phút
 
 let _isBrakeActive = false;
 let _lastBrakeReason = '';
 let _lastBrakeTriggeredAt = 0;
+let _lastAlertSentAt = 0;
 let _forceSyncOverride = false;
 
 /**
@@ -38,31 +40,36 @@ function evaluateSafetyBrake({ eligibleTradesCount, exchangePositionsCount, woul
     return { tripped: false, bypassed: true };
   }
 
-  // Scenario A: Sàn trả về 0 vị thế nhưng bot đang theo dõi >= 1 lệnh đã khớp
-  const massCloseA = eligibleTradesCount > 0 && exchangePositionsCount === 0;
+  // Scenario A: Sàn trả về 0 vị thế nhưng bot đang theo dõi >= 2 lệnh đã khớp
+  // (Yêu cầu >= 2 lệnh để tránh khóa cứng bot khi chỉ có 1 lệnh đơn đóng SL/TP bình thường mà miss WS)
+  const massCloseA = eligibleTradesCount >= 2 && exchangePositionsCount === 0;
 
   // Scenario B: >= 3 lệnh đang chạy, nhưng >= 60% lệnh sắp bị đóng đồng thời
   const massCloseB = eligibleTradesCount >= MIN_TRADES_FOR_PERCENT_BRAKE &&
                      wouldCloseCount >= Math.ceil(eligibleTradesCount * MASS_CLOSE_PERCENT_THRESHOLD);
 
   if (massCloseA || massCloseB) {
+    const now = Date.now();
     _isBrakeActive = true;
-    _lastBrakeTriggeredAt = Date.now();
+    _lastBrakeTriggeredAt = now;
     _lastBrakeReason = massCloseA
       ? `Binance trả về 0 positions nhưng bot đang theo dõi ${eligibleTradesCount} lệnh filled`
       : `${wouldCloseCount}/${eligibleTradesCount} lệnh (${Math.round(wouldCloseCount / eligibleTradesCount * 100)}%) sẽ bị đóng cùng lúc`;
 
     log.error(`[SafetyBrake] 🚨 SAFETY BRAKE KÍCH HOẠT — ${_lastBrakeReason} — KHÔNG ĐÓNG LỆNH NÀO`);
 
-    // Gửi cảnh báo đỏ Telegram
-    sendTelegram(
-      `🚨 <b>SAFETY BRAKE — Ngừng Đóng Lệnh Tự Động!</b>\n` +
-      `━━━━━━━━━━━━━━━━\n` +
-      `<b>Nguyên nhân:</b> ${_lastBrakeReason}\n\n` +
-      `⚠️ Có thể do Binance API tạm thời nghẽn hoặc mất kết nối REST.\n` +
-      `Bot <b>bảo lưu 100% vị thế trong bộ nhớ</b> và không xóa database.\n\n` +
-      `<i>Gõ <code>/forcesync</code> trên Telegram hoặc console nếu bạn đã kiểm tra sàn và muốn đồng bộ thật.</i>`
-    ).catch(() => {});
+    // Gửi cảnh báo đỏ Telegram (throttle mỗi 5 phút để chống spam mỗi 6s)
+    if (now - _lastAlertSentAt >= BRAKE_ALERT_COOLDOWN_MS) {
+      _lastAlertSentAt = now;
+      sendTelegram(
+        `🚨 <b>SAFETY BRAKE — Ngừng Đóng Lệnh Tự Động!</b>\n` +
+        `━━━━━━━━━━━━━━━━\n` +
+        `<b>Nguyên nhân:</b> ${_lastBrakeReason}\n\n` +
+        `⚠️ Có thể do Binance API tạm thời nghẽn hoặc mất kết nối REST.\n` +
+        `Bot <b>bảo lưu 100% vị thế trong bộ nhớ</b> và không xóa database.\n\n` +
+        `<i>Gõ <code>/forcesync</code> trên Telegram hoặc console nếu bạn đã kiểm tra sàn và muốn đồng bộ thật.</i>`
+      ).catch(() => {});
+    }
 
     return { tripped: true, reason: _lastBrakeReason };
   }

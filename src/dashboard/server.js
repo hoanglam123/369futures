@@ -912,20 +912,27 @@ function apiLogDates() {
 
 function apiLogs(url) {
   const p = new URLSearchParams((url || '').split('?')[1] || '');
-  const date = p.get('date') || todayStr();
+  const rawDate = String(p.get('date') || todayStr()).trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(rawDate)) {
+    return { date: rawDate, lines: [], error: 'Invalid date format (expected YYYY-MM-DD)' };
+  }
   const filter = p.get('filter') || '';
-  const n = Math.min(parseInt(p.get('lines') || '300', 10), 1000);
-  return getLogsForDate(date, n, filter);
+  const parsedN = parseInt(p.get('lines') || '300', 10);
+  const n = Math.max(1, Math.min(Number.isFinite(parsedN) ? parsedN : 300, 1000));
+  return getLogsForDate(rawDate, n, filter);
 }
 
-function apiUpdateTrade(url) {
+function apiUpdateTrade(url, body = null) {
   const p = new URLSearchParams((url || '').split('?')[1] || '');
-  const id = p.get('id');
+  const id = body?.id || p.get('id');
   if (!id) return { ok: false, error: 'Missing id' };
 
   const fields = {};
   for (const key of ['targetPrice', 'slPrice', 'tp1Price', 'tp2Price']) {
-    if (p.has(key)) {
+    if (body && Object.prototype.hasOwnProperty.call(body, key)) {
+      const raw = body[key];
+      fields[key] = (raw === '' || raw == null) ? null : (parseFloat(raw) || null);
+    } else if (p.has(key)) {
       const raw = p.get(key).trim();
       fields[key] = raw === '' ? null : parseFloat(raw) || null;
     }
@@ -954,6 +961,46 @@ function apiUpdateTrade(url) {
   return { ok: false, error: 'Trade not found in active_trades.json' };
 }
 
+const MAX_BODY_BYTES = 64 * 1024;
+function readBodyJson(req) {
+  return new Promise((resolve, reject) => {
+    let body = '';
+    let totalBytes = 0;
+    let aborted = false;
+    req.on('data', chunk => {
+      if (aborted) return;
+      totalBytes += chunk.length;
+      if (totalBytes > MAX_BODY_BYTES) {
+        aborted = true;
+        const err = new Error('Payload Too Large');
+        err.statusCode = 413;
+        reject(err);
+        req.destroy();
+        return;
+      }
+      body += chunk;
+    });
+    req.on('end', () => {
+      if (aborted) return;
+      try { resolve(body ? JSON.parse(body) : {}); }
+      catch { resolve({}); }
+    });
+    req.on('error', () => { if (!aborted) resolve({}); });
+  });
+}
+
+function _isAuthorizedH4(req) {
+  const token = (process.env.DASHBOARD_AUTH_TOKEN || '').trim();
+  if (!token) return true;
+  const auth = String(req?.headers?.authorization || '');
+  if (auth === `Bearer ${token}`) return true;
+  try {
+    const p = new URLSearchParams((req?.url || '').split('?')[1] || '');
+    if (p.get('token') === token) return true;
+  } catch {}
+  return false;
+}
+
 // ─── HTTP Server Router ───────────────────────────────────────────────────────
 
 let _server = null;
@@ -966,14 +1013,24 @@ function createDashboardServer() {
     const urlParts = (req.url || '/').split('?');
     const urlPath = urlParts[0];
 
-    // CORS headers
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    // CORS chỉ cấp cho origin được chỉ định rõ qua DASHBOARD_CORS_ORIGIN (bỏ wildcard *)
+    const allowedOrigin = (process.env.DASHBOARD_CORS_ORIGIN || '').trim();
+    if (allowedOrigin && req.headers.origin === allowedOrigin) {
+      res.setHeader('Access-Control-Allow-Origin', allowedOrigin);
+      res.setHeader('Vary', 'Origin');
+      res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+      res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    }
 
     if (req.method === 'OPTIONS') {
       res.writeHead(204);
       res.end();
+      return;
+    }
+
+    if (urlPath.startsWith('/api/') && !_isAuthorizedH4(req)) {
+      res.writeHead(401, { 'Content-Type': 'application/json; charset=utf-8' });
+      res.end(JSON.stringify({ error: 'Unauthorized' }));
       return;
     }
 
@@ -993,6 +1050,12 @@ function createDashboardServer() {
           fs.createReadStream(FAVICON_FILE).pipe(res);
           return;
         }
+      }
+
+      if (urlPath === '/api/trades/update') {
+        res.writeHead(405, { 'Content-Type': 'application/json; charset=utf-8' });
+        res.end(JSON.stringify({ error: 'Method Not Allowed — use POST' }));
+        return;
       }
 
       // JSON API Routes
@@ -1015,7 +1078,6 @@ function createDashboardServer() {
         '/api/cooldown': apiCooldown,
         '/api/log-dates': apiLogDates,
         '/api/logs': () => apiLogs(req.url),
-        '/api/trades/update': () => apiUpdateTrade(req.url),
       };
 
       if (routes[urlPath]) {
@@ -1033,6 +1095,19 @@ function createDashboardServer() {
 
     // POST Command Endpoints
     if (req.method === 'POST') {
+      if (urlPath === '/api/trades/update') {
+        try {
+          const body = await readBodyJson(req);
+          const result = apiUpdateTrade(req.url, body);
+          res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+          res.end(JSON.stringify(result));
+        } catch (err) {
+          res.writeHead(err?.statusCode || 500, { 'Content-Type': 'application/json; charset=utf-8' });
+          res.end(JSON.stringify({ error: err.message }));
+        }
+        return;
+      }
+
       if (urlPath === '/api/forcesync' || urlPath === '/api/sync') {
         let result = { message: 'Overridden safety brake' };
         try {
@@ -1065,6 +1140,7 @@ function startDashboard(port = DEFAULT_PORT, attempt = 1, originalPort = null) {
   if (_server) return _server;
 
   const targetPort = port || DEFAULT_PORT;
+  const host = (process.env.DASHBOARD_HOST || '127.0.0.1').trim();
   const initialPort = originalPort || targetPort;
   _activePort = targetPort;
 
@@ -1089,15 +1165,19 @@ function startDashboard(port = DEFAULT_PORT, attempt = 1, originalPort = null) {
     stopDashboard();
   });
 
-  srv.listen(targetPort, () => {
-    log.system(`[Dashboard] 🚀 Web Dashboard PP369 sẵn sàng tại: http://localhost:${targetPort}`);
+  srv.listen(targetPort, host, () => {
+    log.system(`[Dashboard] 🚀 Web Dashboard PP369 sẵn sàng tại: http://${host}:${targetPort}`);
 
     try {
       _wss = new WebSocketServer({ server: srv });
       _wss.on('error', (err) => {
         log.warn(`[Dashboard] Lỗi WebSocket Server: ${err.message}`);
       });
-      _wss.on('connection', async (ws) => {
+      _wss.on('connection', async (ws, req) => {
+        if (!_isAuthorizedH4(req)) {
+          ws.close(1008, 'Unauthorized');
+          return;
+        }
         _wsClients.add(ws);
         try {
           const tradesList = await apiTrades();

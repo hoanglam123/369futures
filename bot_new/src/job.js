@@ -634,15 +634,19 @@ async function run369AlertScan() {
     // ── TÁCH RỜI LUỒNG TÍNH LỆNH ĐỊNH LƯỢNG KHỎI LUỒNG TELEGRAM ALERT (ĐỒNG BỘ BOT-H4) ──
     const validSignals = Object.values(signals369).filter(s => s && (s.signal === 'LONG' || s.signal === 'SHORT'));
 
-    // Chạy tuần tự có kiểm soát Rate Limit thay vì Promise.all ồ ạt
+    // Chạy tuần tự có kiểm soát Rate Limit thay vì Promise.all ồ ạt (áp dụng TTL 10p cho TA cache & chống đụng WS Tick)
+    const TA_CACHE_TTL_MS = 10 * 60 * 1000;
     const enriched = [];
     for (const sig of validSignals) {
       if (isIpBanned()) break;
+      if (_processingSymbols.has(sig.symbol)) continue;
       let ta = _lastMarketData?.ta?.[sig.symbol];
-      if (!ta) {
+      const isTaStale = !ta || !ta._fetchedAt || (Date.now() - ta._fetchedAt > TA_CACHE_TTL_MS);
+      if (isTaStale) {
         try {
           ta = await getFullTA(sig.symbol);
           if (ta) {
+            ta._fetchedAt = Date.now();
             if (!_lastMarketData) _lastMarketData = {};
             if (!_lastMarketData.ta) _lastMarketData.ta = {};
             _lastMarketData.ta[sig.symbol] = ta;

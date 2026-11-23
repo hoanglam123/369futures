@@ -102,13 +102,32 @@ async function _requestWithRetry(fn) {
   }
 }
 
+// Giữ nguyên các ID số nguyên >= 16 chữ số (orderId/algoId 19 chữ số) dạng chuỗi để tránh mất độ chính xác float64
+function safeJsonParse(raw) {
+  if (typeof raw !== 'string') return raw;
+  try {
+    const preserved = raw.replace(/"(orderId|algoId|id)":\s*(\d{16,})/g, '"$1":"$2"');
+    return JSON.parse(preserved);
+  } catch {
+    return raw;
+  }
+}
+
 async function _post(path, params, apiKey, secret) {
+  // Gắn clientOrderId / clientAlgoId cố định TRƯỚC vòng retry để chống nhân đôi lệnh khi rớt mạng (idempotency)
+  const safeParams = { ...params };
+  if (path === '/fapi/v1/order' && !safeParams.newClientOrderId) {
+    safeParams.newClientOrderId = `bh4_${crypto.randomBytes(8).toString('hex')}`;
+  } else if (path === '/fapi/v1/algoOrder' && !safeParams.clientAlgoId) {
+    safeParams.clientAlgoId = `bh4a_${crypto.randomBytes(8).toString('hex')}`;
+  }
   return _requestWithRetry(async () => {
-    const body = _buildBody(params);
+    const body = _buildBody(safeParams);
     const sig = _sign(body, secret);
     const res = await axios.post(`${BASE}${path}`, `${body}&signature=${sig}`, {
       headers: { ..._authHeaders(apiKey), 'Content-Type': 'application/x-www-form-urlencoded' },
       timeout: 10000,
+      transformResponse: [safeJsonParse],
     });
     return res.data;
   });
@@ -121,6 +140,7 @@ async function _get(path, params, apiKey, secret) {
     const res = await axios.get(`${BASE}${path}?${body}&signature=${sig}`, {
       headers: _authHeaders(apiKey),
       timeout: 10000,
+      transformResponse: [safeJsonParse],
     });
     return res.data;
   });
@@ -133,6 +153,7 @@ async function _delete(path, params, apiKey, secret) {
     const res = await axios.delete(`${BASE}${path}?${body}&signature=${sig}`, {
       headers: _authHeaders(apiKey),
       timeout: 10000,
+      transformResponse: [safeJsonParse],
     });
     return res.data;
   });
@@ -142,33 +163,33 @@ async function _delete(path, params, apiKey, secret) {
 
 let _stepSizesCache = {};
 let _tickSizesCache = {};
+let _minQtysCache = {};
+let _minNotionalsCache = {};
 
-function getSymbolTickSizeSync(symbol) {
-  const symUsdt = symbol.toUpperCase().endsWith('USDT') ? symbol.toUpperCase() : `${symbol.toUpperCase()}USDT`;
-  if (_tickSizesCache[symUsdt]) return _tickSizesCache[symUsdt];
+function _loadFiltersFromDiskSync() {
   try {
     if (fs.existsSync(FILE_PATH)) {
       const data = JSON.parse(fs.readFileSync(FILE_PATH, 'utf8'));
       _stepSizesCache = data.stepSizes || {};
       _tickSizesCache = data.tickSizes || {};
-      if (_tickSizesCache[symUsdt]) return _tickSizesCache[symUsdt];
+      _minQtysCache = data.minQtys || {};
+      _minNotionalsCache = data.minNotionals || {};
     }
   } catch (_) {}
-  return null;
+}
+
+function getSymbolTickSizeSync(symbol) {
+  const symUsdt = symbol.toUpperCase().endsWith('USDT') ? symbol.toUpperCase() : `${symbol.toUpperCase()}USDT`;
+  if (_tickSizesCache[symUsdt]) return _tickSizesCache[symUsdt];
+  _loadFiltersFromDiskSync();
+  return _tickSizesCache[symUsdt] || null;
 }
 
 function getSymbolStepSizeSync(symbol) {
   const symUsdt = symbol.toUpperCase().endsWith('USDT') ? symbol.toUpperCase() : `${symbol.toUpperCase()}USDT`;
   if (_stepSizesCache[symUsdt]) return _stepSizesCache[symUsdt];
-  try {
-    if (fs.existsSync(FILE_PATH)) {
-      const data = JSON.parse(fs.readFileSync(FILE_PATH, 'utf8'));
-      _stepSizesCache = data.stepSizes || {};
-      _tickSizesCache = data.tickSizes || {};
-      if (_stepSizesCache[symUsdt]) return _stepSizesCache[symUsdt];
-    }
-  } catch (_) {}
-  return null;
+  _loadFiltersFromDiskSync();
+  return _stepSizesCache[symUsdt] || null;
 }
 
 async function loadStepSizes(forceRefresh = false) {
@@ -179,9 +200,11 @@ async function loadStepSizes(forceRefresh = false) {
       const isFresh = (Date.now() - stat.mtimeMs) < 12 * 3600 * 1000; // Tươi mới trong 12h
       const content = fs.readFileSync(FILE_PATH, 'utf8');
       const data = JSON.parse(content);
-      if (isFresh && data.stepSizes && data.tickSizes && Object.keys(data.stepSizes).length > 800) {
+      if (isFresh && data.stepSizes && data.tickSizes && Object.keys(data.stepSizes).length > 100) {
         _stepSizesCache = data.stepSizes;
         _tickSizesCache = data.tickSizes;
+        _minQtysCache = data.minQtys || {};
+        _minNotionalsCache = data.minNotionals || {};
         log.system(`[Binance] Loaded step and tick sizes from existing file: ${Object.keys(data.stepSizes).length} symbols`);
         return;
       }
@@ -194,13 +217,24 @@ async function loadStepSizes(forceRefresh = false) {
     const res = await axios.get(`${BASE}/fapi/v1/exchangeInfo`, { timeout: 15000 });
     const stepSizes = {};
     const tickSizes = {};
+    const minQtys = {};
+    const minNotionals = {};
     for (const s of res.data.symbols) {
-      if (s.contractType !== 'PERPETUAL' && s.status !== 'TRADING') continue;
+      if (s.contractType !== 'PERPETUAL' || s.status !== 'TRADING') continue;
       const lot = s.filters.find(f => f.filterType === 'LOT_SIZE');
-      if (lot) stepSizes[s.symbol] = parseFloat(lot.stepSize);
+      if (lot) {
+        stepSizes[s.symbol] = parseFloat(lot.stepSize);
+        if (lot.minQty) minQtys[s.symbol] = parseFloat(lot.minQty);
+      }
 
       const priceFilter = s.filters.find(f => f.filterType === 'PRICE_FILTER');
       if (priceFilter) tickSizes[s.symbol] = parseFloat(priceFilter.tickSize);
+
+      const notionalFilter = s.filters.find(f => f.filterType === 'MIN_NOTIONAL' || f.filterType === 'NOTIONAL');
+      if (notionalFilter) {
+        const mn = parseFloat(notionalFilter.notional || notionalFilter.minNotional || 0);
+        if (mn > 0) minNotionals[s.symbol] = mn;
+      }
     }
     const dir = path.dirname(FILE_PATH);
     if (!fs.existsSync(dir)) {
@@ -216,11 +250,15 @@ async function loadStepSizes(forceRefresh = false) {
 
     data.stepSizes = stepSizes;
     data.tickSizes = tickSizes;
+    data.minQtys = minQtys;
+    data.minNotionals = minNotionals;
     data.lastUpdated = Date.now();
     data.lastUpdatedStr = new Date().toISOString();
     fs.writeFileSync(FILE_PATH, JSON.stringify(data, null, 2), 'utf8');
     _stepSizesCache = stepSizes;
     _tickSizesCache = tickSizes;
+    _minQtysCache = minQtys;
+    _minNotionalsCache = minNotionals;
     log.system(`[Binance] Loaded and saved step/tick sizes to file: ${Object.keys(stepSizes).length} symbols`);
   } catch (err) {
     log.warn(`[Binance] Lỗi cập nhật exchangeInfo step/tick sizes: ${err.message}`);
@@ -298,11 +336,23 @@ function _getStepSizeCached(symbol) {
 
 function calcQuantity(symbol, notional, price) {
   if (!price || price <= 0) return { qty: 0, stepSize: 0.001 };
+  const symUsdt = symbol.toUpperCase().endsWith('USDT') ? symbol.toUpperCase() : `${symbol.toUpperCase()}USDT`;
   const stepSize = _getStepSizeCached(symbol);
   const raw = notional / price;
   const qty = Math.floor(raw / stepSize) * stepSize;
   const dec = Math.max(0, Math.round(-Math.log10(stepSize)));
-  return { qty: parseFloat(qty.toFixed(dec)), stepSize };
+  const finalQty = parseFloat(qty.toFixed(dec));
+
+  // Kiểm tra minQty và minNotional nếu có trong cache exchangeInfo
+  const minQty = _minQtysCache[symUsdt] || 0;
+  const minNotional = _minNotionalsCache[symUsdt] || 0;
+  if (minQty > 0 && finalQty < minQty) {
+    return { qty: 0, stepSize, reason: `BELOW_MIN_QTY (${finalQty} < ${minQty})` };
+  }
+  if (minNotional > 0 && finalQty * price < minNotional) {
+    return { qty: 0, stepSize, reason: `BELOW_MIN_NOTIONAL (${(finalQty * price).toFixed(2)} < ${minNotional})` };
+  }
+  return { qty: finalQty, stepSize };
 }
 
 // ─── Public client factory ────────────────────────────────────────────────────

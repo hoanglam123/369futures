@@ -119,7 +119,22 @@ function appendHistory(trade, hit, exitReason, result, closePrice, pnlPct) {
  * @param {number|null} params.closePrice  - giá đóng thực tế
  * @param {number|null} params.pnlPct      - raw PnL % từ entryPrice/closePrice (không leverage)
  */
+const _recordedTradeIds = new Set();
+
 function recordTradeResult({ trade, exitReason, result, closePrice, pnlPct }) {
+  // Chống ghi trùng stats khi WS + REST đóng lệnh đồng thời
+  if (trade?.id) {
+    if (_recordedTradeIds.has(trade.id) || loadHistory().some(h => h.id === trade.id)) {
+      log.warn(`recordTradeResult: bỏ qua duplicate id=${trade.id} (${trade.symbol} ${trade.direction})`);
+      return;
+    }
+    _recordedTradeIds.add(trade.id);
+    if (_recordedTradeIds.size > 500) {
+      const first = _recordedTradeIds.values().next().value;
+      _recordedTradeIds.delete(first);
+    }
+  }
+
   const hit = _deriveHit(exitReason, result);
 
   // result=null: không xác định được kết quả → chỉ ghi history, bỏ qua stats

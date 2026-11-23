@@ -337,7 +337,7 @@ async function generateQuantitativeTrade(setup, marketData = null) {
     rrRatio: tierSetup.rrRatio,
     entryFilled: false,
     status: 'active',
-    recommendedAt: new Date().toISOString(),
+    recommendedAt: new Date(),
     reason: `QUANT 369 | Score ${score}đ [${setup.verdict}] | SL: ${tierSetup.slScenario} (+${tierSetup.slPct}%) | TP: ${tierSetup.tpAnchorType} (-${tierSetup.tpPct}%) | R:R = ${tierSetup.rrRatio} | Gate: ${(gateResult.winProbability * 100).toFixed(0)}%`,
     source: 'quantitative_deterministic'
   };

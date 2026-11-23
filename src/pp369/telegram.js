@@ -9,11 +9,11 @@ const axios = require('axios');
 const https = require('https');
 const { log } = require('./_logger');
 
-const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || '8974388983:AAGTEgJNmAegGPmWUgvd3Lpvtbefv-yn6pg';
-const CHAT_ID = process.env.TELEGRAM_CHAT_ID || '1663202780';
+const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || '';
+const CHAT_ID = process.env.TELEGRAM_CHAT_ID || '';
 const BOT_TAG = process.env.BOT_TAG !== undefined ? process.env.BOT_TAG : '';
 
-const API_URL = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`;
+const API_URL = BOT_TOKEN ? `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage` : '';
 
 // Tái sử dụng kết nối HTTPS Keep-Alive tới Telegram API để giảm thiểu độ trễ và tránh handshake lại
 const httpsAgent = new https.Agent({
@@ -31,6 +31,9 @@ const axiosTelegram = axios.create({
  * Gửi một tin nhắn đơn lẻ lên Telegram.
  */
 async function _sendSingleTelegram(messageText) {
+  if (!BOT_TOKEN || !CHAT_ID || !API_URL) {
+    return; // Chưa cấu hình TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID trong .env
+  }
   const maxAttempts = 3;
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {

@@ -49,13 +49,12 @@ async function updatePricesRest() {
       }
       return;
     } catch (err) {
-      if (err?.response?.status === 418 || err?.response?.data?.code === -1003) {
+      if (err?.response?.status === 418 || err?.response?.status === 429 || err?.response?.data?.code === -1003) {
         triggerCircuitBreaker(err, 'PP369Stream');
-        return;
+        return; // Dừng ngay, tuyệt đối không retry khi bị 429/418
       }
       const isNetworkErr = !err.response || err.code === 'ENOTFOUND' || err.code === 'ETIMEDOUT' || err.code === 'ECONNRESET' || err.code === 'ECONNREFUSED';
-      const isRateLimit = err?.response?.status === 429;
-      if ((isRateLimit || isNetworkErr) && attempt < 2) {
+      if (isNetworkErr && attempt < 2) {
         await new Promise(r => setTimeout(r, (attempt + 1) * 2000));
         continue;
       }
@@ -156,23 +155,33 @@ function _connect() {
 
   _ws = new WebSocket(FSTREAM);
 
+  _ws.isAlive = true;
+
   _ws.on('open', () => {
     log.system(`[PP369Stream] Kết nối WebSocket thành công (market/stream)`);
+    _ws.isAlive = true;
     _subscribed.clear();
     if (_symbols && _symbols.length > 0) {
       syncWebSocketSubscriptions(_symbols);
     }
 
-    // Ping/pong heartbeat mỗi 30s để chống Zombie WebSocket Connection
+    // Ping/pong heartbeat mỗi 30s kèm isAlive check để cắt kết nối nửa sống nửa chết (Zombie WS)
     _pingInterval = setInterval(() => {
-      if (_ws && _ws.readyState === WebSocket.OPEN) {
+      if (!_ws) return;
+      if (_ws.isAlive === false) {
+        log.warn('[PP369Stream] Zombie WebSocket (không phản hồi pong) — tự động ngắt & reconnect');
+        try { _ws.terminate(); } catch (_) { }
+        return;
+      }
+      _ws.isAlive = false;
+      if (_ws.readyState === WebSocket.OPEN) {
         try { _ws.ping(); } catch (_) { }
       }
     }, 30_000);
   });
 
   _ws.on('pong', () => {
-    // WebSocket vẫn phản hồi tốt
+    if (_ws) _ws.isAlive = true;
   });
 
   _ws.on('message', (raw) => {
@@ -242,6 +251,7 @@ function start369Stream(symbols) {
 
 function stop369Stream() {
   _stopped = true;
+  _cleanupPing();
   if (_ws) {
     _ws.removeAllListeners();
     _ws.terminate();

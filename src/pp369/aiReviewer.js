@@ -6,7 +6,7 @@ const { log } = require('./_logger');
 const { classifyCandleGeometry, getStep } = require('./core');
 const { checkEconomicBlackout } = require('../trader/economicCalendar');
 
-const { exec } = require('child_process');
+const { execFile } = require('child_process');
 
 const MODEL_PATH = path.join(process.cwd(), 'data', 'ai_rule_config.json');
 const AI_EVALUATIONS_FILE = path.join(process.cwd(), 'data', 'ai_evaluations.jsonl');
@@ -56,11 +56,11 @@ function runAutoRetrain() {
   const scriptPath = path.join(process.cwd(), 'scripts', 'train_ai_model.py');
   const pyCmd = process.env.PYTHON_BIN || 'python3';
 
-  exec(`${pyCmd} "${scriptPath}"`, (error, stdout, stderr) => {
+  execFile(pyCmd, [scriptPath], { timeout: 120_000 }, (error) => {
     if (error) {
       // Fallback thử tiếp lệnh 'python' nếu 'python3' thất bại (hoặc ngược lại)
       const fallbackCmd = pyCmd === 'python3' ? 'python' : 'python3';
-      exec(`${fallbackCmd} "${scriptPath}"`, (err2, stdout2, stderr2) => {
+      execFile(fallbackCmd, [scriptPath], { timeout: 120_000 }, (err2) => {
         if (err2) {
           log.warn(`[AI Reviewer] Lỗi tự động re-train mô hình AI: ${error.message} (Fallback '${fallbackCmd}' cũng thất bại: ${err2.message})`);
           return;
@@ -76,6 +76,7 @@ function runAutoRetrain() {
 }
 
 function startAutoRetrainTimer() {
+  if (process.env.DISABLE_AI_AUTO_RETRAIN === 'true' || process.env.NODE_ENV === 'test') return;
   if (_modelConfig && _modelConfig.trainedAt) {
     const lastTrainedMs = new Date(_modelConfig.trainedAt).getTime();
     if (isNaN(lastTrainedMs) || (Date.now() - lastTrainedMs > RETRAIN_INTERVAL_MS)) {
@@ -89,9 +90,11 @@ function startAutoRetrainTimer() {
   if (timer && timer.unref) timer.unref();
 }
 
-// Nạp mô hình và khởi chạy bộ đếm tự động re-train khi module được load
+// Nạp mô hình (không ép chạy Python re-train khi chạy test/require đơn lẻ)
 loadAIModel();
-startAutoRetrainTimer();
+if (process.env.DISABLE_AI_AUTO_RETRAIN !== 'true' && process.env.NODE_ENV !== 'test') {
+  startAutoRetrainTimer();
+}
 
 function extractSignalFeatures(reasons, score, rank, gridWidthPct, rawMarketData = null, signal = 'LONG', entryPrice = null, timestamp = null) {
   const reasonsStr = Array.isArray(reasons) ? reasons.join(' ') : String(reasons || '');
@@ -737,7 +740,7 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
     'risk_interaction:INTERACTION_HIGH_VOLATILITY_WEAK_SETUP': 0.50,
     'risk_interaction:INTERACTION_PUNCTURE_RUNAWAY': 0.35,
     'risk_interaction:INTERACTION_BALANCED': 1.00,
-    'spread_slippage:SPREAD_WIDE_DANGER': 1.00,
+    'spread_slippage:SPREAD_WIDE_DANGER': spreadWideMult,
     'spread_slippage:SPREAD_MEDIUM_CAUTION': 0.95,
     'spread_slippage:SPREAD_TIGHT_SAFE': 1.05,
     'cvd_momentum:CVD_SURGE_ALIGNED': 1.25,
@@ -745,7 +748,7 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
     'cvd_momentum:CVD_NEUTRAL': 1.00,
     'orderbook_wall:WALL_CLEAR_PATH': 1.15,
     'orderbook_wall:WALL_SUPPORT_SHIELD': 1.12,
-    'orderbook_wall:WALL_OPPOSING_BLOCK': 0.45
+    'orderbook_wall:WALL_OPPOSING_BLOCK': wallBlockMult
   };
 
   const score = parseFloat(sig.score) || 0;
@@ -1153,6 +1156,15 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
           mult = hasSolidSR ? 0.75 : 0.65;
         }
       }
+    }
+
+    // 🛡️ SANITY GUARD: Khóa trần phạt cho rủi ro thanh khoản cực đoan (Spread toác & Tường cản L2)
+    // Không để trọng số dataset cũ (thiếu dữ liệu vi cấu trúc) vô hiệu hóa spreadWideMult / wallBlockMult
+    if (cat === 'spread_slippage' && val === 'SPREAD_WIDE_DANGER') {
+      mult = Math.min(mult, spreadWideMult);
+    }
+    if (cat === 'orderbook_wall' && val === 'WALL_OPPOSING_BLOCK') {
+      mult = Math.min(mult, wallBlockMult);
     }
 
     combinedMultiplier *= mult;

@@ -123,6 +123,10 @@ function checkBounceCancel(trade, currentPrice, opts = {}) {
       }
 
       _trackedLimits.delete(key);
+      // Dọn các cooldown hết hạn để chống tăng RAM vô hạn khi chạy 24/7
+      for (const [ck, expTs] of _bounceCooldowns.entries()) {
+        if (expTs <= now) _bounceCooldowns.delete(ck);
+      }
       _bounceCooldowns.set(key, now + BOUNCE_COOLDOWN_MS);
       const sign = isLong ? '+' : '-';
       log.system(`[AutoTrade] [BounceCancel] ${sym} ${isLong ? 'LONG' : 'SHORT'}: entry=$${entry}, current=$${currentPrice} (duy trì nảy ${sign}${currentBouncePct.toFixed(2)}% >= ${BOUNCE_AWAY_PCT.toFixed(2)}% suốt ${Math.round(waitMs / 1000)}s) → Hủy LIMIT`);

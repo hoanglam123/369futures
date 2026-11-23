@@ -17,19 +17,22 @@
 const WebSocket = require('ws');
 const axios     = require('axios');
 const { log }   = require('../pp369/_logger');
+const { isIpBanned } = require('./circuitBreaker');
 
 const BASE_URL  = 'https://fapi.binance.com';
 const WS_URL    = 'wss://fstream.binance.com/ws';
 
 const KEEPALIVE_INTERVAL_MS = 30 * 60 * 1000; // 30 phút (listenKey hết hạn sau 60 phút)
-const RECONNECT_DELAY_MS    = 5_000;           // 5 giây trước khi thử lại
+const RECONNECT_DELAY_MS    = 5_000;           // 5 giây cơ sở (exponential backoff tối đa 60s)
+const MAX_RECONNECT_DELAY_MS = 60_000;
 
-let _ws             = null;
-let _listenKey      = null;
-let _keepaliveTimer = null;
-let _reconnectTimer = null;
-let _stopped        = false;
-let _currentApiKey  = process.env.BINANCE_API_KEY || '';
+let _ws               = null;
+let _listenKey        = null;
+let _keepaliveTimer   = null;
+let _reconnectTimer   = null;
+let _reconnectAttempt = 0;
+let _stopped          = false;
+let _currentApiKey    = process.env.BINANCE_API_KEY || '';
 
 // Danh sách callback đăng ký nhận event
 const _entryFillCallbacks   = [];
@@ -110,10 +113,31 @@ async function deleteListenKey(listenKey, apiKey = _currentApiKey) {
 
 // ─── Message Handler ──────────────────────────────────────────────────────────
 
+// Giữ nguyên các ID số nguyên >= 16 chữ số (o.i, orderId, algoId) dạng chuỗi trước khi JSON.parse
+function _safeJsonParseStream(raw) {
+  if (typeof raw !== 'string') return raw;
+  const preserved = raw
+    .replace(/"(i|ai|orderId|algoId|id)":\s*(\d{16,})/g, '"$1":"$2"');
+  return JSON.parse(preserved);
+}
+
+function _invokeCallbacks(list, payload, label) {
+  for (const cb of list) {
+    try {
+      const r = cb(payload);
+      if (r && typeof r.catch === 'function') {
+        r.catch(e => log.warn(`[BinanceStream] ${label} async callback lỗi: ${e?.message || e}`));
+      }
+    } catch (e) {
+      log.warn(`[BinanceStream] ${label} callback lỗi: ${e.message}`);
+    }
+  }
+}
+
 function handleMessage(raw) {
   let msg;
   try {
-    msg = typeof raw === 'string' ? JSON.parse(raw) : raw;
+    msg = typeof raw === 'string' ? _safeJsonParseStream(raw) : raw;
   } catch {
     return;
   }
@@ -123,19 +147,22 @@ function handleMessage(raw) {
     const o = msg.o;
     if (!o) return;
 
-    const orderId       = o.i;
+    const orderId       = o.i != null ? String(o.i) : null;
+    const algoId        = o.ai != null ? String(o.ai) : null;
     const clientOrderId = o.c;
     const symbol        = (o.s || '').replace(/USDT$/, '');
     const orderType     = o.ot;
     const side          = o.S;
     const status        = o.X;
     const reduceOnly    = o.R === true || o.R === 'true';
+    const closePosition = o.cp === true || o.cp === 'true';
     const avgPrice      = parseFloat(o.ap) || 0;
     const qty           = parseFloat(o.q) || 0;
     const filledQty     = parseFloat(o.z) || 0;
 
     const payload = {
       orderId,
+      algoId,
       clientOrderId,
       symbol,
       avgPrice,
@@ -144,58 +171,39 @@ function handleMessage(raw) {
       qty,
       filledQty,
       reduceOnly,
+      closePosition,
       status,
       timestamp: msg.E || Date.now(),
     };
 
     if (status === 'FILLED') {
-      log.system(`[BinanceStream] ⚡ WS FILL: ${symbol} ${side} ${orderType} #${orderId} @ $${avgPrice} (reduceOnly=${reduceOnly})`);
+      log.system(`[BinanceStream] ⚡ WS FILL: ${symbol} ${side} ${orderType} #${orderId} @ $${avgPrice} (reduceOnly=${reduceOnly}, cp=${closePosition})`);
 
       // Dispatch general fill
-      for (const cb of _fillCallbacks) {
-        try { cb(payload); } catch (e) {
-          log.warn(`[BinanceStream] fill callback lỗi: ${e.message}`);
-        }
-      }
+      _invokeCallbacks(_fillCallbacks, payload, 'fill');
 
-      // Nếu không phải reduceOnly → đây là lệnh ENTRY mở vị thế
-      if (!reduceOnly) {
-        for (const cb of _entryFillCallbacks) {
-          try { cb(payload); } catch (e) {
-            log.warn(`[BinanceStream] entry fill callback lỗi: ${e.message}`);
-          }
-        }
+      // Nếu không phải reduceOnly và không phải closePosition → đây là lệnh ENTRY mở vị thế
+      if (!reduceOnly && !closePosition) {
+        _invokeCallbacks(_entryFillCallbacks, payload, 'entry fill');
       }
       return;
     }
 
     if (status === 'PARTIALLY_FILLED') {
-      for (const cb of _partialFillCallbacks) {
-        try { cb(payload); } catch (e) {
-          log.warn(`[BinanceStream] partial fill callback lỗi: ${e.message}`);
-        }
-      }
+      _invokeCallbacks(_partialFillCallbacks, payload, 'partial fill');
       return;
     }
 
     if (status === 'CANCELED' || status === 'EXPIRED') {
       log.system(`[BinanceStream] 🛑 WS CANCEL: ${symbol} ${orderType} #${orderId} (${status})`);
-      for (const cb of _cancelCallbacks) {
-        try { cb(payload); } catch (e) {
-          log.warn(`[BinanceStream] cancel callback lỗi: ${e.message}`);
-        }
-      }
+      _invokeCallbacks(_cancelCallbacks, payload, 'cancel');
       return;
     }
   }
 
   // 2. Sự kiện cập nhật tài khoản
   if (msg.e === 'ACCOUNT_UPDATE') {
-    for (const cb of _accountCallbacks) {
-      try { cb(msg.a); } catch (e) {
-        log.warn(`[BinanceStream] account callback lỗi: ${e.message}`);
-      }
-    }
+    _invokeCallbacks(_accountCallbacks, msg.a, 'account');
   }
 }
 
@@ -207,6 +215,7 @@ function connect() {
   _ws = new WebSocket(`${WS_URL}/${_listenKey}`);
 
   _ws.on('open', () => {
+    _reconnectAttempt = 0;
     log.system('[BinanceStream] ✓ Kết nối User Data Stream WebSocket thành công');
   });
 
@@ -217,7 +226,7 @@ function connect() {
   _ws.on('close', (code) => {
     _ws = null;
     if (_stopped) return;
-    log.warn(`[BinanceStream] Mất kết nối WebSocket (${code}) — tự động kết nối lại sau ${RECONNECT_DELAY_MS / 1000}s`);
+    log.warn(`[BinanceStream] Mất kết nối WebSocket (${code}) — lên lịch kết nối lại`);
     scheduleReconnect();
   });
 
@@ -228,44 +237,32 @@ function connect() {
 
 function scheduleReconnect() {
   if (_stopped || _reconnectTimer) return;
+  const delayMs = Math.min(MAX_RECONNECT_DELAY_MS, RECONNECT_DELAY_MS * Math.pow(2, Math.min(_reconnectAttempt, 4)));
+  _reconnectAttempt++;
   _reconnectTimer = setTimeout(async () => {
     _reconnectTimer = null;
+    if (_stopped) return;
+    if (isIpBanned()) {
+      log.warn('[BinanceStream] Đang bị IP Ban/429 — hoãn reconnect User Data Stream');
+      scheduleReconnect();
+      return;
+    }
     try {
       _listenKey = await createListenKey(_currentApiKey);
       connect();
     } catch (e) {
-      log.warn(`[BinanceStream] Không thể tạo listenKey khi reconnect: ${e.message} — thử lại...`);
+      log.warn(`[BinanceStream] Không thể tạo listenKey khi reconnect: ${e.message} — thử lại sau...`);
       scheduleReconnect();
     }
-  }, RECONNECT_DELAY_MS);
+  }, delayMs);
 }
 
 // ─── Public API ───────────────────────────────────────────────────────────────
 
-async function startStream(apiKey = _currentApiKey) {
-  if (apiKey) _currentApiKey = apiKey;
-
-  if (!isEnabled(_currentApiKey)) {
-    log.system('[BinanceStream] Thiếu BINANCE_API_KEY — bỏ qua User Data Stream');
-    return false;
-  }
-
-  _stopped = false;
-
-  try {
-    _listenKey = await createListenKey(_currentApiKey);
-    log.system(`[BinanceStream] listenKey tạo thành công (${_listenKey.slice(0, 10)}...)`);
-  } catch (e) {
-    log.warn(`[BinanceStream] Không thể tạo listenKey khi khởi động: ${e.message} — lên lịch kết nối lại`);
-    scheduleReconnect();
-    return false;
-  }
-
-  connect();
-
-  // Giữ listenKey sống: PUT mỗi 30 phút
-  if (_keepaliveTimer) clearInterval(_keepaliveTimer);
+function _ensureKeepaliveTimer() {
+  if (_keepaliveTimer) return;
   _keepaliveTimer = setInterval(async () => {
+    if (_stopped || !_listenKey || isIpBanned()) return;
     try {
       await refreshListenKey(_listenKey, _currentApiKey);
       log.system('[BinanceStream] Keepalive listenKey thành công');
@@ -280,7 +277,30 @@ async function startStream(apiKey = _currentApiKey) {
       }
     }
   }, KEEPALIVE_INTERVAL_MS);
+}
 
+async function startStream(apiKey = _currentApiKey) {
+  if (apiKey) _currentApiKey = apiKey;
+
+  if (!isEnabled(_currentApiKey)) {
+    log.system('[BinanceStream] Thiếu BINANCE_API_KEY — bỏ qua User Data Stream');
+    return false;
+  }
+
+  _stopped = false;
+  // Luôn bật keepalive timer ngay từ đầu (kể cả khi lần tạo listenKey đầu tiên bị lỗi rồi reconnect sau)
+  _ensureKeepaliveTimer();
+
+  try {
+    _listenKey = await createListenKey(_currentApiKey);
+    log.system(`[BinanceStream] listenKey tạo thành công (${_listenKey.slice(0, 10)}...)`);
+  } catch (e) {
+    log.warn(`[BinanceStream] Không thể tạo listenKey khi khởi động: ${e.message} — lên lịch kết nối lại`);
+    scheduleReconnect();
+    return false;
+  }
+
+  connect();
   return true;
 }
 
