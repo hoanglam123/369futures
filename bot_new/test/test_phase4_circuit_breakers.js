@@ -208,7 +208,43 @@ runTest('6. RateLimit Guard: Binance IP Weight >= 1800/2400 tự động hạ nh
   assert.strictEqual(isIpBanned(), false, 'Sau khi reset thì REST API hoạt động lại bình thường');
 });
 
-console.log('\n================================================================');
-console.log(`🎉 KẾT QUẢ KIỂM THỬ: ${passedTests}/${totalTests} BÀI TEST THÀNH CÔNG (${((passedTests/totalTests)*100).toFixed(0)}%)`);
-console.log('================================================================');
-process.exit(passedTests === totalTests ? 0 : 1);
+// ── 6. BTC FLASH GUARD -> TỰ HỦY ENTRY LIMIT CHỜ NGƯỢC SÓNG ─────────────────
+(async () => {
+  totalTests++;
+  try {
+    const { cancelPendingLimitsForFlash } = require('../src/services/tradeMonitor');
+    const cancelledOrders = [];
+    const mockClient = {
+      cancelOrderById: async (sym, id) => { cancelledOrders.push(`${sym}:${id}`); }
+    };
+    const mockTrades = [
+      { id: '1', symbol: 'SOL', direction: 'LONG',  entryPrice: 180, status: 'active', entryFilled: false, binanceEntryOrderId: 'ENT_LONG_1' },
+      { id: '2', symbol: 'ETH', direction: 'LONG',  entryPrice: 3000, status: 'active', entryFilled: true,  binanceEntryOrderId: 'ENT_FILLED', binanceTpOrderId: 'TP_KEEP' },
+      { id: '3', symbol: 'XRP', direction: 'SHORT', entryPrice: 1.5,  status: 'active', entryFilled: false, binanceEntryOrderId: 'ENT_SHORT_KEEP' },
+    ];
+
+    const res = await cancelPendingLimitsForFlash('LONG', 'BTC Flash Dump -1.1%', {
+      trades: mockTrades,
+      client: mockClient,
+      skipSave: true,
+      silent: true
+    });
+
+    assert.strictEqual(res.cancelled.length, 1, 'Chỉ hủy đúng 1 lệnh ENTRY LIMIT LONG đang chờ');
+    assert.deepStrictEqual(cancelledOrders, ['SOL:ENT_LONG_1'], 'Chỉ gọi cancelOrderById cho Entry LIMIT LONG chờ');
+    assert.strictEqual(mockTrades[0].status, 'canceled', 'SOL pending LONG phải chuyển sang canceled');
+    assert.strictEqual(mockTrades[1].status, 'active', 'ETH LONG đã khớp (có TP) TUYỆT ĐỐI giữ nguyên active');
+    assert.strictEqual(mockTrades[2].status, 'active', 'XRP pending SHORT cùng sóng Dump phải giữ nguyên active');
+
+    console.log(`✅ [PASS] Test ${totalTests}: 7. BTC Flash Guard tự hủy CHỈ lệnh ENTRY LIMIT chờ ngược sóng (bảo toàn lệnh đã khớp & TP)`);
+    passedTests++;
+  } catch (err) {
+    console.error(`❌ [FAIL] Test ${totalTests}: 7. BTC Flash Guard hủy pending limits`);
+    console.error(err);
+  }
+
+  console.log('\n================================================================');
+  console.log(`🎉 KẾT QUẢ KIỂM THỬ: ${passedTests}/${totalTests} BÀI TEST THÀNH CÔNG (${((passedTests/totalTests)*100).toFixed(0)}%)`);
+  console.log('================================================================');
+  process.exit(passedTests === totalTests ? 0 : 1);
+})();

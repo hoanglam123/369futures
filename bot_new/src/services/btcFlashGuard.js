@@ -25,6 +25,7 @@ const SEVERE_THRESHOLD_PCT  = 1.50;
 
 let _btcTickHistory = []; // [ { t: timestamp, p: price }, ... ]
 let _lastTriggerTime = 0;
+const _flashListeners = new Set();
 let _flashState = {
   activeFlash: null,       // 'FLASH_DUMP' | 'FLASH_PUMP' | null
   severity: 'NORMAL',      // 'NORMAL' | 'MODERATE' | 'SEVERE'
@@ -33,6 +34,20 @@ let _flashState = {
   reason: '',
   velocityPct: 0
 };
+
+function onFlashTrigger(cb) {
+  if (typeof cb === 'function') _flashListeners.add(cb);
+}
+
+function offFlashTrigger(cb) {
+  _flashListeners.delete(cb);
+}
+
+function _emitFlashEvent(payload) {
+  for (const cb of _flashListeners) {
+    try { cb(payload); } catch (_) {}
+  }
+}
 
 /**
  * Nạp tick giá BTC từ WebSocket 0ms
@@ -134,6 +149,11 @@ function triggerFlashDump({ reason, velocityPct = -1.0, nowMs = Date.now() }) {
     velocityPct
   };
   log.warn(`[AutoTrade] 🚨 [BTC Flash Dump Guard — ${_flashState.severity}] Kích hoạt khóa LONG Altcoin trong ${Math.round(lockMs / 60000)} phút (${reason})`);
+  _emitFlashEvent({
+    ..._flashState,
+    directionToCancel: 'LONG',
+    lockMins: Math.round(lockMs / 60000)
+  });
   return _flashState;
 }
 
@@ -157,6 +177,11 @@ function triggerFlashPump({ reason, velocityPct = 1.0, nowMs = Date.now() }) {
     velocityPct
   };
   log.warn(`[AutoTrade] 🚨 [BTC Flash Pump Guard — ${_flashState.severity}] Kích hoạt khóa SHORT Altcoin trong ${Math.round(lockMs / 60000)} phút (${reason})`);
+  _emitFlashEvent({
+    ..._flashState,
+    directionToCancel: 'SHORT',
+    lockMins: Math.round(lockMs / 60000)
+  });
   return _flashState;
 }
 
@@ -189,5 +214,7 @@ module.exports = {
   triggerFlashDump,
   triggerFlashPump,
   resetFlashGuard,
-  getBtcVelocity
+  getBtcVelocity,
+  onFlashTrigger,
+  offFlashTrigger
 };

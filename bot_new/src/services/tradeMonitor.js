@@ -3230,4 +3230,62 @@ async function checkAndApplyFractalTrailingSL(trade, currentPrice, opts = {}) {
   return { moved: true, tf: tfLabel, prevSl, newSl: candidateSl, progressPct, lockedRoi };
 }
 
-module.exports = { parseTrades, addTrades, checkActiveTrades, getActiveTrades, sendActiveTradesSummary, runBacktest, initBinanceStream, syncManualPositions, updateActiveTrade, removeActiveTrade, consumeSignalScanFlag, onWsPush, forceSyncBrakeOverride, checkAndApplyFractalTrailingSL };
+/**
+ * Tự động hủy các lệnh ENTRY LIMIT đang chờ khớp ngược chiều khi BTC Flash Dump/Pump kích hoạt.
+ * - CHỈ hủy lệnh `status === 'active' && entryFilled === false && direction === directionToCancel`.
+ * - TUYỆT ĐỐI KHÔNG hủy lệnh TP LIMIT (reduceOnly) hay can thiệp các vị thế đã khớp (giữ nguyên Hard SL & Fractal Trailing).
+ */
+async function cancelPendingLimitsForFlash(directionToCancel, reason = 'BTC_FLASH_GUARD', opts = {}) {
+  const dir = (directionToCancel || '').toUpperCase();
+  if (dir !== 'LONG' && dir !== 'SHORT') return { cancelled: [] };
+
+  const list = Array.isArray(opts.trades) ? opts.trades : activeTrades;
+  const pendingToCancel = list.filter(t =>
+    t && t.status === 'active' && t.entryFilled === false && t.direction === dir
+  );
+  if (pendingToCancel.length === 0) return { cancelled: [] };
+
+  const client = opts.client || (binanceTrader.isEnabled() ? binanceTrader : null);
+  const cancelled = [];
+
+  for (const t of pendingToCancel) {
+    if (client && t.binanceEntryOrderId) {
+      try {
+        await client.cancelOrderById(t.symbol, t.binanceEntryOrderId);
+      } catch (err) {
+        log.warn(`[BTC Flash Guard] Hủy Entry LIMIT #${t.binanceEntryOrderId} của ${t.symbol} lỗi (có thể đã khớp/hủy): ${err.message}`);
+      }
+    }
+    try { require('./bounceCancel').untrackLimit(t.symbol, t.targetLevel || t.entryPrice); } catch (_) {}
+    t.status = 'canceled';
+    t.canceledReason = `BTC_FLASH_GUARD: ${reason}`;
+    t.closedAt = new Date();
+    cancelled.push(`${t.symbol} ${t.direction} @ ${fmtPrice(t.entryPrice)}`);
+    log.trade(`[BTC Flash Guard] 🛑 Đã hủy lệnh ENTRY LIMIT chờ ${t.symbol} ${t.direction} @ ${fmtPrice(t.entryPrice)} (${reason})`);
+  }
+
+  if (!opts.skipSave) saveTrades();
+
+  if (cancelled.length > 0 && !opts.silent) {
+    sendMessages([
+      `🚨 <b>[BTC Flash Guard] HỦY ${cancelled.length} LỆNH ENTRY LIMIT NGƯỢC SÓNG (${dir})</b>\n` +
+      `• <b>Lý do:</b> ${reason}\n` +
+      `• <b>Đã hủy:</b> ${cancelled.join(', ')}\n` +
+      `<i>💡 Vị thế đang mở giữ nguyên Hard SL &amp; Fractal Trailing SL trên sàn.</i>`
+    ]).catch(() => {});
+  }
+
+  return { cancelled };
+}
+
+// Đấu nối sự kiện 0ms từ BTC Flash Guard -> tự hủy Entry LIMIT ngược sóng ngay lập tức
+try {
+  require('./btcFlashGuard').onFlashTrigger((evt) => {
+    if (evt?.directionToCancel) {
+      cancelPendingLimitsForFlash(evt.directionToCancel, evt.reason || evt.activeFlash)
+        .catch(e => log.warn(`[BTC Flash Guard] Lỗi hủy pending limits: ${e.message}`));
+    }
+  });
+} catch (_) {}
+
+module.exports = { parseTrades, addTrades, checkActiveTrades, getActiveTrades, sendActiveTradesSummary, runBacktest, initBinanceStream, syncManualPositions, updateActiveTrade, removeActiveTrade, consumeSignalScanFlag, onWsPush, forceSyncBrakeOverride, checkAndApplyFractalTrailingSL, cancelPendingLimitsForFlash };
