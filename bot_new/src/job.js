@@ -17,7 +17,7 @@ const { getGlobalMarket, getTopCoins } = require('./collectors/marketData');
 const { getFearGreedIndex } = require('./collectors/fearGreed');
 const { getCryptoNews } = require('./collectors/cryptoNews');
 const { getFundingRates } = require('./collectors/fundingRates');
-const { analyzeMarket, analyze369Setup } = require('./services/aiAnalysis');
+const { analyzeMarket } = require('./services/aiAnalysis');
 const { sendMessages, sendErrorAlert } = require('./services/telegram');
 const { buildMarketMessage, buildAnalysisMessage } = require('./formatters/message');
 const { parseTrades, addTrades, getActiveTrades } = require('./services/tradeMonitor');
@@ -156,8 +156,9 @@ const MIN_SCORE_REVERSAL  = parseInt(process.env.MIN_SCORE_REVERSAL  || '9', 10)
 
 // NEWS_ENABLED: bật/tắt thu thập tin tức crypto (mặc định: true)
 const NEWS_ENABLED        = process.env.NEWS_ENABLED        !== 'false';
-// AI_ANALYSIS_ENABLED: bật/tắt phân tích thị trường bằng AI (mặc định: true)
-const AI_ANALYSIS_ENABLED = process.env.AI_ANALYSIS_ENABLED !== 'false';
+// AI_ANALYSIS_ENABLED: tắt mặc định (chỉ bật khi chủ động đặt AI_ANALYSIS_ENABLED=true trong .env)
+// Hệ thống giao dịch chạy 100% Định lượng + Local ML Gatekeeper (0 Token, không gọi Claude/Gemini)
+const AI_ANALYSIS_ENABLED = process.env.AI_ANALYSIS_ENABLED === 'true';
 // TELEGRAM_NEWS_CHAT_ID: kênh nhận bản tin thị trường + phân tích AI (để trống = dùng TELEGRAM_CHAT_ID)
 const NEWS_CHAT_ID        = process.env.TELEGRAM_NEWS_CHAT_ID || null;
 

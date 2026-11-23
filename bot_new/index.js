@@ -32,12 +32,11 @@ const { createServer: createDashboard, broadcastWs } = require('./src/dashboard/
 const REQUIRED_ENV = ['TELEGRAM_BOT_TOKEN', 'TELEGRAM_CHAT_ID'];
 const missing = REQUIRED_ENV.filter((key) => !process.env[key]);
 
-// Phase 2: Không bắt buộc key External LLM (Gemini/Claude) để khởi động bot-new.
+// Phase 2: Tắt mặc định External LLM (Claude/Gemini) — chỉ bật nếu chủ động đặt AI_ANALYSIS_ENABLED=true và có API key.
 // Hệ thống giao dịch chạy 100% định lượng + AI Bản Thân Cục Bộ (0 Token - 0ms).
 const hasAiKey = !!(process.env.CLAUDE_API_KEY || process.env.ANTHROPIC_API_KEY || process.env.ANTHROPIC_AUTH_TOKEN || process.env.GEMINI_API_KEY);
-if (!hasAiKey && process.env.AI_ANALYSIS_ENABLED !== 'false') {
+if (process.env.AI_ANALYSIS_ENABLED !== 'true' || !hasAiKey) {
   process.env.AI_ANALYSIS_ENABLED = 'false';
-  console.log('ℹ️ Không có External LLM API key — tự động tắt bản tin AI ngoài, vận hành 100% Định lượng + Local ML Gatekeeper.');
 }
 
 if (missing.length > 0) {
@@ -180,7 +179,8 @@ if (process.argv.includes('--run-now')) {
   // Bổ sung cho WS fill event — đảm bảo không bỏ sót vị thế nếu WS miss hoặc bot vừa restart
   // Có thể tắt bằng SYNC_POSITIONS_CRON=false trong .env
   const SYNC_POSITIONS_CRON = process.env.SYNC_POSITIONS_CRON;
-  const syncCron = SYNC_POSITIONS_CRON !== 'false' ? (SYNC_POSITIONS_CRON || '*/5 * * * *') : null;
+  // Lệch sang giây thứ 20 (20 */5 * * * *) để không đụng đúng giây :00 với cron */1 * * * * (needs_scan)
+  const syncCron = SYNC_POSITIONS_CRON !== 'false' ? (SYNC_POSITIONS_CRON || '20 */5 * * * *') : null;
   if (syncCron) {
     if (!cron.validate(syncCron)) {
       console.error(`❌ SYNC_POSITIONS_CRON không hợp lệ: "${syncCron}"`);
