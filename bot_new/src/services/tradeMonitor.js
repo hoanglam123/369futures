@@ -46,8 +46,13 @@ const DATA_DIR   = path.join(__dirname, '..', '..', 'data');
 const TRADES_FILE   = path.join(DATA_DIR, 'trades.json');
 const HISTORY_FILE  = path.join(DATA_DIR, 'trade_history.json');
 
-// Track trades đã thử recovery SL/TP trong session này (tránh đặt trùng)
-const _slTpRecoveryDone = new Set();
+// Track thời điểm thử recovery SL/TP gần nhất (cooldown 5 phút/lần thay vì khóa vĩnh viễn)
+const _slTpRecoveryAt = new Map();
+const SL_TP_RECOVERY_COOLDOWN_MS = 5 * 60 * 1000;
+function _canRunRecovery(key) {
+  const last = _slTpRecoveryAt.get(key) || 0;
+  return (Date.now() - last) >= SL_TP_RECOVERY_COOLDOWN_MS;
+}
 // Track thời điểm lần cuối poll REST order status cho từng trade (WS fill fallback)
 const _fillCheckMs = new Map();
 
@@ -995,6 +1000,7 @@ async function syncManualPositions(source = 'internal') {
     return;
   }
   if (!binanceTrader.isEnabled()) return;
+  if (source === 'cron' && isIpBanned()) return;
 
   _syncRunning = true;
   const _t0 = Date.now();
@@ -1008,10 +1014,20 @@ async function syncManualPositions(source = 'internal') {
       return;
     }
 
+    // Lấy toàn bộ openOrders (LIMIT TP) và openAlgoOrders (Hard STOP_MARKET SL) 1 lần để đối chiếu Auto-Heal TP/SL thật trên sàn
+    const [allOpenOrders, allOpenAlgos] = await Promise.all([
+      binanceTrader.getOpenOrders().catch(() => null),
+      binanceTrader.getOpenAlgoOrders().catch(() => null),
+    ]);
+
     for (const pos of positions) {
       const symbol    = pos.symbol.replace(/USDT$/, '');
       const posAmt    = parseFloat(pos.positionAmt);
       const direction = posAmt > 0 ? 'LONG' : 'SHORT';
+      const isLongPos = direction === 'LONG';
+      const closingSidePos = isLongPos ? 'SELL' : 'BUY';
+      const posMarkPrice = parseFloat(pos.markPrice) || _lastMarkPrices[symbol] || null;
+      const symPair = `${symbol}USDT`;
 
       // 🛡️ Đồng bộ vị thế như bot-h4:
       // Nếu trade đã có trong activeTrades với trạng thái pending (!entryFilled)
@@ -1041,9 +1057,110 @@ async function syncManualPositions(source = 'internal') {
         continue;
       }
 
-      // Đã theo dõi vị thế này rồi → bỏ qua
-      // Bao gồm cả lệnh đã đóng < 30p để tránh re-detect khi position vẫn chưa settle trên Binance
-      // Bao gồm cả reversed trade: lệnh REV chỉ đóng khi user tự đóng thủ công — bot không được tự đóng
+      // ─── ON-EXCHANGE TP/SL AUDIT & AUTO-HEAL (ĐỒNG BỘ CƠ CHẾ BOT-H4) ────────
+      // Đối chiếu trực tiếp vị thế đang mở với openOrders & openAlgoOrders thật trên Binance.
+      // Nếu phát hiện thiếu TP hoặc mất Hard SL (vd lỗi Order would immediately trigger / ReduceOnly / 429) -> Tự động đặt bù ngay!
+      const trackedActive = activeTrades.find(t =>
+        t.symbol === symbol &&
+        t.direction === direction &&
+        t.status === 'active' &&
+        t.entryFilled
+      );
+      if (trackedActive) {
+        let healed = false;
+        trackedActive.binanceQty = Math.abs(posAmt);
+
+        // 1. Audit TP LIMIT trên sàn
+        if (Array.isArray(allOpenOrders)) {
+          const realTp = allOpenOrders.find(o =>
+            o.symbol === symPair &&
+            o.side === closingSidePos &&
+            o.type === 'LIMIT'
+          );
+          if (realTp) {
+            if (String(trackedActive.binanceTpOrderId || '') !== String(realTp.orderId)) {
+              trackedActive.binanceTpOrderId = String(realTp.orderId);
+              healed = true;
+            }
+          } else if (trackedActive.targetPrice && trackedActive.targetPrice > 0) {
+            // Trên sàn KHÔNG có lệnh TP LIMIT → xóa ID ảo cũ và tự động đặt bù nếu giá chưa vượt TP
+            const tpValidSide = !posMarkPrice || (isLongPos
+              ? trackedActive.targetPrice > posMarkPrice * 1.0005
+              : trackedActive.targetPrice < posMarkPrice * 0.9995);
+            if (tpValidSide) {
+              log.warn(`[AutoHeal TP/SL] 🎯 Vị thế ${symbol} ${direction} đang mở trên sàn nhưng THIẾU TP LIMIT → Tự động đặt bù @ $${trackedActive.targetPrice}`);
+              trackedActive.binanceTpOrderId = null;
+              const newTpId = await binanceTrader.placeTPAfterEntry(trackedActive).catch(e => {
+                log.error(`[AutoHeal TP/SL] Đặt bù TP ${symbol} thất bại`, { error: e.message });
+                return null;
+              });
+              if (newTpId) {
+                log.trade(`[AutoHeal TP/SL] ✓ Đã đặt bù TP LIMIT ${symbol} thành công: #${newTpId} @ $${trackedActive.targetPrice}`);
+                healed = true;
+              }
+            }
+          }
+        }
+
+        // 2. Audit Hard STOP_MARKET SL trên sàn (kiểm tra cả AlgoOrders và OpenOrders)
+        if (Array.isArray(allOpenAlgos) && Array.isArray(allOpenOrders)) {
+          const realSlAlgo = allOpenAlgos.find(a =>
+            a.symbol === symPair &&
+            a.side === closingSidePos &&
+            ['STOP_MARKET', 'STOP'].includes(a.type || a.orderType)
+          );
+          const realSlStd = allOpenOrders.find(o =>
+            o.symbol === symPair &&
+            o.side === closingSidePos &&
+            ['STOP_MARKET', 'STOP'].includes(o.type)
+          );
+          const realSl = realSlAlgo || realSlStd;
+          if (realSl) {
+            const realSlId = String(realSl.algoId || realSl.orderId);
+            if (String(trackedActive.binanceSlOrderId || '') !== realSlId) {
+              trackedActive.binanceSlOrderId = realSlId;
+              healed = true;
+            }
+          } else if (trackedActive.slPrice && trackedActive.slPrice > 0) {
+            // Trên sàn KHÔNG có Hard SL → tính mốc SL an toàn tránh "Order would immediately trigger" và đặt bù ngay!
+            trackedActive.binanceSlOrderId = null;
+            let healSlPrice = trackedActive.slPrice;
+            if (posMarkPrice && posMarkPrice > 0) {
+              if (isLongPos && healSlPrice >= posMarkPrice * 0.998) {
+                // Nếu SL cũ đang >= giá hiện tại: ưu tiên về BE an toàn nếu đang có lãi, ngược lại đặt bảo vệ -3%
+                const entryP = trackedActive.entryPrice || parseFloat(pos.entryPrice) || posMarkPrice;
+                healSlPrice = (entryP < posMarkPrice * 0.996)
+                  ? parseFloat((entryP * 1.001).toFixed(entryP >= 1 ? 2 : 6))
+                  : parseFloat((posMarkPrice * 0.97).toFixed(posMarkPrice >= 1 ? 2 : 6));
+                log.warn(`[AutoHeal TP/SL] SL cũ ${symbol} LONG ($${trackedActive.slPrice}) >= giá hiện tại ($${posMarkPrice}) → điều chỉnh SL bù an toàn về $${healSlPrice}`);
+                trackedActive.slPrice = healSlPrice;
+              } else if (!isLongPos && healSlPrice <= posMarkPrice * 1.002) {
+                const entryP = trackedActive.entryPrice || parseFloat(pos.entryPrice) || posMarkPrice;
+                healSlPrice = (entryP > posMarkPrice * 1.004)
+                  ? parseFloat((entryP * 0.999).toFixed(entryP >= 1 ? 2 : 6))
+                  : parseFloat((posMarkPrice * 1.03).toFixed(posMarkPrice >= 1 ? 2 : 6));
+                log.warn(`[AutoHeal TP/SL] SL cũ ${symbol} SHORT ($${trackedActive.slPrice}) <= giá hiện tại ($${posMarkPrice}) → điều chỉnh SL bù an toàn về $${healSlPrice}`);
+                trackedActive.slPrice = healSlPrice;
+              }
+            }
+
+            log.warn(`[AutoHeal TP/SL] 🛡️ Vị thế ${symbol} ${direction} đang mở trên sàn nhưng THIẾU Hard SL → Tự động đặt bù STOP_MARKET @ $${healSlPrice}`);
+            const newSlId = await binanceTrader.placeSLAfterFill(trackedActive).catch(e => {
+              log.error(`[AutoHeal TP/SL] Đặt bù Hard SL ${symbol} thất bại`, { error: e.message });
+              return null;
+            });
+            if (newSlId) {
+              log.trade(`[AutoHeal TP/SL] ✓ Đã đặt bù Hard STOP_MARKET SL ${symbol} thành công: #${newSlId} @ $${healSlPrice}`);
+              healed = true;
+            }
+          }
+        }
+
+        if (healed) saveTrades();
+        continue;
+      }
+
+      // Đã theo dõi vị thế này rồi (reversed / vừa đóng < 30p) → bỏ qua
       const tracked = activeTrades.some(t => {
         if (t.symbol !== symbol || t.direction !== direction) return false;
         if (t.status === 'active') return true;
@@ -1790,13 +1907,13 @@ async function checkActiveTrades() {
     }
 
     // Recovery: nếu entry đã fill nhưng TP hoặc SL vẫn chưa được đặt (e.g., API lỗi khi fill hoặc WS miss),
-    // Kiểm tra position thực tế trước, thử đặt lại 1 lần/session để tránh trùng lệnh.
+    // Kiểm tra position thực tế trước, tự retry sau mỗi 5 phút cooldown thay vì khóa vĩnh viễn.
     if (trade.entryFilled && trade.binanceEntryOrderId && binanceTrader.isEnabled()) {
       const tradeKey = String(trade.binanceEntryOrderId);
       const needTP = !trade.binanceTpOrderId;
       const needSL = !trade.binanceSlOrderId;
-      if ((needTP || needSL) && !_slTpRecoveryDone.has(tradeKey)) {
-        _slTpRecoveryDone.add(tradeKey);
+      if ((needTP || needSL) && _canRunRecovery(tradeKey)) {
+        _slTpRecoveryAt.set(tradeKey, Date.now());
         log.warn(`Recovery: ${trade.symbol} ${trade.direction} — thiếu ${needTP ? 'TP' : ''}${needTP && needSL ? ' & ' : ''}${needSL ? 'SL' : ''}, kiểm tra position...`);
         (async () => {
           // Bước 1: kiểm tra position thực tế — tránh báo nhầm khi vị thế đã đóng
@@ -1894,14 +2011,15 @@ async function checkActiveTrades() {
       }
     }
 
-    // Recovery: manualEntry có binanceQty nhưng thiếu TP (targetPrice null hoặc chưa có order).
-    // Thử phục hồi targetPrice từ trades.json (expired trade) rồi đặt TP — 1 lần/session.
+    // Recovery: manualEntry có binanceQty nhưng thiếu TP hoặc thiếu SL.
+    // Thử phục hồi targetPrice từ trades.json (expired trade) rồi đặt TP/SL — retry sau mỗi 5 phút cooldown.
     if (trade.entryFilled && trade.manualEntry && trade.binanceQty && binanceTrader.isEnabled()) {
       const needTpPlace = !trade.binanceTpOrderId;
       const needTpPrice = !trade.targetPrice;
+      const needSlPlace = !trade.binanceSlOrderId && !!trade.slPrice;
       const recKey = `manual_tp_${trade.id}`;
-      if ((needTpPlace || needTpPrice) && !_slTpRecoveryDone.has(recKey)) {
-        _slTpRecoveryDone.add(recKey);
+      if ((needTpPlace || needTpPrice || needSlPlace) && _canRunRecovery(recKey)) {
+        _slTpRecoveryAt.set(recKey, Date.now());
         (async () => {
           // Bước 1: phục hồi targetPrice từ expired trade
           // Ưu tiên: trades.json (24h) → trade_history.json (bot-placed, binanceEntryOrderId != null)
@@ -1986,10 +2104,18 @@ async function checkActiveTrades() {
               tpId
                 ? `🎯 <b>TP ĐÃ ĐẶT LẠI — ${trade.symbol} ${dirLabel}</b>\n` +
                   `TP LIMIT:  <code>#${tpId}</code>  tại  <code>${fmtPrice(trade.targetPrice)}</code>\n` +
-                  `🛡️ SL client-side:  <code>${fmtPrice(trade.slPrice)}</code>\n` +
+                  `🛡️ SL:  <code>${fmtPrice(trade.slPrice)}</code>\n` +
                   `<i>Phục hồi tự động sau khi bot restart</i>`
                 : `⚠️ <b>TP thất bại — ${trade.symbol} ${dirLabel}</b>\nKiểm tra và đặt TP thủ công trên Binance!`,
             ], 1500, NEWS_CHAT_ID).catch(() => {});
+          }
+          // Bước 3: đặt Hard STOP_MARKET SL nếu chưa có order
+          if (!trade.binanceSlOrderId && trade.slPrice) {
+            const slId = await binanceTrader.placeSLAfterFill(trade).catch(e => {
+              log.error(`Recovery manual SL: thất bại ${trade.symbol}`, { error: e.message });
+              return null;
+            });
+            if (slId) saveTrades();
           }
         })();
       }
@@ -2904,13 +3030,14 @@ function initBinanceStream() {
   // ── TP order bị cancel thủ công → xóa tpOrderId để recovery đặt lại ──────────
   binanceStream.onOrderCancel(({ orderId, symbol }) => {
     const trade = activeTrades.find(
-      t => t.status === 'active' && t.entryFilled && t.binanceTpOrderId === orderId
+      t => t.status === 'active' && t.entryFilled && String(t.binanceTpOrderId) === String(orderId)
     );
     if (!trade) return;
     log.warn(`WS: TP order #${orderId} bị hủy thủ công (${symbol}) — sẽ thử đặt lại`);
     trade.binanceTpOrderId = null;
-    // Xóa recovery key để recovery có thể chạy lại trên poll tiếp theo
-    _slTpRecoveryDone.delete(String(trade.binanceEntryOrderId));
+    // Xóa recovery cooldown để recovery có thể chạy lại ngay trên poll tiếp theo
+    _slTpRecoveryAt.delete(String(trade.binanceEntryOrderId));
+    _slTpRecoveryAt.delete(`manual_tp_${trade.id}`);
     saveTrades();
     const dirLabel = trade.direction === 'LONG' ? '🟢 LONG' : '🔴 SHORT';
     sendMessages([
