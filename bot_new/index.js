@@ -110,24 +110,25 @@ if (process.argv.includes('--run-now')) {
 } else {
   (async () => {
   // ─── Chế độ daemon: lên lịch chạy tự động ──────────────────────────────────
-  console.log('🚀 Crypto News Bot đang khởi động...');
-  console.log(`📅 Lịch gửi tin: ${CRON_SCHEDULE} (${TIMEZONE})`);
-  console.log('   → Mặc định: 4 tiếng/lần (0h, 4h, 8h, 12h, 16h, 20h)\n');
+  const ENABLE_MARKET_REPORT_CRON = process.env.ENABLE_MARKET_REPORT_CRON === 'true';
+  console.log('🚀 Crypto Futures Quant Bot (bot-new) đang khởi động...');
 
-  // Validate cron expression trước khi đăng ký
-  if (!cron.validate(CRON_SCHEDULE)) {
-    console.error(`❌ CRON_SCHEDULE không hợp lệ: "${CRON_SCHEDULE}"`);
-    process.exit(1);
+  if (ENABLE_MARKET_REPORT_CRON) {
+    console.log(`📅 Lịch gửi bản tin thị trường: ${CRON_SCHEDULE} (${TIMEZONE})`);
+    if (!cron.validate(CRON_SCHEDULE)) {
+      console.error(`❌ CRON_SCHEDULE không hợp lệ: "${CRON_SCHEDULE}"`);
+      process.exit(1);
+    }
+    cron.schedule(CRON_SCHEDULE, async () => {
+      log.system('Cron trigger — bắt đầu chạy job');
+      await runJob();
+    }, {
+      timezone: TIMEZONE,
+      scheduled: true
+    });
+  } else {
+    log.system('ℹ️ Đã tắt cron bản tin thị trường 4h mặc định (chạy thuần định lượng WS 0ms + FastScan 30s + Macro 15p giống bot-h4).');
   }
-
-  // Đăng ký cron job bản tin 4h
-  cron.schedule(CRON_SCHEDULE, async () => {
-    log.system('Cron trigger — bắt đầu chạy job');
-    await runJob();
-  }, {
-    timezone: TIMEZONE,
-    scheduled: true
-  });
 
   // ─── LUỒNG VĨ MÔ NỀN SIÊU NHẸ (Mỗi 15 phút — Đồng bộ kiến trúc On-Demand của bot-h4) ───
   // Thay thế cron 5p nặng (từng gọi 30 coin song song ~800 weight/lần).

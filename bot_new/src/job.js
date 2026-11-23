@@ -357,14 +357,15 @@ async function runJob({ silent = false, lookbackHours = null } = {}) {
       log.system(`PP369: ${sig369Active.map(s => `${s.symbol}=${s.signal}(${s.strength})`).join(' | ')}`);
     }
 
-    // Cache cho PP369 scan 1 phút (confluence re-score + AI comment)
+    // Merge vào cache thay vì ghi đè xóa sạch TA của các altcoin ngoài Top 30
     _lastMarketData = {
-      ta:          marketData.ta,
-      whale:       marketData.whale,
-      derivatives: marketData.derivatives,
-      funding:     marketData.funding,
-      fearGreed:   marketData.fearGreed,
-      social:      marketData.social,
+      ...(_lastMarketData || {}),
+      ta:          { ...(_lastMarketData?.ta || {}), ...(marketData.ta || {}) },
+      whale:       marketData.whale || _lastMarketData?.whale || null,
+      derivatives: marketData.derivatives || _lastMarketData?.derivatives || null,
+      funding:     marketData.funding || _lastMarketData?.funding || null,
+      fearGreed:   marketData.fearGreed || _lastMarketData?.fearGreed || { value: 50 },
+      social:      marketData.social || _lastMarketData?.social || null,
     };
 
     // ─── BƯỚC 1.7: Chấm điểm confluence (deterministic, trước khi gọi AI) ───
