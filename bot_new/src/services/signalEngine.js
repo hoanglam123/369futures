@@ -13,6 +13,7 @@
  * 7. Sinh danh sách lệnh chuẩn xác đẩy vào addTrades / Binance
  */
 
+const axios                       = require('axios');
 const { calculateTierSLTP }       = require('./tierSLTP');
 const { evaluateSignal }          = require('./riskGatekeeper');
 const { isDirectionLocked }       = require('./directionalCircuitBreaker');
@@ -21,9 +22,60 @@ const { isLevelBounceCooldown }   = require('./bounceCancel');
 const { checkBtcFlashStatus }     = require('./btcFlashGuard');
 const { registerShadowTrade, isShadowPositionActive } = require('./shadowTracker');
 const { getMarkPrice, getPrices } = require('../pp369/stream');
-const { fetchH1Historical }       = require('./candleCache');
+const { fetchH1Historical, fetchM15Recent } = require('./candleCache');
 const { getSymbolInfo, getUsdtBalance } = require('./binanceTrader');
+const { isIpBanned }              = require('./rateLimitGuard');
 const { log }                     = require('./logger');
+
+const _microCache = new Map(); // sym -> { ts, spreadPct, bidVol, askVol }
+const MICRO_TTL_MS = 15_000;
+
+/**
+ * Lấy vi cấu trúc sổ lệnh L2 (5 mức giá đầu — weight=2, cache 15s, fail-open).
+ * Tính spread_slippage và orderbook_wall thời gian thực tại 0ms cho Top 1–2 ứng viên.
+ */
+async function fetchOrderbookMicrostructure(symbol, isLong) {
+  const fallback = { spreadPct: 0, orderbookWall: 'CLEAR' };
+  if (isIpBanned() || process.env.DISABLE_MICROSTRUCTURE_FETCH === 'true') return fallback;
+  const cleanSym = (symbol || '').toUpperCase().replace(/USDT$/, '');
+  const now = Date.now();
+  let cached = _microCache.get(cleanSym);
+
+  if (!cached || (now - cached.ts >= MICRO_TTL_MS)) {
+    try {
+      const res = await axios.get('https://fapi.binance.com/fapi/v1/depth', {
+        params: { symbol: `${cleanSym}USDT`, limit: 5 },
+        timeout: 2500
+      });
+      const bids = res.data?.bids || [];
+      const asks = res.data?.asks || [];
+      if (bids.length > 0 && asks.length > 0) {
+        const bestBid = parseFloat(bids[0][0]);
+        const bestAsk = parseFloat(asks[0][0]);
+        const spreadPct = bestBid > 0 ? ((bestAsk - bestBid) / bestBid) * 100 : 0;
+        const bidVol = bids.reduce((s, [p, q]) => s + parseFloat(p) * parseFloat(q), 0);
+        const askVol = asks.reduce((s, [p, q]) => s + parseFloat(p) * parseFloat(q), 0);
+        cached = { ts: now, spreadPct, bidVol, askVol };
+        if (_microCache.size >= 100) _microCache.delete(_microCache.keys().next().value);
+        _microCache.set(cleanSym, cached);
+      }
+    } catch (_) {
+      return fallback;
+    }
+  }
+
+  if (!cached) return fallback;
+  const { spreadPct, bidVol, askVol } = cached;
+  const supportVol  = isLong ? bidVol : askVol;
+  const opposingVol = isLong ? askVol : bidVol;
+  let orderbookWall = 'CLEAR';
+  if (supportVol > 0 && opposingVol / supportVol >= 3.5) {
+    orderbookWall = 'OPPOSING_BLOCK';
+  } else if (opposingVol > 0 && supportVol / opposingVol >= 2.5) {
+    orderbookWall = 'SUPPORT_SHIELD';
+  }
+  return { spreadPct: parseFloat(spreadPct.toFixed(4)), orderbookWall };
+}
 
 const FIXED_COINS = ['BTC', 'ETH', 'SOL', 'BNB', 'XRP', 'DOGE', 'ADA', 'TRX', 'AVAX', 'LINK', 'TON', 'SUI', 'APT', 'NEAR'];
 const MIN_SCORE_TIER1 = 7.0; // Tier 1: BTC, ETH, Top coin >= 7.0đ
@@ -199,12 +251,14 @@ async function generateQuantitativeTrade(setup, marketData = null) {
       ...setup,
       entryPrice,
       slPrice: tierSetup?.slPrice,
-      tpPrice: tierSetup?.tpPrice
+      tpPrice: tierSetup?.tpPrice,
+      leverage: tierSetup?.leverage,
+      margin: tierSetup?.margin
     }, vetoReason);
     return null;
   }
 
-  // 3. Thẩm định vi cấu trúc nến qua Risk Gatekeeper (AI Bản Thân Cục Bộ, 0ms, 0 Token)
+  // 3. Thẩm định vi cấu trúc nến H1/M15 + Spread + Orderbook Wall qua Risk Gatekeeper (AI Bản Thân Cục Bộ, 0 Token)
   let lastH1 = ta?.candleH1 || null;
   if (!lastH1) {
     try {
@@ -215,11 +269,25 @@ async function generateQuantitativeTrade(setup, marketData = null) {
     } catch (_) {}
   }
 
+  let lastM15 = ta?.candleM15 || null;
+  if (!lastM15 && !isIpBanned()) {
+    try {
+      const m15Candles = await fetchM15Recent(symbol, 5);
+      if (Array.isArray(m15Candles) && m15Candles.length > 0) {
+        lastM15 = m15Candles[m15Candles.length - 1];
+      }
+    } catch (_) {}
+  }
+
+  const micro = await fetchOrderbookMicrostructure(symbol, direction === 'LONG');
+
   const marketContext = {
     candleH1: lastH1,
-    candleM15: ta?.candleM15 || null,
+    candleM15: lastM15,
     btcFlash: btcFlash.activeFlash || 'NORMAL',
-    orderbookWall: 'CLEAR'
+    spreadPct: micro.spreadPct,
+    orderbookWall: micro.orderbookWall,
+    rank: isTier1 ? 20 : 100
   };
 
   const gateResult = evaluateSignal({
@@ -227,6 +295,7 @@ async function generateQuantitativeTrade(setup, marketData = null) {
     signal: direction,
     targetLevel: entryPrice,
     score: score,
+    marketCapRank: isTier1 ? 20 : 100,
     scoreReasons: setup.reasons || []
   }, marketContext);
 
@@ -239,7 +308,10 @@ async function generateQuantitativeTrade(setup, marketData = null) {
       ...setup,
       entryPrice,
       slPrice: tierSetup.slPrice,
-      tpPrice: tierSetup.tpPrice
+      tpPrice: tierSetup.tpPrice,
+      leverage: tierSetup.leverage,
+      margin: tierSetup.margin,
+      winProbability: gateResult.winProbability
     }, `GATEKEEPER_VETO: ${gateResult.reason}`);
     return null;
   }

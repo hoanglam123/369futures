@@ -18,6 +18,11 @@ const binanceTrader  = require('./binanceTrader');
 const binanceStream  = require('./binanceStream');
 const bracketManager = require('./bracketManager');
 const { isIpBanned } = require('./rateLimitGuard');
+const { fetchH1Historical, fetchM15Recent, getRecentFractalSwing } = require('./candleCache');
+
+const ENABLE_FRACTAL_TRAILING = process.env.ENABLE_FRACTAL_TRAILING !== 'false';
+const FRACTAL_CHECK_INTERVAL_MS = 20_000; // Quét lại tối đa mỗi 20s/vị thế (đồng bộ bot-h4)
+const FRACTAL_SWING_BUFFER_PCT  = 0.0015; // Đệm 0.15% sau râu nến Williams Fractal
 
 const NEWS_CHAT_ID = process.env.TELEGRAM_NEWS_CHAT_ID || null;
 
@@ -2209,6 +2214,11 @@ async function checkActiveTrades() {
       }
     }
 
+    // ── Williams Fractal H1/M15 Trailing SL (đồng bộ bot-h4) ─────────────
+    await checkAndApplyFractalTrailingSL(trade, price).catch(e =>
+      log.warn(`[FractalTrailing] Lỗi kiểm tra ${trade.symbol}: ${e.message}`)
+    );
+
     // Guard: WS handler có thể đóng lệnh trong khi loop đang await → skip để tránh double-record
     if (trade.status !== 'active') continue;
 
@@ -2705,6 +2715,14 @@ function _doRebuildCombinedMpWs() {
         }
       }
 
+      // ── Williams Fractal H1/M15 Trailing SL (real-time, throttled 20s/symbol) ──
+      if (!trade._fractalUpdating) {
+        trade._fractalUpdating = true;
+        checkAndApplyFractalTrailingSL(trade, markPrice)
+          .catch(e => log.warn(`[WS FractalTrailing] Lỗi ${symbol}: ${e.message}`))
+          .finally(() => { trade._fractalUpdating = false; });
+      }
+
       // ── SL hit → đóng vị thế ─────────────────────────────────────────────
       const slHit = isLong ? markPrice <= trade.slPrice : markPrice >= trade.slPrice;
       if (!slHit) continue;
@@ -3107,4 +3125,109 @@ async function removeActiveTrade(id) {
 
 function forceSyncBrakeOverride() { _forceSyncBrake = true; }
 
-module.exports = { parseTrades, addTrades, checkActiveTrades, getActiveTrades, sendActiveTradesSummary, runBacktest, initBinanceStream, syncManualPositions, updateActiveTrade, removeActiveTrade, consumeSignalScanFlag, onWsPush, forceSyncBrakeOverride };
+/**
+ * Williams Fractal H1/M15 Trailing SL (đồng bộ kiến trúc bot-h4):
+ * - Kích hoạt khi vị thế đi được >= 35% quãng đường tới TP (hoặc đã chạm TP1)
+ * - 35% -> 70% TP: bám theo đáy/đỉnh sóng Williams Fractal 5 nến khung H1 (đệm 0.15%)
+ * - >= 70% TP: siết chặt theo Williams Fractal 5 nến khung M15 (đệm 0.15%)
+ * - Chốt chặn bánh cóc 1 chiều (One-Way Ratchet): chỉ dời SL có lợi hơn và an toàn phía sau giá hiện tại.
+ */
+async function checkAndApplyFractalTrailingSL(trade, currentPrice, opts = {}) {
+  if (!ENABLE_FRACTAL_TRAILING && !opts.forceEnable) return { moved: false, reason: 'DISABLED' };
+  if (!trade || trade.status !== 'active' || trade.entryFilled === false) return { moved: false, reason: 'NOT_ACTIVE' };
+  if (!trade.entryPrice || !trade.targetPrice || !currentPrice || currentPrice <= 0) return { moved: false, reason: 'MISSING_PRICES' };
+
+  const isLong = trade.direction === 'LONG';
+  const totalTpDist = Math.abs(trade.targetPrice - trade.entryPrice);
+  if (totalTpDist <= 0) return { moved: false, reason: 'INVALID_TP_DIST' };
+
+  const currentGainDist = isLong ? (currentPrice - trade.entryPrice) : (trade.entryPrice - currentPrice);
+  const progressPct = (currentGainDist / totalTpDist) * 100;
+
+  if (progressPct < 35 && !trade.fractalTrailingActive && !trade.tp1Hit) {
+    return { moved: false, reason: 'BELOW_35PCT_TRIGGER', progressPct };
+  }
+
+  const nowMs = opts.nowMs || Date.now();
+  if (!opts.forceCheck && trade._lastFractalCheckTime && (nowMs - trade._lastFractalCheckTime < FRACTAL_CHECK_INTERVAL_MS)) {
+    return { moved: false, reason: 'THROTTLED' };
+  }
+  trade._lastFractalCheckTime = nowMs;
+  trade.fractalTrailingActive = true;
+
+  const tfLabel = progressPct >= 70 ? 'M15' : 'H1';
+  let candles = null;
+  if (tfLabel === 'M15') {
+    candles = opts.m15Candles || await fetchM15Recent(trade.symbol, 30).catch(() => []);
+  } else {
+    candles = opts.h1Candles || await fetchH1Historical(trade.symbol).catch(() => []);
+  }
+
+  const swing = (candles && candles.length >= 6) ? getRecentFractalSwing(candles, isLong) : null;
+  if (!swing || typeof swing.price !== 'number') {
+    return { moved: false, reason: 'NO_FRACTAL_SWING', tf: tfLabel };
+  }
+
+  const rawCandidate = isLong
+    ? swing.price * (1 - FRACTAL_SWING_BUFFER_PCT)
+    : swing.price * (1 + FRACTAL_SWING_BUFFER_PCT);
+  const decimals = trade.entryPrice >= 100 ? 2 : (trade.entryPrice >= 1 ? 4 : 6);
+  const candidateSl = parseFloat(rawCandidate.toFixed(decimals));
+
+  // One-way ratchet: phải tốt hơn SL hiện tại và không thấp hơn/vượt quá mốc SL gốc
+  const currentSl = trade.fractalSlPrice || trade.slPrice;
+  const isBetterSl = currentSl
+    ? (isLong ? candidateSl > currentSl : candidateSl < currentSl)
+    : true;
+  if (!isBetterSl) {
+    return { moved: false, reason: 'NOT_BETTER_THAN_CURRENT_SL', candidateSl, currentSl, tf: tfLabel };
+  }
+
+  // Bảo vệ tối thiểu: tránh dịch SL vụn vặt (< 0.10%) gây tốn API hủy/đặt lại liên tục
+  if (currentSl && Math.abs(candidateSl - currentSl) / currentSl < 0.001) {
+    return { moved: false, reason: 'DELTA_TOO_SMALL', candidateSl, currentSl };
+  }
+
+  // Sanity guard: SL mới bắt buộc nằm an toàn phía sau giá hiện tại (tránh -2021 immediately trigger)
+  const isSafeFromMark = isLong
+    ? (currentPrice > candidateSl * 1.001)
+    : (currentPrice < candidateSl * 0.999);
+  if (!isSafeFromMark) {
+    return { moved: false, reason: 'UNSAFE_VS_MARK', candidateSl, currentPrice };
+  }
+
+  const prevSl = currentSl;
+  const client = opts.client || (binanceTrader.isEnabled() ? binanceTrader : null);
+  const hasExchangePos = Boolean(opts.client || (binanceTrader.isEnabled() && (trade.binanceEntryOrderId || trade.binanceQty || trade.binanceSlOrderId)));
+
+  if (client && hasExchangePos) {
+    const res = await bracketManager.ratchetTrailingFractal({
+      client,
+      sym: trade.symbol,
+      meta: trade,
+      newTrailingSlPrice: candidateSl,
+      label: `Fractal ${tfLabel}`,
+      currentPrice,
+      retryDelayMs: opts.retryDelayMs ?? 1000,
+    });
+    if (!res?.success) {
+      return { moved: false, reason: res?.reason || res?.error || 'RATCHET_FAILED', candidateSl };
+    }
+  } else {
+    trade.slPrice = candidateSl;
+    trade.currentSlPrice = candidateSl;
+  }
+
+  trade.fractalSlPrice = candidateSl;
+  trade.fractalTf = `${tfLabel}_FRACTAL`;
+  if (!opts.skipSave) saveTrades();
+
+  const lev = trade.leverage || 1;
+  const isProfitLock = isLong ? (candidateSl > trade.entryPrice) : (candidateSl < trade.entryPrice);
+  const lockedRoi = ((Math.abs(candidateSl - trade.entryPrice) / trade.entryPrice) * lev * 100) * (isProfitLock ? 1 : -1);
+  log.trade(`[Fractal Trailing SL] 🌊 ${trade.symbol} ${trade.direction} (${tfLabel}, ${progressPct.toFixed(0)}% TP): Dời SL ${fmtPrice(prevSl)} → ${fmtPrice(candidateSl)} (Khóa ${lockedRoi >= 0 ? '+' : ''}${lockedRoi.toFixed(1)}% vốn)`);
+
+  return { moved: true, tf: tfLabel, prevSl, newSl: candidateSl, progressPct, lockedRoi };
+}
+
+module.exports = { parseTrades, addTrades, checkActiveTrades, getActiveTrades, sendActiveTradesSummary, runBacktest, initBinanceStream, syncManualPositions, updateActiveTrade, removeActiveTrade, consumeSignalScanFlag, onWsPush, forceSyncBrakeOverride, checkAndApplyFractalTrailingSL };

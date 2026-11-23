@@ -21,10 +21,35 @@ const binanceTrader = require('./binanceTrader');
 
 const MIN_RR_RATIO = 1.48; // Chuẩn R:R tối thiểu 1.5 (cho phép sai số làm tròn 0.02)
 
+const NON_RETRYABLE_ERR_RE = /would immediately trigger|ReduceOnly Order is rejected|insufficient|Invalid|precision|margin|min notional|UNKNOWN_ORDER|Order does not exist/i;
+
+/**
+ * Exponential Backoff Retry cho các lệnh bảo vệ vị thế trên sàn (1s -> 2s).
+ * Không retry các lỗi logic tất định từ Binance (như -2021 immediately trigger) để phản ứng tức thì.
+ */
+async function withRetryBackoff(fn, { maxRetries = 2, baseDelayMs = 1000, label = 'BinanceOrder' } = {}) {
+  let lastErr = null;
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      return await fn();
+    } catch (err) {
+      lastErr = err;
+      const msg = err?.message || String(err);
+      if (attempt >= maxRetries || NON_RETRYABLE_ERR_RE.test(msg)) {
+        throw err;
+      }
+      const delay = baseDelayMs * Math.pow(2, attempt); // 1s, 2s
+      log.warn(`[BracketManager] ⏳ ${label} lỗi tạm thời (${msg}) — thử lại lần ${attempt + 1}/${maxRetries} sau ${delay}ms...`);
+      await new Promise(r => setTimeout(r, delay));
+    }
+  }
+  throw lastErr;
+}
+
 /**
  * 1. Đặt cặp lệnh bảo vệ kép (Dual Bracket: Limit TP & Hard Stop-Market SL) trực tiếp lên sàn Binance.
  */
-async function placeDualBracket({ client = binanceTrader, sym, side, qty, entryPrice, targetPrice, slPrice, meta = {} }) {
+async function placeDualBracket({ client = binanceTrader, sym, side, qty, entryPrice, targetPrice, slPrice, meta = {}, retryDelayMs = 1000 }) {
   if (!client) {
     throw new Error('placeDualBracket: client không được cung cấp');
   }
@@ -50,15 +75,18 @@ async function placeDualBracket({ client = binanceTrader, sym, side, qty, entryP
   let slOrderId = null;
 
   try {
-    // 2. Lệnh 1: LIMIT TP (Reduce-Only) treo sẵn trên sổ lệnh
+    // 2. Lệnh 1: LIMIT TP (Reduce-Only) treo sẵn trên sổ lệnh (có Exponential Backoff Retry 1s/2s)
     log.trade(`[BracketManager] 🎯 Bắn LIMIT TP ${sym} ${oppositeSide} qty=${qty} @ $${targetPrice} (R:R=${rrRatio.toFixed(2)})`);
-    const tpRes = await client.placeTPAfterEntry({
-      symbol: sym,
-      direction: isLong ? 'LONG' : 'SHORT',
-      targetPrice,
-      binanceQty: qty,
-      binanceEntryOrderId: meta.binanceEntryOrderId || 'bracket_entry',
-    });
+    const tpRes = await withRetryBackoff(
+      () => client.placeTPAfterEntry({
+        symbol: sym,
+        direction: isLong ? 'LONG' : 'SHORT',
+        targetPrice,
+        binanceQty: qty,
+        binanceEntryOrderId: meta.binanceEntryOrderId || 'bracket_entry',
+      }),
+      { maxRetries: 2, baseDelayMs: retryDelayMs, label: `LIMIT TP ${sym}` }
+    );
     tpOrderId = typeof tpRes === 'object' ? (tpRes?.orderId || tpRes?.id) : tpRes;
     log.trade(`[BracketManager] ✓ LIMIT TP đã treo thành công: orderId=${tpOrderId}`);
   } catch (err) {
@@ -66,9 +94,12 @@ async function placeDualBracket({ client = binanceTrader, sym, side, qty, entryP
   }
 
   try {
-    // 3. Lệnh 2: STOP_MARKET (Hard Disaster SL) treo trên hệ thống sàn
+    // 3. Lệnh 2: STOP_MARKET (Hard Disaster SL) treo trên hệ thống sàn (có Exponential Backoff Retry 1s/2s)
     log.trade(`[BracketManager] 🛑 Bắn Hard STOP_MARKET SL ${sym} ${oppositeSide} @ $${slPrice}`);
-    const slRes = await client.placeStopOrder(sym, oppositeSide, 'STOP_MARKET', slPrice);
+    const slRes = await withRetryBackoff(
+      () => client.placeStopOrder(sym, oppositeSide, 'STOP_MARKET', slPrice),
+      { maxRetries: 2, baseDelayMs: retryDelayMs, label: `Hard SL ${sym}` }
+    );
     slOrderId = slRes?.algoId || slRes?.orderId || 'unknown';
     log.trade(`[BracketManager] ✓ Hard STOP_MARKET SL đã treo thành công: orderId=${slOrderId}`);
   } catch (err) {
@@ -101,7 +132,7 @@ async function placeDualBracket({ client = binanceTrader, sym, side, qty, entryP
  * Bảo vệ vị thế: kiểm tra giá hiện tại để tránh Order would immediately trigger,
  * và tự khôi phục SL cũ nếu đặt SL mới thất bại.
  */
-async function ratchetBreakeven({ client = binanceTrader, sym, meta, beSlPrice, currentPrice = null }) {
+async function ratchetBreakeven({ client = binanceTrader, sym, meta, beSlPrice, currentPrice = null, retryDelayMs = 1000 }) {
   if (!client || !meta) return { success: false, reason: 'INVALID_PARAMS' };
 
   if (meta.slMovedToBreakeven === true) {
@@ -129,9 +160,12 @@ async function ratchetBreakeven({ client = binanceTrader, sym, meta, beSlPrice, 
   // Hủy SL cũ trên sàn
   await cancelExistingSl(client, sym, meta);
 
-  // Đặt SL mới tại mốc Breakeven
+  // Đặt SL mới tại mốc Breakeven (Exponential Backoff Retry 1s/2s)
   try {
-    const slRes = await client.placeStopOrder(sym, oppositeSide, 'STOP_MARKET', beSlPrice);
+    const slRes = await withRetryBackoff(
+      () => client.placeStopOrder(sym, oppositeSide, 'STOP_MARKET', beSlPrice),
+      { maxRetries: 2, baseDelayMs: retryDelayMs, label: `Breakeven SL ${sym}` }
+    );
     const newSlId = slRes?.algoId || slRes?.orderId || 'unknown';
 
     meta.slMovedToBreakeven = true;
@@ -146,7 +180,10 @@ async function ratchetBreakeven({ client = binanceTrader, sym, meta, beSlPrice, 
     // Khôi phục lại SL cũ để vị thế KHÔNG BAO GIỜ bị trần trên sàn
     if (prevSl && prevSl !== beSlPrice) {
       try {
-        const restoreRes = await client.placeStopOrder(sym, oppositeSide, 'STOP_MARKET', prevSl);
+        const restoreRes = await withRetryBackoff(
+          () => client.placeStopOrder(sym, oppositeSide, 'STOP_MARKET', prevSl),
+          { maxRetries: 2, baseDelayMs: retryDelayMs, label: `Restore SL ${sym}` }
+        );
         meta.binanceSlOrderId = restoreRes?.algoId || restoreRes?.orderId || meta.binanceSlOrderId;
         log.warn(`[BracketManager] ♻️ Đã khôi phục SL cũ cho ${sym} @ $${prevSl}`);
       } catch (reErr) {
@@ -159,9 +196,9 @@ async function ratchetBreakeven({ client = binanceTrader, sym, meta, beSlPrice, 
 
 /**
  * 3. Dời SL theo Trailing Stop (Bám sát sóng).
- * Bảo vệ vị thế: kiểm tra giá hiện tại trước khi hủy SL cũ, và khôi phục SL cũ nếu đặt mới lỗi.
+ * Bảo vệ vị thế: kiểm tra giá hiện tại trước khi hủy SL cũ, có retry backoff và khôi phục SL cũ nếu đặt mới lỗi.
  */
-async function ratchetTrailingFractal({ client = binanceTrader, sym, meta, newTrailingSlPrice, label = 'Trailing', currentPrice = null }) {
+async function ratchetTrailingFractal({ client = binanceTrader, sym, meta, newTrailingSlPrice, label = 'Trailing', currentPrice = null, retryDelayMs = 1000 }) {
   if (!client || !meta) return { success: false, reason: 'INVALID_PARAMS' };
 
   const isLong = meta.direction === 'LONG' || meta.side === 'BUY' || meta.side === 'LONG';
@@ -195,9 +232,12 @@ async function ratchetTrailingFractal({ client = binanceTrader, sym, meta, newTr
   // Hủy SL cũ
   await cancelExistingSl(client, sym, meta);
 
-  // Đặt SL mới
+  // Đặt SL mới (Exponential Backoff Retry 1s/2s)
   try {
-    const slRes = await client.placeStopOrder(sym, oppositeSide, 'STOP_MARKET', newTrailingSlPrice);
+    const slRes = await withRetryBackoff(
+      () => client.placeStopOrder(sym, oppositeSide, 'STOP_MARKET', newTrailingSlPrice),
+      { maxRetries: 2, baseDelayMs: retryDelayMs, label: `${label} SL ${sym}` }
+    );
     const newSlId = slRes?.algoId || slRes?.orderId || 'unknown';
 
     meta.currentSlPrice = newTrailingSlPrice;
@@ -211,7 +251,10 @@ async function ratchetTrailingFractal({ client = binanceTrader, sym, meta, newTr
     // Khôi phục lại SL cũ ngay lập tức để vị thế không bao giờ bị trống SL
     if (currentSl && currentSl !== newTrailingSlPrice) {
       try {
-        const restoreRes = await client.placeStopOrder(sym, oppositeSide, 'STOP_MARKET', currentSl);
+        const restoreRes = await withRetryBackoff(
+          () => client.placeStopOrder(sym, oppositeSide, 'STOP_MARKET', currentSl),
+          { maxRetries: 2, baseDelayMs: retryDelayMs, label: `Restore SL ${sym}` }
+        );
         meta.binanceSlOrderId = restoreRes?.algoId || restoreRes?.orderId || meta.binanceSlOrderId;
         log.warn(`[BracketManager] ♻️ Đã khôi phục SL cũ cho ${sym} @ $${currentSl}`);
       } catch (reErr) {
@@ -325,5 +368,6 @@ module.exports = {
   ratchetBreakeven,
   ratchetTrailingFractal,
   autoCleanOppositeOrder,
+  withRetryBackoff,
   MIN_RR_RATIO,
 };

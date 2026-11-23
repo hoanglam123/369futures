@@ -448,10 +448,53 @@ const ROUTES = {
   '/api/watched-coins':   () => apiWatchedCoins(),
   '/api/health':          () => apiHealth(),
   '/api/log-dates':       () => apiLogDates(),
-  '/api/circuit-breaker': () => { try { return require('../services/directionalCircuitBreaker').getDirectionalStatus(); } catch (e) { return { error: e.message }; } },
-  '/api/btc-flash-guard': () => { try { const g = require('../services/btcFlashGuard'); return { ...g.checkBtcFlashStatus(), velocityPct: g.getBtcVelocity() }; } catch (e) { return { error: e.message }; } },
-  '/api/cooldowns':       () => { try { return require('../services/cooldownManager').getAllCooldowns(); } catch (e) { return { error: e.message }; } },
-  '/api/shadow-trades':   () => { try { const s = require('../services/shadowTracker'); return { active: s.getActiveShadowPositions(), stats: s.getShadowStats() }; } catch (e) { return { error: e.message }; } },
+  '/api/circuit-breaker':    () => { try { return require('../services/directionalCircuitBreaker').getDirectionalStatus(); } catch (e) { return { error: e.message }; } },
+  '/api/btc-flash-guard':    () => { try { const g = require('../services/btcFlashGuard'); return { ...g.checkBtcFlashStatus(), velocityPct: g.getBtcVelocity() }; } catch (e) { return { error: e.message }; } },
+  '/api/cooldowns':          () => { try { return require('../services/cooldownManager').getAllCooldowns(); } catch (e) { return { error: e.message }; } },
+  '/api/shadow-trades':      () => { try { const s = require('../services/shadowTracker'); return { active: s.getActiveShadowPositions(), stats: s.getShadowStats() }; } catch (e) { return { error: e.message }; } },
+  '/api/proximity-heatmap':  () => {
+    try {
+      const { getPrices, getLevelCache } = require('../pp369');
+      const prices = getPrices() || {};
+      const cache  = getLevelCache() || {};
+      const rows = [];
+      for (const [sym, lvl] of Object.entries(cache)) {
+        const p = prices[sym];
+        if (!p || !lvl?.longEntry || !lvl?.shortEntry) continue;
+        const distLong  = Math.abs(p - lvl.longEntry) / p * 100;
+        const distShort = Math.abs(lvl.shortEntry - p) / p * 100;
+        const nearestSide = distLong <= distShort ? 'LONG' : 'SHORT';
+        const distPct = Math.min(distLong, distShort);
+        const stepPct = lvl.step ? (lvl.step / p * 100) : null;
+        rows.push({
+          symbol: sym,
+          price: p,
+          longEntry: lvl.longEntry,
+          shortEntry: lvl.shortEntry,
+          nearestSide,
+          distPct: parseFloat(distPct.toFixed(3)),
+          stepPct: stepPct != null ? parseFloat(stepPct.toFixed(2)) : null,
+        });
+      }
+      rows.sort((a, b) => a.distPct - b.distPct);
+      return { totalTracked: Object.keys(cache).length, totalPriced: rows.length, items: rows.slice(0, 48) };
+    } catch (e) {
+      return { totalTracked: 0, totalPriced: 0, items: [], error: e.message };
+    }
+  },
+  '/api/bot-controls':       () => {
+    try {
+      const job = require('../job');
+      return {
+        scanPaused: typeof job.isScanPaused === 'function' ? job.isScanPaused() : false,
+        shadowOnlyMode: typeof job.isShadowOnlyMode === 'function' ? job.isShadowOnlyMode() : false,
+        fractalTrailingEnabled: process.env.ENABLE_FRACTAL_TRAILING !== 'false',
+        aiGatekeeperMode: (process.env.AI_GATEKEEPER_MODE || 'LOCAL').toUpperCase(),
+      };
+    } catch (e) {
+      return { scanPaused: false, shadowOnlyMode: false, error: e.message };
+    }
+  },
 };
 
 function readBodyJson(req) {
@@ -508,22 +551,71 @@ function handleApi(req, res) {
       return true;
     }
 
+    if (urlPath === '/api/btc-flash-guard/reset') {
+      try {
+        require('../services/btcFlashGuard').resetFlashGuard();
+        res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+        res.end(JSON.stringify({ ok: true }));
+      } catch (e) {
+        res.writeHead(500);
+        res.end(JSON.stringify({ error: e.message }));
+      }
+      return true;
+    }
+
+    if (urlPath === '/api/bot-controls') {
+      readBodyJson(req).then(body => {
+        const job = require('../job');
+        if (typeof body.scanPaused === 'boolean' && typeof job.setScanPaused === 'function') {
+          job.setScanPaused(body.scanPaused);
+        }
+        if (typeof body.shadowOnlyMode === 'boolean' && typeof job.setShadowOnlyMode === 'function') {
+          job.setShadowOnlyMode(body.shadowOnlyMode);
+        }
+        res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+        res.end(JSON.stringify({
+          ok: true,
+          scanPaused: typeof job.isScanPaused === 'function' ? job.isScanPaused() : false,
+          shadowOnlyMode: typeof job.isShadowOnlyMode === 'function' ? job.isShadowOnlyMode() : false,
+        }));
+      }).catch(e => {
+        res.writeHead(500);
+        res.end(JSON.stringify({ error: e.message }));
+      });
+      return true;
+    }
+
     if (urlPath === '/api/emergency/close-all') {
       Promise.resolve().then(async () => {
         const mod = tm();
         const active = mod?.getActiveTrades ? mod.getActiveTrades() : [];
         let closedCount = 0;
+        const errors = [];
         try {
           const binanceTrader = require('../services/binanceTrader');
+          const bracketManager = require('../services/bracketManager');
           for (const t of active) {
-            if (binanceTrader.isEnabled()) {
-              await binanceTrader.closePosition(t.symbol).catch(() => {});
+            if (!binanceTrader.isEnabled()) continue;
+            try {
+              if (t.entryFilled === false && t.binanceEntryOrderId) {
+                await binanceTrader.cancelOrderById(t.symbol, t.binanceEntryOrderId);
+              } else if (t.binanceQty) {
+                await binanceTrader.placeMarketClose(t);
+              }
+              await bracketManager.autoCleanOppositeOrder({ client: binanceTrader, sym: t.symbol, filledType: 'MANUAL', meta: t }).catch(() => {});
+              if (typeof mod.removeActiveTrade === 'function') {
+                mod.removeActiveTrade(t.id, { exitReason: 'emergency_close' });
+              }
               closedCount++;
+            } catch (eTrade) {
+              errors.push(`${t.symbol}: ${eTrade.message}`);
             }
           }
-        } catch (_) {}
+        } catch (eOuter) {
+          errors.push(eOuter.message);
+        }
         res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
-        res.end(JSON.stringify({ ok: true, closedCount, total: active.length }));
+        res.end(JSON.stringify({ ok: true, closedCount, total: active.length, errors }));
       }).catch(e => {
         res.writeHead(500);
         res.end(JSON.stringify({ error: e.message }));

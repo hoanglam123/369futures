@@ -189,6 +189,22 @@ mark{background:rgba(227,179,65,.25);color:var(--yellow);border-radius:2px;paddi
   /* Charts stack */
   .charts-grid{grid-template-columns:1fr}
 }
+/* Phase 4 & 5 Guards, Shadow & Heatmap */
+.guard-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px;margin-bottom:16px}
+.guard-card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:14px}
+.guard-card h3{font-size:13px;font-weight:700;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;gap:8px}
+.ctrl-bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:16px}
+.ctrl-btn{border:1px solid var(--border);background:var(--card2);color:var(--text);padding:6px 12px;border-radius:6px;cursor:pointer;font-size:12px;font-weight:600;transition:.15s}
+.ctrl-btn:hover{border-color:var(--blue)}
+.ctrl-btn.warn{background:rgba(210,153,34,.15);border-color:rgba(210,153,34,.4);color:var(--yellow)}
+.ctrl-btn.danger{background:rgba(248,81,73,.15);border-color:rgba(248,81,73,.45);color:var(--red)}
+.ctrl-btn.ok{background:rgba(63,185,80,.15);border-color:rgba(63,185,80,.4);color:var(--green)}
+.hm-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(132px,1fr));gap:8px}
+.hm-cell{border-radius:8px;padding:8px 10px;border:1px solid var(--border);background:var(--card2);font-size:11px;display:flex;flex-direction:column;gap:2px}
+.hm-hot{background:rgba(63,185,80,.18);border-color:rgba(63,185,80,.55)}
+.hm-hot.short{background:rgba(248,81,73,.18);border-color:rgba(248,81,73,.55)}
+.hm-warm{background:rgba(210,153,34,.14);border-color:rgba(210,153,34,.45)}
+.hm-near{background:rgba(88,166,255,.10);border-color:rgba(88,166,255,.35)}
 </style>
 </head>
 <body>
@@ -211,6 +227,7 @@ mark{background:rgba(227,179,65,.25);color:var(--yellow);border-radius:2px;paddi
   <div class="tab" data-tab="trades">⚡ Lệnh AI</div>
   <div class="tab" data-tab="funding" style="display:none">💰 Funding</div>
   <div class="tab" data-tab="signals">📡 PP369</div>
+  <div class="tab" data-tab="guards">🛡️ Bảo vệ &amp; Shadow</div>
   <div class="tab" data-tab="logs">📋 Nhật ký</div>
 </nav>
 
@@ -337,6 +354,58 @@ mark{background:rgba(227,179,65,.25);color:var(--yellow);border-radius:2px;paddi
         <tbody id="sigBody"><tr><td colspan="12" class="empty">Chưa có tín hiệu PP369</td></tr></tbody>
       </table>
     </div>
+  </section>
+</div>
+
+<!-- ══ GUARDS & SHADOW (Phase 4 & 5) ══ -->
+<div class="tab-content" id="tab-guards">
+  <section>
+    <h2>🎛️ Điều khiển Khẩn cấp &amp; Chế độ Vận hành</h2>
+    <div class="ctrl-bar" id="botCtrlBar">
+      <button class="ctrl-btn" id="btnPauseScan" onclick="toggleScanPaused()">⏸ Tạm dừng quét</button>
+      <button class="ctrl-btn" id="btnShadowMode" onclick="toggleShadowMode()">⚡ Chế độ: LIVE</button>
+      <span class="pill pill-green" id="badgeFractal">🌊 Fractal SL: ON</span>
+      <span class="pill" id="badgeGatekeeper" style="background:rgba(88,166,255,.15);color:var(--blue)">🧠 Gatekeeper: LOCAL</span>
+      <div style="flex:1"></div>
+      <button class="ctrl-btn danger" id="btnEmergencyClose" onclick="emergencyCloseAll()">🚨 Đóng khẩn cấp toàn bộ lệnh</button>
+    </div>
+  </section>
+
+  <section>
+    <h2>🛡️ Lá chắn Phòng thủ Thời gian thực (Phase 4)</h2>
+    <div class="guard-grid">
+      <div class="guard-card">
+        <h3>⚡ Directional Circuit Breaker <span id="cbSummary" class="pill pill-green">OK</span></h3>
+        <div id="cbBody" style="font-size:12px;color:var(--muted)">Đang tải...</div>
+      </div>
+      <div class="guard-card">
+        <h3>🌪️ BTC Flash Guard (180s) <span id="fgSummary" class="pill pill-green">NORMAL</span></h3>
+        <div id="fgBody" style="font-size:12px;color:var(--muted)">Đang tải...</div>
+      </div>
+      <div class="guard-card">
+        <h3>⏳ SL Cooldowns (6h) <span id="cdSummary" class="cnt">(0)</span></h3>
+        <div id="cdBody" style="font-size:12px;color:var(--muted)">Đang tải...</div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>👁️ Shadow PnL Tracker (Phase 5 — Đánh giá AI VETO)</h2>
+    <div class="stats-grid" id="shadowStatsGrid" style="margin-bottom:12px"></div>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>Symbol</th><th>Chiều</th><th>Entry</th><th>SL</th><th>TP</th><th>Lev / Margin</th><th>WinProb</th><th>Score</th><th>Lý do VETO</th><th>Mở từ</th></tr></thead>
+        <tbody id="shadowBody"><tr><td colspan="10" class="empty">Không có vị thế Shadow đang theo dõi</td></tr></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px">
+      <h2 style="margin-bottom:0">🔥 Heatmap Tiệm cận Mốc 369 <span class="cnt" id="hmCount">(0)</span></h2>
+      <span style="font-size:11px;color:var(--muted)">🟢/🔴 ≤0.3% (Kích hoạt 0ms) &nbsp;|&nbsp; 🟡 ≤0.5% (Top 8 Scan) &nbsp;|&nbsp; 🔵 ≤1.0% (WS Subscribe)</span>
+    </div>
+    <div class="hm-grid" id="heatmapGrid"><div style="color:var(--muted);font-size:12px">Đang tải heatmap...</div></div>
   </section>
 </div>
 
@@ -474,6 +543,7 @@ document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () =>
   if (activeTab === 'logs') loadLogs();
   if (activeTab === 'market') loadMarket();
   if (activeTab === 'signals') loadSignals();
+  if (activeTab === 'guards') loadGuards();
 }));
 
 // ── Watched Coins ─────────────────────────────────────────────────────────────
@@ -1063,10 +1133,198 @@ async function loadAll() {
     // market & signals load on-demand when tab is opened, but also refresh silently
     (activeTab === 'market'  ? loadMarket()  : get('/api/market')),
     (activeTab === 'signals' ? loadSignals() : get('/api/signals')),
+    (activeTab === 'guards'  ? loadGuards()  : null),
     (activeTab === 'logs'    ? loadLogs()    : null),
   ]);
 
   $('lastUpd').textContent = `${now}`;
+}
+
+// ── Phase 4 & 5: Guards, Shadow PnL, Heatmap & Emergency Controls ────────────
+let _botControlsState = { scanPaused: false, shadowOnlyMode: false };
+
+async function loadGuards() {
+  const [ctrl, cb, fg, cd, sh, hm] = await Promise.all([
+    get('/api/bot-controls'),
+    get('/api/circuit-breaker'),
+    get('/api/btc-flash-guard'),
+    get('/api/cooldowns'),
+    get('/api/shadow-trades'),
+    get('/api/proximity-heatmap'),
+  ]);
+
+  if (ctrl && !ctrl.error) {
+    _botControlsState = ctrl;
+    const btnPause = $('btnPauseScan');
+    if (btnPause) {
+      btnPause.textContent = ctrl.scanPaused ? '▶ Tiếp tục quét' : '⏸ Tạm dừng quét';
+      btnPause.className = ctrl.scanPaused ? 'ctrl-btn ok' : 'ctrl-btn warn';
+    }
+    const btnShadow = $('btnShadowMode');
+    if (btnShadow) {
+      btnShadow.textContent = ctrl.shadowOnlyMode ? '👁 Chế độ: SHADOW ONLY' : '⚡ Chế độ: LIVE';
+      btnShadow.className = ctrl.shadowOnlyMode ? 'ctrl-btn warn' : 'ctrl-btn ok';
+    }
+    if ($('badgeFractal')) $('badgeFractal').textContent = `🌊 Fractal SL: ${ctrl.fractalTrailingEnabled ? 'ON' : 'OFF'}`;
+    if ($('badgeGatekeeper')) $('badgeGatekeeper').textContent = `🧠 Gatekeeper: ${ctrl.aiGatekeeperMode || 'LOCAL'}`;
+  }
+
+  // Directional Circuit Breaker
+  if (cb && !cb.error) {
+    const anyLocked = cb.LONG?.isLocked || cb.SHORT?.isLocked;
+    if ($('cbSummary')) {
+      $('cbSummary').textContent = anyLocked ? 'LOCKED' : 'OK';
+      $('cbSummary').className = `pill ${anyLocked ? 'pill-red' : 'pill-green'}`;
+    }
+    const renderSide = (side, info, losses) => {
+      const locked = info?.isLocked;
+      const unlockBtn = locked
+        ? `<button class="ctrl-btn" style="padding:2px 8px;font-size:11px" onclick="unlockCB('${side}')">🔓 Mở khóa</button>`
+        : '';
+      return `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border)">
+        <div><strong>${side}</strong>: ${locked ? `<span class="neg">🔒 Khóa còn ${info.remainingMinutes}p</span>` : '<span class="pos">Hoạt động</span>'}
+        <div style="font-size:11px;color:var(--muted)">SL 2h: ${(losses||[]).length}${locked && info.reason ? ' — ' + esc(info.reason) : ''}</div></div>
+        ${unlockBtn}
+      </div>`;
+    };
+    if ($('cbBody')) {
+      $('cbBody').innerHTML = renderSide('LONG', cb.LONG, cb.recentLongLosses) + renderSide('SHORT', cb.SHORT, cb.recentShortLosses);
+    }
+  }
+
+  // BTC Flash Guard
+  if (fg && !fg.error) {
+    const active = fg.activeFlash;
+    if ($('fgSummary')) {
+      $('fgSummary').textContent = active || 'NORMAL';
+      $('fgSummary').className = `pill ${active ? 'pill-red' : 'pill-green'}`;
+    }
+    const vel = fg.velocityPct != null ? `${fg.velocityPct >= 0 ? '+' : ''}${fg.velocityPct}%` : '0%';
+    const resetBtn = active ? `<button class="ctrl-btn" style="margin-top:8px;padding:3px 8px;font-size:11px" onclick="resetFlashGuard()">🔄 Reset Flash Guard</button>` : '';
+    if ($('fgBody')) {
+      $('fgBody').innerHTML = `<div>Biến tốc BTC 180s: <strong class="${clr(fg.velocityPct)}">${vel}</strong></div>
+        <div style="margin-top:4px;font-size:11px;color:var(--muted)">${active ? esc(fg.reason || active) : 'Thị trường BTC ổn định, không khóa chiều Altcoin.'}</div>${resetBtn}`;
+    }
+  }
+
+  // Cooldowns
+  if (cd && !cd.error) {
+    const list = Array.isArray(cd) ? cd : Object.entries(cd).map(([symbol, val]) => ({ symbol, ...(typeof val === 'object' ? val : { remainingMins: val }) }));
+    if ($('cdSummary')) $('cdSummary').textContent = `(${list.length})`;
+    if ($('cdBody')) {
+      if (!list.length) {
+        $('cdBody').innerHTML = '<div style="color:var(--muted)">Không có coin nào đang cooldown sau SL.</div>';
+      } else {
+        $('cdBody').innerHTML = list.map(c => {
+          const rem = c.remainingMinutes ?? c.remainingMins ?? '?';
+          return `<div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;border-bottom:1px solid var(--border)">
+            <span><strong>${esc(c.symbol)}</strong> <span style="color:var(--muted)">(${rem}p)</span></span>
+            <button class="ctrl-btn" style="padding:2px 7px;font-size:10px" onclick="clearCooldown('${esc(c.symbol)}')">✕ Gỡ</button>
+          </div>`;
+        }).join('');
+      }
+    }
+  }
+
+  // Shadow PnL Tracker
+  if (sh && !sh.error) {
+    const st = sh.stats || {};
+    if ($('shadowStatsGrid')) {
+      $('shadowStatsGrid').innerHTML = [
+        { l: 'Đang theo dõi ảo', v: st.activeCount ?? 0, cls: '' },
+        { l: 'AI Đã cứu SL', v: `${st.totalSavedSl ?? 0} (+$${st.savedUsd ?? 0})`, cls: 'pos' },
+        { l: 'AI Bỏ lỡ TP', v: `${st.totalMissedTp ?? 0} (-$${st.missedUsd ?? 0})`, cls: 'neg' },
+        { l: 'Độ chính xác VETO', v: `${st.vetoAccuracyPct ?? 100}%`, cls: (st.vetoAccuracyPct ?? 100) >= 50 ? 'pos' : 'neg' },
+        { l: 'Giá trị ròng AI', v: `${(st.netSavedUsd ?? 0) >= 0 ? '+' : ''}$${st.netSavedUsd ?? 0}`, cls: clr(st.netSavedUsd ?? 0) },
+      ].map(s => `<div class="stat-card"><div class="stat-lbl">${s.l}</div><div class="stat-val ${s.cls}">${s.v}</div></div>`).join('');
+    }
+    const activeList = Object.values(sh.active || {});
+    if ($('shadowBody')) {
+      if (!activeList.length) {
+        $('shadowBody').innerHTML = '<tr><td colspan="10" class="empty">Không có vị thế Shadow đang theo dõi</td></tr>';
+      } else {
+        $('shadowBody').innerHTML = activeList.map(p => `<tr>
+          <td><strong>${esc(p.symbol)}</strong></td>
+          <td>${sideBadge(p.direction)}</td>
+          <td>${fmtP(p.entryPrice)}</td>
+          <td class="neg">${fmtP(p.slPrice)}</td>
+          <td class="pos">${fmtP(p.tpPrice)}</td>
+          <td>${p.leverage || 3}x / $${(p.margin || 10).toFixed(0)}</td>
+          <td>${p.winProbability != null ? p.winProbability + '%' : '—'}</td>
+          <td>${p.confluenceScore ?? '—'}</td>
+          <td style="max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(p.vetoReason||'')}">${esc(p.vetoReason||'')}</td>
+          <td style="color:var(--muted)">${ago(p.openedAt)}</td>
+        </tr>`).join('');
+      }
+    }
+  }
+
+  // Proximity Heatmap
+  if (hm && Array.isArray(hm.items)) {
+    if ($('hmCount')) $('hmCount').textContent = `(${hm.items.length}/${hm.totalTracked || 0} coin)`;
+    if ($('heatmapGrid')) {
+      if (!hm.items.length) {
+        $('heatmapGrid').innerHTML = '<div style="color:var(--muted);font-size:12px">Chưa có dữ liệu mốc 369 trong bộ nhớ.</div>';
+      } else {
+        $('heatmapGrid').innerHTML = hm.items.map(it => {
+          const tierCls = it.distPct <= 0.3 ? `hm-hot ${it.nearestSide === 'SHORT' ? 'short' : ''}`
+            : it.distPct <= 0.5 ? 'hm-warm'
+            : it.distPct <= 1.0 ? 'hm-near' : '';
+          const targetLvl = it.nearestSide === 'LONG' ? it.longEntry : it.shortEntry;
+          return `<div class="hm-cell ${tierCls}">
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <strong>${esc(it.symbol)}</strong>
+              <span class="${it.nearestSide === 'LONG' ? 'pos' : 'neg'}" style="font-weight:700">${it.nearestSide}</span>
+            </div>
+            <div style="font-size:13px;font-weight:700">${it.distPct.toFixed(2)}%</div>
+            <div style="color:var(--muted);font-size:10px">Giá: ${fmtP(it.price)} → ${fmtP(targetLvl)}</div>
+          </div>`;
+        }).join('');
+      }
+    }
+  }
+}
+
+async function toggleScanPaused() {
+  const next = !_botControlsState.scanPaused;
+  const res = await post('/api/bot-controls', { scanPaused: next });
+  if (res?.ok) await loadGuards();
+}
+
+async function toggleShadowMode() {
+  const next = !_botControlsState.shadowOnlyMode;
+  const res = await post('/api/bot-controls', { shadowOnlyMode: next });
+  if (res?.ok) await loadGuards();
+}
+
+async function unlockCB(side) {
+  const res = await post('/api/circuit-breaker/unlock', { side });
+  if (res?.ok) await loadGuards();
+}
+
+async function clearCooldown(symbol) {
+  const res = await post('/api/circuit-breaker/clear-cooldown', { symbol });
+  if (res?.ok) await loadGuards();
+}
+
+async function resetFlashGuard() {
+  const res = await post('/api/btc-flash-guard/reset', {});
+  if (res?.ok) await loadGuards();
+}
+
+async function emergencyCloseAll() {
+  if (!confirm('🚨 CẢNH BÁO KHẨN CẤP: Bạn có chắc muốn ĐÓNG TOÀN BỘ VỊ THẾ & HỦY LỆNH ĐANG MỞ trên Binance bằng lệnh MARKET không?')) return;
+  if (!confirm('Xác nhận lần 2: Hành động này sẽ đóng tất cả lệnh thật ngay lập tức!')) return;
+  const btn = $('btnEmergencyClose');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Đang đóng toàn bộ lệnh...'; }
+  try {
+    const res = await post('/api/emergency/close-all', {});
+    alert(`Hoàn tất đóng khẩn cấp: ${res?.closedCount ?? 0}/${res?.total ?? 0} lệnh.${res?.errors?.length ? '\nLỗi: ' + res.errors.join('; ') : ''}`);
+    await loadTrades();
+    await loadGuards();
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '🚨 Đóng khẩn cấp toàn bộ lệnh'; }
+  }
 }
 
 // ── TP/SL Dialog ─────────────────────────────────────────────────────────────

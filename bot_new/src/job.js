@@ -39,12 +39,35 @@ const {
   logSignal369, start369Stream, getNearbySymbols, getMarkPrice, format369Alert,
   syncWebSocketSubscriptions, getPrices, updatePricesRest
 } = pp369;
-const { updateShadowPrices, getShadowStats, getActiveShadowPositions } = require('./services/shadowTracker');
+const { registerShadowTrade, updateShadowPrices, getShadowStats, getActiveShadowPositions } = require('./services/shadowTracker');
 const { checkMonthTransition } = require('./services/h1RefCache');
 const { isIpBanned } = require('./services/rateLimitGuard');
 
 let _isRunning = false;        // full market report đang chạy
 let _isSilentRunning = false;  // signal scan (silent) đang chạy
+let _scanPaused = false;       // Điều khiển tạm dừng quét từ Dashboard (Phase 5)
+let _shadowOnlyMode = process.env.SHADOW_ONLY_MODE === 'true'; // Chế độ Shadow/Live từ Dashboard (Phase 5)
+
+function setScanPaused(v) { _scanPaused = Boolean(v); log.system(`[Controls] Quét tín hiệu: ${_scanPaused ? '⏸ TẠM DỪNG' : '▶ HOẠT ĐỘNG'}`); }
+function isScanPaused() { return _scanPaused; }
+function setShadowOnlyMode(v) { _shadowOnlyMode = Boolean(v); log.system(`[Controls] Chế độ giao dịch: ${_shadowOnlyMode ? '👁 SHADOW ONLY (Không đặt lệnh thật)' : '⚡ LIVE TRADING'}`); }
+function isShadowOnlyMode() { return _shadowOnlyMode; }
+
+function dispatchQuantitativeTrades(quantTrades, taMap, tag) {
+  if (!Array.isArray(quantTrades) || quantTrades.length === 0) return;
+  if (_shadowOnlyMode) {
+    for (const t of quantTrades) {
+      registerShadowTrade({
+        ...t,
+        tpPrice: t.targetPrice,
+        total: t.confluenceScore
+      }, `SHADOW_ONLY_MODE (${tag})`);
+    }
+    log.system(`[${tag}] 👁 Chế độ SHADOW ONLY đang bật — đã chuyển ${quantTrades.length} setup sang Shadow Tracker (không đặt lệnh Binance)`);
+    return;
+  }
+  addTrades(quantTrades, taMap || {});
+}
 const _prev369State = {};      // { [symbol]: key } tránh gửi alert PP369 trùng lặp
 let _lastTaSymbols  = null;    // coin list cache từ lần runJob() gần nhất, dùng cho scan 1p
 let _universeSymbols = null;   // Universe 400+ coin năng động từ Binance Futures
@@ -381,17 +404,21 @@ async function runJob({ silent = false, lookbackHours = null } = {}) {
     }
 
     // ─── BƯỚC 2: THỰC THI GIAO DỊCH ĐỊNH LƯỢNG 100% (PHASE 2 UPGRADE) ───
-    log.system('Đang quét và tính toán lệnh định lượng (Tier 1 >= 7.0đ, Tier 2 >= 8.0đ)...');
-    try {
-      const quantTrades = await processCandidateSetups(allScores, marketData, 2);
-      if (quantTrades.length > 0) {
-        log.trade(`[SignalEngine] ${quantTrades.length} lệnh định lượng đủ điều kiện, bắt đầu theo dõi & đặt lệnh sàn`);
-        addTrades(quantTrades, marketData.ta ?? {});
-      } else {
-        log.system('[SignalEngine] Không có setup định lượng nào vượt qua bộ lọc & Gatekeeper');
+    if (!_scanPaused) {
+      log.system('Đang quét và tính toán lệnh định lượng (Tier 1 >= 7.0đ, Tier 2 >= 8.0đ)...');
+      try {
+        const quantTrades = await processCandidateSetups(allScores, marketData, 2);
+        if (quantTrades.length > 0) {
+          log.trade(`[SignalEngine] ${quantTrades.length} lệnh định lượng đủ điều kiện, bắt đầu theo dõi & đặt lệnh sàn`);
+          dispatchQuantitativeTrades(quantTrades, marketData.ta ?? {}, 'SignalEngine');
+        } else {
+          log.system('[SignalEngine] Không có setup định lượng nào vượt qua bộ lọc & Gatekeeper');
+        }
+      } catch (engineErr) {
+        log.error('[SignalEngine] Lỗi thực thi signalEngine:', { error: engineErr.message });
       }
-    } catch (engineErr) {
-      log.error('[SignalEngine] Lỗi thực thi signalEngine:', { error: engineErr.message });
+    } else {
+      log.system('[SignalEngine] ⏸ Đang tạm dừng quét tín hiệu theo lệnh từ Dashboard.');
     }
 
     // ─── BƯỚC 2.5: Phân tích AI chỉ chạy khi gửi bản tin sáng (!silent) ───
@@ -527,7 +554,7 @@ const _signalCheckQueue = [];
  * 4. Alert Telegram độc lập khi có tín hiệu mới (dùng detect369Changes để chống spam)
  */
 async function run369AlertScan() {
-  if (_isAlertScanRunning || isIpBanned()) return;
+  if (_isAlertScanRunning || isIpBanned() || _scanPaused) return;
   _isAlertScanRunning = true;
   try {
     const symbols = await getUniverseSymbols();
@@ -669,8 +696,8 @@ async function run369AlertScan() {
         if (passingScores.length > 0) {
           const quantTrades = await processCandidateSetups(passingScores, { ..._lastMarketData, signals369 }, 2);
           if (quantTrades.length > 0) {
-            log.trade(`[FastScan] Khớp ${quantTrades.length} setup định lượng, đẩy vào addTrades & đặt lệnh sàn`);
-            addTrades(quantTrades, _lastMarketData?.ta ?? {});
+            log.trade(`[FastScan] Khớp ${quantTrades.length} setup định lượng, đẩy vào hệ thống thực thi`);
+            dispatchQuantitativeTrades(quantTrades, _lastMarketData?.ta ?? {}, 'FastScan');
           }
         }
       } catch (eScan) {
@@ -768,7 +795,7 @@ async function processSingleSymbolSignal(sym, price) {
     const quantTrades = await processCandidateSetups(candidates, { ..._lastMarketData, signals369: { [sym]: sig } }, 1);
     if (quantTrades.length > 0) {
       log.trade(`[WS Tick 0ms] Khớp lệnh định lượng ${sym} ${sig.signal} tại $${sig.targetLevel}`);
-      addTrades(quantTrades, _lastMarketData?.ta ?? {});
+      dispatchQuantitativeTrades(quantTrades, _lastMarketData?.ta ?? {}, 'WS Tick 0ms');
     }
   } catch (err) {
     if (!isIpBanned()) {
@@ -817,7 +844,7 @@ function initPriceTickListener() {
   if (typeof pp369.onPriceUpdate !== 'function') return;
 
   pp369.onPriceUpdate((sym, price) => {
-    if (isIpBanned()) return;
+    if (isIpBanned() || _scanPaused) return;
     if (!sym || !price || _processingSymbols.has(sym)) return;
 
     const now = Date.now();
@@ -888,6 +915,10 @@ module.exports = {
   run369AlertScan,
   runMacroRefresh,
   initPriceTickListener,
+  setScanPaused,
+  isScanPaused,
+  setShadowOnlyMode,
+  isShadowOnlyMode,
   FIXED_COINS,
   getUniverseSymbols,
   setUniverseSymbols

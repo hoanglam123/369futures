@@ -181,7 +181,7 @@ async function calculateTierSLTP(
     ? customMargin
     : (isTier1 ? tier1Margin : tier2Margin);
 
-  const minSlPct = isTier1 ? 1.3 : 1.8;
+  const baseMinSlPct = isTier1 ? 1.3 : 1.8;
   const decimals = h4Ref?.decimals || getDecimals(entryPrice);
   const defaultTickSize = Math.pow(10, -decimals);
   const effTickSize = (typeof tickSize === 'number' && tickSize > 0) ? tickSize : defaultTickSize;
@@ -249,13 +249,19 @@ async function calculateTierSLTP(
     ? supportClusters.filter(c => c.zoneMax < entryPrice * 0.999).sort((a, b) => b.zoneMax - a.zoneMax)
     : resistanceClusters.filter(c => c.zoneMin > entryPrice * 1.001).sort((a, b) => a.zoneMin - b.zoneMin);
 
-  // 4. MÔ HÌNH HYBRID SL 3 TẦNG THÔNG MINH
+  // 4. MÔ HÌNH HYBRID SL 3 TẦNG THÔNG MINH (Kẹp thích ứng theo ATR, xóa trần cứng 3.5% mù quáng)
   let rawSL = null;
   let slScenario = 'PURE_VOLATILITY_ATR';
   let matchedSwing = null;
 
+  // Sàn & Trần thích ứng ATR chuẩn Roadmap:
+  // - Sàn: max(baseMin, min(3.5%, 1.8 * ATR))
+  // - Trần: max(3.5%, min(6.0%, 3.0 * ATR))
+  const minSlPct = Math.max(baseMinSlPct, Math.min(3.5, 1.8 * atrPct));
+  const adaptiveMaxSlPct = Math.max(3.5, Math.min(6.0, 3.0 * atrPct));
+
   const minSafeDistPct = Math.max(minSlPct, 1.2 * atrPct);
-  const maxSafeDistPct = Math.min(3.5, 2.0 * atrPct);
+  const maxSafeDistPct = Math.min(adaptiveMaxSlPct, Math.max(3.5, 2.0 * atrPct));
 
   // TẦNG 1: CẢN SWEET SPOT H1 / H4 GẦN
   const h1h4ProtectiveClusters = protectiveClusters.filter(c => c.timeframe === 'H1' || c.timeframe === 'H4');
@@ -275,7 +281,7 @@ async function calculateTierSLTP(
   // TẦNG 2: CẢN D1 TẦM TRUNG (LỊCH SỬ 6 THÁNG)
   if (!rawSL) {
     const d1ProtectiveClusters = protectiveClusters.filter(c => c.timeframe === 'D1');
-    const maxD1DistPct = 4.0;
+    const maxD1DistPct = Math.min(adaptiveMaxSlPct, Math.max(4.0, 2.2 * atrPct));
     for (const c of d1ProtectiveClusters) {
       const distPct = isLong
         ? ((entryPrice - c.zoneMin) / entryPrice) * 100
@@ -291,8 +297,8 @@ async function calculateTierSLTP(
   }
 
   // TẦNG 3: CẢN ĐỘNG FIBONACCI
+  const recentH1 = (h1Candles && h1Candles.length >= 12) ? h1Candles.slice(-24) : [];
   if (!rawSL) {
-    const recentH1 = (h1Candles && h1Candles.length >= 12) ? h1Candles.slice(-24) : [];
     if (recentH1.length >= 12) {
       const high24 = Math.max(...recentH1.map(c => c.high));
       const low24 = Math.min(...recentH1.map(c => c.low));
@@ -304,7 +310,7 @@ async function calculateTierSLTP(
           const fib786 = low24 + 0.786 * waveDelta;
           const candidateSL = fib786 + (entryPrice * 0.002);
           const fibDistPct = ((candidateSL - entryPrice) / entryPrice) * 100;
-          if (fibDistPct >= minSlPct && fibDistPct <= 3.5) {
+          if (fibDistPct >= minSlPct && fibDistPct <= adaptiveMaxSlPct) {
             rawSL = candidateSL;
             matchedSwing = fib786;
             slScenario = 'TIER3A_FIBONACCI_0786';
@@ -313,7 +319,7 @@ async function calculateTierSLTP(
           const fib786 = high24 - 0.786 * waveDelta;
           const candidateSL = fib786 - (entryPrice * 0.002);
           const fibDistPct = ((entryPrice - candidateSL) / entryPrice) * 100;
-          if (fibDistPct >= minSlPct && fibDistPct <= 3.5) {
+          if (fibDistPct >= minSlPct && fibDistPct <= adaptiveMaxSlPct) {
             rawSL = candidateSL;
             matchedSwing = fib786;
             slScenario = 'TIER3A_FIBONACCI_0786';
@@ -323,7 +329,7 @@ async function calculateTierSLTP(
     }
 
     if (!rawSL) {
-      const goldenDistPct = Math.min(Math.max(1.618 * atrPct, minSlPct), 3.0);
+      const goldenDistPct = Math.min(Math.max(1.618 * atrPct, minSlPct), Math.min(adaptiveMaxSlPct, 3.2));
       rawSL = isLong
         ? (entryPrice * (1 - goldenDistPct / 100.0))
         : (entryPrice * (1 + goldenDistPct / 100.0));
@@ -331,8 +337,8 @@ async function calculateTierSLTP(
     }
   }
 
-  // Kẹp an toàn (Safety Bounds)
-  const maxCeilingPct = (slScenario === 'TIER2_D1_SWING') ? 4.0 : 3.5;
+  // Kẹp an toàn thích ứng theo ATR (Safety Bounds: minSlPct .. adaptiveMaxSlPct [3.5% - 6.0%])
+  const maxCeilingPct = adaptiveMaxSlPct;
   let slDist = Math.abs(entryPrice - rawSL);
   if (slDist < entryPrice * (minSlPct / 100.0)) {
     slDist = entryPrice * (minSlPct / 100.0);
@@ -457,6 +463,27 @@ async function calculateTierSLTP(
       if (rrGrid2 >= 1.48 && rrGrid2 <= 3.0) {
         rawTP = frontRunGrid2;
         tpAnchorType = '369_GRID_2STEP_ANCHOR';
+      }
+    }
+  }
+
+  // 5.2b. Fibonacci Extension 1.272 / 1.618 trên sóng H1 gần nhất (khi vùng cản/lưới 369 trống)
+  if (!rawTP && recentH1.length >= 12) {
+    const high24 = Math.max(...recentH1.map(c => c.high));
+    const low24  = Math.min(...recentH1.map(c => c.low));
+    const waveDelta = high24 - low24;
+    if (waveDelta > 0) {
+      for (const ext of [1.272, 1.618]) {
+        const fibTarget = isLong
+          ? (low24 + ext * waveDelta) - entryPrice * 0.002
+          : (high24 - ext * waveDelta) + entryPrice * 0.002;
+        const distFib = isLong ? (fibTarget - entryPrice) : (entryPrice - fibTarget);
+        const rrFib = slDist > 0 ? (distFib / slDist) : 0;
+        if (distFib > 0 && rrFib >= 1.48 && rrFib <= 3.0) {
+          rawTP = fibTarget;
+          tpAnchorType = ext === 1.272 ? 'FIB_EXT_1272' : 'FIB_EXT_1618';
+          break;
+        }
       }
     }
   }

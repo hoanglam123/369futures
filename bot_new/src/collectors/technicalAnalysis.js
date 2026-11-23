@@ -555,11 +555,15 @@ function calcTAFromKlines(symbol, k1h, k4h, k1d, k1w) {
   const c1d = k1d?.map(k => k.c);
   const price = c4h[c4h.length - 1];
 
-  // EMAs (4h + daily 200)
+  // EMAs (4h + daily 200 + 1h cho Ma trận Trend 3 Tầng D1-H4-H1)
   const ema7    = calcEMA(c4h, 7);
   const ema25   = calcEMA(c4h, 25);
   const ema99   = calcEMA(c4h, 99);
   const ema200d = c1d ? calcEMA(c1d, 200) : null;
+  const ema7_1h  = c1h ? calcEMA(c1h, 7) : null;
+  const ema25_1h = c1h ? calcEMA(c1h, 25) : null;
+  const lastK1h  = (k1h && k1h.length > 0) ? k1h[k1h.length - 1] : null;
+  const candleH1 = lastK1h ? { openTime: lastK1h.t, open: lastK1h.o, high: lastK1h.h, low: lastK1h.l, close: lastK1h.c, volume: lastK1h.v } : null;
 
   // Trend
   let trend = 'SIDEWAY';
@@ -612,6 +616,8 @@ function calcTAFromKlines(symbol, k1h, k4h, k1d, k1w) {
     rsi: { '1h': rsi1h, '4h': rsi4h, '1d': rsi1d },
     rsiSignal,
     ema: { e7: ema7, e25: ema25, e99: ema99, e200d: ema200d },
+    ema1h: { e7: ema7_1h, e25: ema25_1h },
+    candleH1,
     macd: macd4h,
     bb: bb4h,
     atr: atr4h,

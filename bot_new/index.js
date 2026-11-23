@@ -32,10 +32,12 @@ const { createServer: createDashboard, broadcastWs } = require('./src/dashboard/
 const REQUIRED_ENV = ['TELEGRAM_BOT_TOKEN', 'TELEGRAM_CHAT_ID'];
 const missing = REQUIRED_ENV.filter((key) => !process.env[key]);
 
-const isAiAnalysisEnabled = process.env.AI_ANALYSIS_ENABLED !== 'false';
+// Phase 2: Không bắt buộc key External LLM (Gemini/Claude) để khởi động bot-new.
+// Hệ thống giao dịch chạy 100% định lượng + AI Bản Thân Cục Bộ (0 Token - 0ms).
 const hasAiKey = !!(process.env.CLAUDE_API_KEY || process.env.ANTHROPIC_API_KEY || process.env.ANTHROPIC_AUTH_TOKEN || process.env.GEMINI_API_KEY);
-if (isAiAnalysisEnabled && !hasAiKey) {
-  missing.push('CLAUDE_API_KEY (hoặc GEMINI_API_KEY)');
+if (!hasAiKey && process.env.AI_ANALYSIS_ENABLED !== 'false') {
+  process.env.AI_ANALYSIS_ENABLED = 'false';
+  console.log('ℹ️ Không có External LLM API key — tự động tắt bản tin AI ngoài, vận hành 100% Định lượng + Local ML Gatekeeper.');
 }
 
 if (missing.length > 0) {
@@ -163,14 +165,14 @@ if (process.argv.includes('--run-now')) {
   }, 3000);
 
   // Mỗi 1 phút: theo dõi lệnh active + BTC alert + funding
-  // Nếu có _pendingSignalScan (vị thế thiếu TP/SL) → trigger AI signal scan ngay
+  // Nếu có _pendingSignalScan (vị thế thiếu TP/SL) → gọi syncManualPositions (Auto-Heal nhẹ, không gọi runJob nặng)
   cron.schedule('*/1 * * * *', async () => {
     const needsScan = consumeSignalScanFlag();
     await Promise.allSettled([
       checkActiveTrades(),
       checkBTCAlert(),
       checkFundingPayments(),
-      needsScan ? runJob({ silent: true }) : Promise.resolve(),
+      needsScan ? syncManualPositions('needs_scan') : Promise.resolve(),
     ]);
   }, { timezone: TIMEZONE, scheduled: true });
 

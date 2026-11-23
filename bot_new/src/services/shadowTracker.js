@@ -96,6 +96,11 @@ function registerShadowTrade(sig, vetoReason = 'AI_VETO') {
 
   const sl = sig.slPrice || (side === 'LONG' ? entry * 0.98 : entry * 1.02);
   const tp = sig.tpPrice || (side === 'LONG' ? entry * 1.03 : entry * 0.97);
+  const leverage = Number(sig.leverage) > 0 ? Number(sig.leverage) : 3;
+  const margin = Number(sig.margin) > 0 ? Number(sig.margin) : 10.0;
+  const winProbPct = typeof sig.winProbability === 'number'
+    ? (sig.winProbability <= 1 ? sig.winProbability * 100 : sig.winProbability)
+    : null;
 
   const id = `shadow_${sym}_${side}_${now}`;
   const shadowPos = {
@@ -105,6 +110,9 @@ function registerShadowTrade(sig, vetoReason = 'AI_VETO') {
     entryPrice: entry,
     slPrice: sl,
     tpPrice: tp,
+    leverage,
+    margin,
+    winProbability: winProbPct != null ? parseFloat(winProbPct.toFixed(1)) : null,
     targetLossUsd: 3.0,
     vetoReason: typeof vetoReason === 'string' ? vetoReason : JSON.stringify(vetoReason),
     confluenceScore: sig.total || sig.score || 0,
@@ -116,7 +124,8 @@ function registerShadowTrade(sig, vetoReason = 'AI_VETO') {
   _activeShadowPositions[id] = shadowPos;
   saveActiveShadows();
 
-  log.system(`[ShadowTracker] [Shadow PnL] 👁️ Bắt đầu theo dõi VỊ THẾ BÓNG TỐI: ${sym} (${side}) @ $${entry} [Chờ Limit] | Đòn bẩy: 3x | Margin: $10.00 | SL: $${sl} | TP: $${tp} | WinProb: 36.4% (Veto: ${shadowPos.vetoReason})`);
+  const probLabel = winProbPct != null ? ` | WinProb: ${winProbPct.toFixed(1)}%` : '';
+  log.system(`[ShadowTracker] [Shadow PnL] 👁️ Bắt đầu theo dõi VỊ THẾ BÓNG TỐI: ${sym} (${side}) @ $${entry} | Đòn bẩy: ${leverage}x | Margin: $${margin.toFixed(2)} | SL: $${sl} | TP: $${tp}${probLabel} (Veto: ${shadowPos.vetoReason})`);
   return shadowPos;
 }
 

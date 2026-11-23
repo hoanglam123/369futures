@@ -160,16 +160,40 @@ function scoreTechnical(ta, direction) {
     }
   }
 
-  // EMA 4h stack
+  // EMA 4h stack (Tầng 2 — Trung hạn H4)
   const { e7, e25, e99 } = ta.ema || {};
+  let h4Aligned = false;
   if (e7 && e25 && price) {
     if (isLong) {
-      if (e99 && price > e7 && e7 > e25 && e25 > e99) { score += 2; reasons.push('EMA stack LONG hoàn toàn (+2)'); }
-      else if (price > e7 && e7 > e25)                 { score += 1; reasons.push('EMA partial LONG (+1)'); }
+      if (e99 && price > e7 && e7 > e25 && e25 > e99) { score += 2; h4Aligned = true; reasons.push('EMA stack 4H LONG hoàn toàn (+2)'); }
+      else if (price > e7 && e7 > e25)                 { score += 1; h4Aligned = true; reasons.push('EMA partial 4H LONG (+1)'); }
     } else {
-      if (e99 && price < e7 && e7 < e25 && e25 < e99) { score += 2; reasons.push('EMA stack SHORT hoàn toàn (+2)'); }
-      else if (price < e7 && e7 < e25)                 { score += 1; reasons.push('EMA partial SHORT (+1)'); }
+      if (e99 && price < e7 && e7 < e25 && e25 < e99) { score += 2; h4Aligned = true; reasons.push('EMA stack 4H SHORT hoàn toàn (+2)'); }
+      else if (price < e7 && e7 < e25)                 { score += 1; h4Aligned = true; reasons.push('EMA partial 4H SHORT (+1)'); }
     }
+  }
+
+  // EMA 1h stack (Tầng 3 — Ngắn hạn H1)
+  const e7_1h  = ta.ema1h?.e7;
+  const e25_1h = ta.ema1h?.e25;
+  let h1Aligned = false;
+  if (e7_1h && e25_1h && price) {
+    if (isLong && price > e7_1h && e7_1h > e25_1h) {
+      score += 1;
+      h1Aligned = true;
+      reasons.push('EMA 1H LONG (EMA7 > EMA25) (+1)');
+    } else if (!isLong && price < e7_1h && e7_1h < e25_1h) {
+      score += 1;
+      h1Aligned = true;
+      reasons.push('EMA 1H SHORT (EMA7 < EMA25) (+1)');
+    }
+  }
+
+  // Thưởng Hợp lưu Siêu Sóng (Ma trận 3 Tầng D1 + H4 + H1 đồng thuận)
+  const d1Aligned = ta?.aboveEMA200 != null && (isLong ? ta.aboveEMA200 === true : ta.aboveEMA200 === false);
+  if (d1Aligned && h4Aligned && h1Aligned) {
+    score += 1;
+    reasons.push('Hợp lưu 3 Tầng Trend D1+H4+H1 đồng thuận (+1) ⚡');
   }
 
   // S/R 1D cluster (gần nhất + touch count)
