@@ -679,11 +679,14 @@ async function run369AlertScan() {
         const activeTrades = getActiveTrades();
         const activeMap = Object.fromEntries(activeTrades.map(t => [t.symbol, t.direction]));
 
+        const MIN_SCORE_REVERSAL = parseFloat(process.env.MIN_SCORE_REVERSAL || '9.0');
         const passingScores = enriched
           .filter(s => s.score)
           .map(s => {
             const activeDir = activeMap[s.symbol];
             const isSameDir = activeDir === s.signal;
+            const isOppositeDir = Boolean(activeDir && activeDir !== s.signal);
+            const failReversalScore = isOppositeDir && (s.score.total < MIN_SCORE_REVERSAL);
             return {
               symbol: s.symbol,
               direction: s.signal,
@@ -692,8 +695,12 @@ async function run369AlertScan() {
               verdict: s.score.verdict,
               confidence: s.score.confidence,
               reasons: s.score.reasons || [],
-              disqualified: isSameDir || s.score.disqualified,
-              disqualifyReason: isSameDir ? `Đang có lệnh ${activeDir} active` : (s.score.disqualifyReason || '')
+              disqualified: isSameDir || failReversalScore || s.score.disqualified,
+              disqualifyReason: isSameDir
+                ? `Đang có lệnh ${activeDir} active`
+                : (failReversalScore
+                  ? `Đảo chiều ${activeDir}→${s.signal} yêu cầu >= ${MIN_SCORE_REVERSAL}đ (hiện ${s.score.total}đ)`
+                  : (s.score.disqualifyReason || ''))
             };
           });
 
@@ -897,15 +904,28 @@ async function runMacroRefresh() {
     if (!_lastMarketData.ta) _lastMarketData.ta = {};
 
     const btcTa = resolveSettled(btcTaRes, null);
-    if (btcTa) _lastMarketData.ta['BTC'] = btcTa;
+    if (btcTa) {
+      btcTa._fetchedAt = Date.now();
+      _lastMarketData.ta['BTC'] = btcTa;
+    }
     const fg = resolveSettled(fgRes, null);
     if (fg) _lastMarketData.fearGreed = fg;
     const funding = resolveSettled(fundRes, null);
     if (funding) _lastMarketData.funding = funding;
+    // Merge BTC/ETH vào cache thay vì ghi đè xóa sạch dữ liệu whale/derivatives của các altcoin khác
     const whale = resolveSettled(whaleRes, null);
-    if (whale) _lastMarketData.whale = whale;
+    if (whale) {
+      _lastMarketData.whale = {
+        ...(_lastMarketData.whale || {}),
+        ...whale,
+        crossSignals: { ...(_lastMarketData.whale?.crossSignals || {}), ...(whale.crossSignals || {}) },
+        bySymbol: { ...(_lastMarketData.whale?.bySymbol || {}), ...(whale.bySymbol || {}) },
+      };
+    }
     const deriv = resolveSettled(derivRes, null);
-    if (deriv) _lastMarketData.derivatives = deriv;
+    if (deriv) {
+      _lastMarketData.derivatives = { ...(_lastMarketData.derivatives || {}), ...deriv };
+    }
   } catch (err) {
     log.warn(`[MacroRefresh] Lỗi cập nhật vĩ mô nền: ${err.message}`);
   } finally {

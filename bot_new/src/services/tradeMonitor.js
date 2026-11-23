@@ -531,7 +531,7 @@ function addTrades(trades, taMap = {}) {
         `🛑 SL mới:    <code>${fmtPrice(sameDir.slPrice)}</code>  (-${sameDir.slPct}%)\n` +
         (liqPriceUpd ? `💀 Thanh lý:  <code>${fmtPrice(liqPriceUpd)}</code>\n` : '') +
         `━━━━━━━━━━━━━━━━\n` +
-        `<i>🌊 Quản trị SL theo cơ chế bot-h4 (BE @ 35% TP + Williams Fractal H1/M15)</i>`,
+        `<i>🌊 Quản trị SL theo cơ chế bot-h4 (BE @ ${process.env.BE_TRIGGER_TP_PCT || 50}% TP + Williams Fractal H1/M15)</i>`,
       ]).catch(() => {});
 
       // Đóng lệnh ngược chiều nếu đang tồn tại (defensive: không nên xảy ra nhưng phòng hờ)
@@ -721,11 +721,12 @@ function addTrades(trades, taMap = {}) {
       continue;
     }
 
-    // Đồng bộ 100% cơ chế bot-h4: BỎ TP1/TP2 cũ — dùng 1 TP mục tiêu + BE Trigger 35% TP + Williams Fractal H1/M15 Trailing SL
+    // Đồng bộ 100% cơ chế bot-h4: BỎ TP1/TP2 cũ — dùng 1 TP mục tiêu + BE Trigger 50% TP (BE_TRIGGER_TP_PCT) + Williams Fractal H1/M15 Trailing SL
     const tpDistNew = Math.abs(t.targetPrice - t.entryPrice);
+    const beTriggerRatioNew = Math.max(0.35, Math.min(0.85, parseFloat(process.env.BE_TRIGGER_TP_PCT || '50') / 100));
     if (!t.beTriggerPrice && tpDistNew > 0) {
       const beDec = t.entryPrice >= 100 ? 2 : (t.entryPrice >= 1 ? 4 : 6);
-      t.beTriggerPrice = parseFloat((isLongNew ? t.entryPrice + tpDistNew * 0.35 : t.entryPrice - tpDistNew * 0.35).toFixed(beDec));
+      t.beTriggerPrice = parseFloat((isLongNew ? t.entryPrice + tpDistNew * beTriggerRatioNew : t.entryPrice - tpDistNew * beTriggerRatioNew).toFixed(beDec));
     }
     t.tp1Price = null;
     t.tp1Pct   = null;
@@ -768,7 +769,7 @@ function addTrades(trades, taMap = {}) {
       `💰 Vào lệnh:   <code>${fmtPrice(t.entryPrice)}</code>\n` +
       `🎯 Chốt lời:   <code>${fmtPrice(t.targetPrice)}</code>  <b>+${t.targetPct}%</b>${netTpPct ? `  <i>(vốn +${netTpPct}%)</i>` : ''}\n` +
       `🛑 Cắt lỗ:     <code>${fmtPrice(t.slPrice)}</code>  <b>-${t.slPct}%</b>${netSlPct ? `  <i>(vốn -${netSlPct}%)</i>` : ''}\n` +
-      (t.beTriggerPrice ? `🌊 Fractal BE: <code>${fmtPrice(t.beTriggerPrice)}</code>  <i>(35% TP → Khóa hòa vốn + Trailing H1/M15)</i>\n` : '') +
+      (t.beTriggerPrice ? `🌊 Fractal BE: <code>${fmtPrice(t.beTriggerPrice)}</code>  <i>(${Math.round(beTriggerRatioNew * 100)}% TP → Khóa hòa vốn + Trailing H1/M15)</i>\n` : '') +
       (liqPriceNew ? `💀 Thanh lý:   <code>${fmtPrice(liqPriceNew)}</code>\n` : '') +
       `\n⚖️ R:R = <b>1 : ${rr}</b>\n` +
       reasonLine +
@@ -907,35 +908,57 @@ async function checkPendingAutoEntry(prices) {
   }
   if (balance < 10) return;
 
-  // Tìm lệnh có giá gần SL nhất (vẫn còn phía hợp lệ) → risk nhỏ nhất
-  let best            = null;
-  let bestImprovePct  = -Infinity;
+  // Tìm lệnh hợp lệ tốt nhất: GẦN VÙNG ENTRY NHẤT (<= 0.5%), CÒN >= 50% KHOẢNG CÁCH TỚI SL
+  // (tuyệt đối KHÔNG bắt dao rơi bằng cách chọn coin sát SL nhất, và kiểm tra đầy đủ chốt chặn rủi ro)
+  let best = null;
+  let bestDistPct = Infinity;
+
+  let isDirectionLocked = null, isSymbolInCooldown = null, checkBtcFlashStatus = null, isLevelBounceCooldown = null;
+  try { isDirectionLocked = require('./directionalCircuitBreaker').isDirectionLocked; } catch {}
+  try { isSymbolInCooldown = require('./cooldownManager').isSymbolInCooldown; } catch {}
+  try { checkBtcFlashStatus = require('./btcFlashGuard').checkBtcFlashStatus; } catch {}
+  try { isLevelBounceCooldown = require('./bounceCancel').isLevelBounceCooldown; } catch {}
+
+  const flashStatus = checkBtcFlashStatus ? checkBtcFlashStatus() : null;
 
   for (const t of pending) {
     const price = prices[t.symbol];
-    if (price == null) continue;
+    if (price == null || !t.entryPrice || !t.slPrice) continue;
     const isLong = t.direction === 'LONG';
 
+    // Chốt chặn rủi ro đầy đủ trước khi bắn MARKET
+    if (isDirectionLocked && isDirectionLocked(t.direction)?.isLocked) continue;
+    if (isSymbolInCooldown && isSymbolInCooldown(t.symbol)?.inCooldown) continue;
+    if (isLevelBounceCooldown && isLevelBounceCooldown(t.symbol, t.targetLevel || t.entryPrice)) continue;
+    if (flashStatus?.active) {
+      if (isLong && flashStatus.isLongLocked) continue;
+      if (!isLong && flashStatus.isShortLocked) continue;
+    }
+
     // Điều kiện 1: giá không được xấu hơn entry khuyến nghị
-    if (isLong  && price > t.entryPrice) continue; // LONG: giá phải ≤ entry
-    if (!isLong && price < t.entryPrice) continue; // SHORT: giá phải ≥ entry
+    if (isLong  && price > t.entryPrice) continue;
+    if (!isLong && price < t.entryPrice) continue;
 
-    // Điều kiện 2: chưa vượt SL → vẫn còn khoảng bảo vệ
-    if (isLong  && price <= t.slPrice) continue;
-    if (!isLong && price >= t.slPrice) continue;
+    // Điều kiện 2: giá phải còn nằm sát vùng entry (<= 0.50%), KHÔNG đuổi dao rơi
+    const distFromEntryPct = Math.abs(price - t.entryPrice) / t.entryPrice * 100;
+    if (distFromEntryPct > 0.50) continue;
 
-    // Ưu tiên: giá cải thiện nhiều nhất so với entry (% của entry)
-    const improvePct = isLong
-      ? (t.entryPrice - price) / t.entryPrice * 100  // LONG: giá thấp hơn entry càng tốt
-      : (price - t.entryPrice) / t.entryPrice * 100; // SHORT: giá cao hơn entry càng tốt
-    if (improvePct > bestImprovePct) { bestImprovePct = improvePct; best = { trade: t, price }; }
+    // Điều kiện 3: phải còn tối thiểu >= 50% khoảng cách tới SL (chống vào sát SL ăn stop ngay lập tức)
+    const origSlDist = Math.abs(t.entryPrice - t.slPrice);
+    const remSlDist  = isLong ? (price - t.slPrice) : (t.slPrice - price);
+    if (origSlDist <= 0 || remSlDist < origSlDist * 0.50) continue;
+
+    if (distFromEntryPct < bestDistPct) {
+      bestDistPct = distFromEntryPct;
+      best = { trade: t, price };
+    }
   }
   if (!best) return;
 
   const { trade, price } = best;
   const dirLabel = trade.direction === 'LONG' ? '🟢 LONG' : '🔴 SHORT';
-  const improveLabel = bestImprovePct > 0
-    ? `giá tốt hơn entry ${bestImprovePct.toFixed(2)}%`
+  const improveLabel = bestDistPct > 0
+    ? `sát vùng entry (lệch ${bestDistPct.toFixed(2)}%)`
     : `giá đúng vùng entry`;
   log.trade(`AUTO MARKET ENTRY: chọn ${trade.symbol} ${trade.direction} — ${improveLabel} (giá ${fmtPrice(price)} / entry ${fmtPrice(trade.entryPrice)} / SL ${fmtPrice(trade.slPrice)})`);
 
@@ -1860,6 +1883,8 @@ async function checkActiveTrades() {
             : `chờ quá ${Math.round(limitTimeoutMs / 60000)} phút giá không về vùng Entry`;
           log.system(`[TradeMonitor] Lệnh LIMIT của ${trade.symbol} ${typeLabel} → Tiến hành hủy...`);
           await binanceTrader.cancelEntryOrder(trade).catch(() => {});
+          // Khóa mốc 30 phút sau khi hủy LIMIT Timeout để tránh vòng lặp đặt lại đúng lệnh đó sau 30 giây
+          try { require('./bounceCancel').addLevelCooldown(trade.symbol, trade.targetLevel || trade.entryPrice, 30 * 60 * 1000); } catch {}
           trade.status = 'canceled';
           trade.closedAt = new Date();
           trade.cancelReason = isTouchedTimeout ? 'limit_touched_timeout' : 'limit_timeout';
@@ -2088,7 +2113,8 @@ async function checkActiveTrades() {
                   trade.slPct   = origin.slPct   ?? trade.slPct;
                 }
                 if (trade.targetPrice && trade.entryPrice) {
-                  const _beDist = Math.abs(trade.targetPrice - trade.entryPrice) * 0.35;
+                  const _beRatioR = Math.max(0.35, Math.min(0.85, parseFloat(process.env.BE_TRIGGER_TP_PCT || '50') / 100));
+                  const _beDist = Math.abs(trade.targetPrice - trade.entryPrice) * _beRatioR;
                   const _bePrec = trade.entryPrice >= 100 ? 2 : (trade.entryPrice >= 1 ? 4 : 6);
                   trade.beTriggerPrice = parseFloat((_isLongR ? trade.entryPrice + _beDist : trade.entryPrice - _beDist).toFixed(_bePrec));
                 }
@@ -2109,7 +2135,7 @@ async function checkActiveTrades() {
                     `⚠️ <b>THIẾU DỮ LIỆU TP/SL — ${trade.symbol} ${dirLabel} ⚡x${trade.leverage || 10}</b>\n` +
                     `━━━━━━━━━━━━━━━━\n` +
                     `Không tìm thấy khuyến nghị gốc (mất dữ liệu sau restart).\n` +
-                    `<i>Đang chạy lại phân tích để cập nhật TP/SL đầy đủ (BE 35% + Fractal Trailing)...</i>`,
+                    `<i>Đang chạy lại phân tích để cập nhật TP/SL đầy đủ (BE ${process.env.BE_TRIGGER_TP_PCT || 50}% + Fractal Trailing)...</i>`,
                   ], 1500, NEWS_CHAT_ID).catch(() => {});
                   return;
               }
@@ -2226,7 +2252,7 @@ async function checkActiveTrades() {
         `⌛ Giữ lệnh:  <b>${fmtDuration(duration)}</b>\n` +
         `📅 <i>${startStr} → ${endStr}</i>\n` +
         `━━━━━━━━━━━━━━━━\n` +
-        `<i>✅ Bảo vệ bởi ${trade.fractalTf || 'BE 35% TP'} Trailing SL</i>`
+        `<i>✅ Bảo vệ bởi ${trade.fractalTf || `BE ${process.env.BE_TRIGGER_TP_PCT || 50}% TP`} Trailing SL</i>`
       : `${isWin ? '🏆' : '💥'} <b>${isWin ? 'CHỐT LỜI' : 'DÍNH SL'} — ${trade.symbol} ${trade.direction === 'LONG' ? '🟢 LONG' : '🔴 SHORT'}${trade.leverage ? ` ⚡x${trade.leverage}` : ''}${manualTag}</b>\n` +
         `━━━━━━━━━━━━━━━━\n` +
         `💰 Vào lệnh:  <code>${fmtPrice(trade.entryPrice)}</code>\n` +
@@ -2291,7 +2317,7 @@ async function sendActiveTradesSummary(chatId = null) {
     lines.push(`  🎯 TP:  <code>${fmtPrice(t.targetPrice)}</code>  (+${t.targetPct ?? '—'}%)`);
     const slSuffix = t.fractalTf ? `  <i>(${t.fractalTf})</i>` : (t.slMovedToBreakeven ? `  <i>(Risk-Free BE)</i>` : `  (-${t.slPct ?? '—'}%)`);
     lines.push(`  🛑 SL:  <code>${fmtPrice(t.slPrice)}</code>${slSuffix}`);
-    if (t.beTriggerPrice) lines.push(`  🌊 BE 35%: <code>${fmtPrice(t.beTriggerPrice)}</code>${t.slMovedToBreakeven ? '  ✅' : ''}`);
+    if (t.beTriggerPrice) lines.push(`  🌊 BE ${process.env.BE_TRIGGER_TP_PCT || 50}%: <code>${fmtPrice(t.beTriggerPrice)}</code>${t.slMovedToBreakeven ? '  ✅' : ''}`);
     if (liqPrice) lines.push(`  💀 Thanh lý:  <code>${fmtPrice(liqPrice)}</code>`);
     lines.push(` ⌛ <b>${duration}</b> (từ ${sinceStr})`);
     lines.push('');
@@ -2580,6 +2606,11 @@ function _doRebuildCombinedMpWs() {
       const slHit = isLong ? markPrice <= trade.slPrice : markPrice >= trade.slPrice;
       if (!slHit) continue;
 
+      // Nếu đã có Hard STOP_MARKET SL trên sàn, chỉ bắn client-side MARKET close khi markPrice xuyên qua SL >= 0.25%
+      // (tránh race điều kiện với STOP_MARKET của sàn Binance)
+      const farPastSl = isLong ? (markPrice <= trade.slPrice * 0.9975) : (markPrice >= trade.slPrice * 1.0025);
+      if (trade.binanceSlOrderId && !farPastSl) continue;
+
       trade.status   = 'sl_hit';
       trade.closedAt = new Date();
       saveTrades();
@@ -2587,7 +2618,7 @@ function _doRebuildCombinedMpWs() {
       log.trade(`WS SL hit ${symbol} — mark=${fmtPrice(markPrice)}, sl=${fmtPrice(trade.slPrice)}`);
 
       if (binanceTrader.isEnabled()) {
-        if (trade.binanceQty) {
+        if (trade.binanceQty && (!trade.binanceSlOrderId || farPastSl)) {
           binanceTrader.placeMarketClose(trade).catch(e =>
             log.error(`WS SL: MARKET close thất bại ${symbol}`, { error: e.message })
           );
@@ -2599,24 +2630,32 @@ function _doRebuildCombinedMpWs() {
       const { rawPct, netPct, feeImpactPct } = calcPnl(trade.entryPrice, closePrice, trade.direction, trade.leverage);
       trade.mfePct   = trade.mfePct   || 0;
       trade.mfePrice = trade.mfePrice || trade.entryPrice;
-      recordTradeResult({ trade, exitReason: 'sl', result: rawPct > 0 ? 'win' : rawPct < 0 ? 'loss' : 'breakeven', closePrice, pnlPct: rawPct });
+      const isProtectedTrailingExit = (trade.slMovedToBreakeven || trade.fractalTrailingActive) && rawPct >= -0.05;
+      const wsSlResult = isProtectedTrailingExit
+        ? (rawPct > 0.15 ? 'win' : 'breakeven')
+        : (rawPct > 0 ? 'win' : rawPct < 0 ? 'loss' : 'breakeven');
+      recordTradeResult({ trade, exitReason: 'sl', result: wsSlResult, closePrice, pnlPct: rawPct });
 
       const netSign  = netPct >= 0 ? '+' : '';
-      const duration = trade.closedAt - new Date(trade.recommendedAt);
-      const startStr = new Date(trade.recommendedAt).toLocaleString('vi-VN', { timeZone: TIMEZONE, hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' });
+      const recDate  = trade.recommendedAt instanceof Date ? trade.recommendedAt : new Date(trade.recommendedAt || Date.now());
+      const duration = Math.max(0, trade.closedAt - recDate);
+      const startStr = recDate.toLocaleString('vi-VN', { timeZone: TIMEZONE, hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' });
       const endStr   = trade.closedAt.toLocaleString('vi-VN', { timeZone: TIMEZONE, hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' });
       const leverageLine = trade.leverage
         ? `⚡ x${trade.leverage} → vốn thực: <b>${netSign}${netPct.toFixed(1)}%</b>  <i>(phí -${feeImpactPct.toFixed(2)}%)</i>\n`
         : '';
-      const mfeLine = trade.mfePct > 0.05
+      const mfeLine = (!isProtectedTrailingExit && trade.mfePct > 0.05)
         ? `📈 Cao nhất: <code>${fmtPrice(trade.mfePrice)}</code>  <b>+${trade.mfePct.toFixed(2)}%</b>\n`
         : '';
 
+      const wsTitle = isProtectedTrailingExit
+        ? `🌊 <b>${rawPct > 0.15 ? 'CHỐT LÃI TRAILING SL' : 'HÒA VỐN BREAKEVEN'} — ${symbol} ${dirLabel}${trade.leverage ? ` ⚡x${trade.leverage}` : ''}</b>\n`
+        : `💥 <b>DÍNH SL — ${symbol} ${dirLabel}${trade.leverage ? ` ⚡x${trade.leverage}` : ''}</b>\n`;
       sendMessages([
-        `💥 <b>DÍNH SL — ${symbol} ${dirLabel}${trade.leverage ? ` ⚡x${trade.leverage}` : ''}</b>\n` +
+        wsTitle +
         `━━━━━━━━━━━━━━━━\n` +
         `💰 Vào lệnh:  <code>${fmtPrice(trade.entryPrice)}</code>\n` +
-        `🛑 Cắt lỗ:   <code>${fmtPrice(closePrice)}</code>  <b>${rawPct.toFixed(2)}%</b>\n` +
+        `${isProtectedTrailingExit ? '🔒 Đóng SL' : '🛑 Cắt lỗ'}:   <code>${fmtPrice(closePrice)}</code>  <b>${rawPct >= 0 ? '+' : ''}${rawPct.toFixed(2)}%</b>\n` +
         leverageLine +
         mfeLine +
         `\n⌛ Giữ lệnh:  <b>${fmtDuration(duration)}</b>\n` +
@@ -2690,15 +2729,17 @@ function initBinanceStream() {
     );
     if (trade) {
       trade.entryFilled = true;
+      trade.filledAt = Date.now();
       trade._placingBracket = true;
       try { require('./bounceCancel').untrackLimit(trade.symbol, trade.targetLevel || trade.entryPrice); } catch (_) {}
 
-      // Đồng bộ giá entry thực tế & mốc BE 35% TP (cơ chế bot-h4 — đã bỏ TP1/TP2 cũ)
+      // Đồng bộ giá entry thực tế & mốc BE 50% TP (cơ chế chuẩn — bỏ TP1/TP2 cũ)
       if (avgPrice > 0) {
         trade.entryPrice = avgPrice;
         if (trade.targetPrice) {
           const isLong = trade.direction === 'LONG';
-          const beDist = Math.abs(trade.targetPrice - avgPrice) * 0.35;
+          const bePct = Math.max(0.35, Math.min(0.85, parseFloat(process.env.BE_TRIGGER_TP_PCT || '50') / 100));
+          const beDist = Math.abs(trade.targetPrice - avgPrice) * bePct;
           const prec   = avgPrice >= 100 ? 2 : (avgPrice >= 1 ? 4 : 6);
           trade.beTriggerPrice = parseFloat((isLong ? avgPrice + beDist : avgPrice - beDist).toFixed(prec));
           trade.targetPct = parseFloat((Math.abs(trade.targetPrice - avgPrice) / avgPrice * 100).toFixed(2));
@@ -2740,7 +2781,7 @@ function initBinanceStream() {
         `━━━━━━━━━━━━━━━━\n` +
         `💹 Fill tại:   <code>${fmtPrice(avgPrice)}</code>\n` +
         tpStr + slStr +
-        `<i>⚡ Cặp lệnh TP/SL đã treo trực tiếp trên Binance (BE @ 35% TP + Fractal H1/M15)</i>`,
+        `<i>⚡ Cặp lệnh TP/SL đã treo trực tiếp trên Binance (BE @ ${process.env.BE_TRIGGER_TP_PCT || 50}% TP + Fractal H1/M15)</i>`,
       ], 1500, NEWS_CHAT_ID).catch(() => {});
       return;
     }
@@ -2823,7 +2864,7 @@ function initBinanceStream() {
         mfeLine +
         `⌛ Giữ lệnh: <b>${fmtDuration(duration)}</b>  —  <i>${startStr} → ${endStr}</i>\n` +
         `━━━━━━━━━━━━━━━━\n` +
-        `<i>${isProtectedExit ? `✅ Bảo vệ bởi ${slTrade.fractalTf || 'BE 35% TP'} Trailing SL` : 'Vị thế tự đóng tại SL trên Binance'}</i>`,
+        `<i>${isProtectedExit ? `✅ Bảo vệ bởi ${slTrade.fractalTf || `BE ${process.env.BE_TRIGGER_TP_PCT || 50}% TP`} Trailing SL` : 'Vị thế tự đóng tại SL trên Binance'}</i>`,
       ], 1500, NEWS_CHAT_ID).catch(() => {});
       return;
     }
@@ -3039,8 +3080,9 @@ async function checkAndApplyFractalTrailingSL(trade, currentPrice, opts = {}) {
   const currentGainDist = isLong ? (currentPrice - trade.entryPrice) : (trade.entryPrice - currentPrice);
   const progressPct = (currentGainDist / totalTpDist) * 100;
 
-  if (progressPct < 35 && !trade.fractalTrailingActive && !trade.slMovedToBreakeven) {
-    return { moved: false, reason: 'BELOW_35PCT_TRIGGER', progressPct };
+  const beTriggerPct = Math.max(35, Math.min(85, parseFloat(process.env.BE_TRIGGER_TP_PCT || '50')));
+  if (progressPct < beTriggerPct && !trade.fractalTrailingActive && !trade.slMovedToBreakeven) {
+    return { moved: false, reason: 'BELOW_BE_TRIGGER', progressPct, beTriggerPct };
   }
 
   const decimals = trade.entryPrice >= 100 ? 2 : (trade.entryPrice >= 1 ? 4 : 6);
@@ -3057,11 +3099,10 @@ async function checkAndApplyFractalTrailingSL(trade, currentPrice, opts = {}) {
   // One-way ratchet baseline: luôn lấy mức SL chặt nhất hiện có (BE / Fractal / SL gốc)
   const currentSl = bracketManager.getTightestCurrentSl(trade, isLong);
 
-  // ── 1. Tính mốc Risk-Free Breakeven @ >= 35% TP (Entry ± 1% ROI vốn, tối thiểu 0.10% phí) ──
+  // ── 1. Tính mốc Risk-Free Breakeven @ >= 50% TP (đệm phí thực 0.14% giá, độc lập đòn bẩy) ──
   let validBePrice = null;
-  if (progressPct >= 35 && !trade.slMovedToBreakeven && !trade._beInFlight) {
-    const lev = Math.max(1, trade.leverage || 10);
-    const beBufferPct = Math.max(0.001, Math.min(0.005, 0.01 / lev));
+  if (progressPct >= beTriggerPct && !trade.slMovedToBreakeven && !trade._beInFlight) {
+    const beBufferPct = 0.0014; // 0.14% phí round-trip thực tế
     const rawBePrice = isLong
       ? trade.entryPrice * (1 + beBufferPct)
       : trade.entryPrice * (1 - beBufferPct);
@@ -3073,7 +3114,7 @@ async function checkAndApplyFractalTrailingSL(trade, currentPrice, opts = {}) {
     }
   }
 
-  // ── 2. Tính mốc Williams Fractal H1 (35%-70% TP) / M15 (>=70% TP) ───────────
+  // ── 2. Tính mốc Williams Fractal H1 (50%-70% TP) / M15 (>=70% TP) ───────────
   const tfLabel = progressPct >= 70 ? 'M15' : 'H1';
   let candles = null;
   if (tfLabel === 'M15') {
@@ -3082,9 +3123,20 @@ async function checkAndApplyFractalTrailingSL(trade, currentPrice, opts = {}) {
     candles = opts.h1Candles || await fetchH1Historical(trade.symbol).catch(() => []);
   }
 
+  // Lọc bỏ nến quá cũ trước thời điểm khớp lệnh (chỉ áp dụng với timestamp unix ms thực tế > 1e12)
+  let filteredCandles = candles;
+  const entryTsMs = trade.filledAt || (trade.recommendedAt ? new Date(trade.recommendedAt).getTime() : 0);
+  if (entryTsMs > 1e12 && Array.isArray(candles) && candles.length >= 6 && (candles[0]?.openTime || 0) > 1e12) {
+    const tfMs = tfLabel === 'M15' ? 15 * 60_000 : 3600_000;
+    const minWindowTs = entryTsMs - 2 * tfMs; // giữ 2 nến biên để hình thành fractal ngay sau khi khớp
+    const postEntry = candles.filter(c => (c.openTime || 0) >= minWindowTs);
+    if (postEntry.length >= 6) filteredCandles = postEntry;
+    else filteredCandles = []; // Chưa đủ 6 nến sau entry → giữ BE 50%, không bám nhầm fractal cũ từ nhiều ngày trước
+  }
+
   let validFractalPrice = null;
   let fractalRejectReason = 'NO_FRACTAL_SWING';
-  const swing = (candles && candles.length >= 6) ? getRecentFractalSwing(candles, isLong) : null;
+  const swing = (filteredCandles && filteredCandles.length >= 6) ? getRecentFractalSwing(filteredCandles, isLong) : null;
   if (swing && typeof swing.price === 'number') {
     const rawCandidate = isLong
       ? swing.price * (1 - FRACTAL_SWING_BUFFER_PCT)
@@ -3133,7 +3185,7 @@ async function checkAndApplyFractalTrailingSL(trade, currentPrice, opts = {}) {
 
     trade.fractalSlPrice = validFractalPrice;
     trade.fractalTf = `${tfLabel}_FRACTAL`;
-    if (progressPct >= 35 && (isLong ? validFractalPrice > trade.entryPrice : validFractalPrice < trade.entryPrice)) {
+    if (progressPct >= beTriggerPct && (isLong ? validFractalPrice > trade.entryPrice : validFractalPrice < trade.entryPrice)) {
       trade.slMovedToBreakeven = true;
     }
     if (!opts.skipSave) saveTrades();
@@ -3169,20 +3221,21 @@ async function checkAndApplyFractalTrailingSL(trade, currentPrice, opts = {}) {
       }
       if (beOk) {
         if (!opts.skipSave) saveTrades();
-        log.trade(`[Risk-Free BE @ 35% TP] 🛡️ ${trade.symbol} ${trade.direction} (${progressPct.toFixed(0)}% TP): Dời SL ${fmtPrice(prevSl)} → ${fmtPrice(validBePrice)} (Khóa hòa vốn + phí)`);
+        const bePctLabel = Math.round(beTriggerPct);
+        log.trade(`[Risk-Free BE @ ${bePctLabel}% TP] 🛡️ ${trade.symbol} ${trade.direction} (${progressPct.toFixed(0)}% TP): Dời SL ${fmtPrice(prevSl)} → ${fmtPrice(validBePrice)} (Khóa hòa vốn + phí 0.14%)`);
         if (!opts.silent) {
           const dirLabel = isLong ? '🟢 LONG' : '🔴 SHORT';
           sendMessages([
-            `🛡️ <b>RISK-FREE BREAKEVEN (35% TP) — ${trade.symbol} ${dirLabel}${trade.leverage ? ` ⚡x${trade.leverage}` : ''}</b>\n` +
+            `🛡️ <b>RISK-FREE BREAKEVEN (${bePctLabel}% TP) — ${trade.symbol} ${dirLabel}${trade.leverage ? ` ⚡x${trade.leverage}` : ''}</b>\n` +
             `━━━━━━━━━━━━━━━━\n` +
             `💰 Entry:   <code>${fmtPrice(trade.entryPrice)}</code>\n` +
             `📈 Giá HT:  <code>${fmtPrice(currentPrice)}</code>  <i>(${progressPct.toFixed(0)}% quãng đường TP)</i>\n` +
-            `🔒 SL mới:  <code>${fmtPrice(validBePrice)}</code>  <i>(Hòa vốn + phí)</i>\n` +
+            `🔒 SL mới:  <code>${fmtPrice(validBePrice)}</code>  <i>(Hòa vốn + phí 0.14%)</i>\n` +
             `🎯 TP giữ:  <code>${fmtPrice(trade.targetPrice)}</code>\n` +
             `<i>🌊 Bắt đầu kích hoạt Williams Fractal Trailing SL (H1 → M15)</i>`,
           ], 1500, NEWS_CHAT_ID).catch(() => {});
         }
-        return { moved: true, stage: 'BREAKEVEN', tf: 'BE_35PCT', prevSl, newSl: validBePrice, progressPct, lockedRoi: 1 };
+        return { moved: true, stage: 'BREAKEVEN', tf: `BE_${bePctLabel}PCT`, prevSl, newSl: validBePrice, progressPct, lockedRoi: 1 };
       }
     } finally {
       trade._beInFlight = false;

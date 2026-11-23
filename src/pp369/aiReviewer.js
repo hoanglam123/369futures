@@ -1202,23 +1202,16 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
     threshold += 2.0;
   }
 
-  // ── 🎯 TÍNH TOÁN LỢI NHUẬN KỲ VỌNG (EXPECTED VALUE - EV) CHUẨN XÁC THEO TIER VÀ GRID ──
-  // Sàn lọc lợi nhuận kỳ vọng tối thiểu: Mặc định bắt buộc >= 2.0% ROI (có thể cấu hình qua env MIN_EXPECTED_EV_ROI)
-  const envMinEv = parseFloat(process.env.MIN_EXPECTED_EV_ROI || '2.0');
-  const learnedMinEv = optimalTh.minExpectedEvRoi ?? _modelConfig?.minExpectedEvRoi;
-  const minEvRoiThreshold = typeof learnedMinEv === 'number' && learnedMinEv > envMinEv
-    ? learnedMinEv
-    : envMinEv;
+  // ── 🎯 TÍNH TOÁN LỢI NHUẬN KỲ VỌNG RÒNG (NET EXPECTED VALUE - NET EV) SAU PHÍ & TRƯỢT GIÁ ──
+  // Dùng đòn bẩy thực tế của lệnh (không giả định cứng SL = -50% ROI như bản cũ) và trừ phí khứ hồi + trượt giá (0.12% notional)
+  const ROUNDTRIP_FEE_SLIPPAGE_PCT = parseFloat(process.env.ROUNDTRIP_FEE_SLIPPAGE_PCT || '0.12');
+  const minEvRoiThreshold = parseFloat(process.env.MIN_NET_EV_ROI || '0.5');
 
-  // Với hệ thống Tier Leverage: calcLeverage = 50 / slPct -> Lỗ khi dính SL luôn chuẩn ~50.0% ROI
-  const estSlRoi = 50.0;
-
-  // ── [MỚI] KHOẢNG CÁCH CẮT LỖ HOÀN TOÀN DO AI QUYẾT ĐỊNH (ADAPTIVE DYNAMIC SL FLOOR) ──
-  // Bỏ phân biệt Topcap vs Lowcap, sử dụng ngưỡng cắt lỗ tối ưu do AI tự học từ phân phối nến và rung lắc thị trường
+  // Khoảng cách SL/TP thực tế của lệnh
   const slCfg = _modelConfig?.adaptiveSlProfile;
   const aiLearnedMinSl = typeof slCfg?.optimalMinSlPct === 'number'
     ? slCfg.optimalMinSlPct
-    : (typeof slCfg?.top150MinSlPct === 'number' ? slCfg.top150MinSlPct : 1.3);
+    : (typeof slCfg?.top150MinSlPct === 'number' ? slCfg.top150MinSlPct : 1.5);
   const defaultSlPct = aiLearnedMinSl;
   const effSlPct = (typeof sig.actualSlPct === 'number' && sig.actualSlPct > 0)
     ? sig.actualSlPct
@@ -1230,12 +1223,16 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
     : 0.50;
   const tpGridPct = (typeof sig.actualTpPct === 'number' && sig.actualTpPct > 0)
     ? sig.actualTpPct
-    : Math.max(effSlPct * 1.0, gridWidthPct * learnedTpGridRatio);
-  const estTpRoi = Math.max(10.0, Math.min(100.0, (tpGridPct / effSlPct) * 50.0));
+    : Math.max(effSlPct * 1.5, gridWidthPct * learnedTpGridRatio);
+
+  const effLeverage = Math.max(1, parseFloat(sig.leverage || rawMarketData?.leverage || 5));
+  const feeRoi = ROUNDTRIP_FEE_SLIPPAGE_PCT * effLeverage;
+  const estSlRoi = (effSlPct * effLeverage) + feeRoi;
+  const estTpRoi = Math.max(0.5, (tpGridPct * effLeverage) - feeRoi);
 
   const winProbDec = winProb / 100.0;
   const evRoi = (winProbDec * estTpRoi) - ((1.0 - winProbDec) * estSlRoi);
-  const tradeMargin = parseFloat(sig.margin) || 75;
+  const tradeMargin = parseFloat(sig.margin) || 20;
   const evUsd = (evRoi / 100.0) * tradeMargin;
 
   // 🛡️ TỶ LỆ R:R SCALPING HỢP LÝ — Đọc trực tiếp từ adaptiveRrProfile trong mô hình AI:

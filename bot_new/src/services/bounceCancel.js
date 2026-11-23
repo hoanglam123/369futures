@@ -165,6 +165,16 @@ function getBounceCooldowns() {
   return result;
 }
 
+function addLevelCooldown(sym, targetLevel, durationMs = 30 * 60 * 1000) {
+  const cleanSym = (sym || '').replace('USDT', '').toUpperCase();
+  if (!cleanSym || targetLevel == null) return;
+  const now = Date.now();
+  for (const [ck, expTs] of _bounceCooldowns.entries()) {
+    if (expTs <= now) _bounceCooldowns.delete(ck);
+  }
+  _bounceCooldowns.set(`${cleanSym}_${targetLevel}`, now + durationMs);
+}
+
 function clearBounceCooldowns() {
   _bounceCooldowns.clear();
   _trackedLimits.clear();
@@ -175,6 +185,7 @@ module.exports = {
   untrackLimit,
   checkBounceCancel,
   isLevelBounceCooldown,
+  addLevelCooldown,
   getBounceCooldowns,
   clearBounceCooldowns,
   CLOSE_PROXIMITY_PCT,

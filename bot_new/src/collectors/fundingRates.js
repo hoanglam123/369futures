@@ -38,7 +38,7 @@ async function fetchBinanceFunding() {
   for (const item of (data ?? [])) {
     if (!item.symbol.endsWith('USDT')) continue;
     const sym = item.symbol.slice(0, -4);
-    if (!WATCHLIST.has(sym)) continue;
+    // Nạp toàn bộ 400+ perpetuals từ cùng 1 bulk request (0 thêm weight) để Funding Hard Filter phủ 100% altcoin
     const rate = parseFloat(item.lastFundingRate);
     if (!isNaN(rate)) {
       rates[sym] = rate;

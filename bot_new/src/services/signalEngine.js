@@ -279,14 +279,42 @@ async function generateQuantitativeTrade(setup, marketData = null) {
     } catch (_) {}
   }
 
+  // Tính preEntryBouncePct thực tế từ nến M15 gần nhất để kích hoạt feature pre_entry_bounce
+  let preEntryBouncePct = 0;
+  if (lastM15 && entryPrice > 0) {
+    const isLongDir = direction === 'LONG';
+    const extreme = isLongDir ? (lastM15.high || entryPrice) : (lastM15.low || entryPrice);
+    const rawBounce = isLongDir
+      ? ((extreme - entryPrice) / entryPrice) * 100
+      : ((entryPrice - extreme) / entryPrice) * 100;
+    if (rawBounce > 0 && isFinite(rawBounce)) preEntryBouncePct = parseFloat(rawBounce.toFixed(2));
+  }
+
+  // Maker Guard: tránh đặt LIMIT BUY cao hơn markPrice > 0.15% (khớp ngay thành Taker khi cản đang vỡ)
+  const liveMarkPrice = getMarkPrice(symbol) || currentPrice;
+  if (liveMarkPrice && liveMarkPrice > 0) {
+    const puncturedPct = direction === 'LONG'
+      ? ((entryPrice - liveMarkPrice) / entryPrice) * 100
+      : ((liveMarkPrice - entryPrice) / entryPrice) * 100;
+    if (puncturedPct > 0.15) {
+      log.system(`[AutoTrade] 🛑 [Maker Guard] ${symbol} (${direction}): Giá $${liveMarkPrice} đã đâm thủng mốc $${entryPrice} (${puncturedPct.toFixed(2)}% > 0.15%) — bỏ qua để tránh khớp Taker.`);
+      return null;
+    }
+  }
+
   const micro = await fetchOrderbookMicrostructure(symbol, direction === 'LONG');
 
   const marketContext = {
     candleH1: lastH1,
     candleM15: lastM15,
+    isLiveCandle: true,
+    preEntryBouncePct,
     btcFlash: btcFlash.activeFlash || 'NORMAL',
     spreadPct: micro.spreadPct,
     orderbookWall: micro.orderbookWall,
+    slPct: tierSetup.slPct,
+    tpPct: tierSetup.tpPct,
+    leverage: tierSetup.leverage,
     rank: isTier1 ? 20 : 100
   };
 
@@ -295,6 +323,10 @@ async function generateQuantitativeTrade(setup, marketData = null) {
     signal: direction,
     targetLevel: entryPrice,
     score: score,
+    slPct: tierSetup.slPct,
+    tpPct: tierSetup.tpPct,
+    leverage: tierSetup.leverage,
+    preEntryBouncePct,
     marketCapRank: isTier1 ? 20 : 100,
     scoreReasons: setup.reasons || []
   }, marketContext);

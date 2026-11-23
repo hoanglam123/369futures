@@ -634,10 +634,11 @@ async function calculateTierSLTP(
     };
   }
 
-  // 6. THIẾT LẬP MỐC BREAKEVEN 35% VÀ RISK-FREE FLOOR
-  const fractalTriggerDist = finalTpDist * 0.35;
+  // 6. THIẾT LẬP MỐC BREAKEVEN 50% TP (mặc định 50% thay vì 35% để chống quét râu non) VÀ ĐỆM PHÍ THỰC 0.14% GIÁ
+  const beTriggerRatio = Math.max(0.35, Math.min(0.85, parseFloat(process.env.BE_TRIGGER_TP_PCT || '50') / 100));
+  const fractalTriggerDist = finalTpDist * beTriggerRatio;
   const beTriggerPrice = isLong ? (entryPrice + fractalTriggerDist) : (entryPrice - fractalTriggerDist);
-  const beFeeBuffer = (0.01 / effectiveLeverage) * entryPrice;
+  const beFeeBuffer = entryPrice * 0.0014; // Đệm phí round-trip thực tế 0.14% giá (độc lập với đòn bẩy)
   const beSlPrice = isLong ? (entryPrice + beFeeBuffer) : (entryPrice - beFeeBuffer);
 
   return {

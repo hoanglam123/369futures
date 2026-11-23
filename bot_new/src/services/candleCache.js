@@ -17,7 +17,7 @@ const { isIpBanned } = require('./rateLimitGuard');
 
 const CACHE_MAX_H1 = 300; // 300 nến H1 ≈ 12.5 ngày
 const CACHE_MAX_H4 = 300; // 300 nến H4 ≈ 50 ngày
-const CACHE_MAX_D1 = 180; // 180 nến D1 ≈ 6 tháng
+const CACHE_MAX_D1 = 250; // 250 nến D1 ≈ >8 tháng (đủ EMA200D)
 
 // Tìm đường dẫn thư mục data dùng chung
 function resolveSharedDataDir() {
@@ -44,7 +44,7 @@ const _h4HistCache = {};
 const _d1HistCache = {};
 const _m15RecentCache = new Map(); // sym -> { ts, candles }
 
-const STALE_MS_H1 = 2 * 3600 * 1000;   // 2 giờ
+const STALE_MS_H1 = 45 * 60 * 1000;    // 45 phút (đảm bảo nến H1 vừa đóng luôn tươi cho Fractal Trailing SL)
 const STALE_MS_H4 = 6 * 3600 * 1000;   // 6 giờ
 const STALE_MS_D1 = 30 * 3600 * 1000;  // 30 giờ
 const M15_TTL_MS  = 3 * 60 * 1000;     // 3 phút cache RAM cho M15

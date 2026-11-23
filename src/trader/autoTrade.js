@@ -717,7 +717,7 @@ async function getBtcTA() {
     const [k1h, k4h, k1d] = await Promise.all([
       fetchBinanceKlines('BTC', '1h', null, 100).catch(() => null),
       fetchBinanceKlines('BTC', '4h', null, 200).catch(() => null),
-      fetchBinanceKlines('BTC', '1d', null, 120).catch(() => null),
+      fetchBinanceKlines('BTC', '1d', null, 220).catch(() => null),
     ]);
     if (k4h && k4h.length >= 20) {
       _lastBtcTA = calcTAFromKlines('BTC', k1h, k4h, k1d, null);
@@ -742,7 +742,7 @@ async function getSymbolTA(sym) {
     const [k1h, k4h, k1d] = await Promise.all([
       fetchBinanceKlines(sym, '1h', null, 100).catch(() => null),
       fetchBinanceKlines(sym, '4h', null, 200).catch(() => null),
-      fetchBinanceKlines(sym, '1d', null, 120).catch(() => null),
+      fetchBinanceKlines(sym, '1d', null, 220).catch(() => null),
     ]);
     if (k4h && k4h.length >= 20) {
       const ta = calcTAFromKlines(sym, k1h, k4h, k1d, null);
@@ -1484,10 +1484,11 @@ async function calculateTierSLTP(
     };
   }
 
-  // 6. THIẾT LẬP MỐC BREAKEVEN 35% VÀ RISK-FREE FLOOR
-  const fractalTriggerDist = finalTpDist * 0.35;
+  // 6. THIẾT LẬP MỐC BREAKEVEN 50% TP (mặc định 50% thay vì 35% để chống quét râu non) VÀ ĐỆM PHÍ THỰC 0.14% GIÁ
+  const beTriggerRatio = Math.max(0.35, Math.min(0.85, parseFloat(process.env.BE_TRIGGER_TP_PCT || '50') / 100));
+  const fractalTriggerDist = finalTpDist * beTriggerRatio;
   const beTriggerPrice = isLong ? (entryPrice + fractalTriggerDist) : (entryPrice - fractalTriggerDist);
-  const beFeeBuffer = (0.01 / effectiveLeverage) * entryPrice;
+  const beFeeBuffer = entryPrice * 0.0014; // Đệm phí round-trip thực tế 0.14% giá (độc lập với đòn bẩy)
   const beSlPrice = isLong ? (entryPrice + beFeeBuffer) : (entryPrice - beFeeBuffer);
 
   return {
@@ -2232,10 +2233,10 @@ async function startAutoTrade(coins) {
             if (meta && markPrice) {
               const entryPrice = parseFloat(order.price);
               const stepVal = meta.step || getStep(entryPrice);
-              const unit = stepVal / 3;
-              const touchThresholdPct = 0.15;             // fixed 0.15% — khoảng cách tuyệt đối từ entry (không phụ thuộc grid)
-              const bounceDistance = Math.max(unit * 0.40, entryPrice * 0.015); // Tối thiểu 1.50% nảy khỏi entry/điểm chạm để thích ứng đòn bẩy thấp (3x-7x)
-              const bouncePct = Math.max((bounceDistance / entryPrice) * 100, 1.50);
+              const touchThresholdPct = 0.15;             // fixed 0.15% — khoảng cách tuyệt đối từ entry
+              // Thống nhất 1 công thức bouncePct duy nhất với checkPendingLimits (chống 2 luồng tự reset bộ đếm của nhau)
+              const effGridPct = (meta.gridWidthPct && meta.gridWidthPct > 0) ? meta.gridWidthPct : ((stepVal / entryPrice) * 100);
+              const bouncePct = Math.min(Math.max(effGridPct * 0.35, 1.50), 3.00);
 
               if (order.side === 'BUY') {
                 // LONG: kiểm tra xem giá hiện tại có bật nảy đi xa mốc entry hay chưa
@@ -2548,11 +2549,15 @@ async function startAutoTrade(coins) {
           tierSetup = await calculateTierSLTP(sym, sig.signal, sig.targetLevel, h4Ref, tickSize, maxAllowed, 3.0, 1.5, rank, sig.gridWidthPct, null, tradeAmount);
         } catch (_) { }
 
+        if (!tierSetup || !tierSetup.valid) {
+          log.system(`[AutoTrade] 🛑 [Bỏ qua Đảo Chiều] ${sym} (${sig.signal}): calculateTierSLTP từ chối (${tierSetup?.reason || 'INVALID_SETUP'}) — không fallback 10x.`);
+          return;
+        }
         const step = sig.step || getStep(sig.targetLevel);
-        const slPrice = tierSetup?.valid ? tierSetup.slPrice : (sig.signal === 'LONG' ? sig.targetLevel - step : sig.targetLevel + step);
-        const tpPrice = tierSetup?.valid ? tierSetup.tpPrice : (sig.signal === 'LONG' ? sig.targetLevel + step * 1.5 : sig.targetLevel - step * 1.5);
-        const leverage = tierSetup?.leverage || 10;
-        const margin = tierSetup?.margin || 10;
+        const slPrice = tierSetup.slPrice;
+        const tpPrice = tierSetup.tpPrice;
+        const leverage = tierSetup.leverage;
+        const margin = tierSetup.margin;
 
         pendingReversals[sym] = {
           symbol: sym,
@@ -2643,9 +2648,17 @@ async function startAutoTrade(coins) {
       if (isLong && currentPrice > rev.entryPrice * 1.001) continue; // LONG: giá phải <= entry
       if (!isLong && currentPrice < rev.entryPrice * 0.999) continue; // SHORT: giá phải >= entry (không đuổi giá rơi sâu)
 
-      // Điều kiện 2: Giá chưa được chạm/vượt SL
-      if (isLong && currentPrice <= rev.slPrice) continue;
-      if (!isLong && currentPrice >= rev.slPrice) continue;
+      // Điều kiện 2: Phải còn >= 50% khoảng cách tới SL (chống vào MARKET sát SL khi mốc đã gãy sâu)
+      const origSlDist = Math.abs(rev.entryPrice - rev.slPrice);
+      const remSlDist = isLong ? (currentPrice - rev.slPrice) : (rev.slPrice - currentPrice);
+      if (origSlDist <= 0 || remSlDist < origSlDist * 0.50) continue;
+
+      // Điều kiện 2b: Tái kiểm tra toàn bộ chốt chặn rủi ro trước khi bắn MARKET đảo chiều
+      if (isSymbolInCooldown(sym)) continue;
+      if (isDirectionLocked(rev.direction)?.isLocked) continue;
+      if (isRealTradingSuspended()?.isSuspended) continue;
+      const btcFlashRevCheck = checkBtcFlashGatekeeper(rev.direction);
+      if (btcFlashRevCheck?.isBlocked) continue;
 
       inFlightReversals.add(sym);
       try {
@@ -3255,12 +3268,37 @@ async function startAutoTrade(coins) {
           h1VolRatio = avgVol24 > 0 ? (currH1.volume / avgVol24) : 1.0;
         }
 
+        // Suy diễn btcWave & trend thực tế từ btcTA & taSymbol (sửa bug 100% lệnh bị aiReviewer gán cứng BTC_COUNTER / TREND_NEUTRAL)
+        const isLongDir = sig.signal === 'LONG' || sig.signal === 'BUY';
+        let derivedBtcWave = 'BTC_NEUTRAL';
+        if (btcTA) {
+          const btcBull = btcTA.trend === 'TĂNG MẠNH' || btcTA.trend === 'TĂNG' || btcTA.regime === 'TRENDING_UP';
+          const btcBear = btcTA.trend === 'GIẢM MẠNH' || btcTA.trend === 'GIẢM' || btcTA.regime === 'TRENDING_DOWN';
+          if ((isLongDir && btcBull) || (!isLongDir && btcBear)) derivedBtcWave = 'BTC_ALIGNED';
+          else if ((isLongDir && btcBear) || (!isLongDir && btcBull)) derivedBtcWave = 'BTC_COUNTER';
+        }
+        let derivedTrend = 'TREND_NEUTRAL';
+        if (taSymbol) {
+          const symBull = taSymbol.trend === 'TĂNG MẠNH' || taSymbol.trend === 'TĂNG';
+          const symBear = taSymbol.trend === 'GIẢM MẠNH' || taSymbol.trend === 'GIẢM';
+          if ((isLongDir && symBull) || (!isLongDir && symBear)) {
+            derivedTrend = (taSymbol.trend === 'TĂNG MẠNH' || taSymbol.trend === 'GIẢM MẠNH') ? 'TREND_PERFECT' : 'TREND_EMA';
+          } else if ((isLongDir && symBear) || (!isLongDir && symBull)) {
+            derivedTrend = 'TREND_CONFLICT';
+          }
+        }
+        const btcM15Pct = (btcTA?.priceChange4h != null) ? Number((btcTA.priceChange4h / 4).toFixed(2)) : 0;
+
         rawMarketData = {
           lastM15: currM15,
           currM15,
           lastClosedM15,
           currH1,
           lastClosedH1,
+          h1Klines: klinesH1,
+          btcWave: derivedBtcWave,
+          btcM15Pct,
+          trend: derivedTrend,
           targetLevel: sig.targetLevel,
           step: sig.step,
           m15VolRatio,
@@ -3317,6 +3355,7 @@ async function startAutoTrade(coins) {
       }
       sig.actualSlPct = prelimSetup.slPct;
       sig.actualTpPct = prelimSetup.tpPct;
+      sig.leverage = prelimSetup.leverage;
 
       const marketMetrics = {
         m15RangePct: rawMarketData?.m15RangePct != null ? Number(rawMarketData.m15RangePct.toFixed(2)) : null,
@@ -3336,7 +3375,7 @@ async function startAutoTrade(coins) {
         rawMarketData.marketMetrics = marketMetrics;
         rawMarketData.signalMetrics = sig.signalMetrics || null;
         try {
-          rawMarketData.microstructure = await scanMicrostructure(sym, sig.targetLevel, prelimSetup?.tpPrice || 0, sig.signal);
+          rawMarketData.microstructure = await scanMicrostructure(sym, sig.targetLevel, prelimSetup?.tpPrice || 0, sig.signal, rank);
         } catch (_) { }
       }
 
@@ -3547,11 +3586,26 @@ async function startAutoTrade(coins) {
         }
 
         let order;
+        let finalEntryPrice = sig.targetLevel;
         if (orderType === 'MARKET') {
           order = await client.placeMarket(sym, side, qty);
         } else {
-          const dec = getDecimals(sig.targetLevel);
-          order = await client.placeLimit(sym, side, qty, sig.targetLevel, dec);
+          // Chống khớp Taker ngoài ý muốn: không đặt LIMIT BUY cao hơn markPrice (hoặc LIMIT SELL thấp hơn markPrice)
+          const liveMark = getMarkPrice(sym) || markPrice;
+          if (liveMark && liveMark > 0) {
+            const puncturedPct = side === 'BUY'
+              ? ((sig.targetLevel - liveMark) / sig.targetLevel) * 100
+              : ((liveMark - sig.targetLevel) / sig.targetLevel) * 100;
+            if (puncturedPct > 0.15) {
+              log.system(`[AutoTrade] 🛑 [Maker Guard] ${sym} (${sig.signal}): Giá hiện tại ($${liveMark}) đã đâm thủng qua mốc $${sig.targetLevel} (${puncturedPct.toFixed(2)}% > 0.15%) — hủy đặt LIMIT để tránh khớp Taker giữa đà xả.`);
+              return;
+            }
+            if (puncturedPct > 0) {
+              finalEntryPrice = side === 'BUY' ? (liveMark * 0.9995) : (liveMark * 1.0005);
+            }
+          }
+          const dec = getDecimals(finalEntryPrice);
+          order = await client.placeLimit(sym, side, qty, finalEntryPrice, dec);
         }
 
         activeSymbols.add(sym);
@@ -4291,11 +4345,11 @@ async function checkH1RetestSignals(client, activeSymbols, leverageInfo = {}, ac
         delete lowScoreWatchlist[sym];
         continue;
       }
-      const leverage = Math.max(1, Math.floor(39 / gridStepPct));
-      const maxFavorableRoi = maxFavorableMovePct * leverage;
-
-      if (maxFavorableRoi >= 5.0) {
-        log.system(`[H1Retest] ${sym} ${signal} nến H1 rút chân nhưng ĐÃ PHẢN ỨNG NẢY ROI = +${maxFavorableRoi.toFixed(2)}% (>= 5.0%) sau khi chạm entry. Bỏ qua không đặt limit.`);
+      // Dùng % biên độ bật nảy giá trực tiếp (1.50%) thay cho công thức đòn bẩy legacy 39/gridStepPct (bị thổi phồng 2x-4x)
+      const maxRetestBouncePct = parseFloat(process.env.H1_RETEST_MAX_BOUNCE_PCT || '1.50');
+      const maxFavorableRoi = maxFavorableMovePct; // giữ biến log tương thích
+      if (maxFavorableMovePct >= maxRetestBouncePct) {
+        log.system(`[H1Retest] ${sym} ${signal} nến H1 rút chân nhưng ĐÃ PHẢN ỨNG NẢY +${maxFavorableMovePct.toFixed(2)}% (>= ${maxRetestBouncePct}%) sau khi chạm entry. Bỏ qua không đặt limit.`);
         delete lowScoreWatchlist[sym];
         continue;
       }
@@ -4322,13 +4376,13 @@ async function checkH1RetestSignals(client, activeSymbols, leverageInfo = {}, ac
         continue;
       }
 
-      // ── BTC FLASH & TURNOVER GUARD CHO H1 RETEST: Chuyển giao toàn quyền cho AI Reviewer ──
+      // ── BTC FLASH & TURNOVER GUARD CHO H1 RETEST ──
       const turnoverCheckRetest = checkTurnoverGuard(sym);
       const nowTimeRetest = Date.now();
       const btcFlashPumpRetest = btcFlashState.isShortLocked && nowTimeRetest < btcFlashState.lockedUntil;
       const btcFlashDumpRetest = btcFlashState.isLongLocked && nowTimeRetest < btcFlashState.lockedUntil;
 
-      // ── AI Reviewer Machine Learning Offline (Retest H1) ──
+      // ── TÁI CHẤM ĐIỂM CONFLUENCE & HARD FILTERS MỚI NHẤT (không dùng lại score cũ từ 12 giờ trước) ──
       const isTier1Retest = isTop50Symbol(sym);
       const rank = watchData.marketCapRank || (getMarketCapRank ? getMarketCapRank(sym) : 999);
       const tradeAmountRetest = await getDynamicMargin(isTier1Retest, client);
@@ -4336,8 +4390,32 @@ async function checkH1RetestSignals(client, activeSymbols, leverageInfo = {}, ac
         ? parseFloat(process.env.MIN_CONFLUENCE_SCORE_TIER1 || process.env.MIN_CONFLUENCE_SCORE || '7.0')
         : parseFloat(process.env.MIN_CONFLUENCE_SCORE_TIER2 || '8.0');
 
-      if (typeof watchData.score === 'number' && watchData.score < minRequiredScoreRetest) {
-        log.system(`[AutoTrade (Retest H1)] 🛑 [Confluence Filter] ${sym} (${signal}): Score ${watchData.score}đ < ${minRequiredScoreRetest}đ — Bỏ qua`);
+      let freshScoreRetest = watchData.score;
+      let freshReasonsRetest = watchData.scoreReasons || [];
+      try {
+        const [taRetest, btcTaRetest, fundingRetest] = await Promise.all([
+          getSymbolTA(sym),
+          getBtcTA(),
+          getBinanceFundingRates().catch(() => ({}))
+        ]);
+        const reScore = scoreSetup(sym, signal, taRetest, null, null, fundingRetest?.[sym] ?? null, null, null, btcTaRetest, {
+          signal, targetLevel, step, gridWidthPct: gridStepPct
+        });
+        if (reScore?.disqualified) {
+          log.system(`[AutoTrade (Retest H1)] 🛑 [HardFilter] ${sym} (${signal}) bị loại khi tái kiểm tra: ${reScore.disqualifyReason}`);
+          delete lowScoreWatchlist[sym];
+          continue;
+        }
+        if (typeof reScore?.total === 'number') {
+          freshScoreRetest = reScore.total;
+          freshReasonsRetest = reScore.reasons || freshReasonsRetest;
+          watchData.score = freshScoreRetest;
+          watchData.scoreReasons = freshReasonsRetest;
+        }
+      } catch (_) {}
+
+      if (typeof freshScoreRetest === 'number' && freshScoreRetest < minRequiredScoreRetest) {
+        log.system(`[AutoTrade (Retest H1)] 🛑 [Confluence Filter] ${sym} (${signal}): Score tươi ${freshScoreRetest}đ < ${minRequiredScoreRetest}đ — Bỏ qua`);
         delete lowScoreWatchlist[sym];
         continue;
       }
@@ -4447,7 +4525,7 @@ async function checkH1RetestSignals(client, activeSymbols, leverageInfo = {}, ac
         rawMarketDataRetest.marketMetrics = marketMetricsRetest;
         rawMarketDataRetest.signalMetrics = sigForAI.signalMetrics || null;
         try {
-          rawMarketDataRetest.microstructure = await scanMicrostructure(sym, targetLevel, prelimRetest?.tpPrice || 0, signal);
+          rawMarketDataRetest.microstructure = await scanMicrostructure(sym, targetLevel, prelimRetest?.tpPrice || 0, signal, rank);
         } catch (_) { }
       }
 
@@ -4915,11 +4993,9 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
         }
       }
 
-      // 2.5 Kiểm tra Nến H1 Không Phản Ứng (Gãy cản 60% SL -> Dời TP về Entry hòa vốn có buffer bù phí)
-      //     Áp dụng thuần túy theo Giá Đóng Cửa (Close Price) của cây nến H1 đầu tiên đóng sau khi vào lệnh:
-      //     - LONG:  Đóng H1 <= Entry - 60% slDistance
-      //     - SHORT: Đóng H1 >= Entry + 60% slDistance
-      const invalidationDistance = meta?.slDistance ? (meta.slDistance * 0.60) : (unit * 0.60);
+      // 2.5 Kiểm tra Nến H1 Không Phản Ứng (Nới lên 75% SL thay vì 60% để tránh bán đúng đáy quét thanh khoản)
+      const h1InvalidPct = parseFloat(process.env.H1_INVALIDATION_SL_PCT || '0.75');
+      const invalidationDistance = meta?.slDistance ? (meta.slDistance * h1InvalidPct) : (unit * h1InvalidPct);
       if (meta && !meta.isH1Failed && !meta.isPanicEscape) {
         const nowMs = Date.now();
         if (!meta._lastH1Check || (nowMs - meta._lastH1Check >= 60000)) {
@@ -4939,13 +5015,13 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
                   const isClosedBelow = cClose <= (entryPrice - invalidationDistance);
                   if (isClosedBelow) {
                     meta.isH1Failed = true;
-                    log.system(`[AutoTrade] ⚠️ ${sym} LONG: Nến H1 đóng cửa gãy sâu 60% SL ($${cClose} <= $${(entryPrice - invalidationDistance).toFixed(6)}) -> Kích hoạt dời TP về Entry hòa vốn + buffer bù phí`);
+                    log.system(`[AutoTrade] ⚠️ ${sym} LONG: Nến H1 đóng cửa gãy sâu ${(h1InvalidPct * 100).toFixed(0)}% SL ($${cClose} <= $${(entryPrice - invalidationDistance).toFixed(6)}) -> Kích hoạt dời TP về Entry hòa vốn + buffer bù phí`);
                   }
                 } else {
                   const isClosedAbove = cClose >= (entryPrice + invalidationDistance);
                   if (isClosedAbove) {
                     meta.isH1Failed = true;
-                    log.system(`[AutoTrade] ⚠️ ${sym} SHORT: Nến H1 đóng cửa gãy sâu 60% SL ($${cClose} >= $${(entryPrice + invalidationDistance).toFixed(6)}) -> Kích hoạt dời TP về Entry hòa vốn + buffer bù phí`);
+                    log.system(`[AutoTrade] ⚠️ ${sym} SHORT: Nến H1 đóng cửa gãy sâu ${(h1InvalidPct * 100).toFixed(0)}% SL ($${cClose} >= $${(entryPrice + invalidationDistance).toFixed(6)}) -> Kích hoạt dời TP về Entry hòa vốn + buffer bù phí`);
                   }
                 }
               }
@@ -5050,7 +5126,10 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
         } else {
           targetTpPriceExact = meta.tierTpPrice;
         }
-        trailTriggerPriceExact = meta.beTriggerPrice;
+        const bePctCfg = Math.max(0.35, Math.min(0.85, parseFloat(process.env.BE_TRIGGER_TP_PCT || '50') / 100));
+        trailTriggerPriceExact = isLong
+          ? Number((entryPrice + Math.abs(meta.tierTpPrice - entryPrice) * bePctCfg).toFixed(8))
+          : Number((entryPrice - Math.abs(meta.tierTpPrice - entryPrice) * bePctCfg).toFixed(8));
         // 🌊 M15 FRACTAL WAVE TRAILING SL:
         // SL bám theo đáy/đỉnh sóng Williams Fractal 5 nến đã xác nhận trên M15
         const staleBePrice = isLong ? Number((entryPrice + beBuffer).toFixed(8)) : Number((entryPrice - beBuffer).toFixed(8));
@@ -5388,14 +5467,17 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
               }
             }
 
-            // 2. Mở rộng TP lên TP2 (+1.2 unit ~ 2.4 - 2.7R)
-            const extendedTpDistance = unit * (tpMultiplier + 1.2);
+            // 2. Mở rộng TP lên TP2 dựa theo khoảng cách TP1 / SL thực tế (TUYỆT ĐỐI không dùng unit cũ tránh đặt TP2 thấp hơn TP1)
+            const curTp1Dist = Math.max(Math.abs(targetTpPriceExact - entryPrice), Math.abs(markPrice - entryPrice));
+            const refSlDist = meta?.slDistance || (curTp1Dist / 1.5);
+            const extendedTpDistance = Math.max(curTp1Dist * 1.5, refSlDist * 2.5);
             const targetTp2 = isLong
               ? Number((entryPrice + extendedTpDistance).toFixed(8))
               : Number((entryPrice - extendedTpDistance).toFixed(8));
 
-            // Khóa SL bảo đảm lãi (+50% ticks tới TP1: entry +/- unit * 0.50)
-            const lockedSlDistance = unit * 0.50;
+            // Khóa SL bảo đảm lãi an toàn phía sau markPrice (50% quãng đường TP1, tối đa 65% lãi hiện tại)
+            const curGainDist = Math.abs(markPrice - entryPrice);
+            const lockedSlDistance = Math.min(curTp1Dist * 0.50, curGainDist * 0.65);
             const lockedSlPrice = isLong
               ? Number((entryPrice + lockedSlDistance).toFixed(8))
               : Number((entryPrice - lockedSlDistance).toFixed(8));
@@ -5465,6 +5547,14 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
 
             continue; // Bỏ qua đóng vị thế toàn phần, tiếp tục gồng!
           }
+        }
+
+        // Nếu trên sàn đã có sẵn lệnh LIMIT TP (Maker fee 0.02%) và không phải thoát hiểm đặc biệt,
+        // nhường sàn tự khớp LIMIT Maker (chỉ đóng MARKET dự phòng nếu giá đã vượt quá TP >= 0.25% mà sàn chưa khớp)
+        const hasRealMakerLimitTp = !isDefensiveExit && !meta?.isDefensiveBeActive && realTpOrders.some(o => !o.isAlgo && o.type === 'LIMIT');
+        const farPastTp = isLong ? (markPrice >= targetTpPriceExact * 1.0025) : (markPrice <= targetTpPriceExact * 0.9975);
+        if (hasRealMakerLimitTp && !farPastTp) {
+          continue;
         }
 
         const exitLabel = meta?.isTrendRunner ? 'Trend Runner TP2 (Full Win)' : (meta?.isDefensiveBeActive ? 'Thoát Hiểm Hòa Vốn (Giai Đoạn 1)' : (meta?.isPanicEscape ? 'Thoát Hiểm Entry' : (meta?.isH1Failed ? 'Hòa Vốn Entry' : 'Take Profit')));
@@ -5562,12 +5652,11 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
       // Dùng peakPrice (giá đỉnh/đáy tốt nhất được theo dõi liên tục) thay vì chỉ markPrice hiện tại.
       const peakPrice = meta?.maxFavorablePrice || markPrice;
 
-      // a. Ngưỡng Kích hoạt Trailing SL cơ bản (kèm đệm 5 ticks để tránh trượt WebSocket)
-      const triggerBuffer = unit * 0.05;
+      // a. Ngưỡng Kích hoạt Trailing SL & Risk-Free BE chuẩn xác tại mốc BE_TRIGGER_TP_PCT (mặc định 50% TP)
       const isTrailTriggerReached = (typeof trailTriggerPriceExact === 'number' && trailTriggerPriceExact > 0)
         ? (isLong
-          ? (peakPrice >= trailTriggerPriceExact - triggerBuffer)
-          : (peakPrice <= trailTriggerPriceExact + triggerBuffer))
+          ? (peakPrice >= trailTriggerPriceExact)
+          : (peakPrice <= trailTriggerPriceExact))
         : false;
 
       // 🎯 0. HỖ TRỢ PARTIAL TP (Chốt lời 50% khi chạm mốc Trailing Trigger)
@@ -5610,22 +5699,22 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
         }
       }
 
-      // 🌊 QUÉT CẤU TRÚC SÓNG FRACTAL BẬC THANG (DUAL H1 & M15 STRUCTURE TRAILING) KHI ĐẠT >= 35% TP
-      // Triệt tiêu việc kéo SL non khi chưa có lãi.
-      // - Đạt 35% TP: Khóa ngay mốc hòa vốn Risk-Free (Entry +- 1% phí)
-      // - 35% -> 70% TP: Thang cuốn bám theo Đáy sóng H1 Williams Fractal (loại bỏ M1/M5 nhiễu)
-      // - > 70% TP: Thang cuốn siết theo Đáy sóng M15 Williams Fractal để bảo vệ thành quả
+      // 🌊 QUÉT CẤU TRÚC SÓNG FRACTAL BẬC THANG (DUAL H1 & M15 STRUCTURE TRAILING) KHI ĐẠT >= 50% TP
+      // - Đạt 50% TP (cấu hình BE_TRIGGER_TP_PCT): Khóa ngay mốc hòa vốn Risk-Free (Entry ± 0.14% phí thực)
+      // - 50% -> 70% TP: Thang cuốn bám theo Đáy sóng H1 Williams Fractal (loại bỏ M1/M5 nhiễu)
+      // - >= 70% TP: Thang cuốn siết theo Đáy sóng M15 Williams Fractal để bảo vệ thành quả
       if (ENABLE_TRAILING_BE && (isTrailTriggerReached || meta?.isBeTriggered)) {
+        const beTriggerPctCfg = parseFloat(process.env.BE_TRIGGER_TP_PCT || '50');
         if (meta && !meta.isBeTriggered) {
           meta.isBeTriggered = true;
-          // Kích hoạt mốc hòa vốn an toàn ngay lập tức (Risk-Free: Entry +- 1% phí)
-          const beBuffer = (0.01 / Math.max(1, leverageVal)) * entryPrice;
-          const initialBeSl = isLong ? (entryPrice + beBuffer) : (entryPrice - beBuffer);
+          // Kích hoạt mốc hòa vốn an toàn bằng đệm phí round-trip thực tế 0.14% giá (độc lập với đòn bẩy)
+          const beFeeDist = entryPrice * 0.0014;
+          const initialBeSl = isLong ? (entryPrice + beFeeDist) : (entryPrice - beFeeDist);
           if (!meta.fractalSlPrice || (isLong ? initialBeSl > meta.fractalSlPrice : initialBeSl < meta.fractalSlPrice)) {
             meta.fractalSlPrice = initialBeSl;
-            meta.fractalTf = 'BREAKEVEN_35PCT';
+            meta.fractalTf = `BREAKEVEN_${Math.round(beTriggerPctCfg)}PCT`;
           }
-          log.system(`[AutoTrade] 🌊 [Fractal Trailing SL] ${sym} (${isLong ? 'LONG' : 'SHORT'}) chạm ngưỡng 35% TP -> Khóa hòa vốn Risk-Free @ $${initialBeSl.toFixed(5)} & kích hoạt Trailing H1/M15!`);
+          log.system(`[AutoTrade] 🌊 [Fractal Trailing SL] ${sym} (${isLong ? 'LONG' : 'SHORT'}) chạm ngưỡng ${beTriggerPctCfg}% TP -> Khóa hòa vốn Risk-Free @ $${initialBeSl.toFixed(5)} & kích hoạt Trailing H1/M15!`);
           saveActiveTradesMetadata();
         }
 
@@ -5645,7 +5734,7 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
 
             // 1. Phân tầng theo quãng đường tiến tới TP:
             if (progressPct >= 70) {
-              // Vùng áp sát đích (> 70% TP): Siết chặt theo M15 Williams Fractal
+              // Vùng áp sát đích (>= 70% TP): Siết chặt theo M15 Williams Fractal
               const m15s = await fetchBinanceKlines(sym, '15m', null, 30);
               const m15Swing = (m15s && m15s.length >= 6) ? fn(m15s, isLong) : null;
               if (m15Swing && typeof m15Swing.price === 'number') {
@@ -5653,7 +5742,7 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
                 bestCand = { sl, tf: 'M15_FRACTAL', pivotPrice: m15Swing.price };
               }
             } else {
-              // Vùng bung sóng (35% -> 70% TP): Bám theo cấu trúc H1 Williams Fractal xương sống
+              // Vùng bung sóng (50% -> 70% TP): Bám theo cấu trúc H1 Williams Fractal xương sống
               const h1s = await fetchBinanceKlines(sym, '1h', null, 30);
               const h1Swing = (h1s && h1s.length >= 6) ? fn(h1s, isLong) : null;
               if (h1Swing && typeof h1Swing.price === 'number') {
@@ -5662,12 +5751,12 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
               }
             }
 
-            // 2. Chốt chặn sàn tối thiểu (Floor Guard): Nếu chưa tạo cụm Fractal nào tốt hơn, giữ nguyên Entry + 1% phí
-            const beBuffer = (0.01 / Math.max(1, leverageVal)) * entryPrice;
-            const riskFreeSl = isLong ? (entryPrice + beBuffer) : (entryPrice - beBuffer);
+            // 2. Chốt chặn sàn tối thiểu (Floor Guard): Entry ± 0.14% phí thực
+            const beFeeDist = entryPrice * 0.0014;
+            const riskFreeSl = isLong ? (entryPrice + beFeeDist) : (entryPrice - beFeeDist);
 
             if (!bestCand) {
-              bestCand = { sl: riskFreeSl, tf: 'BREAKEVEN_35PCT', pivotPrice: riskFreeSl };
+              bestCand = { sl: riskFreeSl, tf: `BREAKEVEN_${Math.round(beTriggerPctCfg)}PCT`, pivotPrice: riskFreeSl };
             }
 
             if (bestCand) {

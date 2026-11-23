@@ -59,7 +59,7 @@ async function run() {
   const dashNew = require('../src/dashboard/server');
   const rateGuardNew = require('../src/services/rateLimitGuard');
 
-  await test('bot-new: BE @ 35% TP thực thi đặt SL hòa vốn thật lên sàn (không còn bị short-circuit)', async () => {
+  await test('bot-new: BE @ 50% TP không kích hoạt non ở 40% TP, chỉ khóa BE ở >= 50% TP với đệm phí thực 0.14% giá', async () => {
     const calls = [];
     const mockClient = {
       cancelAlgoOrder: async (sym, id) => { calls.push(['cancel', sym, id]); },
@@ -75,25 +75,40 @@ async function run() {
       status: 'active',
       entryFilled: true,
       entryPrice: 2000,
-      targetPrice: 2100, // +100 -> 35% TP = 2035
+      targetPrice: 2100, // +100 -> 50% TP = 2050
       slPrice: 1950,
       leverage: 10,
       binanceSlOrderId: 'old_sl_1',
     };
-    const res = await tradeMonitorNew.checkAndApplyFractalTrailingSL(trade, 2040, {
+    // 40% TP (2040) -> CHƯA đủ 50% TP, không được kéo BE sớm
+    const resEarly = await tradeMonitorNew.checkAndApplyFractalTrailingSL(trade, 2040, {
       forceEnable: true,
       forceCheck: true,
       skipSave: true,
       silent: true,
       client: mockClient,
-      h1Candles: [], // Chưa có fractal swing -> chỉ chạy Stage 1 BE 35%
+      h1Candles: [],
+      retryDelayMs: 1,
+    });
+    assert.strictEqual(resEarly.moved, false);
+    assert.strictEqual(resEarly.reason, 'BELOW_BE_TRIGGER');
+    assert.strictEqual(calls.length, 0);
+
+    // 55% TP (2055) -> Đạt ngưỡng >= 50% TP, kéo BE = 2000 * 1.0014 = 2002.8
+    const res = await tradeMonitorNew.checkAndApplyFractalTrailingSL(trade, 2055, {
+      forceEnable: true,
+      forceCheck: true,
+      skipSave: true,
+      silent: true,
+      client: mockClient,
+      h1Candles: [], // Chưa có fractal swing -> chỉ chạy Stage 1 BE 50%
       retryDelayMs: 1,
     });
     assert.strictEqual(res.moved, true);
     assert.strictEqual(res.stage, 'BREAKEVEN');
     assert.strictEqual(trade.slMovedToBreakeven, true);
     assert.strictEqual(trade.binanceSlOrderId, '9000000000000000123');
-    assert.ok(trade.slPrice > 2000, `Expected BE SL > 2000, got ${trade.slPrice}`);
+    assert.strictEqual(trade.slPrice, 2002.8, `Expected exact 0.14% fee buffer BE SL 2002.8, got ${trade.slPrice}`);
     assert.ok(calls.some(c => c[0] === 'cancel' && c[2] === 'old_sl_1'));
     assert.ok(calls.some(c => c[0] === 'placeStop' && c[3] === 'STOP_MARKET'));
   });
@@ -290,17 +305,95 @@ async function run() {
     assert.ok(!src.includes('AAGTEgJNmAegGPmWUgvd3Lpvtbefv-yn6pg'), 'Không được chứa hardcoded Telegram Bot Token');
   });
 
-  await test('bot-h4: aiReviewer áp dụng spreadWideMult cho SPREAD_WIDE_DANGER & xuất expectedValueRoi', async () => {
+  await test('bot-h4: aiReviewer áp dụng spreadWideMult cho SPREAD_WIDE_DANGER & xuất expectedValueRoi thực tế', async () => {
     const resTight = aiReviewerH4.evaluateSignalWithAI(
-      { symbol: 'BTC', signal: 'LONG', score: 9.0, marketCapRank: 1, gridWidthPct: 3.0, targetLevel: 60000, scoreReasons: [] },
+      { symbol: 'BTC', signal: 'LONG', score: 9.0, marketCapRank: 1, gridWidthPct: 3.0, targetLevel: 60000, slPct: 2.0, tpPct: 4.0, leverage: 5, scoreReasons: [] },
       { microstructure: { spread: 'SPREAD_TIGHT_SAFE', wall: 'WALL_CLEAR_PATH' } }
     );
     const resWide = aiReviewerH4.evaluateSignalWithAI(
-      { symbol: 'BTC', signal: 'LONG', score: 9.0, marketCapRank: 1, gridWidthPct: 3.0, targetLevel: 60000, scoreReasons: [] },
+      { symbol: 'BTC', signal: 'LONG', score: 9.0, marketCapRank: 1, gridWidthPct: 3.0, targetLevel: 60000, slPct: 2.0, tpPct: 4.0, leverage: 5, scoreReasons: [] },
       { microstructure: { spread: 'SPREAD_WIDE_DANGER', wall: 'WALL_CLEAR_PATH' } }
     );
     assert.ok(typeof resTight.expectedValueRoi === 'number', 'Phải trả về expectedValueRoi');
     assert.ok(resWide.winProbability < resTight.winProbability, `SPREAD_WIDE_DANGER (${resWide.winProbability}%) phải thấp hơn SPREAD_TIGHT_SAFE (${resTight.winProbability}%)`);
+
+    // Kiểm tra Net EV trừ phí thực 0.12% theo đòn bẩy thực (SL 2%, TP 2% với WinProb thấp -> EV âm -> từ chối)
+    const resNegEv = aiReviewerH4.evaluateSignalWithAI(
+      { symbol: 'ALT', signal: 'LONG', score: 5.5, marketCapRank: 120, gridWidthPct: 2.0, targetLevel: 1.0, slPct: 3.0, tpPct: 1.5, leverage: 10, scoreReasons: [] },
+      { microstructure: { spread: 'SPREAD_WIDE_DANGER', wall: 'WALL_BLOCKING_TARGET' } }
+    );
+    assert.ok(resNegEv.expectedValueRoi < 0.5, `Kèo R:R 0.5 + wall chặn phải có Net EV < 0.5%, thực tế: ${resNegEv.expectedValueRoi}%`);
+    assert.strictEqual(resNegEv.isApproved, false, 'Kèo Net EV âm phải bị từ chối');
+  });
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // PART C: BUSINESS LOGIC UPGRADES (GÓI A Ý 1-2 & GÓI C Ý 1-2)
+  // ═══════════════════════════════════════════════════════════════════════════
+  const scorerNew = require('../src/services/confluenceScorer');
+  const gatekeeperNew = require('../src/services/riskGatekeeper');
+  const bounceCancelNew = require('../src/services/bounceCancel');
+  const scorerH4 = require('../../src/pp369/confluenceScorer');
+
+  await test('Gói A Ý 1: Đối xứng BTC Uptrend SHORT Veto hoạt động trên CẢ bot-new và bot-h4', async () => {
+    const bullBtcTA = {
+      aboveEMA200: true,
+      regime: 'TRENDING_UP',
+      rsi: { '1d': 58, '4h': 60 },
+      ema: { e7: 100000, e25: 98000, e99: 94000, e200d: 85000 },
+    };
+    const altTA = {
+      price: 100,
+      aboveEMA200: false,
+      ema: { e7: 98, e25: 101, e99: 105, e200d: 110 },
+      ema1h: { e7: 99, e25: 100.5 },
+      rsi: { '4h': 48, '1d': 45 },
+      bb: { bandwidth: 5 },
+    };
+
+    const resNew = scorerNew.scoreSetup('SOL', 'SHORT', altTA, {}, {}, null, {}, {}, bullBtcTA, null);
+    assert.strictEqual(resNew.disqualified, true, 'bot-new phải VETO Altcoin SHORT khi BTC đang TRENDING_UP trên EMA200D');
+    assert.ok(resNew.disqualifyReason && resNew.disqualifyReason.includes('BTC'), `Lý do veto phải nhắc BTC: ${resNew.disqualifyReason}`);
+
+    const resH4 = scorerH4.scoreSetup('SOL', 'SHORT', altTA, {}, {}, null, {}, {}, bullBtcTA, null);
+    assert.strictEqual(resH4.disqualified, true, 'bot-h4 phải VETO Altcoin SHORT khi BTC đang TRENDING_UP trên EMA200D');
+    assert.ok(resH4.disqualifyReason && resH4.disqualifyReason.includes('BTC'), `Lý do veto phải nhắc BTC: ${resH4.disqualifyReason}`);
+  });
+
+  await test('Gói A Ý 1: bot-h4 calcTAFromKlines tính và trả về ema1h.e7 / ema1h.e25 đầy đủ', async () => {
+    const mk = (n, start, step) => Array.from({ length: n }, (_, i) => ({
+      t: i * 3600_000, o: start + i * step, h: start + i * step + 1, l: start + i * step - 1, c: start + i * step + 0.5, v: 1000
+    }));
+    const ta = scorerH4.calcTAFromKlines('ETH', mk(60, 2000, 2), mk(120, 1800, 3), mk(220, 1200, 4), null);
+    assert.ok(ta.ema1h && typeof ta.ema1h.e7 === 'number' && typeof ta.ema1h.e25 === 'number', 'bot-h4 TA phải có ema1h.e7 và ema1h.e25');
+    assert.ok(ta.ema && typeof ta.ema.e200d === 'number', 'bot-h4 TA với 220 nến D1 phải tính được EMA200D');
+    assert.strictEqual(ta.aboveEMA200, true, 'Giá tăng đều trên EMA200D phải trả aboveEMA200 = true');
+  });
+
+  await test('Gói C Ý 1: bounceCancel.addLevelCooldown khóa tái đặt lệnh sau LIMIT Timeout', async () => {
+    bounceCancelNew.clearBounceCooldowns();
+    bounceCancelNew.addLevelCooldown('TESTCOIN', 123.45, 30 * 60_000);
+    assert.strictEqual(bounceCancelNew.isLevelBounceCooldown('TESTCOIN', 123.45), true, 'Mốc vừa bị timeout phải đang trong trạng thái cooldown');
+    const activeCds = bounceCancelNew.getBounceCooldowns();
+    const entry = activeCds.find(c => c.key === 'TESTCOIN_123.45');
+    assert.ok(entry && entry.remainingMins >= 25 && entry.remainingMins <= 30, `Remaining cooldown phải ~30m, thực tế: ${JSON.stringify(entry)}`);
+    bounceCancelNew.clearBounceCooldowns();
+  });
+
+  await test('Gói C Ý 2: bot-new riskGatekeeper trả expectedValueRoi & chặn kèo Net EV âm sau phí 0.12%', async () => {
+    const badEv = gatekeeperNew.evaluateSignal(
+      { symbol: 'ALT', signal: 'LONG', targetLevel: 1.0, score: 6.5, marketCapRank: 80, slPct: 4.0, tpPct: 1.0, leverage: 10 },
+      { spreadPct: 0.02 }
+    );
+    assert.ok(typeof badEv.expectedValueRoi === 'number', 'riskGatekeeper phải trả expectedValueRoi');
+    assert.ok(badEv.expectedValueRoi < 0.5, `R:R 0.25 phải có Net EV < 0.5%, thực tế: ${badEv.expectedValueRoi}%`);
+    assert.strictEqual(badEv.isApproved, false, 'Kèo Net EV âm phải bị Gatekeeper chặn');
+  });
+
+  await test('Gói C Ý 2: train_ai_model.py không còn hardcode Telegram Token & giảm trọng số Shadow xuống <= 0.40', async () => {
+    const pySrc = fs.readFileSync(path.join(__dirname, '..', '..', 'scripts', 'train_ai_model.py'), 'utf8');
+    assert.ok(!pySrc.includes('AAGTEgJNmAegGPmWUgvd3Lpvtbefv-yn6pg'), 'train_ai_model.py không được hardcode Telegram Bot Token');
+    assert.ok(!pySrc.includes('1663202780'), 'train_ai_model.py không được hardcode Telegram Chat ID');
+    assert.ok(pySrc.includes('0.40') && pySrc.includes('--bot'), 'train_ai_model.py phải giảm trọng số shadow (0.40) và hỗ trợ --bot');
   });
 
   console.log(`\n📊 Audit Regression Summary: ${passed} passed, ${failed} failed\n`);

@@ -11,26 +11,18 @@ const HEADERS   = { 'User-Agent': 'crypto-news-bot/1.0' };
 const BAR_MAP   = { '1h': '1H', '4h': '4H', '1d': '1D', '1w': '1W' }; // OKX format
 const STABLECOINS = new Set(['USDT','USDC','BUSD','DAI','TUSD','FDUSD','USDP','FRAX','USDD','GUSD','PYUSD','USDS','USDE','USDX','SUSD']);
 
-// ─── Shared Disk Persistence với bot-h4 (data/*_history_cache.json) ───────────
-
+// ─── Isolated Disk Persistence cho bot-new (bot_new/data/*_history_cache.json) ───
+// Tuyệt đối không ghi đè thư mục data/ gốc của bot-h4 để tránh cắt ngắn cache H1/H4/D1 của bot-h4
 function resolveDataDir() {
-  const candidates = [
-    path.resolve(__dirname, '../../../data'), // từ bot_new/src/collectors/ lên root/data
-    path.resolve(process.cwd(), 'data'),      // từ CWD/data
-    path.resolve(__dirname, '../../data'),    // bot_new/data
-  ];
-  for (const dir of candidates) {
-    if (fs.existsSync(dir)) return dir;
-  }
-  return candidates[0];
+  return path.resolve(__dirname, '../../data');
 }
 
 const DATA_DIR = resolveDataDir();
 
 const CACHE_CONFIGS = {
-  '1h': { file: path.join(DATA_DIR, 'h1_history_cache.json'), maxKeep: 100, intervalMs: 60 * 60 * 1000 },
-  '4h': { file: path.join(DATA_DIR, 'h4_history_cache.json'), maxKeep: 200, intervalMs: 4 * 60 * 60 * 1000 },
-  '1d': { file: path.join(DATA_DIR, 'd1_history_cache.json'), maxKeep: 120, intervalMs: 24 * 60 * 60 * 1000 },
+  '1h': { file: path.join(DATA_DIR, 'h1_history_cache.json'), maxKeep: 300, intervalMs: 60 * 60 * 1000 },
+  '4h': { file: path.join(DATA_DIR, 'h4_history_cache.json'), maxKeep: 300, intervalMs: 4 * 60 * 60 * 1000 },
+  '1d': { file: path.join(DATA_DIR, 'd1_history_cache.json'), maxKeep: 250, intervalMs: 24 * 60 * 60 * 1000 },
   '1w': { file: path.join(DATA_DIR, 'w1_history_cache.json'), maxKeep: 52,  intervalMs: 7 * 24 * 60 * 60 * 1000 },
 };
 
@@ -239,18 +231,30 @@ async function getOI(symbol) {
   // 1. Binance primary (bỏ qua nếu IP đang hạ nhiệt/khóa)
   if (!isIpBanned()) {
     try {
-      const [oiRes, priceRes] = await Promise.all([
+      const [oiRes, priceRes, histRes] = await Promise.all([
         axios.get(`${BINANCE}/fapi/v1/openInterest`, {
           params: { symbol: `${symbol}USDT` }, timeout: 8000,
         }),
         axios.get(`${BINANCE}/fapi/v1/premiumIndex`, {
           params: { symbol: `${symbol}USDT` }, timeout: 8000,
         }),
+        axios.get(`${BINANCE}/futures/data/openInterestHist`, {
+          params: { symbol: `${symbol}USDT`, period: '1h', limit: 25 }, timeout: 6000,
+        }).catch(() => null),
       ]);
       const oi    = parseFloat(oiRes.data?.openInterest);
       const price = parseFloat(priceRes.data?.markPrice);
+      let change24h = null;
+      const hist = Array.isArray(histRes?.data) ? histRes.data : [];
+      if (hist.length >= 2) {
+        const firstOi = parseFloat(hist[0]?.sumOpenInterestValue || hist[0]?.sumOpenInterest || 0);
+        const lastOi  = parseFloat(hist[hist.length - 1]?.sumOpenInterestValue || hist[hist.length - 1]?.sumOpenInterest || 0);
+        if (firstOi > 0 && lastOi > 0) {
+          change24h = parseFloat(((lastOi - firstOi) / firstOi * 100).toFixed(2));
+        }
+      }
       if (oi && price) {
-        const result = { valueMil: oi * price / 1e6, change24h: null };
+        const result = { valueMil: oi * price / 1e6, change24h };
         _oiCache.set(symbol, { ts: Date.now(), data: result });
         return result;
       }
@@ -641,7 +645,7 @@ async function getFullTA(symbol) {
   const [k1h, k4h, k1d, k1w] = await Promise.all([
     getKlines(cleanSym, '1h', 100).catch(() => null),
     getKlines(cleanSym, '4h', 200).catch(() => null),
-    getKlines(cleanSym, '1d', 120).catch(() => null),
+    getKlines(cleanSym, '1d', 220).catch(() => null),
     getKlines(cleanSym, '1w', 52).catch(() => null),
   ]);
   const ta = calcTAFromKlines(cleanSym, k1h, k4h, k1d, k1w);

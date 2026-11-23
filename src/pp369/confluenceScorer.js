@@ -137,13 +137,16 @@ function checkHardFilters(symbol, direction, ta, fundingRates, whaleData, btcTA)
     return `Cross-signal PHÂN KỲ (OKX ↔ Binance ngược chiều)`;
   }
 
-  // ④ Áp lực BTC Downtrend (BTC Headwind Veto)
-  // Nếu BTC nằm dưới EMA200 1D, nến 4h xu hướng giảm mạnh (regime = TRENDING_DOWN) và RSI 1D > 35
-  // → CẤM TUYỆT ĐỐI MỌI LỆNH LONG TRÊN ALTCOIN (ngoại trừ BTC và ETH)
-  if (isLong && cleanSym !== 'BTC' && cleanSym !== 'ETH' && btcTA) {
+  // ④ Áp lực BTC Trend đối xứng (BTC Headwind Veto — cả Downtrend lẫn Uptrend)
+  // - BTC dưới EMA200D + TRENDING_DOWN (RSI1D > 35) → CẤM LONG ALTCOIN
+  // - BTC trên EMA200D + TRENDING_UP (RSI1D < 65)   → CẤM SHORT ALTCOIN
+  if (cleanSym !== 'BTC' && cleanSym !== 'ETH' && btcTA) {
     const btcRsi1d = btcTA.rsi?.['1d'] ?? 50;
-    if (btcTA.aboveEMA200 === false && btcTA.regime === 'TRENDING_DOWN' && btcRsi1d > 35) {
+    if (isLong && btcTA.aboveEMA200 === false && btcTA.regime === 'TRENDING_DOWN' && btcRsi1d > 35) {
       return `BTC dưới EMA200D + TRENDING_DOWN (RSI1D=${btcRsi1d.toFixed(0)}) — CẤM LONG ALTCOIN`;
+    }
+    if (!isLong && btcTA.aboveEMA200 === true && btcTA.regime === 'TRENDING_UP' && btcRsi1d < 65) {
+      return `BTC trên EMA200D + TRENDING_UP (RSI1D=${btcRsi1d.toFixed(0)}) — CẤM SHORT ALTCOIN`;
     }
   }
 
@@ -369,6 +372,8 @@ function calcTAFromKlines(symbol, raw1h, raw4h, raw1d, raw1w) {
   const ema25 = calcEMA(c4h, 25);
   const ema99 = calcEMA(c4h, 99);
   const ema200d = c1d ? calcEMA(c1d, 200) : null;
+  const ema7_1h = c1h ? calcEMA(c1h, 7) : null;
+  const ema25_1h = c1h ? calcEMA(c1h, 25) : null;
 
   let trend = 'SIDEWAY';
   if (ema7 && ema25) {
@@ -408,6 +413,7 @@ function calcTAFromKlines(symbol, raw1h, raw4h, raw1d, raw1w) {
     symbol, price, trend, aboveEMA200,
     rsi: { '1h': rsi1h, '4h': rsi4h, '1d': rsi1d },
     ema: { e7: ema7, e25: ema25, e99: ema99, e200d: ema200d },
+    ema1h: { e7: ema7_1h, e25: ema25_1h },
     macd: macd4h,
     bb: bb4h,
     atr: atr4h,

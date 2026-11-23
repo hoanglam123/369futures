@@ -51,12 +51,15 @@ if sys.platform == 'win32':
     sys.stdout.reconfigure(encoding='utf-8')
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-DATASET_PATH = os.path.join(BASE_DIR, "data", "ai_trade_dataset.jsonl")
-SKIPPED_PATH = os.path.join(BASE_DIR, "data", "skipped_signals.jsonl")
+TARGET_BOT = "bot-new" if ("--bot=bot-new" in sys.argv or ("--bot" in sys.argv and sys.argv[sys.argv.index("--bot") + 1] == "bot-new")) else "bot-h4"
+DATA_DIR = os.path.join(BASE_DIR, "bot_new", "data") if TARGET_BOT == "bot-new" else os.path.join(BASE_DIR, "data")
+
+DATASET_PATH = os.path.join(DATA_DIR, "ai_trade_dataset.jsonl")
+SKIPPED_PATH = os.path.join(DATA_DIR, "skipped_signals.jsonl")
 MINED_PATH = os.path.join(BASE_DIR, "data", "ai_mined_dataset.jsonl")
-SHADOW_PATH = os.path.join(BASE_DIR, "data", "shadow_trades_history.jsonl")
+SHADOW_PATH = os.path.join(DATA_DIR, "shadow_trades_history.jsonl")
 STEP_SIZES_PATH = os.path.join(BASE_DIR, "data", "step_sizes.json")
-OUTPUT_MODEL_PATH = os.path.join(BASE_DIR, "data", "ai_rule_config.json")
+OUTPUT_MODEL_PATH = os.path.join(DATA_DIR, "ai_rule_config.json")
 
 def load_grid_steps():
     if os.path.exists(STEP_SIZES_PATH):
@@ -763,7 +766,8 @@ def train_and_export_model():
                             rec.get("marketMetrics") is not None or
                             (rec.get("signalMetrics") and rec["signalMetrics"].get("m15CandleGeometry"))
                         )
-                        sample_weight = 2.5 if is_post_update else 0.5
+                        # Giảm trọng số Shadow Trades xuống 0.40/0.10 (bỏ 2.5x cũ gây ô nhiễm prior & đảo ngược WinRate nhãn rủi ro)
+                        sample_weight = 0.40 if is_post_update else 0.10
                         if is_post_update:
                             post_update_shadow_count += 1
 
@@ -1140,12 +1144,13 @@ def get_telegram_creds():
                                 chat_id = v
             except Exception:
                 pass
-    token = token or '8974388983:AAGTEgJNmAegGPmWUgvd3Lpvtbefv-yn6pg'
-    chat_id = chat_id or '1663202780'
-    return token, chat_id
+    return token or '', chat_id or ''
 
 def send_telegram_alert(message_html):
     bot_token, chat_id = get_telegram_creds()
+    if not bot_token or not chat_id:
+        print("⚠️ [Telegram] Thiếu TELEGRAM_BOT_TOKEN hoặc TELEGRAM_CHAT_ID trong .env — bỏ qua gửi cảnh báo.")
+        return
     url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
     payload = {
         "chat_id": chat_id,
@@ -1685,7 +1690,12 @@ def calibrate_optimal_thresholds(base_dir, feature_weights=None, prior_odds=1.3,
                         if holding_mins > 240: continue
                         is_win = outcome in ["MISSED_TP", "TP"]
                         is_be = outcome in ["SAVED_BE", "BE"]
-                        pnl = float(rec.get("pnlUsd") or 0)
+                        raw_pnl = float(rec.get("pnlUsd") or 0)
+                        # Trừ phí khứ hồi + trượt giá thực tế (0.12% notional) để Shadow PnL không bị thổi phồng ảo
+                        est_margin = float(rec.get("margin") or 15.0)
+                        est_lev = float(rec.get("leverage") or 5.0)
+                        est_fee_usd = est_margin * est_lev * 0.0012
+                        pnl = raw_pnl - est_fee_usd
                         has_post_telemetry = bool(
                             rec.get("microstructure") or rec.get("marketMetrics") or
                             (rec.get("signalMetrics") and rec.get("signalMetrics").get("m15CandleGeometry"))
@@ -1774,8 +1784,15 @@ def calibrate_optimal_thresholds(base_dir, feature_weights=None, prior_odds=1.3,
                   feats.get("m15_volatility") in ["M15_VOLUME_SURGE", "M15_VOLATILE_DANGER"]):
                 skip_cats.add("m15_volatility")
 
+            # Đồng bộ 100% danh mục bị loại bỏ ở runtime aiReviewer.js (tránh train 23 features nhưng runtime chỉ chạy 8 features)
+            DEPRECATED_RUNTIME_CATS = {
+                "trend", "rsi", "price_action", "sr_quality", "volume", "adx_strength",
+                "oi_change", "ls_flow", "funding", "rank_group", "btc_wave",
+                "turnover_guard", "trading_session", "grid_width", "economic_calendar"
+            }
+
             for cat, val in feats.items():
-                if cat in skip_cats: continue
+                if cat in DEPRECATED_RUNTIME_CATS or cat in skip_cats: continue
                 k = f"{cat}:{val}"
                 mult = 1.0
                 if k in feature_weights:

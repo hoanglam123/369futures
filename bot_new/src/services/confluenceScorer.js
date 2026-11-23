@@ -102,11 +102,14 @@ function checkHardFilters(symbol, direction, ta, fundingRates, whaleData, btcTA)
     return `Cross-signal PHÂN KỲ (OKX ↔ Binance ngược chiều)`;
   }
 
-  // ⑤ BTC downtrend mạnh → không LONG altcoin (ngoại lệ: BTC oversold cực đoan RSI1D ≤ 35)
-  if (isLong && symbol !== 'BTC' && symbol !== 'ETH' && btcTA) {
+  // ⑤ BTC Trend Headwind Veto đối xứng (Downtrend cấm LONG altcoin, Uptrend cấm SHORT altcoin)
+  if (symbol !== 'BTC' && symbol !== 'ETH' && btcTA) {
     const btcRsi1d = btcTA.rsi?.['1d'] ?? 50;
-    if (btcTA.aboveEMA200 === false && btcTA.regime === 'TRENDING_DOWN' && btcRsi1d > 35) {
+    if (isLong && btcTA.aboveEMA200 === false && btcTA.regime === 'TRENDING_DOWN' && btcRsi1d > 35) {
       return `BTC dưới EMA200D + TRENDING_DOWN (RSI1D=${btcRsi1d.toFixed(0)}) — không LONG altcoin`;
+    }
+    if (!isLong && btcTA.aboveEMA200 === true && btcTA.regime === 'TRENDING_UP' && btcRsi1d < 65) {
+      return `BTC trên EMA200D + TRENDING_UP (RSI1D=${btcRsi1d.toFixed(0)}) — không SHORT altcoin`;
     }
   }
 

@@ -17,10 +17,12 @@ const { getStep } = require('./tierSLTP');
 const { log } = require('./logger');
 
 function resolveSharedModelPath() {
+  // Ưu tiên mô hình riêng của bot-new (bot_new/data/ai_rule_config.json) nếu đã train tách riêng,
+  // fallback sang mô hình dùng chung ở root/data/ai_rule_config.json
   const candidates = [
+    path.resolve(__dirname, '../../data', 'ai_rule_config.json'),
     path.resolve(process.cwd(), 'data', 'ai_rule_config.json'),
-    path.resolve(__dirname, '../../../data', 'ai_rule_config.json'),
-    path.resolve(__dirname, '../../data', 'ai_rule_config.json')
+    path.resolve(__dirname, '../../../data', 'ai_rule_config.json')
   ];
   for (const p of candidates) {
     if (fs.existsSync(p)) return p;
@@ -118,15 +120,16 @@ function extractGatekeeperFeatures(sig, marketContext = {}) {
   const cH1  = marketContext?.candleH1 || null;
   const cM15 = marketContext?.candleM15 || null;
 
-  // 1. Hình thái nến H1 & M15
+  // 1. Hình thái nến H1 & M15 (hỗ trợ isLiveCandle cho nến đang chạy để tránh phạt quá chặt râu live)
+  const isLiveCandle = Boolean(marketContext?.isLiveCandle);
   let geoH1 = null;
   let geoM15 = null;
   if (cH1 && targetLevel > 0) {
-    geoH1 = classifyCandleGeometry(cH1, targetLevel, isLong, step, false);
+    geoH1 = classifyCandleGeometry(cH1, targetLevel, isLong, step, isLiveCandle);
     features['h1_candle_geometry'] = `H1_${geoH1}`;
   }
   if (cM15 && targetLevel > 0) {
-    geoM15 = classifyCandleGeometry(cM15, targetLevel, isLong, step, false);
+    geoM15 = classifyCandleGeometry(cM15, targetLevel, isLong, step, isLiveCandle);
     features['m15_candle_geometry'] = `M15_${geoM15}`;
   }
 
@@ -377,15 +380,36 @@ function evaluateSignal(sig, marketContext = null) {
 
   const rawThreshold = _modelConfig?.thresholdApprovalPct || 40;
   const approvalThreshold = rawThreshold > 1 ? (rawThreshold / 100) : rawThreshold;
-  const isApproved = winProbability >= approvalThreshold;
+
+  // 🎯 CỔNG LỢI NHUẬN KỲ VỌNG RÒNG (NET EV SAU PHÍ & TRƯỢT GIÁ)
+  const roundtripCostPct = parseFloat(process.env.ROUNDTRIP_FEE_SLIPPAGE_PCT || '0.12');
+  const effSlPct = (typeof sig?.slPct === 'number' && sig.slPct > 0)
+    ? sig.slPct
+    : (typeof marketContext?.slPct === 'number' && marketContext.slPct > 0 ? marketContext.slPct : 2.0);
+  const effTpPct = (typeof sig?.tpPct === 'number' && sig.tpPct > 0)
+    ? sig.tpPct
+    : (typeof marketContext?.tpPct === 'number' && marketContext.tpPct > 0 ? marketContext.tpPct : effSlPct * 1.5);
+  const effLev = Math.max(1, parseFloat(sig?.leverage || marketContext?.leverage || 5));
+  const feeRoi = roundtripCostPct * effLev;
+  const netTpRoi = Math.max(0.5, (effTpPct * effLev) - feeRoi);
+  const netSlRoi = (effSlPct * effLev) + feeRoi;
+  const netEvRoi = (winProbability * netTpRoi) - ((1 - winProbability) * netSlRoi);
+  const minNetEvRoi = parseFloat(process.env.MIN_NET_EV_ROI || '0.5');
+
+  const isWinProbOk = winProbability >= approvalThreshold;
+  const isEvOk = netEvRoi >= minNetEvRoi;
+  const isApproved = isWinProbOk && isEvOk;
 
   const reason = isApproved
-    ? `Duyệt lệnh (WinProb ${(winProbability * 100).toFixed(1)}% >= ${(approvalThreshold * 100).toFixed(1)}%) | Yếu tố: ${keyFactors.join(', ') || 'Cấu trúc ổn định'}`
-    : `VETO từ chối (WinProb ${(winProbability * 100).toFixed(1)}% < ${(approvalThreshold * 100).toFixed(1)}%) | Vi phạm: ${keyFactors.join(', ')}`;
+    ? `Duyệt lệnh (WinProb ${(winProbability * 100).toFixed(1)}% >= ${(approvalThreshold * 100).toFixed(1)}%, NetEV +${netEvRoi.toFixed(2)}% ROI) | Yếu tố: ${keyFactors.join(', ') || 'Cấu trúc ổn định'}`
+    : (!isWinProbOk
+      ? `VETO từ chối (WinProb ${(winProbability * 100).toFixed(1)}% < ${(approvalThreshold * 100).toFixed(1)}%) | Vi phạm: ${keyFactors.join(', ')}`
+      : `VETO NetEV thấp (WinProb ${(winProbability * 100).toFixed(1)}%, NetEV ${netEvRoi.toFixed(2)}% < +${minNetEvRoi.toFixed(2)}% ROI sau phí) | Yếu tố: ${keyFactors.join(', ') || 'R:R không bù phí'}`);
 
   return {
     isApproved,
     winProbability: parseFloat(winProbability.toFixed(3)),
+    expectedValueRoi: parseFloat(netEvRoi.toFixed(2)),
     confidenceScore: sig.score || 7.0,
     multiplier: parseFloat(combinedMultiplier.toFixed(2)),
     keyFactors,

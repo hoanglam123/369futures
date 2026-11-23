@@ -170,12 +170,18 @@ function makeFractalCandles(lows, highs) {
       binanceSlOrderId: 'SL_INIT',
     };
 
-    // 3a. Chưa đủ 35% TP (giá 105 = 25% TP) -> không dời
+    // 3a. Chưa đủ 50% TP (giá 105 = 25% TP và 108 = 40% TP) -> không dời
     const r0 = await tradeMonitor.checkAndApplyFractalTrailingSL(trade, 105, {
       client: mockClient, forceCheck: true, skipSave: true
     });
     assert.strictEqual(r0.moved, false);
-    assert.strictEqual(r0.reason, 'BELOW_35PCT_TRIGGER');
+    assert.strictEqual(r0.reason, 'BELOW_BE_TRIGGER');
+
+    const r0b = await tradeMonitor.checkAndApplyFractalTrailingSL(trade, 108, {
+      client: mockClient, forceCheck: true, skipSave: true
+    });
+    assert.strictEqual(r0b.moved, false);
+    assert.strictEqual(r0b.reason, 'BELOW_BE_TRIGGER');
 
     // 3b. Đạt 50% TP (giá 110) -> dùng H1 Williams Fractal (đáy 104 -> đệm 0.15% = 103.844)
     const h1Candles = makeFractalCandles(
