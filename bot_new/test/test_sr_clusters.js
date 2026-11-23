@@ -151,6 +151,69 @@ async function testAsync(name, fn) {
     }
   });
 
+  // ── 6. TP Hard Cap theo Cản Cứng & Fallback Cap <= 2.50R (cả 2 bot)
+  await testAsync('TP Hard Cap theo Cản Cứng & Fallback Cap <= 2.50R trên CẢ 2 bot', async () => {
+    // Entry 100, ATR ~1.0%, SL ~1.8% (~98.2). Lưới step=30 (siêu rộng) -> Fallback cũ sẽ đẩy TP lên +18.5% (~10R)!
+    // Với nâng cấp mới: Fallback bị khóa trần <= 2.50R (~104.5).
+    const flatH4 = Array.from({ length: 25 }, (_, i) => ({
+      openTime: now - (25 - i) * 4 * HOUR,
+      open: 100.0, high: 100.5, low: 99.5, close: 100.0
+    }));
+    for (const [label, fn] of [['bot-new', tierSLTP.calculateTierSLTP], ['bot-h4', botH4.calculateTierSLTP]]) {
+      const resCap = await fn(
+        'ALT', 'LONG', 100.0,
+        { step: 30, decimals: 2 }, 0.01, 10, 3.0, 1.5, 100, null,
+        { h1: flatH4, h4: flatH4, d1: [] }
+      );
+      assert.strictEqual(resCap.valid, true, `${label}: kèo fallback phải hợp lệ`);
+      assert(resCap.rrRatio <= 2.55, `${label}: Fallback R:R phải bị khóa trần <= 2.50R, thực tế: ${resCap.rrRatio}`);
+    }
+
+    // Có Cản Cứng D1 tại 104.8 (cách 4.8% ~ 2.66R) trong khi 2-step grid muốn đẩy lên 105.5 (~3.0R):
+    // TP BẮT BUỘC bị ép lùi về trước Cản Cứng 104.8 (không được đặt TP xuyên tường!)
+    const baseD1 = now - 15 * DAY;
+    const d1Wall = [
+      { openTime: baseD1 + 0 * DAY, open: 101.0, high: 102.0, low: 100.5, close: 101.5 },
+      { openTime: baseD1 + 1 * DAY, open: 101.5, high: 103.5, low: 101.0, close: 103.0 },
+      { openTime: baseD1 + 2 * DAY, open: 103.0, high: 104.8, low: 102.5, close: 103.5 }, // Swing High D1 @ 104.8 (Major Wall!)
+      { openTime: baseD1 + 3 * DAY, open: 103.5, high: 103.8, low: 101.5, close: 102.0 },
+      { openTime: baseD1 + 4 * DAY, open: 102.0, high: 102.5, low: 99.8,  close: 100.0 },
+    ];
+    for (const [label, fn] of [['bot-new', tierSLTP.calculateTierSLTP], ['bot-h4', botH4.calculateTierSLTP]]) {
+      const resWall = await fn(
+        'ALT', 'LONG', 100.0,
+        { step: 2.75, decimals: 2 }, 0.01, 10, 3.0, 1.5, 100, null,
+        { h1: flatH4, h4: flatH4, d1: d1Wall }
+      );
+      assert.strictEqual(resWall.valid, true, `${label}: kèo có cản cứng ở ~2.6R phải hợp lệ`);
+      assert(resWall.tpPrice < 104.8, `${label}: TP (${resWall.tpPrice}) TUYỆT ĐỐI không được xuyên qua Cản Cứng D1 @ 104.8`);
+    }
+  });
+
+  // ── 7. Adaptive ATR SL (> 3.5%) & Fib Extension TP đồng bộ trên CẢ bot-h4 và bot-new
+  await testAsync('Đồng bộ Adaptive ATR SL (> 3.5%) & Né Số Tròn TP trên CẢ 2 bot', async () => {
+    const highVolH4 = Array.from({ length: 30 }, (_, i) => ({
+      openTime: now - (30 - i) * 4 * HOUR,
+      open: 99.5, high: 101.2, low: i === 15 ? 95.5 : 98.7, close: 100.0
+    }));
+    for (const [label, fn] of [['bot-new', tierSLTP.calculateTierSLTP], ['bot-h4', botH4.calculateTierSLTP]]) {
+      const resVol = await fn(
+        'ALTCOIN', 'LONG', 100.0,
+        { step: 30, decimals: 2 }, 0.01, 10, 3.0, 1.5, 120, null,
+        { h1: highVolH4, h4: highVolH4, d1: [] }
+      );
+      assert.strictEqual(resVol.valid, true, `${label}: kèo biến động cao phải hợp lệ`);
+      assert(resVol.slPct > 3.5 && resVol.slPct <= 6.0, `${label}: SL thích ứng ATR phải vượt trần cứng 3.5% cũ (tới 6.0%), thực tế: ${resVol.slPct}%`);
+    }
+
+    // Kiểm tra evadeTpRoundNumber: TP LONG $100.10 (nhô qua số tròn $100) phải kéo xuống ngay dưới $100 (~$99.85)
+    const pulled = tierSLTP.evadeTpRoundNumber(100.10, 95.0, 3.0, true);
+    assert(pulled < 100.0 && pulled > 99.7, `TP LONG $100.10 phải được kéo lùi dưới $100, thực tế: ${pulled}`);
+    // Nếu kéo lùi làm R:R < 1.48 -> giữ nguyên không kéo
+    const kept = tierSLTP.evadeTpRoundNumber(100.10, 95.6, 3.0, true); // 99.85 - 95.6 = 4.25 -> 1.41R < 1.48
+    assert.strictEqual(kept, 100.10, `Không được kéo TP nếu làm R:R tụt dưới 1.48, thực tế: ${kept}`);
+  });
+
   console.log('\n================================================================');
   console.log(`🎉 KẾT QUẢ KIỂM THỬ S/R CLUSTERS: ${passed}/${total} PASS (100%)`);
   console.log('================================================================');

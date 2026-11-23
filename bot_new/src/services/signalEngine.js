@@ -222,16 +222,27 @@ async function generateQuantitativeTrade(setup, marketData = null) {
       customMargin = isTier1 ? parseFloat(process.env.TRADE_AMOUNT_TIER1 || '20') : parseFloat(process.env.TRADE_AMOUNT_TIER2 || '10');
     }
 
+    const realRank = setup.marketCapRank
+      || marketData?.topCoins?.find(c => c.symbol === symbol)?.rank
+      || (isTier1 ? 20 : 100);
+    const h4RefInput = sig369 ? { step: sig369.step, decimals: sig369.decimals } : null;
+    const maxExchLev = symInfo?.maxLeverage || 20;
+    // Scale targetLossUSD theo customMargin (tối thiểu $3.0) để không bóp nghẹt đòn bẩy khi tài khoản lớn dùng TRADE_SIZE_PCT
+    const envTargetLoss = parseFloat(process.env.TARGET_LOSS_USD || '0');
+    const effTargetLossUSD = envTargetLoss > 0
+      ? envTargetLoss
+      : Math.max(3.0, parseFloat((customMargin * 0.15).toFixed(2)));
+
     tierSetup = await calculateTierSLTP(
       symbol,
       direction,
       entryPrice,
-      null, // h4Ref
+      h4RefInput,
       symTickSize, // tickSize (từ Binance exchangeInfo)
-      10,   // maxExchangeLeverage
-      3.0,  // targetLossUSD ($3.00)
+      maxExchLev,
+      effTargetLossUSD,
       1.5,  // target tpRatio
-      isTier1 ? 20 : 100, // rank
+      realRank,
       effGridWidth,
       null, // customKlines
       customMargin
