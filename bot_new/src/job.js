@@ -390,17 +390,10 @@ async function runJob({ silent = false, lookbackHours = null } = {}) {
     const passCount  = allScores.filter(s => !s.disqualified && s.total >= 5).length;
     log.system(`Confluence scores: best=${bestScore}đ | pass(≥5đ)=${passCount}/${allScores.length} setups`);
 
-    // ─── PP369: Alert độc lập khi có tín hiệu mới (cả silent lẫn normal mode) ──
+    // ─── PP369: Chỉ ghi log nội bộ khi có tín hiệu mới (đã tắt bắn alert Telegram thô) ──
     const new369Alerts = detect369Changes(marketData.signals369);
     if (new369Alerts.length > 0) {
       new369Alerts.forEach(sig => logSignal369(sig));
-      log.system(`PP369: ${new369Alerts.length} tín hiệu mới → gửi alert Telegram`);
-      try {
-        await sendMessages([format369Alert(new369Alerts)], 1500, NEWS_CHAT_ID);
-        log.telegram('PP369 alert đã gửi');
-      } catch (alertErr) {
-        log.error('Không thể gửi PP369 alert', { error: alertErr.message });
-      }
     }
 
     // ─── BƯỚC 2: THỰC THI GIAO DỊCH ĐỊNH LƯỢNG 100% (PHASE 2 UPGRADE) ───
@@ -716,27 +709,11 @@ async function run369AlertScan() {
       }
     }
 
-    // ─── PP369 Telegram Alert (Chỉ gửi khi có tín hiệu MỚI để chống spam người dùng) ───
+    // ─── PP369: Chỉ ghi log nội bộ khi có tín hiệu mới (đã tắt bắn alert Telegram thô) ───
     const newAlerts = detect369Changes(signals369);
     if (newAlerts.length > 0) {
       const alertEnriched = enriched.filter(e => newAlerts.some(a => a.symbol === e.symbol && a.signal === e.signal));
-      if (alertEnriched.length > 0) {
-        if (AI_ANALYSIS_ENABLED && _lastMarketData) {
-          for (const sig of alertEnriched) {
-            if ((sig.score?.total ?? 0) >= MIN_SCORE_SIGNAL) {
-              try {
-                sig.aiComment = await analyze369Setup(sig, _lastMarketData);
-                log.ai(`PP369 AI comment (${sig.symbol} ${sig.signal}): OK`);
-              } catch (e) {
-                log.warn(`PP369 AI comment lỗi (${sig.symbol})`, { error: e.message });
-              }
-            }
-          }
-        }
-        alertEnriched.forEach(sig => logSignal369(sig));
-        log.system(`PP369: ${alertEnriched.length} tín hiệu mới → gửi alert Telegram`);
-        await sendMessages([format369Alert(alertEnriched)], 1500, NEWS_CHAT_ID);
-      }
+      alertEnriched.forEach(sig => logSignal369(sig));
     }
   } catch (err) {
     log.warn('PP369 fast scan lỗi', { error: err.message });
