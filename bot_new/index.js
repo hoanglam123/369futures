@@ -16,7 +16,7 @@
 require('dotenv').config({ override: true });
 
 const cron = require('node-cron');
-const { runJob, run369AlertScan, initPriceTickListener } = require('./src/job');
+const { runJob, run369AlertScan, runMacroRefresh, initPriceTickListener } = require('./src/job');
 const { start369Stream } = require('./src/pp369/stream');
 const { checkBTCAlert } = require('./src/services/priceAlert');
 const { checkActiveTrades, getActiveTrades, sendActiveTradesSummary, runBacktest, initBinanceStream, syncManualPositions, consumeSignalScanFlag, onWsPush } = require('./src/services/tradeMonitor');
@@ -128,16 +128,23 @@ if (process.argv.includes('--run-now')) {
     scheduled: true
   });
 
-  // Mỗi N phút: signal scan — phân tích AI để tìm lệnh mới, không gửi bản tin thị trường
-  const SIGNAL_SCAN_CRON = process.env.SIGNAL_SCAN_CRON || '2-59/5 * * * *';
-  if (!cron.validate(SIGNAL_SCAN_CRON)) {
-    console.error(`❌ SIGNAL_SCAN_CRON không hợp lệ: "${SIGNAL_SCAN_CRON}"`);
+  // ─── LUỒNG VĨ MÔ NỀN SIÊU NHẸ (Mỗi 15 phút — Đồng bộ kiến trúc On-Demand của bot-h4) ───
+  // Thay thế cron 5p nặng (từng gọi 30 coin song song ~800 weight/lần).
+  // Săn kèo & vào lệnh giờ chạy hoàn toàn qua Luồng 1 (WS 0ms) + Luồng 2 (FastScan 30s).
+  const MACRO_REFRESH_CRON = process.env.MACRO_REFRESH_CRON || '*/15 * * * *';
+  const SIGNAL_SCAN_CRON = MACRO_REFRESH_CRON;
+  if (!cron.validate(MACRO_REFRESH_CRON)) {
+    console.error(`❌ MACRO_REFRESH_CRON không hợp lệ: "${MACRO_REFRESH_CRON}"`);
     process.exit(1);
   }
-  cron.schedule(SIGNAL_SCAN_CRON, async () => {
-    log.system('Signal scan 5p: chạy phân tích nhanh...');
-    await runJob({ silent: true, lookbackHours: 1 });
+  cron.schedule(MACRO_REFRESH_CRON, async () => {
+    await runMacroRefresh();
   }, { timezone: TIMEZONE, scheduled: true });
+
+  // Nạp dữ liệu vĩ mô nền (BTC TA, Funding, Fear&Greed) ngay sau khi khởi động 5s
+  setTimeout(() => {
+    runMacroRefresh().catch(() => {});
+  }, 5000);
 
   // ─── LUỒNG 1: BẮT TICK GIÁ WEBSOCKET REAL-TIME 0ms (ĐỒNG BỘ BOT-H4) ───────────
   if (typeof initPriceTickListener === 'function') {

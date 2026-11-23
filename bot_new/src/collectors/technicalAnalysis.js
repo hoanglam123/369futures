@@ -100,7 +100,12 @@ function scheduleSaveDiskCache(interval) {
   }, 1000);
 }
 
-function floorToInterval(tsMs, intervalMs) {
+function floorToInterval(tsMs, intervalMs, interval = '') {
+  if (interval === '1w') {
+    // Nến 1w của Binance mở vào Thứ Hai 00:00 UTC (epoch 1970-01-01 là Thứ Năm -> dịch +3 ngày về Thứ Hai)
+    const MONDAY_OFFSET_MS = 3 * 24 * 60 * 60 * 1000;
+    return Math.floor((tsMs + MONDAY_OFFSET_MS) / intervalMs) * intervalMs - MONDAY_OFFSET_MS;
+  }
   return Math.floor(tsMs / intervalMs) * intervalMs;
 }
 
@@ -158,7 +163,7 @@ async function getKlines(symbol, interval, limit) {
     return fetchKlinesDirect(cleanSym, bnInterval, limit);
   }
 
-  const currentIntervalStart = floorToInterval(Date.now(), cfg.intervalMs);
+  const currentIntervalStart = floorToInterval(Date.now(), cfg.intervalMs, bnInterval);
   let cached = _sharedDiskCaches[bnInterval][cleanSym];
 
   // 1. Nếu chưa có trên đĩa máy chủ: Tải 1 lần và lưu ngay vào đĩa
@@ -222,21 +227,35 @@ async function getKlines(symbol, interval, limit) {
   return _sharedDiskCaches[bnInterval][cleanSym].candles.slice(-limit);
 }
 
+const _oiCache = new Map();
+const _lsCache = new Map();
+const _fullTaCache = new Map();
+const TA_MEM_TTL_MS = 5 * 60 * 1000; // 5 phút RAM cache chống gọi lặp Binance
+
 async function getOI(symbol) {
-  // 1. Binance primary
-  try {
-    const [oiRes, priceRes] = await Promise.all([
-      axios.get(`${BINANCE}/fapi/v1/openInterest`, {
-        params: { symbol: `${symbol}USDT` }, timeout: 8000,
-      }),
-      axios.get(`${BINANCE}/fapi/v1/premiumIndex`, {
-        params: { symbol: `${symbol}USDT` }, timeout: 8000,
-      }),
-    ]);
-    const oi    = parseFloat(oiRes.data?.openInterest);
-    const price = parseFloat(priceRes.data?.markPrice);
-    if (oi && price) return { valueMil: oi * price / 1e6, change24h: null };
-  } catch { /* fall through to OKX */ }
+  const cached = _oiCache.get(symbol);
+  if (cached && (Date.now() - cached.ts < TA_MEM_TTL_MS)) return cached.data;
+
+  // 1. Binance primary (bỏ qua nếu IP đang hạ nhiệt/khóa)
+  if (!isIpBanned()) {
+    try {
+      const [oiRes, priceRes] = await Promise.all([
+        axios.get(`${BINANCE}/fapi/v1/openInterest`, {
+          params: { symbol: `${symbol}USDT` }, timeout: 8000,
+        }),
+        axios.get(`${BINANCE}/fapi/v1/premiumIndex`, {
+          params: { symbol: `${symbol}USDT` }, timeout: 8000,
+        }),
+      ]);
+      const oi    = parseFloat(oiRes.data?.openInterest);
+      const price = parseFloat(priceRes.data?.markPrice);
+      if (oi && price) {
+        const result = { valueMil: oi * price / 1e6, change24h: null };
+        _oiCache.set(symbol, { ts: Date.now(), data: result });
+        return result;
+      }
+    } catch { /* fall through to OKX */ }
+  }
 
   // 2. OKX fallback
   try {
@@ -246,25 +265,36 @@ async function getOI(symbol) {
     });
     const oiUsd = parseFloat(data.data?.[0]?.oiUsd);
     if (!oiUsd) return null;
-    return { valueMil: oiUsd / 1e6, change24h: null };
+    const result = { valueMil: oiUsd / 1e6, change24h: null };
+    _oiCache.set(symbol, { ts: Date.now(), data: result });
+    return result;
   } catch { return null; }
 }
 
 async function getLongShort(symbol) {
-  // 1. Binance primary
-  try {
-    const { data } = await axios.get(`${BINANCE}/futures/data/globalLongShortAccountRatio`, {
-      params: { symbol: `${symbol}USDT`, period: '1h', limit: 1 },
-      timeout: 8000,
-    });
-    const d = data?.[0];
-    if (d) {
-      const longPct  = parseFloat(d.longAccount)  * 100;
-      const shortPct = parseFloat(d.shortAccount) * 100;
-      const ratio    = parseFloat(d.longShortRatio);
-      if (!isNaN(longPct) && !isNaN(shortPct)) return { longPct, shortPct, ratio };
-    }
-  } catch { /* fall through to OKX */ }
+  const cached = _lsCache.get(symbol);
+  if (cached && (Date.now() - cached.ts < TA_MEM_TTL_MS)) return cached.data;
+
+  // 1. Binance primary (bỏ qua nếu IP đang hạ nhiệt/khóa)
+  if (!isIpBanned()) {
+    try {
+      const { data } = await axios.get(`${BINANCE}/futures/data/globalLongShortAccountRatio`, {
+        params: { symbol: `${symbol}USDT`, period: '1h', limit: 1 },
+        timeout: 8000,
+      });
+      const d = data?.[0];
+      if (d) {
+        const longPct  = parseFloat(d.longAccount)  * 100;
+        const shortPct = parseFloat(d.shortAccount) * 100;
+        const ratio    = parseFloat(d.longShortRatio);
+        if (!isNaN(longPct) && !isNaN(shortPct)) {
+          const result = { longPct, shortPct, ratio };
+          _lsCache.set(symbol, { ts: Date.now(), data: result });
+          return result;
+        }
+      }
+    } catch { /* fall through to OKX */ }
+  }
 
   // 2. OKX fallback
   try {
@@ -278,7 +308,9 @@ async function getLongShort(symbol) {
     if (isNaN(ratio) || ratio <= 0) return null;
     const longPct  = ratio / (1 + ratio) * 100;
     const shortPct = 100 - longPct;
-    return { longPct, shortPct, ratio };
+    const result = { longPct, shortPct, ratio };
+    _lsCache.set(symbol, { ts: Date.now(), data: result });
+    return result;
   } catch { return null; }
 }
 
@@ -594,39 +626,59 @@ function calcTAFromKlines(symbol, k1h, k4h, k1d, k1w) {
 }
 
 async function getFullTA(symbol) {
+  const cleanSym = (symbol || '').toUpperCase().replace(/USDT$/, '');
+  const cached = _fullTaCache.get(cleanSym);
+  if (cached && (Date.now() - cached.ts < TA_MEM_TTL_MS)) {
+    return cached.data;
+  }
+
   const [k1h, k4h, k1d, k1w] = await Promise.all([
-    getKlines(symbol, '1h', 100).catch(() => null),
-    getKlines(symbol, '4h', 200).catch(() => null),
-    getKlines(symbol, '1d', 120).catch(() => null),
-    getKlines(symbol, '1w', 52).catch(() => null),
+    getKlines(cleanSym, '1h', 100).catch(() => null),
+    getKlines(cleanSym, '4h', 200).catch(() => null),
+    getKlines(cleanSym, '1d', 120).catch(() => null),
+    getKlines(cleanSym, '1w', 52).catch(() => null),
   ]);
-  const ta = calcTAFromKlines(symbol, k1h, k4h, k1d, k1w);
+  const ta = calcTAFromKlines(cleanSym, k1h, k4h, k1d, k1w);
   if (!ta) return null;
 
-  // OKX supplementary data (fail gracefully)
+  // OKX/Binance supplementary data (cached 5p, fail gracefully)
   const [oi, ls] = await Promise.all([
-    getOI(symbol).catch(() => null),
-    getLongShort(symbol).catch(() => null),
+    getOI(cleanSym).catch(() => null),
+    getLongShort(cleanSym).catch(() => null),
   ]);
   ta.oi    = oi;
   ta.ls    = ls;
   ta.topLS = null;
+
+  if (_fullTaCache.size >= 250) {
+    const firstKey = _fullTaCache.keys().next().value;
+    _fullTaCache.delete(firstKey);
+  }
+  _fullTaCache.set(cleanSym, { ts: Date.now(), data: ta });
   return ta;
 }
 
-// ─── Batch ────────────────────────────────────────────────────────────────────
+// ─── Batch (Giãn cách từng nhóm 4 coin để không gây tăng vọt IP Weight) ──────
 
 async function getTAReport(symbols) {
   const { log } = require('../services/logger');
   const report = {};
-  await Promise.all(symbols.map(async sym => {
-    try {
-      const ta = await getFullTA(sym);
-      if (ta) report[sym] = ta;
-    } catch (e) {
-      log.warn(`TA[${sym}] lỗi`, { error: e.message });
+  const BATCH_SIZE = 4;
+  for (let i = 0; i < symbols.length; i += BATCH_SIZE) {
+    if (isIpBanned()) break;
+    const batch = symbols.slice(i, i + BATCH_SIZE);
+    await Promise.all(batch.map(async sym => {
+      try {
+        const ta = await getFullTA(sym);
+        if (ta) report[sym] = ta;
+      } catch (e) {
+        log.warn(`TA[${sym}] lỗi`, { error: e.message });
+      }
+    }));
+    if (i + BATCH_SIZE < symbols.length) {
+      await new Promise(r => setTimeout(r, 150));
     }
-  }));
+  }
   return report;
 }
 

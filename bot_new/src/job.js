@@ -272,12 +272,16 @@ async function runJob({ silent = false, lookbackHours = null } = {}) {
       taSymbols.map(s => [s, { price: getMarkPrice(s) || getPrices()[s] || null }]).filter(([, v]) => v.price != null)
     );
 
+    // Chế độ silent (quét nền): Chỉ lấy dữ liệu vĩ mô nhẹ & BTC/ETH whale (tránh bắn /aggTrades & CoinGecko cho 30 coin)
+    const whaleTargetSymbols = silent ? ['BTC', 'ETH'] : whaleSymbols;
+    const derivTargetSymbols = silent ? ['BTC', 'ETH'] : whaleSymbols;
+
     const [taResult, whaleResult, derivResult, onchainResult, socialResult, signals369Result] = await Promise.allSettled([
       getTAReport(taSymbols),
-      getWhaleData(whaleSymbols, cronHours),
-      getDerivatives(whaleSymbols, cronHours),
-      getBTCOnchain(),
-      getRedditSentiment(),
+      getWhaleData(whaleTargetSymbols, cronHours),
+      getDerivatives(derivTargetSymbols, cronHours),
+      silent ? Promise.resolve(_lastMarketData?.onchain ?? null) : getBTCOnchain(),
+      silent ? Promise.resolve(_lastMarketData?.social ?? null) : getRedditSentiment(),
       get369SignalsForCoins(taSymbols, priceMap369),
     ]);
 
@@ -840,10 +844,49 @@ function initPriceTickListener() {
   });
 }
 
+/**
+ * Cập nhật siêu nhẹ dữ liệu vĩ mô nền (15 phút/lần) — Đồng bộ kiến trúc On-Demand của bot-h4.
+ * Chỉ nạp BTC TA + Funding + Fear&Greed + BTC/ETH Whale/Derivatives (~5-10 weight thay vì 800+ weight của cron 5p cũ).
+ * Việc săn kèo & đặt lệnh chạy 100% qua Luồng 1 (WS 0ms) + Luồng 2 (FastScan 30s).
+ */
+let _isMacroRefreshRunning = false;
+async function runMacroRefresh() {
+  if (_isMacroRefreshRunning || _isRunning || isIpBanned()) return;
+  _isMacroRefreshRunning = true;
+  try {
+    const [fgRes, fundRes, btcTaRes, whaleRes, derivRes] = await Promise.allSettled([
+      getFearGreedIndex(),
+      getFundingRates(),
+      getFullTA('BTC'),
+      getWhaleData(['BTC', 'ETH'], 1),
+      getDerivatives(['BTC', 'ETH'], 1),
+    ]);
+
+    if (!_lastMarketData) _lastMarketData = {};
+    if (!_lastMarketData.ta) _lastMarketData.ta = {};
+
+    const btcTa = resolveSettled(btcTaRes, null);
+    if (btcTa) _lastMarketData.ta['BTC'] = btcTa;
+    const fg = resolveSettled(fgRes, null);
+    if (fg) _lastMarketData.fearGreed = fg;
+    const funding = resolveSettled(fundRes, null);
+    if (funding) _lastMarketData.funding = funding;
+    const whale = resolveSettled(whaleRes, null);
+    if (whale) _lastMarketData.whale = whale;
+    const deriv = resolveSettled(derivRes, null);
+    if (deriv) _lastMarketData.derivatives = deriv;
+  } catch (err) {
+    log.warn(`[MacroRefresh] Lỗi cập nhật vĩ mô nền: ${err.message}`);
+  } finally {
+    _isMacroRefreshRunning = false;
+  }
+}
+
 module.exports = {
   runJob,
   isJobRunning,
   run369AlertScan,
+  runMacroRefresh,
   initPriceTickListener,
   FIXED_COINS,
   getUniverseSymbols,

@@ -107,6 +107,32 @@ async function fetchBinanceKlines(symbol, interval, startTimeMs = null, limit = 
   return [];
 }
 
+// Tự động lưu cache ra đĩa (debounce 1.5s) để coin mới chỉ phải tải từ Binance ĐÚNG 1 LẦN
+const _saveTimers = {};
+function scheduleSaveDiskCache(key, filePath, maxCount, sourceMap) {
+  if (_saveTimers[key]) return;
+  _saveTimers[key] = setTimeout(() => {
+    _saveTimers[key] = null;
+    try {
+      const dir = path.dirname(filePath);
+      if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+      const items = {};
+      for (const [sym, val] of Object.entries(sourceMap)) {
+        if (val && Array.isArray(val.candles) && val.candles.length > 0) {
+          items[sym] = {
+            yearStart: val.yearStart || 0,
+            candles: val.candles.slice(-maxCount),
+            cursor: val.candles[val.candles.length - 1].openTime,
+          };
+        }
+      }
+      fs.writeFileSync(filePath, JSON.stringify({ items }), 'utf8');
+    } catch (err) {
+      log.warn(`[CandleCache] Lỗi ghi ${path.basename(filePath)}: ${err.message}`);
+    }
+  }, 1500);
+}
+
 async function fetchH1Historical(symbol) {
   const cleanSym = symbol.toUpperCase().replace(/USDT$/, '');
   if (_h1HistCache[cleanSym]?.candles?.length >= 15) {
@@ -115,6 +141,7 @@ async function fetchH1Historical(symbol) {
   const raw = await fetchBinanceKlines(cleanSym, '1h', null, CACHE_MAX_H1);
   if (raw && raw.length > 0) {
     _h1HistCache[cleanSym] = { candles: raw.slice(-CACHE_MAX_H1) };
+    scheduleSaveDiskCache('H1', HIST_CACHE_FILE_H1, CACHE_MAX_H1, _h1HistCache);
     return _h1HistCache[cleanSym].candles;
   }
   return [];
@@ -128,6 +155,7 @@ async function fetchH4Historical(symbol) {
   const raw = await fetchBinanceKlines(cleanSym, '4h', null, CACHE_MAX_H4);
   if (raw && raw.length > 0) {
     _h4HistCache[cleanSym] = { candles: raw.slice(-CACHE_MAX_H4) };
+    scheduleSaveDiskCache('H4', HIST_CACHE_FILE_H4, CACHE_MAX_H4, _h4HistCache);
     return _h4HistCache[cleanSym].candles;
   }
   return [];
@@ -141,6 +169,7 @@ async function fetchD1Historical(symbol) {
   const raw = await fetchBinanceKlines(cleanSym, '1d', null, CACHE_MAX_D1);
   if (raw && raw.length > 0) {
     _d1HistCache[cleanSym] = { candles: raw.slice(-CACHE_MAX_D1) };
+    scheduleSaveDiskCache('D1', HIST_CACHE_FILE_D1, CACHE_MAX_D1, _d1HistCache);
     return _d1HistCache[cleanSym].candles;
   }
   return [];
