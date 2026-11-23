@@ -285,23 +285,21 @@ function getMarkPrice(symbol, maxAgeMs = 30000) {
  * @param {number}   threshold   - Ngưỡng % tính là "gần" (mặc định 1.5%)
  * @returns {string[]}           - Subset của symbols cần scan đầy đủ
  */
-function getNearbySymbols(symbols, levelCache, threshold = 0.015, strict = false) {
-  return symbols.filter(sym => {
-    const price = _prices[sym];
-    const levels = levelCache[sym];
+function getNearbySymbols(symbols, levelCache, threshold = 0.015, strict = false, pricesOverride = null) {
+  const priceMap = pricesOverride || _prices;
+  return (symbols || []).filter(sym => {
+    const price = priceMap[sym];
+    const levels = levelCache ? levelCache[sym] : null;
 
-    // Chưa có giá nhưng đã có level -> tạm thời skip để đợi WS nhận giá (tránh gọi API quá mức gây ban IP)
-    if (levels?.longEntry && levels?.shortEntry && !price) return false;
-
-    // Chưa có level -> include để tính mốc
-    if (!levels?.longEntry || !levels?.shortEntry) return true;
+    // Chưa có mốc hợp lệ hoặc chưa có giá live -> KHÔNG đếm ảo vào danh sách tiệm cận / không subscribe WS thừa
+    if (!levels?.longEntry || !levels?.shortEntry || !price || price <= 0) return false;
 
     // Kiểm tra khoảng cách lưới tại mức giá hiện tại theo sàn vật lý 1.5% - 30% (AI thẩm định chi tiết)
     const currentGridPct = ((levels.shortEntry - levels.longEntry) / levels.longEntry) * 100;
     if (currentGridPct < 1.5 || currentGridPct > 30) return false;
 
     // Adaptive threshold: Giữ ngưỡng lắng nghe ở mức tối thiểu 1.5% giá hoặc 50% bước giá step cho WebSocket
-    // Với strict = true (dùng cho scan polling), dùng chính xác threshold truyền vào (ví dụ 0.3%)
+    // Với strict = true (dùng cho scan polling), dùng chính xác threshold truyền vào (ví dụ 0.5%)
     const adaptiveThreshold = (strict || !levels.step)
       ? threshold
       : Math.max(threshold, (levels.step / price) * 0.50);

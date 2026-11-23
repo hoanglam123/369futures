@@ -40,8 +40,12 @@ const {
   syncWebSocketSubscriptions, getPrices, updatePricesRest
 } = pp369;
 const { registerShadowTrade, updateShadowPrices, getShadowStats, getActiveShadowPositions } = require('./services/shadowTracker');
-const { checkMonthTransition } = require('./services/h1RefCache');
+const { initH1RefCache, prePopulateLevelCache, checkMonthTransition } = require('./services/h1RefCache');
+const { isLevelBounceCooldown } = require('./services/bounceCancel');
 const { isIpBanned } = require('./services/rateLimitGuard');
+
+const POLL_ROTATION_TTL_MS = parseInt(process.env.POLL_ROTATION_TTL_MS || String(2 * 60 * 1000), 10); // 2 phút xoay vòng sang 8 coin tiếp theo
+const _recentPollingScan = new Map(); // sym -> { level, ts }
 
 let _isRunning = false;        // full market report đang chạy
 let _isSilentRunning = false;  // signal scan (silent) đang chạy
@@ -551,6 +555,11 @@ async function run369AlertScan() {
   _isAlertScanRunning = true;
   try {
     const symbols = await getUniverseSymbols();
+    // 1. Cập nhật lại giá REST của toàn bộ coin để kiểm tra biến động (1 call nhẹ, weight=1) giống bot-h4
+    if (typeof updatePricesRest === 'function' && !isIpBanned()) {
+      try { await updatePricesRest(); } catch (_) {}
+    }
+
     // Tự động kiểm tra chuyển giao mốc H1 đầu tháng khi sang tháng mới
     if (typeof checkMonthTransition === 'function' && !isIpBanned()) {
       try {
@@ -560,22 +569,22 @@ async function run369AlertScan() {
 
     let levelCache = getLevelCache();
     if (Object.keys(levelCache).length === 0 && !isIpBanned()) {
-      const { initH1RefCache, prePopulateLevelCache } = require('./services/h1RefCache');
       await initH1RefCache(symbols);
+    }
+    // Đồng bộ bot-h4: luôn làm mới cặp mốc cận trên/dưới theo giá live (0ms trên RAM, 0 API call) để không bị "mù mốc" khi giá sang bậc lưới mới
+    try {
       prePopulateLevelCache(symbols, getPrices());
       levelCache = getLevelCache();
-    }
-
-    // 1. Cập nhật lại giá REST của toàn bộ coin để kiểm tra biến động (1 call nhẹ, weight=1) giống bot-h4
-    if (typeof updatePricesRest === 'function' && !isIpBanned()) {
-      try { await updatePricesRest(); } catch (_) {}
-    }
+    } catch (_) {}
 
     // 2. WebSocket đón trước: Lắng nghe các coin trong bán kính 1.0% + coin có vị thế active + shadow + BTC
     const wsNearby = getNearbySymbols(symbols, levelCache, 0.01);
-    const activeSymbols = getActiveTrades().map(t => t.symbol);
+    const activeTradesNow = getActiveTrades();
+    const activeSymbols = activeTradesNow.map(t => t.symbol);
+    const activeMapNow = Object.fromEntries(activeTradesNow.map(t => [t.symbol, t.direction]));
     const activeShadows = typeof getActiveShadowPositions === 'function' ? getActiveShadowPositions() : {};
     const shadowSyms = Object.values(activeShadows).map(p => p.symbol);
+    const shadowSymSet = new Set(shadowSyms);
     const wsAllSymbols = Array.from(new Set([...wsNearby, ...activeSymbols, ...shadowSyms, 'BTC']));
     if (typeof syncWebSocketSubscriptions === 'function') {
       syncWebSocketSubscriptions(wsAllSymbols).catch(() => {});
@@ -588,12 +597,14 @@ async function run369AlertScan() {
 
     // 3. Vòng lặp Scan định kỳ chỉ xử lý các coin đang thực sự TIỆM CẬN SÁT MỐC (<= 0.5%) để tối ưu tốc độ vào lệnh
     const scanNearby = getNearbySymbols(symbols, levelCache, 0.005, true);
+    const missingLvlCount = symbols.filter(s => !levelCache[s]?.longEntry || !levelCache[s]?.shortEntry).length;
 
     // ─── ĐỒNG BỘ LOG ĐỊNH KỲ 15 PHÚT TỪ BOT-H4 ───
     const nowTime = Date.now();
     if (nowTime - _lastHeartbeatTime >= 15 * 60 * 1000) {
       _lastHeartbeatTime = nowTime;
-      log.system(`[AutoTrade] 🟢 Hệ thống hoạt động bình thường | Theo dõi: ${symbols.length} coin | Tiệm cận sát mốc (<=0.5%): ${scanNearby.length} coin`);
+      const missingNote = missingLvlCount > 0 ? ` (chưa có mốc: ${missingLvlCount})` : '';
+      log.system(`[AutoTrade] 🟢 Hệ thống hoạt động bình thường | Theo dõi: ${symbols.length} coin | Tiệm cận sát mốc (<=0.5%): ${scanNearby.length} coin${missingNote}`);
 
       try {
         const shadowStats = getShadowStats();
@@ -605,18 +616,44 @@ async function run369AlertScan() {
 
     if (!scanNearby.length || isIpBanned()) return;
 
-    // Sắp xếp theo khoảng cách tới mốc và chỉ lấy Top 8 mã sát nhất (Adaptive Proximity Sorter)
-    scanNearby.sort((a, b) => {
-      const pa = getMarkPrice(a) || _lastMarketData?.ta?.[a]?.price || 1;
-      const pb = getMarkPrice(b) || _lastMarketData?.ta?.[b]?.price || 1;
-      const la = levelCache[a];
-      const lb = levelCache[b];
-      const da = la ? Math.min(Math.abs(pa - la.longEntry), Math.abs(la.shortEntry - pa)) / pa : 999;
-      const db = lb ? Math.min(Math.abs(pb - lb.longEntry), Math.abs(lb.shortEntry - pb)) / pb : 999;
-      return da - db;
-    });
+    // Dọn bộ nhớ xoay vòng quá hạn (> 5 phút)
+    for (const [k, v] of _recentPollingScan.entries()) {
+      if (nowTime - v.ts > 5 * 60 * 1000) _recentPollingScan.delete(k);
+    }
 
-    const toScan = scanNearby.slice(0, 8);
+    // Lọc trước các coin chắc chắn không vào được lệnh & xoay vòng Top 8 cuốn chiếu (tránh kẹt lặp lại 8 coin cũ)
+    const eligibleNearby = [];
+    for (const sym of scanNearby) {
+      if (_processingSymbols.has(sym) || shadowSymSet.has(sym)) continue;
+      const p = getMarkPrice(sym) || getPrices()?.[sym] || _lastMarketData?.ta?.[sym]?.price;
+      const lv = levelCache[sym];
+      if (!p || !lv?.longEntry || !lv?.shortEntry) continue;
+
+      const dLong = Math.abs(p - lv.longEntry) / p;
+      const dShort = Math.abs(lv.shortEntry - p) / p;
+      const nearestDir = dLong <= dShort ? 'LONG' : 'SHORT';
+      const nearestLevel = nearestDir === 'LONG' ? lv.longEntry : lv.shortEntry;
+      const distPct = Math.min(dLong, dShort);
+
+      // Đang mở lệnh cùng chiều → bỏ qua trước khi cắt Top 8 (giữ lại nếu là chiều đảo chiều)
+      if (activeMapNow[sym] && activeMapNow[sym] === nearestDir) continue;
+      // Mốc đang dính Bounce / Timeout Cooldown → bỏ qua trước khi cắt Top 8
+      if (isLevelBounceCooldown(sym, nearestLevel)) continue;
+      // Xoay vòng Top 8: coin vừa chấm ở cùng mốc trong 2 phút gần nhất tạm nghỉ để 8 coin kế tiếp được chấm
+      const prevScan = _recentPollingScan.get(sym);
+      if (prevScan && prevScan.level === nearestLevel && (nowTime - prevScan.ts) < POLL_ROTATION_TTL_MS) continue;
+
+      eligibleNearby.push({ sym, distPct, nearestLevel });
+    }
+
+    if (!eligibleNearby.length) return;
+
+    eligibleNearby.sort((a, b) => a.distPct - b.distPct);
+    const selectedBatch = eligibleNearby.slice(0, 8);
+    for (const item of selectedBatch) {
+      _recentPollingScan.set(item.sym, { level: item.nearestLevel, ts: nowTime });
+    }
+    const toScan = selectedBatch.map(item => item.sym);
 
     // Dùng WebSocket mark price từ Binance (~3s) thay vì nến 1m cuối (~1 phút trễ)
     const priceMap = Object.fromEntries(
@@ -739,11 +776,14 @@ async function processSingleSymbolSignal(sym, price) {
     if (activeDir && activeDir === sig.signal) return;
     if (isIpBanned()) return;
 
+    const TA_CACHE_TTL_MS = 10 * 60 * 1000;
     let ta = _lastMarketData?.ta?.[sym];
-    if (!ta) {
+    const isTaStale = !ta || !ta._fetchedAt || (Date.now() - ta._fetchedAt > TA_CACHE_TTL_MS);
+    if (isTaStale) {
       try {
         ta = await getFullTA(sym);
         if (ta) {
+          ta._fetchedAt = Date.now();
           if (!_lastMarketData) _lastMarketData = {};
           if (!_lastMarketData.ta) _lastMarketData.ta = {};
           _lastMarketData.ta[sym] = ta;
@@ -805,7 +845,8 @@ function processSignalQueue() {
   if (!task) return;
 
   _activeSignalChecks++;
-  processSingleSymbolSignal(task.sym, task.price)
+  const freshPrice = getMarkPrice(task.sym) || task.price;
+  processSingleSymbolSignal(task.sym, freshPrice)
     .catch(() => {})
     .finally(() => {
       _activeSignalChecks--;

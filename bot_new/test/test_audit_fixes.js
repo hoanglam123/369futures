@@ -396,6 +396,31 @@ async function run() {
     assert.ok(pySrc.includes('0.40') && pySrc.includes('--bot'), 'train_ai_model.py phải giảm trọng số shadow (0.40) và hỗ trợ --bot');
   });
 
+  await test('Đồng bộ Nearby & Top-8 Rotation: getNearbySymbols loại coin thiếu mốc & lưới <1.5%/>30% trên CẢ 2 bot', async () => {
+    const streamNew = require('../src/pp369/stream');
+    const streamH4 = require('../../src/pp369/stream');
+    const syms = ['VALID_NEAR', 'NO_LEVEL', 'NARROW_GRID', 'WIDE_GRID', 'FAR_COIN'];
+    const levelCache = {
+      VALID_NEAR:  { longEntry: 100, shortEntry: 104, step: 4 },    // grid 4% -> hợp lệ, giá 100.3 cách 0.3% <= 0.5%
+      // NO_LEVEL: không có trong cache -> phải bị loại (hết bug đếm ảo 124 coin!)
+      NARROW_GRID: { longEntry: 100, shortEntry: 101, step: 1 },    // grid 1% < 1.5% -> phải bị loại
+      WIDE_GRID:   { longEntry: 100, shortEntry: 140, step: 40 },   // grid 40% > 30% -> phải bị loại
+      FAR_COIN:    { longEntry: 100, shortEntry: 105, step: 5 },    // grid 5% nhưng giá 102.5 cách 2.4% > 0.5% -> loại khi strict=true
+    };
+    const prices = { VALID_NEAR: 100.3, NO_LEVEL: 50, NARROW_GRID: 100.1, WIDE_GRID: 100.2, FAR_COIN: 102.5 };
+
+    const nearNew = streamNew.getNearbySymbols(syms, levelCache, 0.005, true, prices);
+    const nearH4  = streamH4.getNearbySymbols(syms, levelCache, 0.005, true, prices);
+    assert.deepStrictEqual(nearNew, ['VALID_NEAR'], `bot-new chỉ được giữ VALID_NEAR, thực tế: ${JSON.stringify(nearNew)}`);
+    assert.deepStrictEqual(nearH4,  ['VALID_NEAR'], `bot-h4 chỉ được giữ VALID_NEAR, thực tế: ${JSON.stringify(nearH4)}`);
+
+    // Kiểm tra code rotation & refresh mốc đã đồng bộ ở cả 2 file
+    const jobSrc = fs.readFileSync(path.join(__dirname, '..', 'src', 'job.js'), 'utf8');
+    const h4Src  = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'trader', 'autoTrade.js'), 'utf8');
+    assert.ok(jobSrc.includes('POLL_ROTATION_TTL_MS') && jobSrc.includes('prePopulateLevelCache(symbols, getPrices())'), 'bot-new phải có xoay vòng Top 8 và refresh levelCache định kỳ');
+    assert.ok(h4Src.includes('POLL_ROTATION_TTL_MS') && h4Src.includes('MAX_SIGNAL_QUEUE_LEN'), 'bot-h4 phải có xoay vòng Top 8 và giới hạn chiều dài signalCheckQueue');
+  });
+
   console.log(`\n📊 Audit Regression Summary: ${passed} passed, ${failed} failed\n`);
   process.exit(failed > 0 ? 1 : 0);
 }

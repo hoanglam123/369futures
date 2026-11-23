@@ -2407,11 +2407,13 @@ async function startAutoTrade(coins) {
 
       // 2. Vòng lặp Scan định kỳ chỉ xử lý các coin đang thực sự TIỆM CẬN SÁT MỐC (<= 0.5%) để tối ưu tốc độ treo LIMIT
       const scanNearby = getNearbySymbols(activeCoinList, levelCache, 0.005, true);
+      const missingLvlCount = activeCoinList.filter(s => !levelCache[s]?.longEntry || !levelCache[s]?.shortEntry).length;
 
       const nowTime = Date.now();
       if (nowTime - lastHeartbeatTime >= 15 * 60 * 1000) {
         lastHeartbeatTime = nowTime;
-        log.system(`[AutoTrade] 🟢 Hệ thống hoạt động bình thường | Theo dõi: ${activeCoinList.length} coin | Tiệm cận sát mốc (<=0.5%): ${scanNearby.length} coin`);
+        const missingNote = missingLvlCount > 0 ? ` (chưa có mốc: ${missingLvlCount})` : '';
+        log.system(`[AutoTrade] 🟢 Hệ thống hoạt động bình thường | Theo dõi: ${activeCoinList.length} coin | Tiệm cận sát mốc (<=0.5%): ${scanNearby.length} coin${missingNote}`);
 
         // Báo cáo Shadow PnL định kỳ
         try {
@@ -2423,22 +2425,43 @@ async function startAutoTrade(coins) {
         } catch (_) { }
       }
 
-      if (!scanNearby.length) return;
+      if (scanNearby.length) {
+        // Dọn bộ nhớ xoay vòng quá hạn (> 5 phút)
+        for (const [k, v] of recentPollingScan.entries()) {
+          if (nowTime - v.ts > 5 * 60 * 1000) recentPollingScan.delete(k);
+        }
 
-      // Priority Sorting: Sắp xếp các mã coin theo độ sát mốc tăng dần (% khoảng cách nhỏ nhất xử lý trước)
-      scanNearby.sort((a, b) => {
-        const priceA = getMarkPrice(a) || 0;
-        const priceB = getMarkPrice(b) || 0;
-        const levA = levelCache[a];
-        const levB = levelCache[b];
-        const distA = priceA && levA ? Math.min(Math.abs(priceA - levA.longEntry) / priceA, Math.abs(levA.shortEntry - priceA) / priceA) : 1;
-        const distB = priceB && levB ? Math.min(Math.abs(priceB - levB.longEntry) / priceB, Math.abs(levB.shortEntry - priceB) / priceB) : 1;
-        return distA - distB;
-      });
+        // Lọc sẵn coin chắc chắn không vào lệnh & xoay vòng Top 8 cuốn chiếu (TTL 2 phút) để không bị kẹt lặp lại 8 coin cũ
+        const eligibleNearby = [];
+        for (const sym of scanNearby) {
+          if (processingSymbols.has(sym) || isShadowPositionActive(sym) || isSymbolInCooldown(sym)) continue;
+          const p = getMarkPrice(sym);
+          const lv = levelCache[sym];
+          if (!p || !lv?.longEntry || !lv?.shortEntry) continue;
 
-      for (const sym of scanNearby.slice(0, 8)) {
-        const markPrice = getMarkPrice(sym);
-        enqueueSymbolSignal(client, sym, markPrice, leverageInfo, leverage, coins);
+          const dLong = Math.abs(p - lv.longEntry) / p;
+          const dShort = Math.abs(lv.shortEntry - p) / p;
+          const nearestDir = dLong <= dShort ? 'LONG' : 'SHORT';
+          const nearestLevel = nearestDir === 'LONG' ? lv.longEntry : lv.shortEntry;
+          const distPct = Math.min(dLong, dShort);
+
+          const activeDir = getActiveTradeDirection(sym);
+          if (activeDir) {
+            if (activeDir === 'UNKNOWN' || activeDir === nearestDir) continue;
+            if ((reversalAlertCooldown[sym] || 0) + REVERSAL_ALERT_COOLDOWN_MS > nowTime) continue;
+          }
+
+          const prevScan = recentPollingScan.get(sym);
+          if (prevScan && prevScan.level === nearestLevel && (nowTime - prevScan.ts) < POLL_ROTATION_TTL_MS) continue;
+
+          eligibleNearby.push({ sym, p, distPct, nearestLevel });
+        }
+
+        eligibleNearby.sort((a, b) => a.distPct - b.distPct);
+        for (const item of eligibleNearby.slice(0, 8)) {
+          recentPollingScan.set(item.sym, { level: item.nearestLevel, ts: nowTime });
+          enqueueSymbolSignal(client, item.sym, item.p, leverageInfo, leverage, coins);
+        }
       }
 
       // Rà soát hàng chờ Đảo Chiều (Pending Reversal Auto-Entry)
@@ -2450,8 +2473,11 @@ async function startAutoTrade(coins) {
     }
   }
 
-  // ─── CONCURRENCY POOL FOR SIGNAL CHECKS ──────────────────────────────────
+  // ─── CONCURRENCY POOL & POLLING ROTATION FOR SIGNAL CHECKS ───────────────
   const MAX_CONCURRENT_SIGNAL_CHECKS = 1;
+  const MAX_SIGNAL_QUEUE_LEN = 12;
+  const POLL_ROTATION_TTL_MS = parseInt(process.env.POLL_ROTATION_TTL_MS || String(2 * 60 * 1000), 10); // 2 phút xoay vòng sang 8 coin tiếp theo
+  const recentPollingScan = new Map(); // sym -> { level, ts }
   let activeSignalChecks = 0;
   const signalCheckQueue = [];
 
@@ -2481,6 +2507,8 @@ async function startAutoTrade(coins) {
     }
 
     if (signalCheckQueue.some(item => item.sym === sym)) return;
+    // Giới hạn hàng đợi tối đa 12 mã để chống tích backlog & stale markPrice khi BTC giật mạnh
+    if (signalCheckQueue.length >= MAX_SIGNAL_QUEUE_LEN) return;
 
     signalCheckQueue.push({ client, sym, markPrice, leverageInfo, leverage, coins });
     processSignalQueue();
@@ -2493,7 +2521,8 @@ async function startAutoTrade(coins) {
     if (!task) return;
 
     activeSignalChecks++;
-    processSymbolSignal(task.client, task.sym, task.markPrice, task.leverageInfo, task.leverage, task.coins)
+    const freshMarkPrice = getMarkPrice(task.sym) || task.markPrice;
+    processSymbolSignal(task.client, task.sym, freshMarkPrice, task.leverageInfo, task.leverage, task.coins)
       .catch(err => {
         log.warn(`[AutoTrade] Queue error for ${task.sym}: ${err.message}`);
       })

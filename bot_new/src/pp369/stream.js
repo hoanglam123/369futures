@@ -251,16 +251,18 @@ function getSubscribedSymbols() {
   return Array.from(_subscribed);
 }
 
-function getNearbySymbols(symbols, levelCache, threshold = 0.02, strict = false) {
+function getNearbySymbols(symbols, levelCache, threshold = 0.02, strict = false, pricesOverride = null) {
+  const priceMap = pricesOverride || _prices;
   return (symbols || []).filter(sym => {
-    const price  = _prices[sym];
+    const price  = priceMap[sym];
     const levels = levelCache ? levelCache[sym] : null;
 
-    // Chưa có giá nhưng đã có level -> tạm thời skip để đợi WS nhận giá
-    if (levels?.longEntry && levels?.shortEntry && !price) return false;
+    // Chưa có mốc hợp lệ hoặc chưa có giá live -> KHÔNG đếm ảo vào danh sách tiệm cận / không subscribe WS thừa
+    if (!levels?.longEntry || !levels?.shortEntry || !price || price <= 0) return false;
 
-    // Chưa có level -> include để tính mốc
-    if (!levels?.longEntry || !levels?.shortEntry) return true;
+    // Đồng bộ bot-h4: lọc độ rộng lưới vật lý 1.5% - 30% trước khi đưa vào WS/Top 8
+    const currentGridPct = ((levels.shortEntry - levels.longEntry) / levels.longEntry) * 100;
+    if (currentGridPct < 1.5 || currentGridPct > 30) return false;
 
     const adaptiveThreshold = (strict || !levels.step)
       ? threshold
