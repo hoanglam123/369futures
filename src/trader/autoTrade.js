@@ -360,33 +360,14 @@ async function triggerBtcFlashPump(client, { reason, source = 'REST', movePct = 
             log.system(`[AutoTrade] [BTC Guard] Hủy lệnh ENTRY LIMIT SHORT treo của ${sym} để phòng ngừa rủi ro.`);
           }
         }
-        // Chỉ kích hoạt PanicEscape khi đạt Mức 2 (SEVERE - Bão thật) và CHỈ cho vị thế đang lỗ/chưa có lãi bảo vệ
-        if (isSevere) {
-          const openPos = await effectiveClient.getOpenPositions();
-          for (const p of (openPos || [])) {
-            if (parseFloat(p.positionAmt) < 0) {
-              const sym = p.symbol.replace('USDT', '');
-              const meta = activeTradesMetadata[sym];
-              const uPnl = parseFloat(p.unRealizedProfit || p.unrealizedProfit || 0);
-              const hasProfitLock = Boolean(meta?.fractalSlPrice && meta?.entryPrice && meta.fractalSlPrice < meta.entryPrice);
-              if (meta && !hasProfitLock && uPnl <= 0) {
-                meta.isPanicEscape = true;
-                saveActiveTradesMetadata();
-                log.system(`[AutoTrade] 🚨 [BTC Flash Guard SEVERE] Vị thế ${sym} SHORT đang âm ($${uPnl.toFixed(2)}) gặp bão Pump -> Kích hoạt dời TP về Entry hòa vốn!`);
-              }
-            }
-          }
-        }
+        // Giữ nguyên toàn bộ vị thế đã khớp cùng TP/SL & Fractal Trailing SL trên sàn (không kích hoạt PanicEscape)
       } catch (_) { }
     }
 
-    const actionDesc = isSevere
-      ? `<b>KHÓA SHORT ${lockMins}p</b>, hủy Entry Limit chờ &amp; <b>dời TP hòa vốn vị thế SHORT đang âm</b>!`
-      : `<b>KHÓA SHORT ${lockMins}p</b> &amp; hủy Entry Limit chờ (giữ nguyên vị thế đang chạy)!`;
     sendTelegram(
       `🚨 <b>[BTC Flash Pump Guard — ${severity}] (${source})</b>\n` +
       `• <b>Phát hiện:</b> ${reason}\n` +
-      `• <b>Hành động:</b> Tự động ${actionDesc}`
+      `• <b>Hành động:</b> Tự động <b>KHÓA SHORT ${lockMins}p</b> &amp; hủy Entry Limit chờ (giữ nguyên vị thế đã khớp cùng TP/SL trên sàn)!`
     ).catch(() => { });
   }
   return { triggered: true, severity, lockMins };
@@ -435,33 +416,14 @@ async function triggerBtcFlashDump(client, { reason, source = 'REST', movePct = 
             log.system(`[AutoTrade] [BTC Guard] Hủy lệnh ENTRY LIMIT LONG treo của ${sym} để phòng ngừa rủi ro.`);
           }
         }
-        // Chỉ kích hoạt PanicEscape khi đạt Mức 2 (SEVERE - Bão thật) và CHỈ cho vị thế đang lỗ/chưa có lãi bảo vệ
-        if (isSevere) {
-          const openPos = await effectiveClient.getOpenPositions();
-          for (const p of (openPos || [])) {
-            if (parseFloat(p.positionAmt) > 0) {
-              const sym = p.symbol.replace('USDT', '');
-              const meta = activeTradesMetadata[sym];
-              const uPnl = parseFloat(p.unRealizedProfit || p.unrealizedProfit || 0);
-              const hasProfitLock = Boolean(meta?.fractalSlPrice && meta?.entryPrice && meta.fractalSlPrice > meta.entryPrice);
-              if (meta && !hasProfitLock && uPnl <= 0) {
-                meta.isPanicEscape = true;
-                saveActiveTradesMetadata();
-                log.system(`[AutoTrade] 🚨 [BTC Flash Guard SEVERE] Vị thế ${sym} LONG đang âm ($${uPnl.toFixed(2)}) gặp bão Dump -> Kích hoạt dời TP về Entry hòa vốn!`);
-              }
-            }
-          }
-        }
+        // Giữ nguyên toàn bộ vị thế đã khớp cùng TP/SL & Fractal Trailing SL trên sàn (không kích hoạt PanicEscape)
       } catch (_) { }
     }
 
-    const actionDesc = isSevere
-      ? `<b>KHÓA LONG ${lockMins}p</b>, hủy Entry Limit chờ &amp; <b>dời TP hòa vốn vị thế LONG đang âm</b>!`
-      : `<b>KHÓA LONG ${lockMins}p</b> &amp; hủy Entry Limit chờ (giữ nguyên vị thế đang chạy)!`;
     sendTelegram(
       `🚨 <b>[BTC Flash Dump Guard — ${severity}] (${source})</b>\n` +
       `• <b>Phát hiện:</b> ${reason}\n` +
-      `• <b>Hành động:</b> Tự động ${actionDesc}`
+      `• <b>Hành động:</b> Tự động <b>KHÓA LONG ${lockMins}p</b> &amp; hủy Entry Limit chờ (giữ nguyên vị thế đã khớp cùng TP/SL trên sàn)!`
     ).catch(() => { });
   }
   return { triggered: true, severity, lockMins };
@@ -5615,8 +5577,8 @@ async function checkTrailingSL(client, defaultLeverage, leverageInfo, activeSymb
                 : (isProfitLocked ? `Khóa Lãi Sóng ${tfLabel} (+${currentSlPct}%)` : `Bám Đáy/Đỉnh Sóng ${tfLabel} (${currentSlPct}%)`));
             log.system(`[AutoTrade] 🌊 [Fractal Cascade Trailing SL] ${sym} ${levelLabel} -> Dịch SL trên sàn về $${targetSlStr} (ROI ~${currentSlPct}%) [Đỉnh ROI: +${roi.toFixed(2)}%]`);
 
-            // 🧹 Hủy sạch các lệnh LIMIT Entry còn treo dư (chống khớp lại phần dư khi giá hồi về Entry)
-            const remainingEntryLimits = openOrders.filter(o => o.type === 'LIMIT' || o.orderType === 'LIMIT');
+            // 🧹 Hủy sạch CHỈ các lệnh LIMIT Entry còn treo dư (!reduceOnly — tuyệt đối KHÔNG hủy TP LIMIT của vị thế)
+            const remainingEntryLimits = openOrders.filter(o => !isOrderReduceOnly(o) && (o.type === 'LIMIT' || o.orderType === 'LIMIT'));
             for (const limitOrder of remainingEntryLimits) {
               client.cancelOrder(sym, limitOrder.orderId).catch(() => { });
             }
