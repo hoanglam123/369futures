@@ -125,23 +125,33 @@ runTest('3. Cooldown Manager: Đưa coin dính SL vào hồi chiêu 6 tiếng v�
 });
 
 // ── 3. REAL-TIME BTC FLASH GUARD ─────────────────────────────────────────────
-runTest('4. Real-time BTC Flash Guard: Bắt biến tốc xả 0ms (Dump >= 0.70% trong 180s) và khóa LONG', () => {
+runTest('4. Real-time BTC Flash Guard: Ngưỡng 0.65%/60s & 1.00%/180s, 2 mức khóa (20p/45p) & chống Ping-Pong 5p', () => {
   resetFlashGuard();
   assert.strictEqual(checkBtcFlashStatus().activeFlash, null, 'Ban đầu trạng thái Flash phải bình thường');
 
-  const now = Date.now();
-  // Giả lập chuỗi tick BTC rơi từ 95,000 xuống 94,200 (-0.84%)
-  processBtcTick(95000);
-  processBtcTick(94900);
-  processBtcTick(94700);
-  processBtcTick(94500);
-  processBtcTick(94200);
+  const t0 = Date.now();
+  // Nhiễu nhỏ -0.50% trong 60s (< 0.65%) -> KHÔNG kích hoạt báo động giả
+  processBtcTick(95000, t0);
+  processBtcTick(94850, t0 + 2000);
+  processBtcTick(94700, t0 + 4000);
+  processBtcTick(94525, t0 + 6000); // -0.50%
+  assert.strictEqual(checkBtcFlashStatus().activeFlash, null, 'Rung nhẹ -0.50% không được kích hoạt Flash Dump');
 
-  const status = checkBtcFlashStatus();
-  // Do test chạy cùng 1 mili-giây, ta kiểm tra trigger chủ động
-  triggerFlashDump({ reason: 'Test Flash Dump Velocity -0.84%', velocityPct: -0.84 });
-  const dumpStatus = checkBtcFlashStatus();
-  assert.strictEqual(dumpStatus.activeFlash, 'FLASH_DUMP', 'Phải kích hoạt trạng thái FLASH_DUMP');
+  // Rơi mạnh -0.80% trong 10s (>= 0.65%/60s) -> Kích hoạt MODERATE (20p)
+  processBtcTick(94240, t0 + 10000);
+  const modStatus = checkBtcFlashStatus();
+  assert.strictEqual(modStatus.activeFlash, 'FLASH_DUMP', 'Rơi -0.80%/60s phải kích hoạt FLASH_DUMP');
+  assert.strictEqual(modStatus.severity, 'MODERATE', 'Rơi -0.80% phải ở mức MODERATE (20p)');
+
+  // Chống Ping-Pong 5 phút: Pump ngược +0.85% (< 1.20%) sau 1 phút -> KHÔNG lật sang PUMP
+  triggerFlashPump({ reason: 'Minor bounce +0.85%', velocityPct: 0.85, nowMs: t0 + 70_000 });
+  assert.strictEqual(checkBtcFlashStatus().activeFlash, 'FLASH_DUMP', 'Phải giữ nguyên FLASH_DUMP trong 5p chống Ping-Pong');
+
+  // Bão ngược thật >= 1.50% -> Cho phép lật chiều ngay và nâng lên SEVERE (45p)
+  triggerFlashPump({ reason: 'Severe reversal +1.60%', velocityPct: 1.60, nowMs: t0 + 80_000 });
+  const sevStatus = checkBtcFlashStatus();
+  assert.strictEqual(sevStatus.activeFlash, 'FLASH_PUMP', 'Cú đảo chiều bão >= 1.20% được phép lật sang FLASH_PUMP');
+  assert.strictEqual(sevStatus.severity, 'SEVERE', 'Biến động >= 1.50% phải ở mức SEVERE (45p)');
 
   resetFlashGuard();
   assert.strictEqual(checkBtcFlashStatus().activeFlash, null, 'Reset đưa Flash Guard về bình thường');

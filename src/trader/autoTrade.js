@@ -259,8 +259,25 @@ let btcFlashState = {
   isLongLocked: false,
   lockedUntil: 0,
   lockReason: '',
+  severity: 'NORMAL',       // 'NORMAL' | 'MODERATE' | 'SEVERE'
+  lastTriggeredAt: 0,       // Chống Ping-Pong lật chiều liên tục
+  lastTriggeredM1OpenTime: 0,
+  lastTriggeredM15OpenTime: 0,
   lastCheckTime: 0
 };
+
+const BTC_FLASH_FLIP_COOLDOWN_MS   = 5 * 60_000;  // Chống lật chiều Pump <-> Dump tối thiểu 5 phút
+const BTC_FLASH_FLIP_OVERRIDE_PCT  = 1.20;        // Chỉ cho phép lật chiều ngay trong 5p nếu cú ngược >= 1.20%
+const BTC_FLASH_MODERATE_LOCK_MS   = 20 * 60_000; // Mức 1 (Biến động mạnh): Khóa mở mới 20 phút, KHÔNG ép PanicEscape
+const BTC_FLASH_SEVERE_LOCK_MS     = 45 * 60_000; // Mức 2 (Bão thật >= 1.5%): Khóa 45 phút + PanicEscape lệnh đang lỗ
+const BTC_FLASH_WS_60S_PCT         = 0.65;        // WS 60s >= ±0.65%
+const BTC_FLASH_WS_180S_PCT        = 1.00;        // WS 180s >= ±1.00%
+const BTC_FLASH_M1_BODY_PCT        = 0.55;        // M1 thân nến >= ±0.55% + Vol >= 2.5x
+const BTC_FLASH_M1_CASCADE_PCT     = 0.85;        // 3 nến M1 liên tiếp >= ±0.85%
+const BTC_FLASH_M15_BODY_PCT       = 0.90;        // M15 thân nến >= ±0.90% + Vol >= 2.2x (bỏ bẫy râu rút chân)
+const BTC_FLASH_M15_VOL_RATIO      = 2.2;
+const BTC_FLASH_M15_VOL_ABS        = 8000;
+const BTC_FLASH_SEVERE_MOVE_PCT    = 1.50;
 
 // ── Sliding Window 180s cho Real-time WebSocket Velocity ────
 const btcTickHistory = []; // { t: number, p: number }
@@ -273,6 +290,7 @@ function checkBtcFlashGatekeeper(signal) {
   if (isShort && btcFlashState.isShortLocked && now < btcFlashState.lockedUntil) {
     return {
       isLocked: true,
+      severity: btcFlashState.severity || 'MODERATE',
       reason: btcFlashState.lockReason || 'BTC Flash Pump',
       remainingMinutes: Math.max(1, Math.ceil((btcFlashState.lockedUntil - now) / 60_000))
     };
@@ -280,123 +298,173 @@ function checkBtcFlashGatekeeper(signal) {
   if (isLong && btcFlashState.isLongLocked && now < btcFlashState.lockedUntil) {
     return {
       isLocked: true,
+      severity: btcFlashState.severity || 'MODERATE',
       reason: btcFlashState.lockReason || 'BTC Flash Dump',
       remainingMinutes: Math.max(1, Math.ceil((btcFlashState.lockedUntil - now) / 60_000))
     };
   }
-  return { isLocked: false, reason: '', remainingMinutes: 0 };
+  return { isLocked: false, severity: 'NORMAL', reason: '', remainingMinutes: 0 };
 }
 
 function isBtcFlashLocked(signal) {
   return checkBtcFlashGatekeeper(signal).isLocked;
 }
 
-// ── Helper kích hoạt Khóa SHORT khi BTC Flash Pump ──────────
-async function triggerBtcFlashPump(client, { reason, source = 'REST', durationMs = 45 * 60_000 } = {}) {
-  const now = Date.now();
-  const newLockUntil = now + durationMs;
+function isOrderReduceOnly(order) {
+  return order?.reduceOnly === true ||
+    order?.reduceOnly === 'true' ||
+    order?.closePosition === true ||
+    order?.closePosition === 'true';
+}
 
-  // Xoay chiều: Nếu trước đó đang khóa LONG -> Mở khóa LONG ngay lập tức
-  if (btcFlashState.isLongLocked) {
+// ── Helper kích hoạt Khóa SHORT khi BTC Flash Pump ──────────
+async function triggerBtcFlashPump(client, { reason, source = 'REST', movePct = 0, durationMs = null } = {}) {
+  const now = Date.now();
+  const absMove = Math.abs(Number(movePct) || 0);
+  const isSevere = absMove >= BTC_FLASH_SEVERE_MOVE_PCT || (source !== 'Nến M15' && absMove >= 1.20);
+  const severity = isSevere ? 'SEVERE' : 'MODERATE';
+  const lockMs = durationMs || (isSevere ? BTC_FLASH_SEVERE_LOCK_MS : BTC_FLASH_MODERATE_LOCK_MS);
+  const lockMins = Math.round(lockMs / 60_000);
+
+  // Chống Ping-Pong: nếu đang khóa LONG chưa quá 5 phút và cú ngược chiều chưa đạt bão >= 1.20% -> bỏ qua
+  if (btcFlashState.isLongLocked && now < btcFlashState.lockedUntil) {
+    const elapsedSinceTrigger = now - (btcFlashState.lastTriggeredAt || 0);
+    if (elapsedSinceTrigger < BTC_FLASH_FLIP_COOLDOWN_MS && absMove < BTC_FLASH_FLIP_OVERRIDE_PCT) {
+      log.system(`[AutoTrade] ⏳ [BTC Guard] Bỏ qua tín hiệu xoay chiều Dump -> Pump [${source}] (${absMove.toFixed(2)}% < ${BTC_FLASH_FLIP_OVERRIDE_PCT}%) trong thời gian chống Ping-Pong 5 phút.`);
+      return { triggered: false, reason: 'FLIP_COOLDOWN' };
+    }
     btcFlashState.isLongLocked = false;
-    log.system(`[AutoTrade] 🔄 [BTC Guard] BTC xoay chiều từ Dump sang Pump -> Tự động GIẢI PHÓNG lệnh LONG!`);
+    log.system(`[AutoTrade] 🔄 [BTC Guard] BTC xoay chiều mạnh từ Dump sang Pump -> Tự động GIẢI PHÓNG lệnh LONG!`);
   }
 
   const isNewLock = !btcFlashState.isShortLocked;
+  const isUpgradeToSevere = btcFlashState.isShortLocked && btcFlashState.severity !== 'SEVERE' && isSevere;
   btcFlashState.isShortLocked = true;
-  btcFlashState.lockedUntil = Math.max(btcFlashState.lockedUntil, newLockUntil);
+  btcFlashState.lockedUntil = Math.max(btcFlashState.lockedUntil, now + lockMs);
   btcFlashState.lockReason = reason;
+  btcFlashState.severity = isSevere ? 'SEVERE' : (btcFlashState.severity === 'SEVERE' ? 'SEVERE' : 'MODERATE');
+  btcFlashState.lastTriggeredAt = now;
 
-  if (isNewLock) {
-    log.system(`[AutoTrade] 🚨 [BTC Flash Pump Guard] [${source}] Kích hoạt khóa SHORT Altcoin trong 45 phút (${btcFlashState.lockReason})`);
+  if (isNewLock || isUpgradeToSevere) {
+    log.system(`[AutoTrade] 🚨 [BTC Flash Pump Guard] [${source} | ${severity}] Kích hoạt khóa SHORT Altcoin trong ${lockMins} phút (${btcFlashState.lockReason})`);
 
-    // Hủy tất cả các lệnh Limit SHORT đang treo & Kích hoạt Thoát Hiểm cho Vị Thế SHORT đang mở
+    // Hủy CHỈ các lệnh ENTRY Limit SHORT đang treo (!reduceOnly — tuyệt đối KHÔNG hủy TP LIMIT của vị thế LONG)
     const effectiveClient = client || globalTradeClient;
     if (effectiveClient) {
       try {
         const openOrders = await effectiveClient.getOpenOrders();
-        for (const order of openOrders) {
-          if (order.side === 'SELL' && (order.type === 'LIMIT' || order.orderType === 'LIMIT')) {
+        for (const order of (openOrders || [])) {
+          if (!isOrderReduceOnly(order) && order.side === 'SELL' && (order.type === 'LIMIT' || order.orderType === 'LIMIT')) {
             const sym = order.symbol.replace('USDT', '');
             await effectiveClient.cancelOrder(sym, order.orderId).catch(() => { });
-            log.system(`[AutoTrade] [BTC Guard] Hủy lệnh LIMIT SHORT treo của ${sym} để phòng ngừa rủi ro.`);
+            log.system(`[AutoTrade] [BTC Guard] Hủy lệnh ENTRY LIMIT SHORT treo của ${sym} để phòng ngừa rủi ro.`);
           }
         }
-        const openPos = await effectiveClient.getOpenPositions();
-        for (const p of openPos) {
-          if (parseFloat(p.positionAmt) < 0) {
-            const sym = p.symbol.replace('USDT', '');
-            const meta = activeTradesMetadata[sym];
-            if (meta) {
-              meta.isPanicEscape = true;
-              saveActiveTradesMetadata();
-              log.system(`[AutoTrade] 🚨 [BTC Flash Guard] Vị thế ${sym} SHORT đang mở gặp bão Pump -> Kích hoạt dời TP về Entry hòa vốn bảo toàn vốn!`);
+        // Chỉ kích hoạt PanicEscape khi đạt Mức 2 (SEVERE - Bão thật) và CHỈ cho vị thế đang lỗ/chưa có lãi bảo vệ
+        if (isSevere) {
+          const openPos = await effectiveClient.getOpenPositions();
+          for (const p of (openPos || [])) {
+            if (parseFloat(p.positionAmt) < 0) {
+              const sym = p.symbol.replace('USDT', '');
+              const meta = activeTradesMetadata[sym];
+              const uPnl = parseFloat(p.unRealizedProfit || p.unrealizedProfit || 0);
+              const hasProfitLock = Boolean(meta?.fractalSlPrice && meta?.entryPrice && meta.fractalSlPrice < meta.entryPrice);
+              if (meta && !hasProfitLock && uPnl <= 0) {
+                meta.isPanicEscape = true;
+                saveActiveTradesMetadata();
+                log.system(`[AutoTrade] 🚨 [BTC Flash Guard SEVERE] Vị thế ${sym} SHORT đang âm ($${uPnl.toFixed(2)}) gặp bão Pump -> Kích hoạt dời TP về Entry hòa vốn!`);
+              }
             }
           }
         }
       } catch (_) { }
     }
 
+    const actionDesc = isSevere
+      ? `<b>KHÓA SHORT ${lockMins}p</b>, hủy Entry Limit chờ &amp; <b>dời TP hòa vốn vị thế SHORT đang âm</b>!`
+      : `<b>KHÓA SHORT ${lockMins}p</b> &amp; hủy Entry Limit chờ (giữ nguyên vị thế đang chạy)!`;
     sendTelegram(
-      `🚨 <b>[BTC Flash Pump Guard] KÍCH HOẠT KHÓA SHORT & THOÁT HIỂM VỊ THẾ (${source})</b>\n` +
+      `🚨 <b>[BTC Flash Pump Guard — ${severity}] (${source})</b>\n` +
       `• <b>Phát hiện:</b> ${reason}\n` +
-      `• <b>Hành động:</b> Tự động <b>KHÓA LỆNH SHORT</b>, hủy Limit chờ & <b>Dời TP về Entry hòa vốn cho các vị thế SHORT đang mở</b>!`
+      `• <b>Hành động:</b> Tự động ${actionDesc}`
     ).catch(() => { });
   }
+  return { triggered: true, severity, lockMins };
 }
 
 // ── Helper kích hoạt Khóa LONG khi BTC Flash Dump ──────────
-async function triggerBtcFlashDump(client, { reason, source = 'REST', durationMs = 45 * 60_000 } = {}) {
+async function triggerBtcFlashDump(client, { reason, source = 'REST', movePct = 0, durationMs = null } = {}) {
   const now = Date.now();
-  const newLockUntil = now + durationMs;
+  const absMove = Math.abs(Number(movePct) || 0);
+  const isSevere = absMove >= BTC_FLASH_SEVERE_MOVE_PCT || (source !== 'Nến M15' && absMove >= 1.20);
+  const severity = isSevere ? 'SEVERE' : 'MODERATE';
+  const lockMs = durationMs || (isSevere ? BTC_FLASH_SEVERE_LOCK_MS : BTC_FLASH_MODERATE_LOCK_MS);
+  const lockMins = Math.round(lockMs / 60_000);
 
-  // Xoay chiều: Nếu trước đó đang khóa SHORT -> Mở khóa SHORT ngay lập tức
-  if (btcFlashState.isShortLocked) {
+  // Chống Ping-Pong: nếu đang khóa SHORT chưa quá 5 phút và cú ngược chiều chưa đạt bão >= 1.20% -> bỏ qua
+  if (btcFlashState.isShortLocked && now < btcFlashState.lockedUntil) {
+    const elapsedSinceTrigger = now - (btcFlashState.lastTriggeredAt || 0);
+    if (elapsedSinceTrigger < BTC_FLASH_FLIP_COOLDOWN_MS && absMove < BTC_FLASH_FLIP_OVERRIDE_PCT) {
+      log.system(`[AutoTrade] ⏳ [BTC Guard] Bỏ qua tín hiệu xoay chiều Pump -> Dump [${source}] (${absMove.toFixed(2)}% < ${BTC_FLASH_FLIP_OVERRIDE_PCT}%) trong thời gian chống Ping-Pong 5 phút.`);
+      return { triggered: false, reason: 'FLIP_COOLDOWN' };
+    }
     btcFlashState.isShortLocked = false;
-    log.system(`[AutoTrade] 🔄 [BTC Guard] BTC xoay chiều từ Pump sang Dump -> Tự động GIẢI PHÓNG lệnh SHORT!`);
+    log.system(`[AutoTrade] 🔄 [BTC Guard] BTC xoay chiều mạnh từ Pump sang Dump -> Tự động GIẢI PHÓNG lệnh SHORT!`);
   }
 
   const isNewLock = !btcFlashState.isLongLocked;
+  const isUpgradeToSevere = btcFlashState.isLongLocked && btcFlashState.severity !== 'SEVERE' && isSevere;
   btcFlashState.isLongLocked = true;
-  btcFlashState.lockedUntil = Math.max(btcFlashState.lockedUntil, newLockUntil);
+  btcFlashState.lockedUntil = Math.max(btcFlashState.lockedUntil, now + lockMs);
   btcFlashState.lockReason = reason;
+  btcFlashState.severity = isSevere ? 'SEVERE' : (btcFlashState.severity === 'SEVERE' ? 'SEVERE' : 'MODERATE');
+  btcFlashState.lastTriggeredAt = now;
 
-  if (isNewLock) {
-    log.system(`[AutoTrade] 🚨 [BTC Flash Dump Guard] [${source}] Kích hoạt khóa LONG Altcoin trong 45 phút (${btcFlashState.lockReason})`);
+  if (isNewLock || isUpgradeToSevere) {
+    log.system(`[AutoTrade] 🚨 [BTC Flash Dump Guard] [${source} | ${severity}] Kích hoạt khóa LONG Altcoin trong ${lockMins} phút (${btcFlashState.lockReason})`);
 
-    // Hủy tất cả các lệnh Limit LONG đang treo & Kích hoạt Thoát Hiểm cho Vị Thế LONG đang mở
+    // Hủy CHỈ các lệnh ENTRY Limit LONG đang treo (!reduceOnly — tuyệt đối KHÔNG hủy TP LIMIT của vị thế SHORT)
     const effectiveClient = client || globalTradeClient;
     if (effectiveClient) {
       try {
         const openOrders = await effectiveClient.getOpenOrders();
-        for (const order of openOrders) {
-          if (order.side === 'BUY' && (order.type === 'LIMIT' || order.orderType === 'LIMIT')) {
+        for (const order of (openOrders || [])) {
+          if (!isOrderReduceOnly(order) && order.side === 'BUY' && (order.type === 'LIMIT' || order.orderType === 'LIMIT')) {
             const sym = order.symbol.replace('USDT', '');
             await effectiveClient.cancelOrder(sym, order.orderId).catch(() => { });
-            log.system(`[AutoTrade] [BTC Guard] Hủy lệnh LIMIT LONG treo của ${sym} để phòng ngừa rủi ro.`);
+            log.system(`[AutoTrade] [BTC Guard] Hủy lệnh ENTRY LIMIT LONG treo của ${sym} để phòng ngừa rủi ro.`);
           }
         }
-        const openPos = await effectiveClient.getOpenPositions();
-        for (const p of openPos) {
-          if (parseFloat(p.positionAmt) > 0) {
-            const sym = p.symbol.replace('USDT', '');
-            const meta = activeTradesMetadata[sym];
-            if (meta) {
-              meta.isPanicEscape = true;
-              saveActiveTradesMetadata();
-              log.system(`[AutoTrade] 🚨 [BTC Flash Guard] Vị thế ${sym} LONG đang mở gặp bão Dump -> Kích hoạt dời TP về Entry hòa vốn bảo toàn vốn!`);
+        // Chỉ kích hoạt PanicEscape khi đạt Mức 2 (SEVERE - Bão thật) và CHỈ cho vị thế đang lỗ/chưa có lãi bảo vệ
+        if (isSevere) {
+          const openPos = await effectiveClient.getOpenPositions();
+          for (const p of (openPos || [])) {
+            if (parseFloat(p.positionAmt) > 0) {
+              const sym = p.symbol.replace('USDT', '');
+              const meta = activeTradesMetadata[sym];
+              const uPnl = parseFloat(p.unRealizedProfit || p.unrealizedProfit || 0);
+              const hasProfitLock = Boolean(meta?.fractalSlPrice && meta?.entryPrice && meta.fractalSlPrice > meta.entryPrice);
+              if (meta && !hasProfitLock && uPnl <= 0) {
+                meta.isPanicEscape = true;
+                saveActiveTradesMetadata();
+                log.system(`[AutoTrade] 🚨 [BTC Flash Guard SEVERE] Vị thế ${sym} LONG đang âm ($${uPnl.toFixed(2)}) gặp bão Dump -> Kích hoạt dời TP về Entry hòa vốn!`);
+              }
             }
           }
         }
       } catch (_) { }
     }
 
+    const actionDesc = isSevere
+      ? `<b>KHÓA LONG ${lockMins}p</b>, hủy Entry Limit chờ &amp; <b>dời TP hòa vốn vị thế LONG đang âm</b>!`
+      : `<b>KHÓA LONG ${lockMins}p</b> &amp; hủy Entry Limit chờ (giữ nguyên vị thế đang chạy)!`;
     sendTelegram(
-      `🚨 <b>[BTC Flash Dump Guard] KÍCH HOẠT KHÓA LONG & THOÁT HIỂM VỊ THẾ (${source})</b>\n` +
+      `🚨 <b>[BTC Flash Dump Guard — ${severity}] (${source})</b>\n` +
       `• <b>Phát hiện:</b> ${reason}\n` +
-      `• <b>Hành động:</b> Tự động <b>KHÓA LỆNH LONG</b>, hủy Limit chờ & <b>Dời TP về Entry hòa vốn cho các vị thế LONG đang mở</b>!`
+      `• <b>Hành động:</b> Tự động ${actionDesc}`
     ).catch(() => { });
   }
+  return { triggered: true, severity, lockMins };
 }
 
 // ── TẦNG 1: Real-time WebSocket Velocity Guard (Độ trễ 0ms - Không chờ nến đóng) ──
@@ -436,37 +504,39 @@ function checkRealtimeBtcFlashVelocity(price, client) {
   }
 
   // 1. Flash Dump tức thì:
-  // - Rơi >= 0.45% trong 60 giây gần nhất từ đỉnh 60s
-  // - Hoặc rơi >= 0.70% trong 180 giây gần nhất từ đỉnh 180s
+  // - Rơi >= 0.65% trong 60 giây gần nhất từ đỉnh 60s
+  // - Hoặc rơi >= 1.00% trong 180 giây gần nhất từ đỉnh 180s
   const drop60 = max60 > 0 ? ((price - max60) / max60) * 100 : 0;
   const drop180 = max180 > 0 ? ((price - max180) / max180) * 100 : 0;
 
-  if (drop60 <= -0.45 || drop180 <= -0.70) {
-    const changePct = drop60 <= -0.45 ? drop60 : drop180;
-    const windowSec = drop60 <= -0.45 ? 60 : 180;
+  if (drop60 <= -BTC_FLASH_WS_60S_PCT || drop180 <= -BTC_FLASH_WS_180S_PCT) {
+    const changePct = drop60 <= -BTC_FLASH_WS_60S_PCT ? drop60 : drop180;
+    const windowSec = drop60 <= -BTC_FLASH_WS_60S_PCT ? 60 : 180;
     const peakPrice = windowSec === 60 ? max60 : max180;
     lastWsFlashTriggerTime = now;
     triggerBtcFlashDump(client, {
       reason: `BTC Vận Tốc Xả WebSocket 0ms (Rơi ${changePct.toFixed(2)}% trong ${windowSec}s: $${peakPrice.toFixed(1)} -> $${price.toFixed(1)})`,
-      source: 'WebSocket 0ms Realtime'
+      source: 'WebSocket 0ms Realtime',
+      movePct: Math.abs(changePct)
     });
     return;
   }
 
   // 2. Flash Pump tức thì:
-  // - Tăng >= +0.45% trong 60 giây gần nhất từ đáy 60s
-  // - Hoặc tăng >= +0.70% trong 180 giây gần nhất từ đáy 180s
+  // - Tăng >= +0.65% trong 60 giây gần nhất từ đáy 60s
+  // - Hoặc tăng >= +1.00% trong 180 giây gần nhất từ đáy 180s
   const pump60 = min60 < Infinity ? ((price - min60) / min60) * 100 : 0;
   const pump180 = min180 < Infinity ? ((price - min180) / min180) * 100 : 0;
 
-  if (pump60 >= 0.45 || pump180 >= 0.70) {
-    const changePct = pump60 >= 0.45 ? pump60 : pump180;
-    const windowSec = pump60 >= 0.45 ? 60 : 180;
+  if (pump60 >= BTC_FLASH_WS_60S_PCT || pump180 >= BTC_FLASH_WS_180S_PCT) {
+    const changePct = pump60 >= BTC_FLASH_WS_60S_PCT ? pump60 : pump180;
+    const windowSec = pump60 >= BTC_FLASH_WS_60S_PCT ? 60 : 180;
     const troughPrice = windowSec === 60 ? min60 : min180;
     lastWsFlashTriggerTime = now;
     triggerBtcFlashPump(client, {
       reason: `BTC Vận Tốc Tăng WebSocket 0ms (Tăng +${changePct.toFixed(2)}% trong ${windowSec}s: $${troughPrice.toFixed(1)} -> $${price.toFixed(1)})`,
-      source: 'WebSocket 0ms Realtime'
+      source: 'WebSocket 0ms Realtime',
+      movePct: Math.abs(changePct)
     });
     return;
   }
@@ -485,7 +555,7 @@ async function updateBtcFlashGuard(client) {
       fetchBinanceKlines('BTC', '15m', null, 21).catch(() => null)
     ]);
 
-    // ── TẦNG 2: Kiểm tra Nến M1 Momentum (Phát hiện bão trong 60 giây) ──
+    // ── TẦNG 2: Kiểm tra Nến M1 Momentum (Mỗi nến chỉ trigger tối đa 1 lần) ──
     if (klines1m && klines1m.length >= 5) {
       let sumVol1m = 0;
       const count1m = Math.min(20, klines1m.length - 1);
@@ -495,55 +565,67 @@ async function updateBtcFlashGuard(client) {
       const ma20Vol1m = count1m > 0 ? (sumVol1m / count1m) : klines1m[klines1m.length - 1].volume;
 
       const lastClosed1m = klines1m[klines1m.length - 2];
-      const volRatio1m = ma20Vol1m > 0 ? (lastClosed1m.volume / ma20Vol1m) : 1.0;
-      const bodyPct1m = ((lastClosed1m.close - lastClosed1m.open) / lastClosed1m.open) * 100;
+      const isNewM1Candle = lastClosed1m?.openTime && lastClosed1m.openTime !== btcFlashState.lastTriggeredM1OpenTime;
 
-      // 1 nến M1 xả mạnh: Giảm <= -0.35% kèm Vol >= 1.8x MA20 hoặc Vol >= 500 BTC
-      if (bodyPct1m <= -0.35 && (volRatio1m >= 1.8 || lastClosed1m.volume >= 500)) {
-        await triggerBtcFlashDump(client, {
-          reason: `BTC Nến M1 Xả Nhanh (Giảm ${bodyPct1m.toFixed(2)}% | Vol ${volRatio1m.toFixed(1)}x MA20 M1 [${lastClosed1m.volume.toFixed(0)} BTC])`,
-          source: 'Nến M1 Closed'
-        });
-        return;
-      }
+      if (isNewM1Candle) {
+        const volRatio1m = ma20Vol1m > 0 ? (lastClosed1m.volume / ma20Vol1m) : 1.0;
+        const bodyPct1m = ((lastClosed1m.close - lastClosed1m.open) / lastClosed1m.open) * 100;
 
-      // 1 nến M1 bơm mạnh: Tăng >= +0.35% kèm Vol >= 1.8x MA20 hoặc Vol >= 500 BTC
-      if (bodyPct1m >= 0.35 && (volRatio1m >= 1.8 || lastClosed1m.volume >= 500)) {
-        await triggerBtcFlashPump(client, {
-          reason: `BTC Nến M1 Bơm Nhanh (Tăng +${bodyPct1m.toFixed(2)}% | Vol ${volRatio1m.toFixed(1)}x MA20 M1 [${lastClosed1m.volume.toFixed(0)} BTC])`,
-          source: 'Nến M1 Closed'
-        });
-        return;
-      }
-
-      // 3 nến M1 liên tiếp trượt dài (Cascade)
-      if (klines1m.length >= 4) {
-        const c1 = klines1m[klines1m.length - 4];
-        const c2 = klines1m[klines1m.length - 3];
-        const c3 = klines1m[klines1m.length - 2];
-        const isCascadeDump = c1.close < c1.open && c2.close < c2.open && c3.close < c3.open;
-        const totalDrop3m = ((c3.close - c1.open) / c1.open) * 100;
-        if (isCascadeDump && totalDrop3m <= -0.50) {
+        // 1 nến M1 xả mạnh: Thân <= -0.55% kèm Vol >= 2.5x MA20 hoặc Vol >= 800 BTC
+        if (bodyPct1m <= -BTC_FLASH_M1_BODY_PCT && (volRatio1m >= 2.5 || lastClosed1m.volume >= 800)) {
+          btcFlashState.lastTriggeredM1OpenTime = lastClosed1m.openTime;
           await triggerBtcFlashDump(client, {
-            reason: `BTC Xả Dồn 3 Nến M1 Liên Tiếp (Tổng rơi ${totalDrop3m.toFixed(2)}% trong 3 phút)`,
-            source: 'M1 Cascade'
+            reason: `BTC Nến M1 Xả Mạnh (Giảm ${bodyPct1m.toFixed(2)}% | Vol ${volRatio1m.toFixed(1)}x MA20 M1 [${lastClosed1m.volume.toFixed(0)} BTC])`,
+            source: 'Nến M1 Closed',
+            movePct: Math.abs(bodyPct1m)
           });
           return;
         }
 
-        const isCascadePump = c1.close > c1.open && c2.close > c2.open && c3.close > c3.open;
-        const totalPump3m = ((c3.close - c1.open) / c1.open) * 100;
-        if (isCascadePump && totalPump3m >= 0.50) {
+        // 1 nến M1 bơm mạnh: Thân >= +0.55% kèm Vol >= 2.5x MA20 hoặc Vol >= 800 BTC
+        if (bodyPct1m >= BTC_FLASH_M1_BODY_PCT && (volRatio1m >= 2.5 || lastClosed1m.volume >= 800)) {
+          btcFlashState.lastTriggeredM1OpenTime = lastClosed1m.openTime;
           await triggerBtcFlashPump(client, {
-            reason: `BTC Bơm Dồn 3 Nến M1 Liên Tiếp (Tổng tăng +${totalPump3m.toFixed(2)}% trong 3 phút)`,
-            source: 'M1 Cascade'
+            reason: `BTC Nến M1 Bơm Mạnh (Tăng +${bodyPct1m.toFixed(2)}% | Vol ${volRatio1m.toFixed(1)}x MA20 M1 [${lastClosed1m.volume.toFixed(0)} BTC])`,
+            source: 'Nến M1 Closed',
+            movePct: Math.abs(bodyPct1m)
           });
           return;
+        }
+
+        // 3 nến M1 liên tiếp trượt dài (Cascade >= ±0.85%)
+        if (klines1m.length >= 4) {
+          const c1 = klines1m[klines1m.length - 4];
+          const c2 = klines1m[klines1m.length - 3];
+          const c3 = klines1m[klines1m.length - 2];
+          const isCascadeDump = c1.close < c1.open && c2.close < c2.open && c3.close < c3.open;
+          const totalDrop3m = ((c3.close - c1.open) / c1.open) * 100;
+          if (isCascadeDump && totalDrop3m <= -BTC_FLASH_M1_CASCADE_PCT) {
+            btcFlashState.lastTriggeredM1OpenTime = c3.openTime;
+            await triggerBtcFlashDump(client, {
+              reason: `BTC Xả Dồn 3 Nến M1 Liên Tiếp (Tổng rơi ${totalDrop3m.toFixed(2)}% trong 3 phút)`,
+              source: 'M1 Cascade',
+              movePct: Math.abs(totalDrop3m)
+            });
+            return;
+          }
+
+          const isCascadePump = c1.close > c1.open && c2.close > c2.open && c3.close > c3.open;
+          const totalPump3m = ((c3.close - c1.open) / c1.open) * 100;
+          if (isCascadePump && totalPump3m >= BTC_FLASH_M1_CASCADE_PCT) {
+            btcFlashState.lastTriggeredM1OpenTime = c3.openTime;
+            await triggerBtcFlashPump(client, {
+              reason: `BTC Bơm Dồn 3 Nến M1 Liên Tiếp (Tổng tăng +${totalPump3m.toFixed(2)}% trong 3 phút)`,
+              source: 'M1 Cascade',
+              movePct: Math.abs(totalPump3m)
+            });
+            return;
+          }
         }
       }
     }
 
-    // ── TẦNG 3: Kiểm tra Nến M15 Macro Guard (Dự phòng sóng lớn) ──
+    // ── TẦNG 3: Kiểm tra Nến M15 Macro Guard (Chống lặp nến cũ & Bỏ bẫy râu rút chân) ──
     if (!klines15m || klines15m.length < 2) return;
 
     let sumVol15m = 0;
@@ -565,29 +647,40 @@ async function updateBtcFlashGuard(client) {
       const volRatio = ma20Vol15m > 0 ? (vol / ma20Vol15m) : 1.0;
       const bodyPct = ((close - open) / open) * 100;
       const rangePct = ((high - low) / (low || 1)) * 100;
-      const pushHighPct = ((high - open) / open) * 100;
-      const plungeLowPct = ((open - low) / open) * 100;
 
-      const isPump = (volRatio >= 1.6 || vol >= 6000) && (bodyPct >= 0.50 || (pushHighPct >= 0.75 && pushHighPct > plungeLowPct) || (rangePct >= 0.95 && close > open));
-      const isDump = (volRatio >= 1.6 || vol >= 6000) && (bodyPct <= -0.50 || (plungeLowPct >= 0.75 && plungeLowPct > pushHighPct) || (rangePct >= 0.95 && close < open));
+      // Bắt buộc THÂN NẾN phải giữ vững >= ±0.90% kèm Vol >= 2.2x MA20 (hoặc >= 8000 BTC).
+      // Triệt tiêu báo động giả khi nến chỉ quét râu rồi rút chân hồi phục!
+      const volQualifies = (volRatio >= BTC_FLASH_M15_VOL_RATIO || vol >= BTC_FLASH_M15_VOL_ABS);
+      const isPump = volQualifies && bodyPct >= BTC_FLASH_M15_BODY_PCT;
+      const isDump = volQualifies && bodyPct <= -BTC_FLASH_M15_BODY_PCT;
 
-      return { isPump, isDump, volRatio, bodyPct, rangePct, pushHighPct, plungeLowPct, vol };
+      return { isPump, isDump, volRatio, bodyPct, rangePct, vol, openTime: c.openTime || 0 };
     };
 
-    const resClosed15m = checkCandle15m(lastClosed15m);
-    const resRunning15m = checkCandle15m(currRunning15m);
+    // Chỉ xét lastClosed15m nếu vừa đóng trong vòng <= 3 phút (tránh lật lại bởi nến cũ 10-14p trước)
+    const closedAgeMs = lastClosed15m?.openTime ? (now - (lastClosed15m.openTime + 15 * 60_000)) : Infinity;
+    const canCheckClosed15m = closedAgeMs >= 0 && closedAgeMs <= 3 * 60_000 && lastClosed15m.openTime !== btcFlashState.lastTriggeredM15OpenTime;
+    const canCheckRunning15m = currRunning15m?.openTime && currRunning15m.openTime !== btcFlashState.lastTriggeredM15OpenTime;
 
-    if (resClosed15m.isPump || resRunning15m.isPump) {
-      const activeRes = resRunning15m.isPump ? resRunning15m : resClosed15m;
+    const resRunning15m = canCheckRunning15m ? checkCandle15m(currRunning15m) : { isPump: false, isDump: false };
+    const resClosed15m  = canCheckClosed15m  ? checkCandle15m(lastClosed15m)  : { isPump: false, isDump: false };
+
+    const activePump15m = resRunning15m.isPump ? resRunning15m : (resClosed15m.isPump ? resClosed15m : null);
+    const activeDump15m = resRunning15m.isDump ? resRunning15m : (resClosed15m.isDump ? resClosed15m : null);
+
+    if (activePump15m) {
+      btcFlashState.lastTriggeredM15OpenTime = activePump15m.openTime;
       await triggerBtcFlashPump(client, {
-        reason: `BTC Flash Pump M15 (Vol ${activeRes.volRatio.toFixed(1)}x MA20 [${activeRes.vol.toFixed(0)} BTC] | Rướn +${activeRes.pushHighPct.toFixed(2)}%)`,
-        source: 'Nến M15'
+        reason: `BTC Flash Pump M15 (Vol ${activePump15m.volRatio.toFixed(1)}x MA20 [${activePump15m.vol.toFixed(0)} BTC] | Thân +${activePump15m.bodyPct.toFixed(2)}%)`,
+        source: 'Nến M15',
+        movePct: Math.abs(activePump15m.bodyPct)
       });
-    } else if (resClosed15m.isDump || resRunning15m.isDump) {
-      const activeRes = resRunning15m.isDump ? resRunning15m : resClosed15m;
+    } else if (activeDump15m) {
+      btcFlashState.lastTriggeredM15OpenTime = activeDump15m.openTime;
       await triggerBtcFlashDump(client, {
-        reason: `BTC Flash Dump M15 (Vol ${activeRes.volRatio.toFixed(1)}x MA20 [${activeRes.vol.toFixed(0)} BTC] | Xả -${activeRes.plungeLowPct.toFixed(2)}%)`,
-        source: 'Nến M15'
+        reason: `BTC Flash Dump M15 (Vol ${activeDump15m.volRatio.toFixed(1)}x MA20 [${activeDump15m.vol.toFixed(0)} BTC] | Thân ${activeDump15m.bodyPct.toFixed(2)}%)`,
+        source: 'Nến M15',
+        movePct: Math.abs(activeDump15m.bodyPct)
       });
     }
     // Kiểm tra mở khóa an toàn khi thị trường đã hạ nhiệt
@@ -603,6 +696,7 @@ async function updateBtcFlashGuard(client) {
           btcFlashState.isLongLocked = false;
           btcFlashState.lockedUntil = 0;
           btcFlashState.lockReason = '';
+          btcFlashState.severity = 'NORMAL';
 
           log.system(`[AutoTrade] 🟢 [BTC Flash Guard] Thị trường BTC đã hạ nhiệt an toàn (Vol ${lastVolRatio.toFixed(1)}x, Range ${lastRangePct.toFixed(2)}%). Mở khóa giao dịch bình thường.`);
           sendTelegram(
@@ -5867,4 +5961,8 @@ module.exports = {
   stopDashboard,
   startTelegramCommands,
   stopTelegramCommands,
+  triggerBtcFlashDump,
+  triggerBtcFlashPump,
+  checkBtcFlashGatekeeper,
+  isOrderReduceOnly,
 };
