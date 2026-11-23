@@ -332,17 +332,21 @@ function calculateATR(candles, period = 14) {
 }
 
 /**
- * Tìm các đỉnh/đáy xoay chiều (Swing Points)
+ * Tìm các đỉnh/đáy xoay chiều (Swing Points) kèm timestamp (openTime) & index
+ * để chống đếm trùng đa khung và hỗ trợ S/R Flip + lọc cản đã bị phá vỡ.
  */
 function findSwingPoints(candles, leftStrength = 3, rightStrength = 3) {
   const highs = [];
   const lows = [];
+  const highPoints = [];
+  const lowPoints = [];
   if (!candles || candles.length < leftStrength + rightStrength + 1) {
-    return { highs, lows };
+    return { highs, lows, highPoints, lowPoints };
   }
 
   for (let i = leftStrength; i < candles.length - rightStrength; i++) {
     const c = candles[i];
+    const t = c.openTime || 0;
 
     let isHigh = true;
     for (let j = 1; j <= leftStrength; j++) {
@@ -353,7 +357,10 @@ function findSwingPoints(candles, leftStrength = 3, rightStrength = 3) {
         if (candles[i + j].high > c.high) { isHigh = false; break; }
       }
     }
-    if (isHigh) highs.push(c.high);
+    if (isHigh) {
+      highs.push(c.high);
+      highPoints.push({ price: c.high, time: t, idx: i });
+    }
 
     let isLow = true;
     for (let j = 1; j <= leftStrength; j++) {
@@ -364,10 +371,13 @@ function findSwingPoints(candles, leftStrength = 3, rightStrength = 3) {
         if (candles[i + j].low < c.low) { isLow = false; break; }
       }
     }
-    if (isLow) lows.push(c.low);
+    if (isLow) {
+      lows.push(c.low);
+      lowPoints.push({ price: c.low, time: t, idx: i });
+    }
   }
 
-  return { highs, lows };
+  return { highs, lows, highPoints, lowPoints };
 }
 
 module.exports = {

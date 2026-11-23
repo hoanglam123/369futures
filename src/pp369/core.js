@@ -1828,10 +1828,16 @@ async function checkAndUpdateMarketCapCache() {
 function findSwingPoints(candles, leftStrength = 4, rightStrength = 4) {
   const highs = [];
   const lows = [];
+  const highPoints = [];
+  const lowPoints = [];
+  if (!Array.isArray(candles) || candles.length < leftStrength + rightStrength + 1) {
+    return { highs, lows, highPoints, lowPoints };
+  }
 
   for (let i = leftStrength; i < candles.length - rightStrength; i++) {
     const c = candles[i];
-    
+    const t = c.openTime || 0;
+
     // Check Swing High
     let isHigh = true;
     for (let j = 1; j <= leftStrength; j++) {
@@ -1844,6 +1850,7 @@ function findSwingPoints(candles, leftStrength = 4, rightStrength = 4) {
     }
     if (isHigh) {
       highs.push(c.high);
+      highPoints.push({ price: c.high, time: t, idx: i });
     }
 
     // Check Swing Low
@@ -1858,10 +1865,11 @@ function findSwingPoints(candles, leftStrength = 4, rightStrength = 4) {
     }
     if (isLow) {
       lows.push(c.low);
+      lowPoints.push({ price: c.low, time: t, idx: i });
     }
   }
 
-  return { highs, lows };
+  return { highs, lows, highPoints, lowPoints };
 }
 
 // ─── Bộ nhớ đệm phân tích sóng & trend BTC (chia sẻ cho toàn bộ coin trong chu kỳ quét) ─────

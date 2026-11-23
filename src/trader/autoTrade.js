@@ -954,42 +954,90 @@ async function getDynamicMargin(isTier1, clientInstance = null) {
   return fallbackMargin;
 }
 
+const SR_EPOCH_MS_THRESHOLD = 1_000_000_000_000;
+const SR_D1_FRESH_MAX_AGE_MS = 60 * 24 * 3600 * 1000; // Cản D1 1 chạm chỉ là Cản Cứng nếu <= 60 ngày gần nhất (hoặc cực trị 90d)
+
+function countDistinctTouches(points, minSepMs) {
+  if (!Array.isArray(points) || points.length === 0) return 0;
+  const timed = points.filter(p => typeof p.time === 'number' && p.time >= SR_EPOCH_MS_THRESHOLD);
+  if (timed.length === 0) {
+    const keys = new Set(points.map((p, i) => (p.idx != null ? `${p.timeframe || ''}_${p.idx}` : `${p.timeframe || ''}_${p.price}_${i}`)));
+    return keys.size;
+  }
+  const sorted = [...timed].sort((a, b) => a.time - b.time);
+  let count = 1;
+  let lastT = sorted[0].time;
+  for (let i = 1; i < sorted.length; i++) {
+    if (sorted[i].time - lastT >= minSepMs) {
+      count++;
+      lastT = sorted[i].time;
+    }
+  }
+  return count;
+}
+
+function countZoneCrossings(zoneMin, zoneMax, formationTime, h4Candles) {
+  if (!Array.isArray(h4Candles) || h4Candles.length < 4) return 0;
+  const recent = h4Candles.slice(-180); // ~30 ngày H4
+  const lowerBound = zoneMin * 0.9985;
+  const upperBound = zoneMax * 1.0015;
+  let crossings = 0;
+  let lastSide = 0;
+
+  for (const c of recent) {
+    if (formationTime >= SR_EPOCH_MS_THRESHOLD && typeof c.openTime === 'number' && c.openTime >= SR_EPOCH_MS_THRESHOLD) {
+      if (c.openTime <= formationTime) continue;
+    }
+    const close = c.close;
+    if (close > upperBound) {
+      if (lastSide === -1) crossings++;
+      lastSide = 1;
+    } else if (close < lowerBound) {
+      if (lastSide === 1) crossings++;
+      lastSide = -1;
+    }
+  }
+  return crossings;
+}
+
 /**
  * Nhóm các swing points vào các Cluster Zones [zoneMin, zoneMax]
- * @param {Array<{ price: number, timeframe: string, type: 'HIGH'|'LOW' }>} points
- * @param {number} toleranceRatio - Tỷ lệ dung sai (ví dụ 0.005 hoặc theo ATR)
- * @returns {Array<{ zoneMin: number, zoneMax: number, zoneMid: number, touches: number, timeframe: string, isMajor: boolean, points: Array }>}
+ * - Chống Cluster Chaining: so với tâm cụm (zoneMid) VÀ giới hạn độ rộng tối đa của cụm.
+ * - Đếm số lần chạm độc lập theo thời gian, kiểm tra độ tươi D1 và lọc cản chết đã bị xuyên phá >= 3 lần.
  */
-function buildClusterZones(points, toleranceRatio = 0.005) {
+function buildClusterZones(points, toleranceRatio = 0.005, opts = {}) {
   if (!points || !Array.isArray(points) || points.length === 0) return [];
 
-  // Sắp xếp tăng dần theo giá
   const sorted = [...points].sort((a, b) => a.price - b.price);
   const clusters = [];
   let currentGroup = [sorted[0]];
+  let groupSum = sorted[0].price;
 
   for (let i = 1; i < sorted.length; i++) {
     const pt = sorted[i];
     const groupMin = currentGroup[0].price;
-    const groupMax = currentGroup[currentGroup.length - 1].price;
-    const avgPrice = (groupMin + groupMax) / 2;
+    const groupMid = groupSum / currentGroup.length;
 
-    const tol = Math.max(avgPrice * toleranceRatio, avgPrice * 0.002);
-    if (pt.price - groupMax <= tol) {
+    const tol = Math.max(groupMid * toleranceRatio, groupMid * 0.002);
+    const maxZoneWidth = groupMin * Math.max(0.008, toleranceRatio * 2.5);
+
+    if (Math.abs(pt.price - groupMid) <= tol && (pt.price - groupMin) <= maxZoneWidth) {
       currentGroup.push(pt);
+      groupSum += pt.price;
     } else {
-      clusters.push(summarizeClusterZone(currentGroup));
+      clusters.push(summarizeClusterZone(currentGroup, opts));
       currentGroup = [pt];
+      groupSum = pt.price;
     }
   }
   if (currentGroup.length > 0) {
-    clusters.push(summarizeClusterZone(currentGroup));
+    clusters.push(summarizeClusterZone(currentGroup, opts));
   }
 
   return clusters;
 }
 
-function summarizeClusterZone(group) {
+function summarizeClusterZone(group, opts = {}) {
   const prices = group.map(p => p.price);
   const zoneMin = Math.min(...prices);
   const zoneMax = Math.max(...prices);
@@ -999,23 +1047,43 @@ function summarizeClusterZone(group) {
   const h4Points = group.filter(p => p.timeframe === 'H4');
   const h1Points = group.filter(p => p.timeframe === 'H1');
 
-  const d1Touches = d1Points.length;
-  const h4Touches = h4Points.length;
-  const h1Touches = h1Points.length;
-  const touches = Math.max(d1Touches, h4Touches, h1Touches, group.length);
+  const distinctD1 = countDistinctTouches(d1Points, 72 * 3600_000);
+  const distinctH4 = countDistinctTouches(h4Points, 24 * 3600_000);
+  const distinctH1 = countDistinctTouches(h1Points, 12 * 3600_000);
+  const distinctAll = countDistinctTouches(group, 12 * 3600_000);
 
-  const highestTf = d1Touches > 0 ? 'D1' : (h4Touches > 0 ? 'H4' : 'H1');
+  const refNowMs = opts.referenceNowMs || Date.now();
+  const hasFreshD1 = d1Points.some(p => {
+    if (p.isExtreme90d) return true;
+    if (!p.time || p.time < SR_EPOCH_MS_THRESHOLD) return true;
+    return (refNowMs - p.time) <= SR_D1_FRESH_MAX_AGE_MS;
+  });
 
-  // Cản Cứng (Major S/R): Khung D1 có ít nhất 1 cản, hoặc H4 có >= 2 lần phản ứng riêng biệt, hoặc H1 có >= 3 lần phản ứng
-  const isMajor = (d1Touches >= 1) || (h4Touches >= 2) || (h1Touches >= 3);
+  const validTimes = group.map(p => p.time).filter(t => typeof t === 'number' && t >= SR_EPOCH_MS_THRESHOLD);
+  const formationTime = validTimes.length > 0 ? Math.min(...validTimes) : 0;
+  const crossings = opts.h4Candles ? countZoneCrossings(zoneMin, zoneMax, formationTime, opts.h4Candles) : 0;
+  const isBroken = crossings >= 3;
+
+  const highestTf = d1Points.length > 0 ? 'D1' : (h4Points.length > 0 ? 'H4' : 'H1');
+  const rawMajor = (distinctD1 >= 2) || hasFreshD1 || (distinctH4 >= 2) || (distinctH1 >= 3);
+  const isMajor = !isBroken && rawMajor;
+
+  const highCount = group.filter(p => p.type === 'HIGH').length;
+  const lowCount  = group.filter(p => p.type === 'LOW').length;
 
   return {
     zoneMin,
     zoneMax,
     zoneMid,
-    touches,
+    touches: distinctAll,
+    distinctD1Touches: distinctD1,
+    distinctH4Touches: distinctH4,
+    distinctH1Touches: distinctH1,
     timeframe: highestTf,
     isMajor,
+    isBroken,
+    crossings,
+    dominantType: highCount >= lowCount ? 'HIGH' : 'LOW',
     points: group
   };
 }
@@ -1087,51 +1155,65 @@ async function calculateTierSLTP(
   }
   const atrPct = (atrVal / entryPrice) * 100;
 
-  // 3. Quét cấu trúc Swing S/R trên H1 (300 nến), H4 (150 nến) và D1 (180 nến)
-  const allSupportPoints = [];
-  const allResistancePoints = [];
+  // 3. Quét cấu trúc Swing S/R hợp nhất trên H1 (300), H4 (150), D1 (180)
+  // Hỗ trợ S/R Flip (Hỗ trợ <-> Kháng cự), chống đếm trùng đa khung & lọc cản chết
+  const allSwingPoints = [];
 
   if (h1Candles && h1Candles.length >= 7) {
     const swH1 = findSwingPoints(h1Candles.slice(-300), 3, 3);
-    if (Array.isArray(swH1.lows)) {
-      for (const p of swH1.lows) allSupportPoints.push({ price: p, timeframe: 'H1', type: 'LOW' });
-    }
-    if (Array.isArray(swH1.highs)) {
-      for (const p of swH1.highs) allResistancePoints.push({ price: p, timeframe: 'H1', type: 'HIGH' });
-    }
+    for (const pt of (swH1.lowPoints || []))  allSwingPoints.push({ price: pt.price, time: pt.time, idx: pt.idx, timeframe: 'H1', type: 'LOW' });
+    for (const pt of (swH1.highPoints || [])) allSwingPoints.push({ price: pt.price, time: pt.time, idx: pt.idx, timeframe: 'H1', type: 'HIGH' });
   }
 
   if (h4Candles && h4Candles.length >= 5) {
     const swH4 = findSwingPoints(h4Candles.slice(-150), 2, 2);
-    if (Array.isArray(swH4.lows)) {
-      for (const p of swH4.lows) allSupportPoints.push({ price: p, timeframe: 'H4', type: 'LOW' });
-    }
-    if (Array.isArray(swH4.highs)) {
-      for (const p of swH4.highs) allResistancePoints.push({ price: p, timeframe: 'H4', type: 'HIGH' });
-    }
+    for (const pt of (swH4.lowPoints || []))  allSwingPoints.push({ price: pt.price, time: pt.time, idx: pt.idx, timeframe: 'H4', type: 'LOW' });
+    for (const pt of (swH4.highPoints || [])) allSwingPoints.push({ price: pt.price, time: pt.time, idx: pt.idx, timeframe: 'H4', type: 'HIGH' });
   }
 
   if (d1Candles && d1Candles.length >= 5) {
-    const swD1 = findSwingPoints(d1Candles.slice(-180), 2, 2);
-    if (Array.isArray(swD1.lows)) {
-      for (const p of swD1.lows) allSupportPoints.push({ price: p, timeframe: 'D1', type: 'LOW' });
+    const d1Slice = d1Candles.slice(-180);
+    const d1Recent90 = d1Slice.slice(-90);
+    const max90d = d1Recent90.length ? Math.max(...d1Recent90.map(c => c.high)) : null;
+    const min90d = d1Recent90.length ? Math.min(...d1Recent90.map(c => c.low)) : null;
+    const swD1 = findSwingPoints(d1Slice, 2, 2);
+    for (const pt of (swD1.lowPoints || [])) {
+      allSwingPoints.push({
+        price: pt.price, time: pt.time, idx: pt.idx, timeframe: 'D1', type: 'LOW',
+        isExtreme90d: min90d != null && Math.abs(pt.price - min90d) <= min90d * 0.002
+      });
     }
-    if (Array.isArray(swD1.highs)) {
-      for (const p of swD1.highs) allResistancePoints.push({ price: p, timeframe: 'D1', type: 'HIGH' });
+    for (const pt of (swD1.highPoints || [])) {
+      allSwingPoints.push({
+        price: pt.price, time: pt.time, idx: pt.idx, timeframe: 'D1', type: 'HIGH',
+        isExtreme90d: max90d != null && Math.abs(pt.price - max90d) <= max90d * 0.002
+      });
     }
   }
 
+  const latestCandleTs = Math.max(
+    h1Candles.length ? (h1Candles[h1Candles.length - 1].openTime || 0) : 0,
+    h4Candles.length ? (h4Candles[h4Candles.length - 1].openTime || 0) : 0,
+    d1Candles.length ? (d1Candles[d1Candles.length - 1].openTime || 0) : 0
+  );
+  const referenceNowMs = latestCandleTs >= SR_EPOCH_MS_THRESHOLD ? latestCandleTs : Date.now();
+
   // Nhóm các điểm xoay thành các Vùng Cản Cụm (Cluster Zones)
   const tolRatio = atrVal > 0 ? Math.max(0.003, (atrVal / entryPrice) * 0.20) : 0.005;
-  const supportClusters = buildClusterZones(allSupportPoints, tolRatio);
-  const resistanceClusters = buildClusterZones(allResistancePoints, tolRatio);
+  const unifiedClusters = buildClusterZones(allSwingPoints, tolRatio, { h4Candles, referenceNowMs });
 
-  // Lọc các cluster nằm ở phía phòng thủ bảo vệ (Protective Clusters)
-  // LONG: Cần Support nằm dưới Entry (zoneMax < entryPrice * 0.999) -> sắp xếp gần Entry nhất trước
-  // SHORT: Cần Resistance nằm trên Entry (zoneMin > entryPrice * 1.001) -> sắp xếp gần Entry nhất trước
-  const protectiveClusters = isLong
-    ? supportClusters.filter(c => c.zoneMax < entryPrice * 0.999).sort((a, b) => b.zoneMax - a.zoneMax)
-    : resistanceClusters.filter(c => c.zoneMin > entryPrice * 1.001).sort((a, b) => a.zoneMin - b.zoneMin);
+  // S/R Flip: Cụm dưới Entry là Support (kể cả đỉnh cũ bị phá); cụm trên Entry là Resistance (kể cả đáy cũ bị phá)
+  const supportClusters = unifiedClusters
+    .filter(c => c.zoneMax < entryPrice * 0.999)
+    .map(c => ({ ...c, isRoleFlipped: c.dominantType === 'HIGH' }))
+    .sort((a, b) => b.zoneMax - a.zoneMax);
+
+  const resistanceClusters = unifiedClusters
+    .filter(c => c.zoneMin > entryPrice * 1.001)
+    .map(c => ({ ...c, isRoleFlipped: c.dominantType === 'LOW' }))
+    .sort((a, b) => a.zoneMin - b.zoneMin);
+
+  const protectiveClusters = isLong ? supportClusters : resistanceClusters;
 
   // 4. MÔ HÌNH HYBRID SL 3 TẦNG THÔNG MINH
   let rawSL = null;
@@ -1306,9 +1388,10 @@ async function calculateTierSLTP(
         const distToWall = Math.max(0, Math.abs(entryPrice - frontRunPrice));
         const blockedRR = distToWall / slDist;
         const finalTpPriceFail = roundTpConservative(frontRunPrice, effTickSize, isLong);
+        const flipTag = c.isRoleFlipped ? ' S/R-Flip' : '';
         return {
           valid: false,
-          reason: `RR_BLOCKED_BY_MAJOR_SR (Cản cứng ${c.timeframe} [${c.zoneMin}-${c.zoneMax}] chặn tại R:R = ${blockedRR.toFixed(2)} < 1.48)`,
+          reason: `RR_BLOCKED_BY_MAJOR_SR (Cản cứng ${c.timeframe}${flipTag} [${c.zoneMin.toFixed(decimals)}-${c.zoneMax.toFixed(decimals)}] (${c.touches} chạm) chặn tại R:R = ${blockedRR.toFixed(2)} < 1.48)`,
           rrRatio: parseFloat(blockedRR.toFixed(2)),
           slPrice: finalSlPrice,
           tpPrice: finalTpPriceFail,
