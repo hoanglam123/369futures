@@ -2203,11 +2203,23 @@ async function startAutoTrade(coins) {
   log.system('[AutoTrade] Bắt đầu scan...');
 
   let lastHeartbeatTime = Date.now();
+  const scanWindowStats = {
+    pollCycles: 0,
+    wsTicks: 0,
+    coinsChecked: 0,
+    signals369: 0,
+    rejectHardFilter: 0,
+    rejectScore: 0,
+    rejectMath: 0,
+    rejectGatekeeper: 0,
+    ordersDispatched: 0,
+  };
   let isScanning = false;
 
   async function scan() {
     if (isIpBanned() || isScanning) return;
     isScanning = true;
+    scanWindowStats.pollCycles++;
     try {
       // 0. Dọn dẹp cache RAM định kỳ (tránh rò rỉ bộ nhớ khi chạy 24/7)
       pruneMemoryCaches();
@@ -2519,17 +2531,49 @@ async function startAutoTrade(coins) {
       const nowTime = Date.now();
       if (nowTime - lastHeartbeatTime >= 15 * 60 * 1000) {
         lastHeartbeatTime = nowTime;
+        const st = { ...scanWindowStats };
+        scanWindowStats.pollCycles = 0;
+        scanWindowStats.wsTicks = 0;
+        scanWindowStats.coinsChecked = 0;
+        scanWindowStats.signals369 = 0;
+        scanWindowStats.rejectHardFilter = 0;
+        scanWindowStats.rejectScore = 0;
+        scanWindowStats.rejectMath = 0;
+        scanWindowStats.rejectGatekeeper = 0;
+        scanWindowStats.ordersDispatched = 0;
+
         const missingNote = missingLvlCount > 0 ? ` (chưa có mốc: ${missingLvlCount})` : '';
-        log.system(`[AutoTrade] 🟢 Hệ thống hoạt động bình thường | Theo dõi: ${activeCoinList.length} coin | Tiệm cận sát mốc (<=0.5%): ${scanNearby.length} coin${missingNote}`);
+        log.system(
+          `[AutoTrade] 🟢 Nhịp tim 15p | Theo dõi: ${activeCoinList.length} coin | Sát mốc (<=0.5%): ${scanNearby.length} coin${missingNote} | ` +
+          `Quét: ${st.pollCycles} poll + ${st.wsTicks} WS (${st.coinsChecked} lượt coin) | 369: ${st.signals369} | ` +
+          `Lọc: Hard/Grid=${st.rejectHardFilter}, Điểm=${st.rejectScore}, R:R=${st.rejectMath}, AI/Gate=${st.rejectGatekeeper} | Vào lệnh: ${st.ordersDispatched}`
+        );
 
         // Báo cáo Shadow PnL định kỳ
+        let shadowLine = '';
         try {
           const shadowStats = getShadowStats();
           if (shadowStats.totalResolved > 0 || shadowStats.activePositionsCount > 0) {
             const beStr = shadowStats.totalSavedBE > 0 ? ` | Thoát BE: ${shadowStats.totalSavedBE} lệnh` : '';
             log.system(`[Shadow PnL] 📊 Thống kê AI Veto: Đang theo dõi: ${shadowStats.activePositionsCount} lệnh | Đã cứu SL: ${shadowStats.totalSavedSL} lệnh (+$${shadowStats.totalSavedUSD})${beStr} | Bỏ lỡ TP: ${shadowStats.totalMissedTP} lệnh (-$${shadowStats.totalMissedUSD}) | Giá trị AI ròng: +$${shadowStats.netValueUSD} USD (Độ chính xác Veto: ${shadowStats.aiVetoAccuracyPct}%)`);
+            shadowLine = `\n👁️ Shadow Veto: <b>${shadowStats.activePositionsCount}</b> đang theo dõi · Cứu SL <b>${shadowStats.totalSavedSL}</b> / Bỏ lỡ TP <b>${shadowStats.totalMissedTP}</b> (${shadowStats.aiVetoAccuracyPct}%)`;
           }
         } catch (_) { }
+
+        if (process.env.ENABLE_HEARTBEAT_TELEGRAM !== 'false') {
+          const openPosCount = activePositionsMap.size;
+          const pendingOrdCount = activeOrdersMap.size;
+          const hbMsg =
+            `💓 <b>NHỊP TIM QUÉT 15 PHÚT — BOT-H4</b>\n` +
+            `━━━━━━━━━━━━━━━━\n` +
+            `📡 Theo dõi: <b>${activeCoinList.length} coin</b> | Sát mốc (≤0.5%): <b>${scanNearby.length} coin</b> | Vị thế: <b>${openPosCount}</b> (chờ LIMIT: <b>${pendingOrdCount}</b>)\n` +
+            `🔍 Đã quét: <b>${st.pollCycles} lượt</b> (Polling) + <b>${st.wsTicks} tick</b> (WS 0ms) · <b>${st.coinsChecked}</b> lượt coin\n` +
+            `📐 Tín hiệu 369: <b>${st.signals369}</b>\n` +
+            `🛑 Bị lọc: Hard/Grid <b>${st.rejectHardFilter}</b> · Điểm <b>${st.rejectScore}</b> · R:R/SLTP <b>${st.rejectMath}</b> · AI/Gate <b>${st.rejectGatekeeper}</b>\n` +
+            `🚀 Đẩy vào lệnh: <b>${st.ordersDispatched}</b>` +
+            shadowLine;
+          sendTelegram(hbMsg).catch(() => { });
+        }
       }
 
       if (scanNearby.length) {
@@ -2913,6 +2957,7 @@ async function startAutoTrade(coins) {
     if (!sym || !markPrice || processingSymbols.has(sym)) return;
     // Khóa symbol ngay lập tức — trước mọi await — để chặn duplicate từ Luồng 1 + Luồng 2
     processingSymbols.add(sym);
+    scanWindowStats.coinsChecked++;
     try {
       const activeDir = getActiveTradeDirection(sym);
       if (activeDir === 'UNKNOWN') return;
@@ -2936,6 +2981,7 @@ async function startAutoTrade(coins) {
         }
         return;
       }
+      scanWindowStats.signals369++;
 
       // ── CHỐT CHẶN VỊ THẾ ACTIVE: XỬ LÝ LỆNH CÙNG CHIỀU VS ĐẢO CHIỀU ──
       if (activeDir) {
@@ -2973,6 +3019,7 @@ async function startAutoTrade(coins) {
       // Bỏ qua ngay các mốc có biên độ quá hẹp không thể giao dịch an toàn (tránh bẫy nhiễu nến cắn SL)
       const minGridPct = getMinGridPct(sym);
       if (gridStepPct < minGridPct || gridStepPct > GRID_MAX_PCT) {
+        scanWindowStats.rejectHardFilter++;
         if (_shouldLogSignal(sym, sig.signal, sig.targetLevel, 'grid_untradable', 30 * 60 * 1000)) {
           log.system(
             `[AutoTrade] 🛑 Bỏ qua ${sym} (${sig.signal}): Độ rộng lưới không hợp lệ (${gridStepPct.toFixed(2)}% ` +
@@ -3018,6 +3065,7 @@ async function startAutoTrade(coins) {
       // ── TẦNG 2: BỘ LỌC CỨNG TIÊN QUYẾT (HARD FILTERS - FAIL FAST) ──
       const hardFilterReason = checkHardFilters(sym, sig.signal, taSymbol, fundingRate, whaleData, btcTA);
       if (hardFilterReason) {
+        scanWindowStats.rejectHardFilter++;
         if (_shouldLogSignal(sym, sig.signal, sig.targetLevel, 'hard_filter_veto', 10 * 60 * 1000)) {
           log.system(`[AutoTrade] 🛑 [Hard Filter DISQUALIFIED] ${sym} (${sig.signal}): ${hardFilterReason}`);
           recordSkippedSignal({
@@ -3050,6 +3098,7 @@ async function startAutoTrade(coins) {
 
       // ── CHỐT CHẶN ĐIỂM CỨNG (HARD SCORE GATE): VETO NGAY LẬP TỨC NẾU KHÔNG ĐẠT ──
       if (sig.score < minRequiredScore) {
+        scanWindowStats.rejectScore++;
         if (_shouldLogSignal(sym, sig.signal, sig.targetLevel, 'hard_score_gate', 10 * 60 * 1000)) {
           log.system(
             `[AutoTrade] 🛑 [Confluence Filter] ${sym} (${sig.signal}): Score ${sig.score.toFixed(1)}đ < ${minRequiredScore}đ [${rankTierLabel}] — Bỏ qua (Chưa đủ điểm)`
@@ -3486,6 +3535,7 @@ async function startAutoTrade(coins) {
       const baseTargetLossUSD = parseFloat(process.env.MAX_LOSS_PER_TRADE_USD || '3.0');
       const prelimSetup = await calculateTierSLTP(sym, sig.signal, sig.targetLevel, h4Ref, tickSize, maxAllowed, baseTargetLossUSD, 1.5, rank, sig.gridWidthPct, null, tradeAmount);
       if (!prelimSetup.valid) {
+        scanWindowStats.rejectMath++;
         log.system(`[AutoTrade] ⚠️ Bỏ qua ${sym} (${sig.signal}): ${prelimSetup.reason} — Không đạt chuẩn R:R >= 1.5.`);
         return;
       }
@@ -3520,6 +3570,7 @@ async function startAutoTrade(coins) {
       // ── TIÊU CHÍ DUY NHẤT: Đánh giá Rủi ro Toàn diện từ Lõi AI (AI Reviewer Core) ──
       // Toàn bộ các tiêu chí (Trend, S/R, Flow, Volume, BTC Flash, Turnover, M15 Spike, EV R:R) được AI tự học và ra quyết định
       if (!aiEval.isApproved) {
+        scanWindowStats.rejectGatekeeper++;
         // 🛡️ THROTTLE CHỐNG SPAM LOG AI VETO: Không in lặp lại mỗi 15s cho cùng coin/mốc giá (cooldown 3 phút)
         const shouldLogVeto = _shouldLogSignal(sym, sig.signal, sig.targetLevel, 'ai_veto_logged', 3 * 60 * 1000);
         if (shouldLogVeto) {
@@ -3596,6 +3647,7 @@ async function startAutoTrade(coins) {
         });
 
         if (!gatekeeperCheck.passed) {
+          scanWindowStats.rejectGatekeeper++;
           log.system(`[AutoTrade] ⚠️ [PreLimitGatekeeper] Tạm hoãn đặt Limit cho ${sym} (${sig.signal}): ${gatekeeperCheck.reason}.`);
 
           // Đăng ký Shadow Trade để theo dõi
@@ -3733,6 +3785,7 @@ async function startAutoTrade(coins) {
               ? ((sig.targetLevel - liveMark) / sig.targetLevel) * 100
               : ((liveMark - sig.targetLevel) / sig.targetLevel) * 100;
             if (puncturedPct > 0.15) {
+              scanWindowStats.rejectGatekeeper++;
               log.system(`[AutoTrade] 🛑 [Maker Guard] ${sym} (${sig.signal}): Giá hiện tại ($${liveMark}) đã đâm thủng qua mốc $${sig.targetLevel} (${puncturedPct.toFixed(2)}% > 0.15%) — hủy đặt LIMIT để tránh khớp Taker giữa đà xả.`);
               return;
             }
@@ -3743,6 +3796,7 @@ async function startAutoTrade(coins) {
           const dec = getDecimals(finalEntryPrice);
           order = await client.placeLimit(sym, side, qty, finalEntryPrice, dec);
         }
+        if (order) scanWindowStats.ordersDispatched++;
 
         activeSymbols.add(sym);
         activeOrdersMap.set(sym, side === 'BUY' ? 'LONG' : 'SHORT');
@@ -3902,6 +3956,7 @@ async function startAutoTrade(coins) {
     }
 
     symbolSignalCooldown[sym] = now; // Ghi nhận thời điểm check
+    scanWindowStats.wsTicks++;
     enqueueSymbolSignal(client, sym, price, leverageInfo, leverage, coins);
   });
 
@@ -4670,6 +4725,7 @@ async function checkH1RetestSignals(client, activeSymbols, leverageInfo = {}, ac
 
       // Tiêu chí 3: Đánh giá Rủi ro Toàn diện từ Lõi AI cho Retest H1 (AI Reviewer Core)
       if (!aiEval.isApproved) {
+        scanWindowStats.rejectGatekeeper++;
         // 🛡️ THROTTLE CHỐNG SPAM LOG AI VETO CHO RETEST H1: Không in lặp lại mỗi chu kỳ scan (cooldown 5 phút)
         const shouldLogRetestVeto = _shouldLogSignal(sym, signal, targetLevel, 'retest_ai_veto_logged', 5 * 60 * 1000);
         if (shouldLogRetestVeto) {

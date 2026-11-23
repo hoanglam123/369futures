@@ -30,6 +30,15 @@ const { log }                     = require('./logger');
 const _microCache = new Map(); // sym -> { ts, spreadPct, bidVol, askVol }
 const MICRO_TTL_MS = 15_000;
 
+const _engineScanStats = { rejectMath: 0, rejectGatekeeper: 0, ordersDispatched: 0 };
+function consumeEngineScanStats() {
+  const snap = { ..._engineScanStats };
+  _engineScanStats.rejectMath = 0;
+  _engineScanStats.rejectGatekeeper = 0;
+  _engineScanStats.ordersDispatched = 0;
+  return snap;
+}
+
 /**
  * Lấy vi cấu trúc sổ lệnh L2 (5 mức giá đầu — weight=2, cache 15s, fail-open).
  * Tính spread_slippage và orderbook_wall thời gian thực tại 0ms cho Top 1–2 ứng viên.
@@ -253,6 +262,7 @@ async function generateQuantitativeTrade(setup, marketData = null) {
   }
 
   if (!tierSetup || !tierSetup.valid) {
+    _engineScanStats.rejectMath++;
     const vetoReason = tierSetup?.reason || 'Không đạt chuẩn R:R';
     _setVetoCooldown(symbol, direction, 30 * 60 * 1000);
     if (_shouldLogSignal(symbol, direction, 'math_veto', 30 * 60 * 1000)) {
@@ -308,6 +318,7 @@ async function generateQuantitativeTrade(setup, marketData = null) {
       ? ((entryPrice - liveMarkPrice) / entryPrice) * 100
       : ((liveMarkPrice - entryPrice) / entryPrice) * 100;
     if (puncturedPct > 0.15) {
+      _engineScanStats.rejectGatekeeper++;
       log.system(`[AutoTrade] 🛑 [Maker Guard] ${symbol} (${direction}): Giá $${liveMarkPrice} đã đâm thủng mốc $${entryPrice} (${puncturedPct.toFixed(2)}% > 0.15%) — bỏ qua để tránh khớp Taker.`);
       return null;
     }
@@ -343,6 +354,7 @@ async function generateQuantitativeTrade(setup, marketData = null) {
   }, marketContext);
 
   if (!gateResult.isApproved) {
+    _engineScanStats.rejectGatekeeper++;
     _setVetoCooldown(symbol, direction, 30 * 60 * 1000);
     if (_shouldLogSignal(symbol, direction, 'gatekeeper_veto', 30 * 60 * 1000)) {
       log.system(`[AutoTrade] 🛑 [AI VETO] ${symbol} (${direction}): ${gateResult.reason} — Bỏ qua`);
@@ -385,6 +397,7 @@ async function generateQuantitativeTrade(setup, marketData = null) {
     source: 'quantitative_deterministic'
   };
 
+  _engineScanStats.ordersDispatched++;
   log.system(`[AutoTrade] Set leverage ${symbol}USDT = ${trade.leverage}x (Tier SL: $${trade.slPrice} (-${trade.slPct}%), TP: $${trade.targetPrice} (+${trade.targetPct}%), BE Trigger: $${trade.beTriggerPrice} | Ký quỹ: $${trade.margin})`);
   log.system(`[AutoTrade] ✓ TẠO LỆNH ĐỊNH LƯỢNG HỢP LỆ: ${symbol} ${direction} @ ${entryPrice} | SL: ${trade.slPrice} | TP: ${trade.targetPrice} | R:R: ${trade.rrRatio} | x${trade.leverage}`);
   return trade;
@@ -485,6 +498,7 @@ async function processCandidateSetups(allScores, marketData = null, topCap = MAX
 module.exports = {
   generateQuantitativeTrade,
   processCandidateSetups,
+  consumeEngineScanStats,
   _clearVetoCooldownForTest,
   MIN_SCORE_TIER1,
   MIN_SCORE_TIER2,

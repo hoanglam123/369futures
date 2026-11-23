@@ -21,7 +21,7 @@ const { analyzeMarket } = require('./services/aiAnalysis');
 const { sendMessages, sendErrorAlert } = require('./services/telegram');
 const { buildMarketMessage, buildAnalysisMessage } = require('./formatters/message');
 const { parseTrades, addTrades, getActiveTrades } = require('./services/tradeMonitor');
-const { processCandidateSetups } = require('./services/signalEngine');
+const { processCandidateSetups, consumeEngineScanStats } = require('./services/signalEngine');
 const { getAllActiveFuturesSymbols, filterSymbolsByGrid } = require('./services/dynamicUniverse');
 const { parseFundingTrades, addFundingTrades } = require('./services/fundingTracker');
 const { getTAReport, getFullTA, STABLECOINS } = require('./collectors/technicalAnalysis');
@@ -77,6 +77,15 @@ let _lastTaSymbols  = null;    // coin list cache từ lần runJob() gần nh�
 let _universeSymbols = null;   // Universe 400+ coin năng động từ Binance Futures
 let _lastMarketData = null;    // market data cache (TA/whale/deriv) cho confluence re-score trong scan 1p
 let _lastHeartbeatTime = 0;    // Heartbeat định kỳ 15 phút đồng bộ bot-h4
+let _hasLoggedInitialHeartbeat = false;
+const _scanWindowStats = {
+  pollCycles: 0,
+  wsTicks: 0,
+  coinsChecked: 0,
+  signals369: 0,
+  rejectHardFilter: 0,
+  rejectScore: 0,
+};
 
 async function getUniverseSymbols() {
   if (_universeSymbols && _universeSymbols.length > 0) {
@@ -554,6 +563,7 @@ const _signalCheckQueue = [];
 async function run369AlertScan() {
   if (_isAlertScanRunning || isIpBanned() || _scanPaused) return;
   _isAlertScanRunning = true;
+  _scanWindowStats.pollCycles++;
   try {
     const symbols = await getUniverseSymbols();
     // 1. Cập nhật lại giá REST của toàn bộ coin để kiểm tra biến động (1 call nhẹ, weight=1) giống bot-h4
@@ -600,19 +610,52 @@ async function run369AlertScan() {
     const scanNearby = getNearbySymbols(symbols, levelCache, 0.005, true);
     const missingLvlCount = symbols.filter(s => !levelCache[s]?.longEntry || !levelCache[s]?.shortEntry).length;
 
-    // ─── ĐỒNG BỘ LOG ĐỊNH KỲ 15 PHÚT TỪ BOT-H4 ───
+    // ─── ĐỒNG BỘ LOG & TELEGRAM TỔNG HỢP ĐỊNH KỲ 15 PHÚT ───
     const nowTime = Date.now();
-    if (nowTime - _lastHeartbeatTime >= 15 * 60 * 1000) {
+    if (!_hasLoggedInitialHeartbeat) {
+      _hasLoggedInitialHeartbeat = true;
       _lastHeartbeatTime = nowTime;
       const missingNote = missingLvlCount > 0 ? ` (chưa có mốc: ${missingLvlCount})` : '';
       log.system(`[AutoTrade] 🟢 Hệ thống hoạt động bình thường | Theo dõi: ${symbols.length} coin | Tiệm cận sát mốc (<=0.5%): ${scanNearby.length} coin${missingNote}`);
+    } else if (nowTime - _lastHeartbeatTime >= 15 * 60 * 1000) {
+      _lastHeartbeatTime = nowTime;
+      const eng = consumeEngineScanStats();
+      const st = { ..._scanWindowStats, ...eng };
+      _scanWindowStats.pollCycles = 0;
+      _scanWindowStats.wsTicks = 0;
+      _scanWindowStats.coinsChecked = 0;
+      _scanWindowStats.signals369 = 0;
+      _scanWindowStats.rejectHardFilter = 0;
+      _scanWindowStats.rejectScore = 0;
 
+      const missingNote = missingLvlCount > 0 ? ` (chưa có mốc: ${missingLvlCount})` : '';
+      log.system(
+        `[AutoTrade] 🟢 Nhịp tim 15p | Theo dõi: ${symbols.length} coin | Sát mốc (<=0.5%): ${scanNearby.length} coin${missingNote} | ` +
+        `Quét: ${st.pollCycles} poll + ${st.wsTicks} WS (${st.coinsChecked} lượt coin) | 369: ${st.signals369} | ` +
+        `Lọc: Hard=${st.rejectHardFilter}, Điểm=${st.rejectScore}, R:R=${st.rejectMath}, Gate=${st.rejectGatekeeper} | Vào lệnh: ${st.ordersDispatched}`
+      );
+
+      let shadowLine = '';
       try {
         const shadowStats = getShadowStats();
         if (shadowStats && (shadowStats.activeCount > 0 || shadowStats.totalSavedSl > 0 || shadowStats.totalMissedTp > 0)) {
           log.system(`[Shadow PnL] 📊 Thống kê AI Veto: Đang theo dõi: ${shadowStats.activeCount} lệnh | Đã cứu SL: ${shadowStats.totalSavedSl} lệnh (+$${shadowStats.savedUsd}) | Bỏ lỡ TP: ${shadowStats.totalMissedTp} lệnh (-$${shadowStats.missedUsd}) | Giá trị AI ròng: +$${shadowStats.netSavedUsd} USD (Độ chính xác Veto: ${shadowStats.vetoAccuracyPct}%)`);
+          shadowLine = `\n👁️ Shadow Veto: <b>${shadowStats.activeCount}</b> đang theo dõi · Cứu SL <b>${shadowStats.totalSavedSl}</b> / Bỏ lỡ TP <b>${shadowStats.totalMissedTp}</b> (${shadowStats.vetoAccuracyPct}%)`;
         }
       } catch (_) {}
+
+      if (process.env.ENABLE_HEARTBEAT_TELEGRAM !== 'false') {
+        const hbMsg =
+          `💓 <b>NHỊP TIM QUÉT 15 PHÚT — BOT-NEW</b>\n` +
+          `━━━━━━━━━━━━━━━━\n` +
+          `📡 Theo dõi: <b>${symbols.length} coin</b> | Sát mốc (≤0.5%): <b>${scanNearby.length} coin</b> | Đang mở: <b>${activeTradesNow.length} lệnh</b>\n` +
+          `🔍 Đã quét: <b>${st.pollCycles} lượt</b> (Polling) + <b>${st.wsTicks} tick</b> (WS 0ms) · <b>${st.coinsChecked}</b> lượt coin\n` +
+          `📐 Tín hiệu 369: <b>${st.signals369}</b>\n` +
+          `🛑 Bị lọc: Hard <b>${st.rejectHardFilter}</b> · Điểm <b>${st.rejectScore}</b> · R:R/SLTP <b>${st.rejectMath}</b> · AI/Gate <b>${st.rejectGatekeeper}</b>\n` +
+          `🚀 Đẩy vào lệnh: <b>${st.ordersDispatched}</b>` +
+          shadowLine;
+        sendMessages([hbMsg]).catch(() => {});
+      }
     }
 
     if (!scanNearby.length || isIpBanned()) return;
@@ -655,6 +698,7 @@ async function run369AlertScan() {
       _recentPollingScan.set(item.sym, { level: item.nearestLevel, ts: nowTime });
     }
     const toScan = selectedBatch.map(item => item.sym);
+    _scanWindowStats.coinsChecked += toScan.length;
 
     // Dùng WebSocket mark price từ Binance (~3s) thay vì nến 1m cuối (~1 phút trễ)
     const priceMap = Object.fromEntries(
@@ -664,6 +708,7 @@ async function run369AlertScan() {
 
     // ── TÁCH RỜI LUỒNG TÍNH LỆNH ĐỊNH LƯỢNG KHỎI LUỒNG TELEGRAM ALERT (ĐỒNG BỘ BOT-H4) ──
     const validSignals = Object.values(signals369).filter(s => s && (s.signal === 'LONG' || s.signal === 'SHORT'));
+    _scanWindowStats.signals369 += validSignals.length;
 
     // Chạy tuần tự có kiểm soát Rate Limit thay vì Promise.all ồ ạt (áp dụng TTL 10p cho TA cache & chống đụng WS Tick)
     const TA_CACHE_TTL_MS = 10 * 60 * 1000;
@@ -718,6 +763,12 @@ async function run369AlertScan() {
             const isSameDir = activeDir === s.signal;
             const isOppositeDir = Boolean(activeDir && activeDir !== s.signal);
             const failReversalScore = isOppositeDir && (s.score.total < MIN_SCORE_REVERSAL);
+            if (s.score.disqualified) {
+              _scanWindowStats.rejectHardFilter++;
+            } else if (!isSameDir) {
+              const reqMin = isOppositeDir ? MIN_SCORE_REVERSAL : (FIXED_COINS.includes(s.symbol) ? 7.0 : 8.0);
+              if (s.score.total < reqMin) _scanWindowStats.rejectScore++;
+            }
             return {
               symbol: s.symbol,
               direction: s.signal,
@@ -768,12 +819,15 @@ async function processSingleSymbolSignal(sym, price) {
   if (!sym || !price || _processingSymbols.has(sym)) return;
 
   _processingSymbols.add(sym);
+  _scanWindowStats.wsTicks++;
+  _scanWindowStats.coinsChecked++;
   try {
     const activeTrades = getActiveTrades();
     const activeDir = activeTrades.find(t => t.symbol === sym)?.direction;
 
     const sig = await pp369.get369Signal(sym, price);
     if (!sig || (sig.signal !== 'LONG' && sig.signal !== 'SHORT')) return;
+    _scanWindowStats.signals369++;
     if (activeDir && activeDir === sig.signal) return;
     if (isIpBanned()) return;
 
@@ -808,7 +862,8 @@ async function processSingleSymbolSignal(sym, price) {
 
     const isReversal = activeDir && activeDir !== sig.signal;
     const minScore = isReversal ? 9.0 : (FIXED_COINS.includes(sym) ? 7.0 : 8.0);
-    if (score.disqualified || score.total < minScore) return;
+    if (score.disqualified) { _scanWindowStats.rejectHardFilter++; return; }
+    if (score.total < minScore) { _scanWindowStats.rejectScore++; return; }
 
     const candidates = [{
       symbol: sym,
