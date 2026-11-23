@@ -63,13 +63,28 @@ function updateUsedWeight(headers) {
 // Cài đặt Interceptor toàn cục cho axios để tự động giám sát mọi response từ Binance
 axios.interceptors.response.use(
   (response) => {
-    if (response.config?.url?.includes('binance.com') || response.headers?.['x-mbx-used-weight-1m']) {
+    const isBinance = Boolean(
+      response.config?.url?.includes('binance.com') ||
+      response.headers?.['x-mbx-used-weight-1m'] ||
+      response.headers?.['x-mbx-used-weight']
+    );
+    if (isBinance) {
       updateUsedWeight(response.headers);
     }
     return response;
   },
   (error) => {
-    if (error.response?.headers && (error.config?.url?.includes('binance.com') || error.response.headers['x-mbx-used-weight-1m'])) {
+    const isBinance = Boolean(
+      error.config?.url?.includes('binance.com') ||
+      error.response?.headers?.['x-mbx-used-weight-1m'] ||
+      error.response?.headers?.['x-mbx-used-weight']
+    );
+    if (!isBinance) {
+      // Bỏ qua lỗi 429 của nguồn ngoài Binance (CoinGecko, RSS, v.v.)
+      return Promise.reject(error);
+    }
+
+    if (error.response?.headers) {
       updateUsedWeight(error.response.headers);
     }
     const status = error.response?.status;

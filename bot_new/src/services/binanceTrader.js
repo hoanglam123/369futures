@@ -41,6 +41,17 @@ async function syncTimeOffset() {
 syncTimeOffset().catch(() => {});
 setInterval(() => syncTimeOffset().catch(() => {}), 3 * 60 * 1000);
 
+// Giữ nguyên các ID số nguyên >= 16 chữ số (như orderId 19 chữ số của ETH) dạng chuỗi để tránh JS làm tròn 3 số cuối thành 000
+function safeJsonParse(raw) {
+  if (typeof raw !== 'string') return raw;
+  try {
+    const preserved = raw.replace(/"(orderId|algoId|id)":\s*(\d{16,})/g, '"$1":"$2"');
+    return JSON.parse(preserved);
+  } catch {
+    return raw;
+  }
+}
+
 // Gọi Binance Futures API (signed request)
 async function api(method, path, params = {}, attempt = 0) {
   const timestamp = Date.now() + timeOffset;
@@ -48,7 +59,13 @@ async function api(method, path, params = {}, attempt = 0) {
   const qs  = new URLSearchParams(allParams).toString();
   const url = `${BASE_URL}${path}?${qs}&signature=${sign(qs)}`;
   try {
-    const { data } = await axios({ method, url, headers: { 'X-MBX-APIKEY': API_KEY }, timeout: 10000 });
+    const { data } = await axios({
+      method,
+      url,
+      headers: { 'X-MBX-APIKEY': API_KEY },
+      timeout: 10000,
+      transformResponse: [safeJsonParse],
+    });
     return data;
   } catch (err) {
     const code = err.response?.data?.code;
@@ -471,9 +488,23 @@ async function placeTPAfterEntry(trade) {
       reduceOnly:  'true',
     });
     trade.binanceTpOrderId = tpOrder.orderId != null ? String(tpOrder.orderId) : null;
-    log.trade(`BINANCE: TP LIMIT OK ${symbol}`, { orderId: tpOrder.orderId, price: tpPrice });
-    return tpOrder.orderId;
+    log.trade(`BINANCE: TP LIMIT OK ${symbol}`, { orderId: trade.binanceTpOrderId, price: tpPrice });
+    return trade.binanceTpOrderId;
   } catch (err) {
+    // Nếu bị ReduceOnly Order is rejected (thường do đã có sẵn lệnh TP reduceOnly trên sàn),
+    // tra lại openOrders để nhận diện orderId có sẵn hoặc dọn sạch rồi đặt lại
+    if (/ReduceOnly Order is rejected/i.test(err.message)) {
+      try {
+        const tpSide = direction === 'LONG' ? 'SELL' : 'BUY';
+        const openOrders = await getOpenOrders(symbol).catch(() => []);
+        const existingTp = (openOrders || []).find(o => o.side === tpSide && o.type === 'LIMIT' && (o.reduceOnly === true || o.reduceOnly === 'true'));
+        if (existingTp) {
+          trade.binanceTpOrderId = String(existingTp.orderId);
+          log.trade(`BINANCE: Đã nhận lại TP LIMIT sẵn có trên sàn cho ${symbol}`, { orderId: trade.binanceTpOrderId, price: existingTp.price });
+          return trade.binanceTpOrderId;
+        }
+      } catch (_) {}
+    }
     log.error(`BINANCE: lỗi đặt TP ${symbol}`, { error: err.message });
     return null;
   }

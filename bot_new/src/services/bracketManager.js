@@ -98,8 +98,10 @@ async function placeDualBracket({ client = binanceTrader, sym, side, qty, entryP
 
 /**
  * 2. Dời SL lên mốc Breakeven (+1% phí) trên sàn Binance khi chạm TP1.
+ * Bảo vệ vị thế: kiểm tra giá hiện tại để tránh Order would immediately trigger,
+ * và tự khôi phục SL cũ nếu đặt SL mới thất bại.
  */
-async function ratchetBreakeven({ client = binanceTrader, sym, meta, beSlPrice }) {
+async function ratchetBreakeven({ client = binanceTrader, sym, meta, beSlPrice, currentPrice = null }) {
   if (!client || !meta) return { success: false, reason: 'INVALID_PARAMS' };
 
   if (meta.slMovedToBreakeven === true) {
@@ -108,6 +110,19 @@ async function ratchetBreakeven({ client = binanceTrader, sym, meta, beSlPrice }
 
   const isLong = meta.direction === 'LONG' || meta.side === 'BUY' || meta.side === 'LONG';
   const oppositeSide = isLong ? 'SELL' : 'BUY';
+  const prevSl = meta.currentSlPrice || meta.slPrice;
+
+  // Chốt chặn: SL mới không được vượt qua giá hiện tại (gây "Order would immediately trigger")
+  if (currentPrice && currentPrice > 0) {
+    if (isLong && beSlPrice >= currentPrice * 0.999) {
+      log.warn(`[BracketManager] ⚠️ Bỏ qua Breakeven SL ${sym} LONG: SL mới $${beSlPrice} >= giá hiện tại $${currentPrice} — giữ nguyên SL cũ $${prevSl}`);
+      return { success: false, reason: 'WOULD_IMMEDIATELY_TRIGGER' };
+    }
+    if (!isLong && beSlPrice <= currentPrice * 1.001) {
+      log.warn(`[BracketManager] ⚠️ Bỏ qua Breakeven SL ${sym} SHORT: SL mới $${beSlPrice} <= giá hiện tại $${currentPrice} — giữ nguyên SL cũ $${prevSl}`);
+      return { success: false, reason: 'WOULD_IMMEDIATELY_TRIGGER' };
+    }
+  }
 
   log.trade(`[BracketManager] 🛡️ [Breakeven SL] ${sym}: Dời SL sàn về Entry ± 1% ($${beSlPrice}) (Risk-Free)`);
 
@@ -128,14 +143,25 @@ async function ratchetBreakeven({ client = binanceTrader, sym, meta, beSlPrice }
     return { success: true, newSlOrderId: newSlId, beSlPrice };
   } catch (err) {
     log.error(`[BracketManager] ❌ Dời SL Breakeven ${sym} thất bại: ${err.message}`);
+    // Khôi phục lại SL cũ để vị thế KHÔNG BAO GIỜ bị trần trên sàn
+    if (prevSl && prevSl !== beSlPrice) {
+      try {
+        const restoreRes = await client.placeStopOrder(sym, oppositeSide, 'STOP_MARKET', prevSl);
+        meta.binanceSlOrderId = restoreRes?.algoId || restoreRes?.orderId || meta.binanceSlOrderId;
+        log.warn(`[BracketManager] ♻️ Đã khôi phục SL cũ cho ${sym} @ $${prevSl}`);
+      } catch (reErr) {
+        log.error(`[BracketManager] ❌ Khôi phục SL cũ ${sym} cũng thất bại: ${reErr.message}`);
+      }
+    }
     return { success: false, error: err.message };
   }
 }
 
 /**
  * 3. Dời SL theo Trailing Stop (Bám sát sóng).
+ * Bảo vệ vị thế: kiểm tra giá hiện tại trước khi hủy SL cũ, và khôi phục SL cũ nếu đặt mới lỗi.
  */
-async function ratchetTrailingFractal({ client = binanceTrader, sym, meta, newTrailingSlPrice, label = 'Trailing' }) {
+async function ratchetTrailingFractal({ client = binanceTrader, sym, meta, newTrailingSlPrice, label = 'Trailing', currentPrice = null }) {
   if (!client || !meta) return { success: false, reason: 'INVALID_PARAMS' };
 
   const isLong = meta.direction === 'LONG' || meta.side === 'BUY' || meta.side === 'LONG';
@@ -149,6 +175,18 @@ async function ratchetTrailingFractal({ client = binanceTrader, sym, meta, newTr
     }
     if (!isLong && newTrailingSlPrice >= currentSl) {
       return { success: false, reason: 'SL_NOT_IMPROVED_SHORT' };
+    }
+  }
+
+  // Chốt chặn: SL mới bắt buộc phải nằm an toàn dưới giá hiện tại (LONG) hoặc trên giá hiện tại (SHORT)
+  if (currentPrice && currentPrice > 0) {
+    if (isLong && newTrailingSlPrice >= currentPrice * 0.999) {
+      log.warn(`[BracketManager] ⚠️ Bỏ qua ${label} SL ${sym} LONG: SL mới $${newTrailingSlPrice} >= giá hiện tại $${currentPrice} — giữ nguyên SL cũ $${currentSl}`);
+      return { success: false, reason: 'WOULD_IMMEDIATELY_TRIGGER' };
+    }
+    if (!isLong && newTrailingSlPrice <= currentPrice * 1.001) {
+      log.warn(`[BracketManager] ⚠️ Bỏ qua ${label} SL ${sym} SHORT: SL mới $${newTrailingSlPrice} <= giá hiện tại $${currentPrice} — giữ nguyên SL cũ $${currentSl}`);
+      return { success: false, reason: 'WOULD_IMMEDIATELY_TRIGGER' };
     }
   }
 
@@ -170,6 +208,16 @@ async function ratchetTrailingFractal({ client = binanceTrader, sym, meta, newTr
     return { success: true, newSlOrderId: newSlId, newSlPrice: newTrailingSlPrice };
   } catch (err) {
     log.error(`[BracketManager] ❌ Dời ${label} SL ${sym} thất bại: ${err.message}`);
+    // Khôi phục lại SL cũ ngay lập tức để vị thế không bao giờ bị trống SL
+    if (currentSl && currentSl !== newTrailingSlPrice) {
+      try {
+        const restoreRes = await client.placeStopOrder(sym, oppositeSide, 'STOP_MARKET', currentSl);
+        meta.binanceSlOrderId = restoreRes?.algoId || restoreRes?.orderId || meta.binanceSlOrderId;
+        log.warn(`[BracketManager] ♻️ Đã khôi phục SL cũ cho ${sym} @ $${currentSl}`);
+      } catch (reErr) {
+        log.error(`[BracketManager] ❌ Khôi phục SL cũ ${sym} cũng thất bại: ${reErr.message}`);
+      }
+    }
     return { success: false, error: err.message };
   }
 }

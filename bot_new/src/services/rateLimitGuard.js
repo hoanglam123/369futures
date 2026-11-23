@@ -75,13 +75,28 @@ function updateUsedWeight(headers) {
 // Cài đặt Interceptor toàn cục cho axios để tự động giám sát mọi response từ Binance
 axios.interceptors.response.use(
   (response) => {
-    if (response.config?.url?.includes('binance.com') || response.headers?.['x-mbx-used-weight-1m']) {
+    const isBinance = Boolean(
+      response.config?.url?.includes('binance.com') ||
+      response.headers?.['x-mbx-used-weight-1m'] ||
+      response.headers?.['x-mbx-used-weight']
+    );
+    if (isBinance) {
       updateUsedWeight(response.headers);
     }
     return response;
   },
   (error) => {
-    if (error.response?.headers && (error.config?.url?.includes('binance.com') || error.response.headers['x-mbx-used-weight-1m'])) {
+    const isBinance = Boolean(
+      error.config?.url?.includes('binance.com') ||
+      error.response?.headers?.['x-mbx-used-weight-1m'] ||
+      error.response?.headers?.['x-mbx-used-weight']
+    );
+    if (!isBinance) {
+      // Không kích hoạt Binance Circuit Breaker cho lỗi 429 của bên thứ 3 (CoinGecko, Reddit, CryptoPanic...)
+      return Promise.reject(error);
+    }
+
+    if (error.response?.headers) {
       updateUsedWeight(error.response.headers);
     }
     const status = error.response?.status;
@@ -159,11 +174,13 @@ function triggerCircuitBreaker(errOrUntilMs, source = 'Binance') {
   }
 
   if (isRateLimit429) {
-    if (untilMs > Date.now() && untilMs > _globalThrottleUntil) {
+    if (untilMs > Date.now() && untilMs > _globalThrottleUntil + 5000) {
       _globalThrottleUntil = untilMs;
       const remainSec = Math.max(1, Math.round((_globalThrottleUntil - Date.now()) / 1000));
       const timeStr = new Date(_globalThrottleUntil + 7 * 3600000).toISOString().slice(11, 19);
       log.warn(`[PP369 WARN] [${source}] ⚠️ Kích hoạt Circuit Breaker (Rate Limit 429): Tạm dừng toàn bộ REST API đến ${timeStr} (còn ${remainSec}s) để ngăn chặn Binance phạt IP 418!`);
+    } else if (untilMs > _globalThrottleUntil) {
+      _globalThrottleUntil = untilMs;
     }
   } else {
     if (untilMs > Date.now() && untilMs > _globalIpBannedUntil) {

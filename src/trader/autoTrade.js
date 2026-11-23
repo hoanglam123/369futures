@@ -126,6 +126,33 @@ const ENABLE_DEFENSIVE_ESCAPE = false;
 const _fired = new Map();
 const bounceCancelledLevels = new Map(); // key: sym_targetLevel -> expireTimestamp (20 phút cooldown thích ứng)
 
+// Thời gian chờ xác nhận duy trì nảy xa trước khi hủy lệnh LIMIT theo cơ chế Bounce Cancel (mặc định 180s = 3 phút)
+const BOUNCE_CANCEL_WAIT_SEC = parseInt(process.env.BOUNCE_CANCEL_WAIT_SECONDS || '180', 10);
+const BOUNCE_CANCEL_WAIT_MS = BOUNCE_CANCEL_WAIT_SEC * 1000;
+
+function checkBounceCancelHoldReady(sym, dir, meta, isBounceConditionMet, displayPct, thresholdPct) {
+  if (!isBounceConditionMet) {
+    if (meta.bounceConfirmStartTime) {
+      log.system(`[AutoTrade] [BounceCancel] ${sym} ${dir}: Giá quay lại dưới ngưỡng nảy (${displayPct.toFixed(2)}% < ${thresholdPct.toFixed(2)}%) → Hủy đếm ngược, tiếp tục giữ lệnh LIMIT.`);
+      meta.bounceConfirmStartTime = null;
+      saveActiveTradesMetadata();
+    }
+    return false;
+  }
+
+  if (BOUNCE_CANCEL_WAIT_MS <= 0) return true;
+
+  const now = Date.now();
+  if (!meta.bounceConfirmStartTime) {
+    meta.bounceConfirmStartTime = now;
+    saveActiveTradesMetadata();
+    log.system(`[AutoTrade] [BounceCancel] ${sym} ${dir}: Giá nảy ${displayPct.toFixed(2)}% >= ${thresholdPct.toFixed(2)}% — Chờ xác nhận ${BOUNCE_CANCEL_WAIT_SEC}s (${(BOUNCE_CANCEL_WAIT_SEC / 60).toFixed(1)}p) trước khi hủy LIMIT...`);
+    return false;
+  }
+
+  return (now - meta.bounceConfirmStartTime) >= BOUNCE_CANCEL_WAIT_MS;
+}
+
 function isBounceCooldown(sym, targetLevel) {
   const exp = bounceCancelledLevels.get(`${sym}_${targetLevel}`);
   return exp != null && Date.now() < exp;
@@ -2002,11 +2029,12 @@ async function startAutoTrade(coins) {
 
                 const isBouncedFromTouch = meta.touchLow != null && markPrice >= (meta.touchLow * (1 + bouncePct / 100));
                 const isBouncedFromEntry = meta.hasTouchedEntry === true && currentBouncedPct >= bouncePct;
+                const bounceRef = meta.touchLow != null ? meta.touchLow : entryPrice;
+                const bounceDisplayPct = meta.touchLow != null ? ((markPrice - meta.touchLow) / meta.touchLow * 100) : currentBouncedPct;
+                const shouldCancelNow = checkBounceCancelHoldReady(sym, 'LONG', meta, isBouncedFromTouch || isBouncedFromEntry, bounceDisplayPct, bouncePct);
 
-                if (isBouncedFromTouch || isBouncedFromEntry) {
-                  const bounceRef = meta.touchLow != null ? meta.touchLow : entryPrice;
-                  const bounceDisplayPct = meta.touchLow != null ? ((markPrice - meta.touchLow) / meta.touchLow * 100) : currentBouncedPct;
-                  log.system(`[AutoTrade] [BounceCancel] ${sym} LONG: giá từ điểm chạm $${bounceRef.toFixed(6)} đã bật lên $${markPrice.toFixed(6)} (+${bounceDisplayPct.toFixed(2)}% >= ${bouncePct.toFixed(2)}%) → Hủy LIMIT ngay lập tức`);
+                if (shouldCancelNow) {
+                  log.system(`[AutoTrade] [BounceCancel] ${sym} LONG: giá từ điểm chạm $${bounceRef.toFixed(6)} duy trì bật lên $${markPrice.toFixed(6)} (+${bounceDisplayPct.toFixed(2)}% >= ${bouncePct.toFixed(2)}% suốt ${BOUNCE_CANCEL_WAIT_SEC}s) → Hủy LIMIT`);
                   try {
                     await client.cancelOrder(sym, order.orderId);
                     overrideLevelLastSide(sym, 'lower'); // Khóa mốc LONG cho đến khi giá chạm mốc trên
@@ -2016,7 +2044,7 @@ async function startAutoTrade(coins) {
                       `• Coin: <b>${sym} LONG</b>\n` +
                       `• Entry: <b>$${entryPrice}</b>\n` +
                       `• Giá điểm chạm: <b>$${bounceRef.toFixed(6)}</b> | Giá hiện tại: <b>$${markPrice.toFixed(6)}</b> (+${bounceDisplayPct.toFixed(2)}%)\n` +
-                      `• Giá đã chạm sát mốc và bật nảy ra xa → Hủy lệnh ngay lập tức (Khóa mốc 60p)`
+                      `• Giá duy trì bật nảy xa mốc suốt ${BOUNCE_CANCEL_WAIT_SEC}s → Hủy lệnh (Khóa mốc 60p)`
                     ).catch(() => { });
                     // ── Record trade exit for AI Dataset (BOUNCE_CANCEL) ──
                     if (activeTradesMetadata[sym]) {
@@ -2059,11 +2087,12 @@ async function startAutoTrade(coins) {
 
                 const isBouncedFromTouch = meta.touchHigh != null && markPrice <= (meta.touchHigh * (1 - bouncePct / 100));
                 const isBouncedFromEntry = meta.hasTouchedEntry === true && currentBouncedPct >= bouncePct;
+                const bounceRef = meta.touchHigh != null ? meta.touchHigh : entryPrice;
+                const bounceDisplayPct = meta.touchHigh != null ? ((meta.touchHigh - markPrice) / meta.touchHigh * 100) : currentBouncedPct;
+                const shouldCancelNow = checkBounceCancelHoldReady(sym, 'SHORT', meta, isBouncedFromTouch || isBouncedFromEntry, bounceDisplayPct, bouncePct);
 
-                if (isBouncedFromTouch || isBouncedFromEntry) {
-                  const bounceRef = meta.touchHigh != null ? meta.touchHigh : entryPrice;
-                  const bounceDisplayPct = meta.touchHigh != null ? ((meta.touchHigh - markPrice) / meta.touchHigh * 100) : currentBouncedPct;
-                  log.system(`[AutoTrade] [BounceCancel] ${sym} SHORT: giá từ điểm chạm $${bounceRef.toFixed(6)} đã bật xuống $${markPrice.toFixed(6)} (-${bounceDisplayPct.toFixed(2)}% >= ${bouncePct.toFixed(2)}%) → Hủy LIMIT ngay lập tức`);
+                if (shouldCancelNow) {
+                  log.system(`[AutoTrade] [BounceCancel] ${sym} SHORT: giá từ điểm chạm $${bounceRef.toFixed(6)} duy trì bật xuống $${markPrice.toFixed(6)} (-${bounceDisplayPct.toFixed(2)}% >= ${bouncePct.toFixed(2)}% suốt ${BOUNCE_CANCEL_WAIT_SEC}s) → Hủy LIMIT`);
                   try {
                     await client.cancelOrder(sym, order.orderId);
                     overrideLevelLastSide(sym, 'upper'); // Khóa mốc SHORT cho đến khi giá chạm mốc dưới
@@ -2073,7 +2102,7 @@ async function startAutoTrade(coins) {
                       `• Coin: <b>${sym} SHORT</b>\n` +
                       `• Entry: <b>$${entryPrice}</b>\n` +
                       `• Giá điểm chạm: <b>$${bounceRef.toFixed(6)}</b> | Giá hiện tại: <b>$${markPrice.toFixed(6)}</b> (-${bounceDisplayPct.toFixed(2)}%)\n` +
-                      `• Giá đã chạm sát mốc và bật nảy ra xa → Hủy lệnh ngay lập tức (Khóa mốc 60p)`
+                      `• Giá duy trì bật nảy xa mốc suốt ${BOUNCE_CANCEL_WAIT_SEC}s → Hủy lệnh (Khóa mốc 60p)`
                     ).catch(() => { });
                     // ── Record trade exit for AI Dataset (BOUNCE_CANCEL) ──
                     if (activeTradesMetadata[sym]) {
@@ -3678,15 +3707,16 @@ async function checkPendingLimits(client, activeSymbols) {
         const maxBouncedRoi = maxBouncedPct * (meta.leverage || 1);
         const currentBouncedRoi = currentBouncedPct * (meta.leverage || 1);
 
-        // Lệnh H1 Retest: Hủy khi ROI >= 5%. Lệnh thường: Hủy khi giá nảy >= bouncePct (gridStepPct / 5.5 ~7-8% ROI)
-        const isRetestCancel = meta.isH1Retest && (currentBouncedRoi >= 5.0 || maxBouncedRoi >= 5.0);
-        const isRegularCancel = currentBouncedPct >= bouncePct || maxBouncedPct >= bouncePct;
+        // Lệnh H1 Retest: Hủy khi duy trì ROI >= 5%. Lệnh thường: Hủy khi duy trì giá nảy >= bouncePct suốt BOUNCE_CANCEL_WAIT_SEC
+        const isRetestCancel = meta.isH1Retest && currentBouncedRoi >= 5.0;
+        const isRegularCancel = currentBouncedPct >= bouncePct;
+        const shouldCancelNow = checkBounceCancelHoldReady(sym, 'LONG', meta, isRetestCancel || isRegularCancel, currentBouncedPct, bouncePct);
 
-        if (isRetestCancel || isRegularCancel) {
-          const displayPct = currentBouncedPct >= bouncePct ? currentBouncedPct : maxBouncedPct;
+        if (shouldCancelNow) {
+          const displayPct = currentBouncedPct;
           log.system(
             `[AutoTrade] [BounceCancel] ${sym} LONG: ` +
-            `entry=$${entry}, current=$${markPrice.toFixed(6)} (+${displayPct.toFixed(2)}% >= ${bouncePct.toFixed(2)}%) → Hủy LIMIT ngay lập tức`
+            `entry=$${entry}, current=$${markPrice.toFixed(6)} (+${displayPct.toFixed(2)}% >= ${bouncePct.toFixed(2)}% duy trì ${BOUNCE_CANCEL_WAIT_SEC}s) → Hủy LIMIT`
           );
           try {
             await client.cancelOrder(sym, meta.orderId);
@@ -3697,7 +3727,7 @@ async function checkPendingLimits(client, activeSymbols) {
               `• Coin: <b>${sym} LONG</b>\n` +
               `• Entry: <b>$${entry}</b>\n` +
               `• Giá hiện tại: <b>$${markPrice.toFixed(6)}</b> (+${displayPct.toFixed(2)}%)\n` +
-              `• Giá đã nảy xa mốc → Hủy lệnh ngay lập tức (Khóa mốc)`
+              `• Giá duy trì nảy xa mốc suốt ${BOUNCE_CANCEL_WAIT_SEC}s → Hủy lệnh (Khóa mốc)`
             ).catch(() => { });
             // ── Record trade exit for AI Dataset (BOUNCE_CANCEL) ──
             const holdingDurationMinutes = (Date.now() - (meta.time || Date.now())) / 60000;
@@ -3755,15 +3785,16 @@ async function checkPendingLimits(client, activeSymbols) {
         const maxBouncedRoi = maxBouncedPct * (meta.leverage || 1);
         const currentBouncedRoi = currentBouncedPct * (meta.leverage || 1);
 
-        // Lệnh H1 Retest: Hủy khi ROI >= 5%. Lệnh thường: Hủy khi giá nảy >= bouncePct (gridStepPct / 5.5 ~7-8% ROI)
-        const isRetestCancel = meta.isH1Retest && (currentBouncedRoi >= 5.0 || maxBouncedRoi >= 5.0);
-        const isRegularCancel = currentBouncedPct >= bouncePct || maxBouncedPct >= bouncePct;
+        // Lệnh H1 Retest: Hủy khi duy trì ROI >= 5%. Lệnh thường: Hủy khi duy trì giá nảy >= bouncePct suốt BOUNCE_CANCEL_WAIT_SEC
+        const isRetestCancel = meta.isH1Retest && currentBouncedRoi >= 5.0;
+        const isRegularCancel = currentBouncedPct >= bouncePct;
+        const shouldCancelNow = checkBounceCancelHoldReady(sym, 'SHORT', meta, isRetestCancel || isRegularCancel, currentBouncedPct, bouncePct);
 
-        if (isRetestCancel || isRegularCancel) {
-          const displayPct = currentBouncedPct >= bouncePct ? currentBouncedPct : maxBouncedPct;
+        if (shouldCancelNow) {
+          const displayPct = currentBouncedPct;
           log.system(
             `[AutoTrade] [BounceCancel] ${sym} SHORT: ` +
-            `entry=$${entry}, current=$${markPrice.toFixed(6)} (-${displayPct.toFixed(2)}% >= ${bouncePct.toFixed(2)}%) → Hủy LIMIT ngay lập tức`
+            `entry=$${entry}, current=$${markPrice.toFixed(6)} (-${displayPct.toFixed(2)}% >= ${bouncePct.toFixed(2)}% duy trì ${BOUNCE_CANCEL_WAIT_SEC}s) → Hủy LIMIT`
           );
           try {
             await client.cancelOrder(sym, meta.orderId);
@@ -3774,7 +3805,7 @@ async function checkPendingLimits(client, activeSymbols) {
               `• Coin: <b>${sym} SHORT</b>\n` +
               `• Entry: <b>$${entry}</b>\n` +
               `• Giá hiện tại: <b>$${markPrice.toFixed(6)}</b> (-${displayPct.toFixed(2)}%)\n` +
-              `• Giá đã nảy xa mốc → Hủy lệnh ngay lập tức (Khóa mốc)`
+              `• Giá duy trì nảy xa mốc suốt ${BOUNCE_CANCEL_WAIT_SEC}s → Hủy lệnh (Khóa mốc)`
             ).catch(() => { });
             // ── Record trade exit for AI Dataset (BOUNCE_CANCEL) ──
             const holdingDurationMinutes = (Date.now() - (meta.time || Date.now())) / 60000;

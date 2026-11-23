@@ -160,19 +160,23 @@ function recordTradeResult({ trade, exitReason, result, closePrice, pnlPct }) {
 
   // ─── Tích hợp Phase 4: Directional Circuit Breaker & Cooldown Manager ───
   try {
+    // Lệnh đóng hòa vốn / có lãi sau khi dời SL về BE (như XRP +1.00% net) KHÔNG tính là lệnh thua SL
+    const isRealLoss = result === 'loss' && (pnlPct == null || pnlPct < 0);
+    const isProfitOrBE = result === 'win' || result === 'breakeven' || (pnlPct != null && pnlPct >= 0);
+
     const dirCB = require('./directionalCircuitBreaker');
     if (dirCB && typeof dirCB.recordDirectionalTradeExit === 'function') {
       dirCB.recordDirectionalTradeExit({
         symbol: trade.symbol,
         side: trade.direction,
-        isWin: result === 'win',
-        exitType: exitReason === 'sl' ? 'SL' : exitReason === 'tp' ? 'TP' : exitReason,
+        isWin: isProfitOrBE,
+        exitType: isRealLoss ? 'SL' : (exitReason === 'tp' ? 'TP' : 'BE'),
         pnlPercent: pnlPct ?? 0,
         pnlUsd: (pnlPct ?? 0) * 0.5
       });
     }
 
-    if (result === 'loss' || exitReason === 'sl') {
+    if (isRealLoss) {
       const cdMgr = require('./cooldownManager');
       if (cdMgr && typeof cdMgr.addSymbolToCooldown === 'function') {
         cdMgr.addSymbolToCooldown(trade.symbol, 6.0, `SL_EXIT: ${exitReason}`);

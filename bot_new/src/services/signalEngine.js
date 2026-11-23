@@ -20,7 +20,7 @@ const { isSymbolInCooldown }      = require('./cooldownManager');
 const { isLevelBounceCooldown }   = require('./bounceCancel');
 const { checkBtcFlashStatus }     = require('./btcFlashGuard');
 const { registerShadowTrade, isShadowPositionActive } = require('./shadowTracker');
-const { getMarkPrice }            = require('../pp369/stream');
+const { getMarkPrice, getPrices } = require('../pp369/stream');
 const { fetchH1Historical }       = require('./candleCache');
 const { getSymbolInfo, getUsdtBalance } = require('./binanceTrader');
 const { log }                     = require('./logger');
@@ -108,16 +108,19 @@ async function generateQuantitativeTrade(setup, marketData = null) {
     return null;
   }
 
-  // 1. Xác định mức giá Entry
+  // 1. Xác định mức giá Entry — ưu tiên giá thực tế live (WebSocket / REST ticker) trước TA cache
   const ta = marketData?.ta?.[symbol];
   const sig369 = marketData?.signals369?.[symbol];
-  const markPrice = (typeof getMarkPrice === 'function') ? getMarkPrice(symbol) : null;
-  const topCoinPrice = marketData?.topCoins?.find(c => c.symbol === symbol)?.price;
+  const liveMark = (typeof getMarkPrice === 'function') ? getMarkPrice(symbol) : null;
+  const restPrice = (typeof getPrices === 'function') ? getPrices()?.[symbol] : null;
+  const taPrice = ta?.price || ta?.close || ta?.lastPrice || null;
+  const topCoinPrice = marketData?.topCoins?.find(c => c.symbol === symbol)?.price || null;
 
-  const currentPrice = ta?.price || ta?.close || ta?.lastPrice || markPrice || sig369?.currentPrice || sig369?.price || topCoinPrice || setup.targetLevel || setup.price;
+  // TUYỆT ĐỐI KHÔNG fallback về setup.targetLevel để tránh vô hiệu hóa chốt chặn cự ly 0.5% (Fix lỗi PROM LONG)
+  const currentPrice = liveMark || restPrice || taPrice || sig369?.currentPrice || topCoinPrice || null;
 
   if (!currentPrice || currentPrice <= 0) {
-    log.warn(`[AutoTrade] ${symbol} ${direction}: Không có giá hợp lệ — bỏ qua`);
+    log.warn(`[AutoTrade] ${symbol} ${direction}: Không có giá thị trường thực tế hợp lệ — bỏ qua`);
     return null;
   }
 

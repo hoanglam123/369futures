@@ -76,7 +76,13 @@ async function refreshListenKey(listenKey) {
 
 function handleMessage(raw) {
   let msg;
-  try { msg = JSON.parse(raw); } catch { return; }
+  try {
+    // Giữ nguyên orderId / algoId 64-bit (>= 16 chữ số, vd ETH) dạng chuỗi để tránh mất 3 số cuối
+    const safeRaw = typeof raw === 'string'
+      ? raw.replace(/"(i|si|aid|orderId|algoId)":\s*(\d{16,})/g, '"$1":"$2"')
+      : raw;
+    msg = JSON.parse(safeRaw);
+  } catch { return; }
 
   if (msg.e !== 'ORDER_TRADE_UPDATE') return;
 

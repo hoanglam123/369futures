@@ -567,9 +567,12 @@ function addTrades(trades, taMap = {}) {
     }
 
     // ── Cooldown: không vào lại cùng coin trong TRADE_COOLDOWN_MS sau khi đóng ──
+    // ── Cooldown: chỉ áp dụng 6h cho lệnh ĐÃ KHỚP và ĐÓNG (sl_hit/tp_hit/reversed/manual_close),
+    // KHÔNG khóa 6h với lệnh limit 'canceled' chưa từng khớp (bounce cancel đã có cooldown 60p riêng) ──
     const recentlyClosed = activeTrades.find(a =>
       a.symbol === t.symbol &&
       a.status !== 'active' &&
+      a.status !== 'canceled' &&
       a.closedAt &&
       (Date.now() - new Date(a.closedAt).getTime()) < TRADE_COOLDOWN_MS
     );
@@ -695,21 +698,31 @@ function addTrades(trades, taMap = {}) {
       continue;
     }
 
-    // TP1: +10% vốn — gần entry nhất, chạm TRƯỚC → dời SL về +1% lãi
-    const tp1RawPct = calcTp2RawPct(t.leverage);
-    const tp1Price  = isLongNew
+    // TP2: 1:1 R:R — xa entry hơn, chạm SAU → dời SL lên TP1 để khóa lãi
+    const riskDist = Math.abs(t.entryPrice - t.slPrice);
+    const tp2Price = isLongNew ? t.entryPrice + riskDist : t.entryPrice - riskDist;
+    const tp2Pct   = parseFloat((riskDist / t.entryPrice * 100).toFixed(2));
+    t.tp2Price = parseFloat(tp2Price.toFixed(tp2Price >= 1 ? 2 : 6));
+    t.tp2Pct   = tp2Pct;
+
+    // TP1: mốc chạm TRƯỚC (BE trigger) → dời SL về +1% lãi.
+    // Luôn đảm bảo TP1 nằm CHẶT giữa Entry và TP2 (fix bug đòn bẩy thấp 2x-3x làm +10% ROI > 1:1 R:R)
+    let tp1RawPct = calcTp2RawPct(t.leverage);
+    if (t.beTriggerPrice && t.beTriggerPrice > 0) {
+      const beDistPct = Math.abs(t.beTriggerPrice - t.entryPrice) / t.entryPrice * 100;
+      if (beDistPct > 0.2 && beDistPct < tp2Pct * 0.85) {
+        tp1RawPct = beDistPct;
+      }
+    }
+    if (tp2Pct > 0 && tp1RawPct >= tp2Pct * 0.85) {
+      tp1RawPct = parseFloat((tp2Pct * 0.5).toFixed(2));
+    }
+    const tp1Price = isLongNew
       ? t.entryPrice * (1 + tp1RawPct / 100)
       : t.entryPrice * (1 - tp1RawPct / 100);
     const tp1Pct = parseFloat(tp1RawPct.toFixed(2));
     t.tp1Price = parseFloat(tp1Price.toFixed(tp1Price >= 1 ? 2 : 6));
     t.tp1Pct   = tp1Pct;
-
-    // TP2: 1:1 R:R — xa entry hơn, chạm SAU → chỉ alert
-    const riskDist = Math.abs(t.entryPrice - t.slPrice);
-    const tp2Price = isLongNew ? t.entryPrice + riskDist : t.entryPrice - riskDist;
-    const tp2Pct   = (riskDist / t.entryPrice * 100).toFixed(2);
-    t.tp2Price = parseFloat(tp2Price.toFixed(tp2Price >= 1 ? 2 : 6));
-    t.tp2Pct   = parseFloat(tp2Pct);
 
     t.ta = taMap[t.symbol] ?? null;
     activeTrades.push(t);
@@ -2006,6 +2019,7 @@ async function checkActiveTrades() {
               sym: trade.symbol,
               meta: trade,
               beSlPrice: newSlPrice,
+              currentPrice: price,
             });
             if (res?.success) saveTrades();
           })();
@@ -2034,8 +2048,9 @@ async function checkActiveTrades() {
         const { rawPct: tp2Raw, netPct: tp2Net } = calcPnl(trade.entryPrice, trade.tp2Price, trade.direction, trade.leverage);
         log.trade(`TP2 ${trade.symbol} ${trade.direction} tại ${fmtPrice(price)}`);
 
-        // Dynamic On-Exchange Ratchet: Dời SL sàn lên mức TP1 (+10% vốn) để khóa lãi
-        if (trade.tp1Price && binanceTrader.isEnabled() && (trade.binanceEntryOrderId || trade.binanceQty || trade.binanceSlOrderId)) {
+        // Dynamic On-Exchange Ratchet: Dời SL sàn lên mức TP1 để khóa lãi (chỉ dời nếu TP1 an toàn phía sau giá hiện tại)
+        const tp1LockSafe = trade.tp1Price && (isLong ? trade.tp1Price < price * 0.999 : trade.tp1Price > price * 1.001);
+        if (tp1LockSafe && binanceTrader.isEnabled() && (trade.binanceEntryOrderId || trade.binanceQty || trade.binanceSlOrderId)) {
           (async () => {
             const res = await bracketManager.ratchetTrailingFractal({
               client: binanceTrader,
@@ -2043,6 +2058,7 @@ async function checkActiveTrades() {
               meta: trade,
               newTrailingSlPrice: trade.tp1Price,
               label: 'TP2 Profit Lock',
+              currentPrice: price,
             });
             if (res?.success) {
               trade.slPrice = trade.tp1Price;
@@ -2500,6 +2516,7 @@ function _doRebuildCombinedMpWs() {
                 sym: trade.symbol,
                 meta: trade,
                 beSlPrice: newSlPrice,
+                currentPrice: markPrice,
               });
               if (res?.success) saveTrades();
             })();
@@ -2527,8 +2544,9 @@ function _doRebuildCombinedMpWs() {
           const { rawPct: tp2Raw, netPct: tp2Net } = calcPnl(trade.entryPrice, trade.tp2Price, trade.direction, trade.leverage);
           log.trade(`WS TP2 ${symbol} ${trade.direction} tại ${fmtPrice(markPrice)}`);
 
-          // Dynamic On-Exchange Ratchet: Dời SL sàn lên mức TP1 (+10% vốn) để khóa lãi
-          if (trade.tp1Price && binanceTrader.isEnabled() && (trade.binanceEntryOrderId || trade.binanceQty || trade.binanceSlOrderId)) {
+          // Dynamic On-Exchange Ratchet: Dời SL sàn lên mức TP1 để khóa lãi (chỉ dời nếu TP1 an toàn phía sau giá hiện tại)
+          const tp1LockSafeWs = trade.tp1Price && (isLong ? trade.tp1Price < markPrice * 0.999 : trade.tp1Price > markPrice * 1.001);
+          if (tp1LockSafeWs && binanceTrader.isEnabled() && (trade.binanceEntryOrderId || trade.binanceQty || trade.binanceSlOrderId)) {
             (async () => {
               const res = await bracketManager.ratchetTrailingFractal({
                 client: binanceTrader,
@@ -2536,6 +2554,7 @@ function _doRebuildCombinedMpWs() {
                 meta: trade,
                 newTrailingSlPrice: trade.tp1Price,
                 label: 'TP2 Profit Lock',
+                currentPrice: markPrice,
               });
               if (res?.success) {
                 trade.slPrice = trade.tp1Price;

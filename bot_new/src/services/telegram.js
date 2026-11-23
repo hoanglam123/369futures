@@ -107,15 +107,24 @@ validateTelegramConfig();
  * @param {string} text - Nội dung tin nhắn (HTML format)
  * @param {object} extra - Tùy chọn bổ sung cho Telegram API
  */
+/**
+ * Escape ký tự '<' đứng lẻ không thuộc các thẻ HTML hợp lệ của Telegram (vd: "<1.5%.", "<=0.5%")
+ */
+function sanitizeTelegramHtml(text) {
+  if (typeof text !== 'string') return '';
+  return text.replace(/<(?!\/?(?:b|strong|i|em|u|ins|s|strike|del|code|pre|a|blockquote|tg-spoiler)\b[^>]*>)/gi, '&lt;');
+}
+
 async function sendMessage(text, extra = {}, chatId = null) {
   const resolvedChatId = getChatId(chatId);
   const apiUrl = resolveApiUrl(resolvedChatId);
 
   // Nếu gọi trực tiếp sendMessage với text dài (không qua sendMessages),
   // split lấy phần đầu thay vì cắt cụt giữa chừng
-  const safeText = text.length > TELEGRAM_MAX_LENGTH
+  const rawSafeText = text.length > TELEGRAM_MAX_LENGTH
     ? splitHtmlMessage(text)[0]
     : text;
+  const safeText = sanitizeTelegramHtml(rawSafeText);
 
   let response;
   try {
@@ -133,6 +142,26 @@ async function sendMessage(text, extra = {}, chatId = null) {
   } catch (err) {
     const detail = err.response?.data?.description ?? err.message;
     const status = err.response?.status ?? 'N/A';
+
+    // Nếu vẫn gặp lỗi 400 can't parse entities (vd AI viết lệch cặp thẻ <b>...</i>),
+    // tự động fallback gửi bản plain text sạch thẻ HTML để không làm crash job bản tin
+    if (status === 400 && typeof detail === 'string' && detail.includes("can't parse entities")) {
+      log.warn(`[Telegram] Lỗi parse HTML (${detail}) — tự động fallback gửi plain text`);
+      const plainText = rawSafeText.replace(/<\/?[a-z][^>]*>/gi, '').slice(0, TELEGRAM_MAX_LENGTH);
+      const { parse_mode, ...restExtra } = extra || {};
+      const fallbackRes = await axios.post(
+        `${apiUrl}/sendMessage`,
+        {
+          chat_id: resolvedChatId,
+          text: plainText,
+          disable_web_page_preview: true,
+          ...restExtra
+        },
+        { timeout: 30000 }
+      );
+      if (fallbackRes.data?.ok) return fallbackRes.data.result;
+    }
+
     if (status === 403 && typeof detail === 'string' && detail.includes("the bot can't send messages to the bot")) {
       log.error(`[Telegram] ❌ CẤU HÌNH SAI: TELEGRAM_CHAT_ID (${resolvedChatId}) đang là ID của Bot! Vui lòng vào file .env trên VPS đổi TELEGRAM_CHAT_ID thành User ID của bạn (ví dụ: 1663202780) hoặc Channel/Group ID.`);
     }

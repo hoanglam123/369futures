@@ -147,8 +147,8 @@ runTest('4. Real-time BTC Flash Guard: Bắt biến tốc xả 0ms (Dump >= 0.70
   assert.strictEqual(checkBtcFlashStatus().activeFlash, null, 'Reset đưa Flash Guard về bình thường');
 });
 
-// ── 4. BOUNCE CANCEL (HỦY LỆNH BẬT NẢY) ──────────────────────────────────────
-runTest('5. Bounce Cancel: Nhận diện giá tiếp cận <= 0.08% rồi nảy > 1.5% -> Tự động hủy lệnh Limit', () => {
+// ── 4. BOUNCE CANCEL (HỦY LỆNH BẬT NẢY CÓ CHỜ XÁC NHẬN 180s) ────────────────
+runTest('5. Bounce Cancel: Chờ xác nhận 180s khi nảy > 1.5% (reset nếu giá quay về, hủy khi duy trì đủ 180s)', () => {
   clearBounceCooldowns();
 
   const mockTrade = {
@@ -160,14 +160,30 @@ runTest('5. Bounce Cancel: Nhận diện giá tiếp cận <= 0.08% rồi nảy 
   };
 
   trackPendingLimit(mockTrade);
+  const t0 = Date.now();
 
-  // Bước 1: Giá tiếp cận sát mốc (190.10 -> cách 0.052% <= 0.08%)
-  const res1 = checkBounceCancel(mockTrade, 190.10);
+  // Bước 1: Giá tiếp cận sát mốc (190.10 -> cách 0.052% <= 0.20%)
+  const res1 = checkBounceCancel(mockTrade, 190.10, { nowMs: t0 });
   assert.strictEqual(res1.shouldCancel, false, 'Chỉ mới tiếp cận mốc, chưa nảy xa -> chưa hủy');
 
-  // Bước 2: Giá bật tăng vọt lên 193.50 (+1.84% > 1.50%) mà không khớp
-  const res2 = checkBounceCancel(mockTrade, 193.50);
-  assert.strictEqual(res2.shouldCancel, true, 'Giá nảy > 1.5% sau khi chạm sát mốc phải kích hoạt Bounce Cancel');
+  // Bước 2: Giá bật tăng vọt lên 193.50 (+1.84% > 1.50%) lần đầu -> bắt đầu chờ xác nhận 180s (chưa hủy ngay)
+  const res2 = checkBounceCancel(mockTrade, 193.50, { nowMs: t0 + 1000 });
+  assert.strictEqual(res2.shouldCancel, false, 'Mới chạm ngưỡng nảy lần đầu phải chờ xác nhận 180s');
+  assert.strictEqual(res2.reason, 'WAITING_BOUNCE_CONFIRM');
+
+  // Bước 3: Sau 60s giá vẫn ở 193.50 (< 180s) -> vẫn tiếp tục chờ
+  const res3 = checkBounceCancel(mockTrade, 193.50, { nowMs: t0 + 61000 });
+  assert.strictEqual(res3.shouldCancel, false, 'Chưa đủ 180s chờ xác nhận -> chưa hủy');
+
+  // Bước 4: Giá quay đầu giảm về 191.00 (+0.52% < 1.50%) -> phải reset bộ đếm
+  const res4 = checkBounceCancel(mockTrade, 191.00, { nowMs: t0 + 90000 });
+  assert.strictEqual(res4.shouldCancel, false, 'Giá quay đầu dưới ngưỡng nảy -> reset bộ đếm');
+
+  // Bước 5: Giá bật lại 193.50 và duy trì liên tục đủ 181s -> xác nhận hủy lệnh LIMIT
+  const res5a = checkBounceCancel(mockTrade, 193.50, { nowMs: t0 + 100000 });
+  assert.strictEqual(res5a.shouldCancel, false, 'Bắt đầu đếm lại từ đầu sau khi reset');
+  const res5b = checkBounceCancel(mockTrade, 193.50, { nowMs: t0 + 100000 + 181000 });
+  assert.strictEqual(res5b.shouldCancel, true, 'Duy trì nảy > 1.5% đủ 180s phải kích hoạt Bounce Cancel');
 
   // Kiểm tra mốc 190 của SOL đã bị đưa vào cooldown 60 phút
   assert.strictEqual(isLevelBounceCooldown('SOL', 190.0), true, 'Mốc giá vừa bị bounce phải rơi vào cooldown 60 phút');
