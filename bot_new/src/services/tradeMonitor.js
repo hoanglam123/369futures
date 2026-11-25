@@ -2081,11 +2081,16 @@ async function checkActiveTrades() {
       if ((needTpPlace || needTpPrice || needSlPlace) && _canRunRecovery(recKey)) {
         _slTpRecoveryAt.set(recKey, Date.now());
         (async () => {
-          // Bước 1: phục hồi targetPrice từ expired trade
-          // Ưu tiên: trades.json (24h) → trade_history.json (bot-placed, binanceEntryOrderId != null)
+          // Bước 1: phục hồi targetPrice & slPrice cho lệnh mở tay / mất record
+          // Ưu tiên: trades.json (24h) → trade_history.json → shadow_positions.json → tự tính bằng tierSLTP (hoặc fallback -3% SL / +5% TP)
           if (needTpPrice) {
             try {
+              const _isLongR = trade.direction === 'LONG';
+              const _precR = trade.entryPrice >= 100 ? 2 : (trade.entryPrice >= 1 ? 4 : 6);
+              const _beRatioR = Math.max(0.35, Math.min(0.85, parseFloat(process.env.BE_TRIGGER_TP_PCT || '50') / 100));
               let origin = null;
+              let originSource = null;
+
               if (fs.existsSync(TRADES_FILE)) {
                 const rawAll = JSON.parse(fs.readFileSync(TRADES_FILE, 'utf8'));
                 const cutoff = Date.now() - 24 * 3_600_000;
@@ -2095,6 +2100,7 @@ async function checkActiveTrades() {
                   t.closedAt && new Date(t.closedAt).getTime() > cutoff &&
                   t.targetPrice && t.slPrice
                 );
+                if (origin) originSource = 'expired trade';
               }
               if (!origin && fs.existsSync(HISTORY_FILE)) {
                 const rawHistory = JSON.parse(fs.readFileSync(HISTORY_FILE, 'utf8'));
@@ -2103,45 +2109,121 @@ async function checkActiveTrades() {
                   t.binanceEntryOrderId &&
                   t.targetPrice && t.slPrice
                 );
+                if (origin) originSource = 'trade_history';
               }
+              // Kiểm tra thêm vị thế Shadow đang chạy cùng coin/chiều (user mở tay theo kèo Shadow)
+              if (!origin) {
+                try {
+                  const shMod = require('./shadowTracker');
+                  const activeSh = Object.values(shMod.getActiveShadowPositions() || {});
+                  const matchedSh = activeSh.find(s =>
+                    s && s.symbol === trade.symbol && s.direction === trade.direction &&
+                    (s.tpPrice || s.tierTpPrice) && (s.slPrice || s.tierSlPrice)
+                  );
+                  if (matchedSh) {
+                    origin = {
+                      targetPrice: matchedSh.tpPrice || matchedSh.tierTpPrice,
+                      slPrice: matchedSh.slPrice || matchedSh.tierSlPrice,
+                      targetPct: matchedSh.tpPct,
+                      slPct: matchedSh.slPct,
+                    };
+                    originSource = 'Shadow AI';
+                    shMod.removeShadowBySymbolDirection(trade.symbol, trade.direction);
+                  }
+                } catch (_) {}
+              }
+
               if (origin) {
                 trade.targetPrice = origin.targetPrice;
-                trade.targetPct   = origin.targetPct   ?? trade.targetPct;
-                const _isLongR = trade.direction === 'LONG';
+                trade.targetPct   = origin.targetPct ?? parseFloat((Math.abs(origin.targetPrice - trade.entryPrice) / trade.entryPrice * 100).toFixed(2));
                 const _originSlValidR = origin.slPrice != null && (_isLongR ? origin.slPrice < trade.entryPrice : origin.slPrice > trade.entryPrice);
-                if (_originSlValidR) {
+                if (_originSlValidR && !trade.binanceSlOrderId) {
                   trade.slPrice = origin.slPrice;
-                  trade.slPct   = origin.slPct   ?? trade.slPct;
+                  trade.slPct   = origin.slPct ?? parseFloat((Math.abs(origin.slPrice - trade.entryPrice) / trade.entryPrice * 100).toFixed(2));
                 }
-                if (trade.targetPrice && trade.entryPrice) {
-                  const _beRatioR = Math.max(0.35, Math.min(0.85, parseFloat(process.env.BE_TRIGGER_TP_PCT || '50') / 100));
-                  const _beDist = Math.abs(trade.targetPrice - trade.entryPrice) * _beRatioR;
-                  const _bePrec = trade.entryPrice >= 100 ? 2 : (trade.entryPrice >= 1 ? 4 : 6);
-                  trade.beTriggerPrice = parseFloat((_isLongR ? trade.entryPrice + _beDist : trade.entryPrice - _beDist).toFixed(_bePrec));
-                }
-                saveTrades();
-                log.warn(`Recovery manual: ${trade.symbol} ${trade.direction} — phục hồi TP/SL từ expired trade (TP=${fmtPrice(trade.targetPrice)} SL=${fmtPrice(trade.slPrice)})`);
+                log.trade(`Recovery manual: ${trade.symbol} ${trade.direction} — phục hồi TP/SL từ ${originSource} (TP=${fmtPrice(trade.targetPrice)} SL=${fmtPrice(trade.slPrice)})`);
               } else {
-                  // Không tìm thấy expired record → đặt tạm SL bảo vệ (liqPrice fallback) + trigger signal scan
-                  const autoSl = calcLiqPrice(trade.entryPrice, trade.direction, trade.leverage);
-                  if (autoSl && !trade.slPrice) {
-                    trade.slPrice = autoSl;
-                    trade.slPct   = parseFloat((Math.abs(autoSl - trade.entryPrice) / trade.entryPrice * 100).toFixed(2));
+                // Lệnh mở tay hoàn toàn mới → tự động tính TP/SL chuẩn 369 (tierSLTP), fallback -3% SL / +5% TP
+                let calcTp = null, calcSl = null, calcSource = 'Default 369 (SL 3% / TP 5%)';
+                try {
+                  const tierSLTP = require('./tierSLTP');
+                  let h4Ref = null;
+                  try {
+                    const h1RefCache = require('./h1RefCache');
+                    const map = typeof h1RefCache.getH1RefCache === 'function' ? h1RefCache.getH1RefCache() : {};
+                    if (map && map[trade.symbol]) h4Ref = map[trade.symbol];
+                  } catch (_) {}
+                  const symInfo = await binanceTrader.getSymbolInfo(trade.symbol).catch(() => null);
+                  const tierRes = await tierSLTP.calculateTierSLTP(
+                    trade.symbol,
+                    trade.direction,
+                    trade.entryPrice,
+                    h4Ref,
+                    symInfo?.tickSize || null,
+                    trade.leverage || 5,
+                    3.0,
+                    1.5
+                  );
+                  if (tierRes && tierRes.valid && tierRes.tpPrice > 0 && tierRes.slPrice > 0) {
+                    calcTp = tierRes.tpPrice;
+                    calcSl = tierRes.slPrice;
+                    calcSource = `TierSLTP (${tierRes.slTier || 'ATR/Swing'}, R:R=${tierRes.rrRatio || '1.5'})`;
                   }
-                  saveTrades();
-                  _pendingSignalScan = true;
-                  const dirLabel = trade.direction === 'LONG' ? '🟢 LONG' : '🔴 SHORT';
-                  log.warn(`Recovery manual: ${trade.symbol} ${trade.direction} — không có expired record, trigger signal scan`);
-                  sendMessages([
-                    `⚠️ <b>THIẾU DỮ LIỆU TP/SL — ${trade.symbol} ${dirLabel} ⚡x${trade.leverage || 10}</b>\n` +
-                    `━━━━━━━━━━━━━━━━\n` +
-                    `Không tìm thấy khuyến nghị gốc (mất dữ liệu sau restart).\n` +
-                    `<i>Đang chạy lại phân tích để cập nhật TP/SL đầy đủ (BE ${process.env.BE_TRIGGER_TP_PCT || 50}% + Fractal Trailing)...</i>`,
-                  ], 1500, NEWS_CHAT_ID).catch(() => {});
-                  return;
+                } catch (tierErr) {
+                  log.warn(`Recovery manual: tierSLTP fallback cho ${trade.symbol}`, { error: tierErr.message });
+                }
+
+                if (!calcTp || !calcSl) {
+                  const levSafe = Math.max(1, parseFloat(trade.leverage) || 5);
+                  const defSlPct = Math.min(3.0, Math.max(1.5, (100 / levSafe) * 0.25));
+                  const defTpPct = parseFloat((defSlPct * 1.67).toFixed(2));
+                  calcSl = parseFloat((_isLongR ? trade.entryPrice * (1 - defSlPct / 100) : trade.entryPrice * (1 + defSlPct / 100)).toFixed(_precR));
+                  calcTp = parseFloat((_isLongR ? trade.entryPrice * (1 + defTpPct / 100) : trade.entryPrice * (1 - defTpPct / 100)).toFixed(_precR));
+                  calcSource = `Fallback an toàn (SL ${defSlPct.toFixed(1)}% / TP ${defTpPct.toFixed(1)}%)`;
+                }
+
+                // Chống lỗi -2021 (Order would immediately trigger) nếu giá mark hiện tại đã chạy lệch khỏi entry
+                const liveMark = _lastMarkPrices[trade.symbol] || price || trade.entryPrice;
+                if (liveMark > 0) {
+                  if (_isLongR) {
+                    if (calcSl >= liveMark * 0.997) {
+                      calcSl = (trade.entryPrice < liveMark * 0.995)
+                        ? parseFloat((trade.entryPrice * 1.0014).toFixed(_precR))
+                        : parseFloat((liveMark * 0.97).toFixed(_precR));
+                    }
+                    if (calcTp <= liveMark * 1.003) {
+                      calcTp = parseFloat((liveMark * 1.03).toFixed(_precR));
+                    }
+                  } else {
+                    if (calcSl <= liveMark * 1.003) {
+                      calcSl = (trade.entryPrice > liveMark * 1.005)
+                        ? parseFloat((trade.entryPrice * 0.9986).toFixed(_precR))
+                        : parseFloat((liveMark * 1.03).toFixed(_precR));
+                    }
+                    if (calcTp >= liveMark * 0.997) {
+                      calcTp = parseFloat((liveMark * 0.97).toFixed(_precR));
+                    }
+                  }
+                }
+
+                trade.targetPrice = calcTp;
+                trade.targetPct   = parseFloat((Math.abs(calcTp - trade.entryPrice) / trade.entryPrice * 100).toFixed(2));
+                // Ghi đè SL nếu chưa có Hard SL order thật trên sàn (thay thế SL giá thanh lý cũ)
+                if (!trade.binanceSlOrderId) {
+                  trade.slPrice = calcSl;
+                  trade.slPct   = parseFloat((Math.abs(calcSl - trade.entryPrice) / trade.entryPrice * 100).toFixed(2));
+                }
+                log.trade(`Recovery manual: ${trade.symbol} ${trade.direction} — tự tính TP/SL [${calcSource}] (TP=${fmtPrice(trade.targetPrice)} SL=${fmtPrice(trade.slPrice)})`);
               }
+
+              if (trade.targetPrice && trade.entryPrice) {
+                const _beDist = Math.abs(trade.targetPrice - trade.entryPrice) * _beRatioR;
+                trade.beTriggerPrice = parseFloat((_isLongR ? trade.entryPrice + _beDist : trade.entryPrice - _beDist).toFixed(_precR));
+                trade.beSlPrice = parseFloat((_isLongR ? trade.entryPrice * 1.0014 : trade.entryPrice * 0.9986).toFixed(_precR));
+              }
+              saveTrades();
             } catch (e) {
-              log.warn(`Recovery manual: không đọc được trades.json cho ${trade.symbol}`, { error: e.message });
+              log.warn(`Recovery manual: lỗi khôi phục TP/SL cho ${trade.symbol}`, { error: e.message });
               return;
             }
           }
