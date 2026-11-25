@@ -516,6 +516,30 @@ async function apiTrades() {
   });
 }
 
+function _estimateH4EnvMargin(sym, fallbackMargin = 10) {
+  let isTier1 = false;
+  try {
+    const { isTop50Symbol } = require('../pp369');
+    if (typeof isTop50Symbol === 'function') isTier1 = isTop50Symbol(sym);
+  } catch {}
+  const tier1Pct = parseFloat(process.env.TRADE_SIZE_PCT_TIER1 || process.env.TRADE_SIZE_PCT || '0');
+  const tier2Pct = parseFloat(process.env.TRADE_SIZE_PCT_TIER2 || (tier1Pct > 0 ? tier1Pct : '0'));
+  const effPct = isTier1 ? tier1Pct : tier2Pct;
+  const tier1Fallback = parseFloat(process.env.TRADE_AMOUNT_TIER1 || process.env.TRADE_AMOUNT || '20');
+  const tier2Fallback = parseFloat(process.env.TRADE_AMOUNT_TIER2 || '10');
+  const flatMargin = isTier1 ? tier1Fallback : tier2Fallback;
+  if (effPct > 0) {
+    const accCached = _cache.get('account-summary')?.data;
+    const bal = parseFloat(accCached?.availableBalance || accCached?.walletBalance || '0');
+    if (bal > 0) {
+      const minMargin = parseFloat(process.env.TRADE_MIN_USDT || '5.0');
+      const maxMargin = parseFloat(process.env.TRADE_MAX_USDT || (isTier1 ? '100.0' : '50.0'));
+      return parseFloat(Math.min(Math.max((bal * effPct) / 100, minMargin), maxMargin).toFixed(2));
+    }
+  }
+  return parseFloat((flatMargin || fallbackMargin).toFixed(2));
+}
+
 function apiShadowTrades() {
   const shadowPositions = readJson('shadow_positions.json', {});
   const list = [];
@@ -526,6 +550,7 @@ function apiShadowTrades() {
     const entryPrice = parseFloat(s.entryPrice) || 0;
     const leverage = parseFloat(s.leverage) || 10;
     const margin = parseFloat(s.margin) || 20;
+    const envMargin = _estimateH4EnvMargin(sym, margin);
     const isFilled = s.isFilled !== false && s.status !== 'PENDING_LIMIT';
 
     list.push({
@@ -543,6 +568,7 @@ function apiShadowTrades() {
       slPrice: s.tierSlPrice || s.originalSlPrice || null,
       leverage,
       margin: parseFloat(margin.toFixed(2)),
+      envMargin,
       score: s.score || 0,
       confluenceScore: s.score || null,
       vetoCategory: s.vetoCategory || null,

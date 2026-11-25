@@ -709,10 +709,10 @@ async function loadGuards() {
 }
 
 async function promoteShadow(shadowId, sym, dir, entry, tp, sl, lev) {
-  if (!confirm(`⚡ ĐẨY LỆNH LIMIT THẬT LÊN BINANCE (BOT-NEW)?\n\n• Coin: ${sym} ${dir} (×${lev})\n• Entry Limit: $${fmtP(entry)}\n• TP: $${fmtP(tp)} | SL: $${fmtP(sl)}\n\nBot-New sẽ tự động treo TP/SL khi khớp, dời BE 50% TP và kéo Fractal Trailing SL.`)) return;
+  if (!confirm(`⚡ ĐẨY LỆNH LIMIT THẬT LÊN BINANCE (BOT-NEW)?\n\n• Coin: ${sym} ${dir} (×${lev})\n• Margin: Tự tính theo .env (TRADE_SIZE_PCT / TRADE_MAX_USDT)\n• Entry Limit: $${fmtP(entry)}\n• TP: $${fmtP(tp)} | SL: $${fmtP(sl)}\n\nBot-New sẽ tự động treo TP/SL khi khớp, dời BE 50% TP và kéo Fractal Trailing SL.`)) return;
   const res = await post('/api/shadow-trades/promote', { shadowId });
   if (res && res.ok) {
-    alert(`✅ Đã đẩy lệnh LIMIT ${res.symbol} ${res.direction || dir} @ $${res.entryPrice} thành công!\nBot-New đang tự động theo dõi & quản lý TP/SL + BE/Fractal.`);
+    alert(`✅ Đã đẩy lệnh LIMIT ${res.symbol} ${res.direction || dir} @ $${res.entryPrice} thành công!\nMargin (.env): $${res.margin ?? '—'} USDT\nBot-New đang tự động theo dõi & quản lý TP/SL + BE/Fractal.`);
     await loadAll();
   } else {
     alert('❌ Không thể đẩy lệnh: ' + (res?.error || 'Lỗi không xác định'));

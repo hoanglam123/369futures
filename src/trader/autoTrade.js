@@ -2058,7 +2058,9 @@ async function startAutoTrade(coins) {
     const slPrice = parseFloat(sh.tierSlPrice || sh.originalSlPrice || 0);
     const slPct = parseFloat(sh.slPct || (entryPrice > 0 ? Math.abs((slPrice - entryPrice) / entryPrice) * 100 : 3.0));
     const leverage = Math.max(1, parseInt(sh.leverage || 5, 10));
-    const reqMargin = parseFloat(sh.margin || 12);
+    const isTier1 = isTop50Symbol(sym);
+    const envMargin = await getDynamicMargin(isTier1, client);
+    const reqMargin = (typeof envMargin === 'number' && envMargin > 0) ? envMargin : parseFloat(sh.margin || 10);
 
     if (!entryPrice || entryPrice <= 0 || !tpPrice || !slPrice) {
       return { ok: false, error: `Thông số Entry/TP/SL không hợp lệ cho ${sym}` };
@@ -2160,7 +2162,7 @@ async function startAutoTrade(coins) {
     });
 
     removeShadowPosition(shadowId);
-    log.system(`[AutoTrade] ⚡ [Manual Shadow Promote] Đã đẩy LIMIT ${sym} ${side} qty=${q.qty} @ $${entryPrice} (orderId=${order.orderId}) | TP=$${tpPrice} | SL=$${slPrice} | BE=$${beTriggerPrice.toFixed(4)} — Bot tiếp quản 100%!`);
+    log.system(`[AutoTrade] ⚡ [Manual Shadow Promote] Đã đẩy LIMIT ${sym} ${side} qty=${q.qty} @ $${entryPrice} (orderId=${order.orderId}) | Margin=$${actualMargin.toFixed(2)} (Tier ${isTier1 ? 1 : 2} .env) | Lev=${leverage}x | TP=$${tpPrice} | SL=$${slPrice} | BE=$${beTriggerPrice.toFixed(4)} — Bot tiếp quản 100%!`);
 
     return {
       ok: true,

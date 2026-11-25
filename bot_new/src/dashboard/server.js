@@ -863,6 +863,19 @@ function handleApi(req, res) {
         const beTriggerPrice = sh.beTriggerPrice || (isLong ? entryPrice + (tpPrice - entryPrice) * 0.5 : entryPrice - (entryPrice - tpPrice) * 0.5);
         const beSlPrice = isLong ? entryPrice * 1.0014 : entryPrice * 0.9986;
 
+        // Đồng bộ margin hiển thị theo đúng công thức .env của bot-new (calcQty cũng sẽ dùng chính công thức này khi đặt sàn)
+        let envMargin = parseFloat(process.env.FLAT_TRADE_USDT || sh.margin || '10');
+        try {
+          const pct = parseFloat(process.env.TRADE_SIZE_PCT || '5');
+          const minU = parseFloat(process.env.TRADE_MIN_USDT || '5');
+          const maxU = parseFloat(process.env.TRADE_MAX_USDT || '200');
+          const thresh = parseFloat(process.env.BALANCE_THRESHOLD || '0');
+          const bal = typeof trader.getUsdtBalance === 'function' ? await trader.getUsdtBalance() : 0;
+          if (bal > thresh && pct > 0) {
+            envMargin = parseFloat(Math.min(Math.max((bal * pct) / 100, minU), maxU, bal).toFixed(2));
+          }
+        } catch {}
+
         const trade = {
           id: `${sh.symbol}_${sh.direction}_${Date.now()}_shadow`,
           symbol: sh.symbol,
@@ -875,7 +888,7 @@ function handleApi(req, res) {
           beTriggerPrice,
           beSlPrice,
           leverage: sh.leverage || 3,
-          margin: sh.margin || 10,
+          margin: envMargin,
           confluenceScore: sh.confluenceScore || sh.score || 0,
           confidence: 80,
           rrRatio: slPct > 0 ? parseFloat((tpPct / slPct).toFixed(2)) : 1.5,

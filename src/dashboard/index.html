@@ -491,7 +491,8 @@ function renderShadowTrades(shadows, pnlMap) {
       ? `<td data-pnl="${s.id}" data-pending="1" style="color:var(--muted);font-size:11px">0.00% <span style="font-size:10px">(Chờ Limit)</span></td>`
       : `<td data-pnl="${s.id}" class="${clr(unrealized)}" style="font-weight:600">${unrealized != null ? fmt(unrealized, 2) : '—'}</td>`;
     const dirStr = s.direction || s.side || 'LONG';
-    const promoteBtn = `<button onclick="promoteShadow('${esc(s.id)}','${esc(s.symbol)}','${esc(dirStr)}',${Number(s.entryPrice)||0},${Number(s.targetPrice)||0},${Number(s.slPrice)||0},${Number(s.leverage)||5})" style="background:rgba(63,185,80,.15);color:var(--green);border:1px solid rgba(63,185,80,.4);padding:3px 8px;border-radius:4px;cursor:pointer;font-size:11px;font-weight:600;white-space:nowrap" title="Đẩy lệnh LIMIT thật vào Binance để bot tự quản lý TP/SL + BE 50% + Fractal">⚡ Đẩy Limit</button>`;
+    const estMargin = Number(s.envMargin || s.margin || 0);
+    const promoteBtn = `<button onclick="promoteShadow('${esc(s.id)}','${esc(s.symbol)}','${esc(dirStr)}',${Number(s.entryPrice)||0},${Number(s.targetPrice)||0},${Number(s.slPrice)||0},${Number(s.leverage)||5},${estMargin})" style="background:rgba(63,185,80,.15);color:var(--green);border:1px solid rgba(63,185,80,.4);padding:3px 8px;border-radius:4px;cursor:pointer;font-size:11px;font-weight:600;white-space:nowrap" title="Đẩy lệnh LIMIT thật vào Binance theo margin .env để bot tự quản lý TP/SL + BE 50% + Fractal">⚡ Đẩy Limit</button>`;
 
     return `<tr>
       <td><strong>${esc(s.symbol)}</strong> <span class="badge" style="background:rgba(163,113,247,.12);color:var(--purple);border:1px solid rgba(163,113,247,.25);font-size:9px">SHADOW</span>${pendingBadge}</td>
@@ -510,11 +511,12 @@ function renderShadowTrades(shadows, pnlMap) {
   }).join('');
 }
 
-async function promoteShadow(shadowId, sym, dir, entry, tp, sl, lev) {
-  if (!confirm(`⚡ ĐẨY LỆNH LIMIT THẬT LÊN BINANCE (BOT-H4)?\n\n• Coin: ${sym} ${dir} (×${lev})\n• Entry Limit: $${fmtP(entry)}\n• TP: $${fmtP(tp)} | SL: $${fmtP(sl)}\n\nBot-H4 sẽ tự động treo TP/SL khi khớp, dời BE 50% TP và kéo Fractal Trailing SL.`)) return;
+async function promoteShadow(shadowId, sym, dir, entry, tp, sl, lev, margin) {
+  const marginLine = margin > 0 ? `\n• Margin (.env): $${margin} USDT` : '';
+  if (!confirm(`⚡ ĐẨY LỆNH LIMIT THẬT LÊN BINANCE (BOT-H4)?\n\n• Coin: ${sym} ${dir} (×${lev})${marginLine}\n• Entry Limit: $${fmtP(entry)}\n• TP: $${fmtP(tp)} | SL: $${fmtP(sl)}\n\nBot-H4 sẽ tự động treo TP/SL khi khớp, dời BE 50% TP và kéo Fractal Trailing SL.`)) return;
   const res = await post('/api/shadow-trades/promote', { shadowId });
   if (res && res.ok) {
-    alert(`✅ Đã đẩy lệnh LIMIT ${res.symbol} ${res.side || dir} @ $${res.entryPrice} thành công!\nOrder ID: ${res.orderId || 'OK'} | Qty: ${res.qty || ''}\nBot đang tự động theo dõi & quản lý TP/SL + BE/Fractal.`);
+    alert(`✅ Đã đẩy lệnh LIMIT ${res.symbol} ${res.side || dir} @ $${res.entryPrice} thành công!\nOrder ID: ${res.orderId || 'OK'} | Qty: ${res.qty || ''} | Margin: $${res.margin || margin} USDT\nBot đang tự động theo dõi & quản lý TP/SL + BE/Fractal.`);
     await loadAll();
   } else {
     alert('❌ Không thể đẩy lệnh: ' + (res?.error || 'Lỗi không xác định'));
