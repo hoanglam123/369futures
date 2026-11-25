@@ -95,7 +95,7 @@ async function apiAccount() {
 }
 
 async function apiTrades() {
-  return cached('live-trades', 10_000, async () => {
+  return cached('live-trades', 15_000, async () => {
     const localTrades = readJson('trades.json', []);
     const result = localTrades.map(t => ({ ...t }));
     const activeBySym = new Map();
@@ -103,11 +103,14 @@ async function apiTrades() {
       if (t.status === 'active' && t.symbol) activeBySym.set(t.symbol, t);
     }
 
-    // Kéo trực tiếp vị thế đang mở từ tài khoản Binance của bot-new (ghép thêm TP/SL từ trades.json)
+    // Kéo trực tiếp vị thế ĐÃ KHỚP + lệnh LIMIT CHỜ KHỚP từ tài khoản Binance của bot-new
     const trader = bt();
     if (trader && typeof trader.getAllPositions === 'function' && trader.isEnabled() && !isRateLimited() && process.env.NODE_ENV !== 'test') {
       try {
-        const livePos = await trader.getAllPositions();
+        const [livePos, openOrders] = await Promise.all([
+          trader.getAllPositions().catch(() => []),
+          typeof trader.getOpenOrders === 'function' ? trader.getOpenOrders().catch(() => []) : Promise.resolve([]),
+        ]);
         for (const p of (livePos || [])) {
           const amt = parseFloat(p.positionAmt || '0');
           if (!amt) continue;
@@ -123,6 +126,7 @@ async function apiTrades() {
             existing.currentPrice = markPrice;
             existing.leverage = leverage;
             existing.entryFilled = true;
+            existing.isPendingLimit = false;
             existing.unrealizedPnlUsd = parseFloat(unrealizedPnlUsd.toFixed(2));
           } else {
             const newTrade = {
@@ -135,6 +139,7 @@ async function apiTrades() {
               slPrice: null,
               leverage,
               entryFilled: true,
+              isPendingLimit: false,
               manualEntry: true,
               unrealizedPnlUsd: parseFloat(unrealizedPnlUsd.toFixed(2)),
               recommendedAt: new Date().toISOString(),
@@ -144,6 +149,36 @@ async function apiTrades() {
             result.push(newTrade);
             activeBySym.set(sym, newTrade);
           }
+        }
+
+        // Bổ sung các lệnh LIMIT Entry đang CHỜ KHỚP trên sàn Binance (reduceOnly=false)
+        for (const o of (openOrders || [])) {
+          const isEntryLimit = o.type === 'LIMIT' && !o.reduceOnly && !o.closePosition && (o.status === 'NEW' || o.status === 'PARTIALLY_FILLED');
+          if (!isEntryLimit) continue;
+          const sym = String(o.symbol || '').replace(/USDT$/i, '');
+          if (!sym || activeBySym.has(sym)) continue;
+          const isLong = o.side === 'BUY';
+          const entryPrice = parseFloat(o.price || '0');
+          const newPending = {
+            id: `open_${sym}_${o.orderId}`,
+            binanceEntryOrderId: String(o.orderId || ''),
+            symbol: sym,
+            direction: isLong ? 'LONG' : 'SHORT',
+            entryPrice,
+            currentPrice: entryPrice,
+            targetPrice: null,
+            slPrice: null,
+            leverage: null,
+            entryFilled: false,
+            isPendingLimit: true,
+            manualEntry: true,
+            unrealizedPnlUsd: 0,
+            recommendedAt: o.time ? new Date(o.time).toISOString() : new Date().toISOString(),
+            status: 'active',
+            source: 'binance-open-order',
+          };
+          result.push(newPending);
+          activeBySym.set(sym, newPending);
         }
       } catch {}
     }
@@ -326,6 +361,9 @@ async function apiLivePnl() {
     return trades.map(t => {
       const curr = prices[t.symbol];
       const entry = t.entryPrice;
+      if (t.entryFilled === false || t.isPendingLimit === true) {
+        return { id: t.id, symbol: t.symbol, currentPrice: curr ?? entry ?? null, unrealizedPct: 0, progress: 0, isPendingLimit: true };
+      }
       if (!curr || !entry) return { id: t.id, symbol: t.symbol, currentPrice: curr ?? null, unrealizedPct: null, progress: null };
       const dir   = t.direction === 'LONG' ? 1 : -1;
       const rawPct = (curr - entry) / entry * 100 * dir;

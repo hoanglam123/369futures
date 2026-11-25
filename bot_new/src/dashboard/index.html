@@ -461,29 +461,36 @@ function renderActiveTrades(active, pnlMap, tb) {
   }
   tb.innerHTML = active.map(t => {
     const lv = pnlMap[t.id] || pnlMap[t.symbol] || {};
-    const unrealized = lv.unrealizedPct;
-    const progress = lv.progress ?? 50;
+    const isPending = t.entryFilled === false || t.isPendingLimit === true || lv.isPendingLimit === true;
+    const unrealized = isPending ? 0 : lv.unrealizedPct;
+    const progress = isPending ? 0 : (lv.progress ?? 50);
     const lev = t.leverage ? `×${t.leverage}` : '—';
-    const status = t.entryFilled ? '<span style="color:var(--green)">● Filled</span>' : '<span style="color:var(--yellow)">⏳ Pending</span>';
-    const monitorRow = t.entryFilled
+    const status = !isPending ? '<span style="color:var(--green)">● Filled</span>' : '<span style="color:var(--yellow)">⏳ Chờ Limit</span>';
+    const pendingBadge = isPending
+      ? ' <span class="badge" style="background:rgba(210,153,34,.15);color:#d29922;border:1px solid rgba(210,153,34,.35);font-size:9px">CHỜ KHỚP</span>'
+      : '';
+    const monitorRow = !isPending
       ? `<div class="mon-row">${t.binanceTpOrderId?'<span class="mon mon-bn">TP 🔗</span>':'<span class="mon mon-cs">TP 👁</span>'}${t.binanceSlOrderId?'<span class="mon mon-bn">SL 🔗</span>':'<span class="mon mon-cs">SL 👁</span>'}</div>`
       : '';
-    const pbarColor = unrealized == null ? '#58a6ff' : unrealized >= 0 ? '#3fb950' : '#f85149';
+    const pbarColor = isPending ? '#8b949e' : (unrealized == null ? '#58a6ff' : unrealized >= 0 ? '#3fb950' : '#f85149');
     const pbar = `<div class="pbar-wrap"><div class="pbar" data-pbar="${t.id}" style="width:${progress}%;background:${pbarColor}"></div></div><div class="pbar-labels"><span class="neg">SL</span><span class="pos">TP</span></div>`;
     const confBadge = t.confluenceScore != null ? ` <span style="font-size:9px;font-weight:700;padding:1px 5px;border-radius:4px;background:rgba(240,136,62,.12);color:var(--orange);border:1px solid rgba(240,136,62,.25)">${t.confluenceScore}đ</span>` : '';
     const slShield = t.slMovedToBreakeven ? ' <span title="SL đã dời về BE / Trailing">🛡</span>' : '';
+    const pnlCell = isPending
+      ? `<td data-pnl="${t.id}" data-pending="1" style="color:var(--muted);font-size:11px">0.00% <span style="font-size:10px">(Chờ Limit)</span></td>`
+      : `<td data-pnl="${t.id}" class="${clr(unrealized)}" style="font-weight:600">${unrealized != null ? fmt(unrealized,2) : '—'}</td>`;
     let liqCell = '—';
-    if (t.entryPrice && t.leverage) {
+    if (!isPending && t.entryPrice && t.leverage) {
       const liqPrice = t.direction === 'LONG' ? t.entryPrice * (1 - 1/t.leverage + 0.005) : t.entryPrice * (1 + 1/t.leverage - 0.005);
       liqCell = `<span style="color:var(--red);font-size:11px">${fmtP(liqPrice)}</span>`;
     }
     return `<tr>
-      <td><strong>${esc(t.symbol)}</strong>${confBadge}</td>
+      <td><strong>${esc(t.symbol)}</strong>${pendingBadge}${confBadge}</td>
       <td>${sideBadge(t.direction)}</td>
       <td>${lev}</td>
       <td>${fmtP(t.entryPrice)}</td>
       <td data-price="${t.id}">${lv.currentPrice ? fmtP(lv.currentPrice) : '<span style="color:var(--muted)">—</span>'}</td>
-      <td data-pnl="${t.id}" class="${clr(unrealized)}" style="font-weight:600">${unrealized != null ? fmt(unrealized,2) : '—'}</td>
+      ${pnlCell}
       <td style="min-width:95px">${pbar}</td>
       <td class="pos">${t.targetPrice != null ? fmtP(t.targetPrice) : '—'}</td>
       <td class="neg">${t.slPrice != null ? fmtP(t.slPrice) + slShield : '—'}</td>
@@ -867,13 +874,13 @@ function wsConnect() {
           priceEl.textContent = fmtP(item.currentPrice);
         }
         const pnlEl = document.querySelector(`[data-pnl="${item.id}"]`);
-        if (pnlEl && item.unrealizedPct != null) {
+        if (pnlEl && !pnlEl.dataset.pending && !item.isPendingLimit && item.unrealizedPct != null) {
           pnlEl.textContent = fmt(item.unrealizedPct, 2);
           pnlEl.className = item.unrealizedPct >= 0 ? 'pos' : 'neg';
           pnlEl.style.fontWeight = '600';
         }
         const pbarEl = document.querySelector(`[data-pbar="${item.id}"]`);
-        if (pbarEl && item.progress != null) {
+        if (pbarEl && !item.isPendingLimit && item.progress != null) {
           pbarEl.style.width = item.progress + '%';
           pbarEl.style.background = item.unrealizedPct == null ? '#58a6ff' : item.unrealizedPct >= 0 ? '#3fb950' : '#f85149';
         }

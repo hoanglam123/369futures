@@ -317,136 +317,191 @@ async function apiHealth() {
 }
 
 async function apiTrades() {
-  const trades = [];
-  const symbolMap = new Map();
+  return cached('live-trades', 15_000, async () => {
+    const trades = [];
+    const symbolMap = new Map();
 
-  // 1. Lấy vị thế thực tế từ sàn Binance qua tài khoản của bot-h4
-  const client = getBinanceClient();
-  if (client) {
-    try {
-      const openPos = await client.getOpenPositions();
-      for (const p of openPos) {
-        const amt = parseFloat(p.positionAmt);
-        if (!amt) continue;
-        const sym = p.symbol.replace('USDT', '');
-        const isLong = amt > 0;
-        const entryPrice = parseFloat(p.entryPrice) || 0;
-        const markPrice = parseFloat(p.markPrice) || entryPrice;
-        const leverage = parseFloat(p.leverage) || 10;
-        const unrealizedPnlUsd = parseFloat(p.unRealizedProfit) || 0;
-        const margin = parseFloat(p.isolatedMargin) || (Math.abs(amt) * entryPrice / leverage);
-        const roiPct = margin > 0 ? (unrealizedPnlUsd / margin) * 100 : 0;
+    // 1. Lấy vị thế ĐÃ KHỚP + lệnh LIMIT CHỜ KHỚP trực tiếp từ tài khoản Binance của bot-h4
+    const client = getBinanceClient();
+    if (client) {
+      try {
+        const [openPos, openOrders] = await Promise.all([
+          client.getOpenPositions().catch(() => []),
+          typeof client.getOpenOrders === 'function' ? client.getOpenOrders().catch(() => []) : Promise.resolve([]),
+        ]);
+        for (const p of (openPos || [])) {
+          const amt = parseFloat(p.positionAmt);
+          if (!amt) continue;
+          const sym = p.symbol.replace('USDT', '');
+          const isLong = amt > 0;
+          const entryPrice = parseFloat(p.entryPrice) || 0;
+          const markPrice = parseFloat(p.markPrice) || entryPrice;
+          const leverage = parseFloat(p.leverage) || 10;
+          const unrealizedPnlUsd = parseFloat(p.unRealizedProfit) || 0;
+          const margin = parseFloat(p.isolatedMargin) || (Math.abs(amt) * entryPrice / leverage);
+          const roiPct = margin > 0 ? (unrealizedPnlUsd / margin) * 100 : 0;
+
+          const trade = {
+            id: sym,
+            symbol: sym,
+            direction: isLong ? 'LONG' : 'SHORT',
+            side: isLong ? 'BUY' : 'SELL',
+            entryPrice,
+            currentPrice: markPrice,
+            targetPrice: null,
+            tp1Price: null,
+            tp2Price: null,
+            tp1Hit: false,
+            tp2Hit: false,
+            slPrice: null,
+            beTriggerPrice: null,
+            isBreakeven: false,
+            slMovedToBreakeven: false,
+            leverage,
+            margin: parseFloat(margin.toFixed(2)),
+            unrealizedPnlUsd: parseFloat(unrealizedPnlUsd.toFixed(2)),
+            roiPct: parseFloat(roiPct.toFixed(2)),
+            score: 0,
+            confluenceScore: null,
+            entryFilled: true,
+            tpOrderId: null,
+            slOrderId: null,
+            binanceTpOrderId: null,
+            binanceSlOrderId: null,
+            recommendedAt: new Date().toISOString(),
+            status: 'active',
+            source: 'binance-real',
+          };
+          symbolMap.set(sym, trade);
+          trades.push(trade);
+        }
+
+        // Bổ sung các lệnh LIMIT Entry đang CHỜ KHỚP trên sàn Binance (reduceOnly=false)
+        for (const o of (openOrders || [])) {
+          const isEntryLimit = o.type === 'LIMIT' && !o.reduceOnly && !o.closePosition && (o.status === 'NEW' || o.status === 'PARTIALLY_FILLED');
+          if (!isEntryLimit) continue;
+          const sym = String(o.symbol || '').replace(/USDT$/i, '');
+          if (!sym || symbolMap.has(sym)) continue;
+          const isLong = o.side === 'BUY';
+          const entryPrice = parseFloat(o.price) || 0;
+          const qty = parseFloat(o.origQty) || 0;
+          const trade = {
+            id: `open_${sym}_${o.orderId}`,
+            orderId: o.orderId,
+            symbol: sym,
+            direction: isLong ? 'LONG' : 'SHORT',
+            side: o.side,
+            entryPrice,
+            currentPrice: entryPrice,
+            targetPrice: null,
+            tp1Price: null,
+            tp2Price: null,
+            tp1Hit: false,
+            tp2Hit: false,
+            slPrice: null,
+            beTriggerPrice: null,
+            isBreakeven: false,
+            slMovedToBreakeven: false,
+            leverage: null,
+            margin: null,
+            origQty: qty,
+            unrealizedPnlUsd: 0,
+            roiPct: 0,
+            score: 0,
+            confluenceScore: null,
+            entryFilled: false,
+            isPendingLimit: true,
+            tpOrderId: null,
+            slOrderId: null,
+            binanceTpOrderId: null,
+            binanceSlOrderId: null,
+            recommendedAt: o.time ? new Date(o.time).toISOString() : new Date().toISOString(),
+            status: 'active',
+            source: 'binance-open-order',
+          };
+          symbolMap.set(sym, trade);
+          trades.push(trade);
+        }
+      } catch (err) {
+        log.warn(`[Dashboard] Lỗi lấy vị thế/lệnh chờ Binance cho bot-h4: ${err.message}`);
+      }
+    }
+
+    // 2. Bổ sung / đồng bộ với active_trades.json của bot-h4
+    const activeTrades = readJson('active_trades.json', {});
+    for (const [sym, meta] of Object.entries(activeTrades)) {
+      if (!meta || meta.isClosed) continue;
+      const isLong = meta.side === 'BUY' || meta.side === 'LONG';
+      const entryPrice = parseFloat(meta.entryPrice) || 0;
+      const markPrice = parseFloat(meta.markPrice) || entryPrice;
+      const leverage = parseFloat(meta.leverage) || 10;
+      const margin = parseFloat(meta.margin) || 20;
+
+      const existing = symbolMap.get(sym);
+      if (existing) {
+        existing.targetPrice = meta.tierTpPrice || meta.targetPrice || existing.targetPrice;
+        existing.tp1Price = meta.tp1Price || existing.targetPrice;
+        existing.tp2Price = meta.tp2Price || null;
+        existing.tp1Hit = meta.tp1Hit || false;
+        existing.tp2Hit = meta.tp2Hit || false;
+        existing.slPrice = meta.currentSlPrice || meta.tierSlPrice || meta.slPrice || existing.slPrice;
+        existing.beTriggerPrice = meta.beTriggerPrice || null;
+        existing.isBreakeven = meta.isBreakeven || false;
+        existing.slMovedToBreakeven = meta.isBreakeven || false;
+        existing.leverage = existing.leverage || leverage;
+        existing.margin = existing.margin || margin;
+        existing.score = meta.score || existing.score;
+        existing.confluenceScore = meta.confluenceScore || meta.score || null;
+        existing.tpOrderId = meta.tpOrderId || null;
+        existing.slOrderId = meta.slOrderId || null;
+        existing.binanceTpOrderId = meta.tpOrderId || meta.binanceTpOrderId || null;
+        existing.binanceSlOrderId = meta.slOrderId || meta.binanceSlOrderId || null;
+        if (meta.time) existing.recommendedAt = new Date(meta.time).toISOString();
+      } else {
+        const roiPct = isLong
+          ? ((markPrice - entryPrice) / entryPrice) * leverage * 100
+          : ((entryPrice - markPrice) / entryPrice) * leverage * 100;
+        const pnlUsd = (roiPct / 100) * margin;
 
         const trade = {
-          id: sym,
+          id: meta.id || sym,
           symbol: sym,
           direction: isLong ? 'LONG' : 'SHORT',
-          side: isLong ? 'BUY' : 'SELL',
+          side: meta.side,
           entryPrice,
           currentPrice: markPrice,
-          targetPrice: null,
-          tp1Price: null,
-          tp2Price: null,
-          tp1Hit: false,
-          tp2Hit: false,
-          slPrice: null,
-          beTriggerPrice: null,
-          isBreakeven: false,
-          slMovedToBreakeven: false,
+          targetPrice: meta.tierTpPrice || meta.targetPrice,
+          tp1Price: meta.tp1Price || meta.tierTpPrice || meta.targetPrice,
+          tp2Price: meta.tp2Price || null,
+          tp1Hit: meta.tp1Hit || false,
+          tp2Hit: meta.tp2Hit || false,
+          slPrice: meta.currentSlPrice || meta.tierSlPrice || meta.slPrice,
+          beTriggerPrice: meta.beTriggerPrice,
+          isBreakeven: meta.isBreakeven || false,
+          slMovedToBreakeven: meta.isBreakeven || false,
           leverage,
-          margin: parseFloat(margin.toFixed(2)),
-          unrealizedPnlUsd: parseFloat(unrealizedPnlUsd.toFixed(2)),
+          margin,
+          unrealizedPnlUsd: parseFloat(pnlUsd.toFixed(2)),
           roiPct: parseFloat(roiPct.toFixed(2)),
-          score: 0,
-          confluenceScore: null,
-          entryFilled: true,
-          tpOrderId: null,
-          slOrderId: null,
-          binanceTpOrderId: null,
-          binanceSlOrderId: null,
-          recommendedAt: new Date().toISOString(),
+          score: meta.score || 0,
+          confluenceScore: meta.confluenceScore || meta.score || null,
+          entryFilled: meta.isFilled !== false,
+          isPendingLimit: meta.isFilled === false,
+          tpOrderId: meta.tpOrderId || null,
+          slOrderId: meta.slOrderId || null,
+          binanceTpOrderId: meta.tpOrderId || meta.binanceTpOrderId || null,
+          binanceSlOrderId: meta.slOrderId || meta.binanceSlOrderId || null,
+          recommendedAt: meta.time ? new Date(meta.time).toISOString() : new Date().toISOString(),
           status: 'active',
-          source: 'binance-real',
+          source: 'bot-h4',
         };
         symbolMap.set(sym, trade);
         trades.push(trade);
       }
-    } catch (err) {
-      log.warn(`[Dashboard] Lỗi lấy vị thế Binance cho bot-h4: ${err.message}`);
     }
-  }
 
-  // 2. Bổ sung / đồng bộ với active_trades.json của bot-h4
-  const activeTrades = readJson('active_trades.json', {});
-  for (const [sym, meta] of Object.entries(activeTrades)) {
-    if (!meta || meta.isClosed) continue;
-    const isLong = meta.side === 'BUY' || meta.side === 'LONG';
-    const entryPrice = parseFloat(meta.entryPrice) || 0;
-    const markPrice = parseFloat(meta.markPrice) || entryPrice;
-    const leverage = parseFloat(meta.leverage) || 10;
-    const margin = parseFloat(meta.margin) || 20;
-
-    const existing = symbolMap.get(sym);
-    if (existing) {
-      existing.targetPrice = meta.tierTpPrice || meta.targetPrice || existing.targetPrice;
-      existing.tp1Price = meta.tp1Price || existing.targetPrice;
-      existing.tp2Price = meta.tp2Price || null;
-      existing.tp1Hit = meta.tp1Hit || false;
-      existing.tp2Hit = meta.tp2Hit || false;
-      existing.slPrice = meta.currentSlPrice || meta.tierSlPrice || meta.slPrice || existing.slPrice;
-      existing.beTriggerPrice = meta.beTriggerPrice || null;
-      existing.isBreakeven = meta.isBreakeven || false;
-      existing.slMovedToBreakeven = meta.isBreakeven || false;
-      existing.score = meta.score || existing.score;
-      existing.confluenceScore = meta.confluenceScore || meta.score || null;
-      existing.tpOrderId = meta.tpOrderId || null;
-      existing.slOrderId = meta.slOrderId || null;
-      existing.binanceTpOrderId = meta.tpOrderId || meta.binanceTpOrderId || null;
-      existing.binanceSlOrderId = meta.slOrderId || meta.binanceSlOrderId || null;
-      if (meta.time) existing.recommendedAt = new Date(meta.time).toISOString();
-    } else {
-      const roiPct = isLong
-        ? ((markPrice - entryPrice) / entryPrice) * leverage * 100
-        : ((entryPrice - markPrice) / entryPrice) * leverage * 100;
-      const pnlUsd = (roiPct / 100) * margin;
-
-      const trade = {
-        id: meta.id || sym,
-        symbol: sym,
-        direction: isLong ? 'LONG' : 'SHORT',
-        side: meta.side,
-        entryPrice,
-        currentPrice: markPrice,
-        targetPrice: meta.tierTpPrice || meta.targetPrice,
-        tp1Price: meta.tp1Price || meta.tierTpPrice || meta.targetPrice,
-        tp2Price: meta.tp2Price || null,
-        tp1Hit: meta.tp1Hit || false,
-        tp2Hit: meta.tp2Hit || false,
-        slPrice: meta.currentSlPrice || meta.tierSlPrice || meta.slPrice,
-        beTriggerPrice: meta.beTriggerPrice,
-        isBreakeven: meta.isBreakeven || false,
-        slMovedToBreakeven: meta.isBreakeven || false,
-        leverage,
-        margin,
-        unrealizedPnlUsd: parseFloat(pnlUsd.toFixed(2)),
-        roiPct: parseFloat(roiPct.toFixed(2)),
-        score: meta.score || 0,
-        confluenceScore: meta.confluenceScore || meta.score || null,
-        entryFilled: meta.isFilled !== false,
-        tpOrderId: meta.tpOrderId || null,
-        slOrderId: meta.slOrderId || null,
-        binanceTpOrderId: meta.tpOrderId || meta.binanceTpOrderId || null,
-        binanceSlOrderId: meta.slOrderId || meta.binanceSlOrderId || null,
-        recommendedAt: meta.time ? new Date(meta.time).toISOString() : new Date().toISOString(),
-        status: 'active',
-        source: 'bot-h4',
-      };
-      symbolMap.set(sym, trade);
-      trades.push(trade);
-    }
-  }
-
-  return trades;
+    return trades;
+  });
 }
 
 function apiShadowTrades() {
@@ -515,7 +570,7 @@ async function apiLivePnl() {
     return allTrades.map(t => {
       const curr = prices[t.symbol] || t.currentPrice;
       const entry = t.entryPrice;
-      if (t.isShadow && t.isFilled === false) {
+      if ((t.isShadow && t.isFilled === false) || t.entryFilled === false || t.isPendingLimit === true) {
         return {
           id: t.id || t.symbol,
           symbol: t.symbol,
