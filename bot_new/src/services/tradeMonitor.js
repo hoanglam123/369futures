@@ -866,6 +866,66 @@ function addTrades(trades, taMap = {}) {
   if (changed > 0) saveTrades();
 }
 
+/**
+ * Đăng ký trực tiếp lệnh đã đặt thành công lên Binance từ nút "⚡ Đẩy Limit" (Shadow -> Live).
+ * Bỏ qua bộ lọc Cooldown 6h / R:R của addTrades() và KHÔNG gọi placeNewTrade() trùng lặp,
+ * đồng thời kích hoạt đầy đủ WebSocket giá, BounceCancel, TP/SL khi fill, BE 50% TP & Fractal Trailing SL.
+ */
+function registerPromotedTrade(t) {
+  if (!t || !t.symbol) return null;
+  const isLong = t.direction === 'LONG' || t.direction === 'BUY';
+  t.direction = isLong ? 'LONG' : 'SHORT';
+  t.status = 'active';
+  t.entryFilled = false;
+  t.recommendedAt = t.recommendedAt instanceof Date ? t.recommendedAt : new Date(t.recommendedAt || Date.now());
+  t.tp1Price = null;
+  t.tp1Pct = null;
+  t.tp2Price = null;
+  t.tp2Pct = null;
+
+  const tpDist = t.targetPrice && t.entryPrice ? Math.abs(t.targetPrice - t.entryPrice) : 0;
+  const beRatio = Math.max(0.35, Math.min(0.85, parseFloat(process.env.BE_TRIGGER_TP_PCT || '50') / 100));
+  if (!t.beTriggerPrice && tpDist > 0) {
+    const beDec = t.entryPrice >= 100 ? 2 : (t.entryPrice >= 1 ? 4 : 6);
+    t.beTriggerPrice = parseFloat((isLong ? t.entryPrice + tpDist * beRatio : t.entryPrice - tpDist * beRatio).toFixed(beDec));
+  }
+  if (!t.beSlPrice && t.entryPrice > 0) {
+    const beDec = t.entryPrice >= 100 ? 2 : (t.entryPrice >= 1 ? 4 : 6);
+    t.beSlPrice = parseFloat((isLong ? t.entryPrice * 1.0014 : t.entryPrice * 0.9986).toFixed(beDec));
+  }
+
+  activeTrades.push(t);
+  saveTrades();
+  ensureMarkPriceWS(t.symbol);
+  try { require('./bounceCancel').trackPendingLimit(t); } catch (_) {}
+  try { _wsBroadcast('trades', getActiveTrades()); } catch (_) {}
+
+  log.trade(`[Manual Shadow Promote] ✓ Đăng ký theo dõi lệnh thật ${t.symbol} ${t.direction}`, {
+    orderId: t.binanceEntryOrderId,
+    qty: t.binanceQty,
+    entry: t.entryPrice,
+    tp: t.targetPrice,
+    sl: t.slPrice,
+    be: t.beTriggerPrice,
+    leverage: t.leverage,
+    margin: t.margin,
+  });
+
+  const dirLabel = isLong ? '🟢 LONG' : '🔴 SHORT';
+  sendMessages([
+    `⚡ <b>ĐẨY LIMIT TỪ SHADOW — ${t.symbol} ${dirLabel} ⚡x${t.leverage || 3}</b>\n` +
+    `━━━━━━━━━━━━━━━━\n` +
+    `✅ Entry LIMIT: <code>#${t.binanceEntryOrderId || 'OK'}</code> @ <code>${fmtPrice(t.entryPrice)}</code>\n` +
+    `   Qty: <b>${t.binanceQty || '—'}</b> | Margin (.env): <b>$${t.margin ?? '—'} USDT</b>\n` +
+    `🎯 TP: <code>${fmtPrice(t.targetPrice)}</code> | 🛑 SL: <code>${fmtPrice(t.slPrice)}</code>\n` +
+    (t.beTriggerPrice ? `🌊 BE ${Math.round(beRatio * 100)}%: <code>${fmtPrice(t.beTriggerPrice)}</code>\n` : '') +
+    `━━━━━━━━━━━━━━━━\n` +
+    `<i>🤖 Bot-New sẽ tự treo TP/SL khi khớp + kéo BE &amp; Fractal Trailing SL H1/M15</i>`,
+  ], 1500, NEWS_CHAT_ID).catch(() => {});
+
+  return t;
+}
+
 // ─── Format helpers ───────────────────────────────────────────────────────────
 
 function fmtDuration(ms) {
@@ -3388,4 +3448,4 @@ try {
   });
 } catch (_) {}
 
-module.exports = { parseTrades, addTrades, checkActiveTrades, getActiveTrades, sendActiveTradesSummary, runBacktest, initBinanceStream, syncManualPositions, updateActiveTrade, removeActiveTrade, consumeSignalScanFlag, onWsPush, forceSyncBrakeOverride, checkAndApplyFractalTrailingSL, cancelPendingLimitsForFlash };
+module.exports = { parseTrades, addTrades, registerPromotedTrade, checkActiveTrades, getActiveTrades, sendActiveTradesSummary, runBacktest, initBinanceStream, syncManualPositions, updateActiveTrade, removeActiveTrade, consumeSignalScanFlag, onWsPush, forceSyncBrakeOverride, checkAndApplyFractalTrailingSL, cancelPendingLimitsForFlash };

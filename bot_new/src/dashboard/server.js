@@ -967,9 +967,16 @@ function handleApi(req, res) {
         const entryPrice = parseFloat(sh.entryPrice);
         const tpPrice = parseFloat(sh.tpPrice || sh.tierTpPrice);
         const slPrice = parseFloat(sh.slPrice || sh.tierSlPrice);
+        if (!entryPrice || entryPrice <= 0 || !tpPrice || tpPrice <= 0 || !slPrice || slPrice <= 0) {
+          return _sendJson(req, res, 400, { ok: false, error: `Thông số Entry/TP/SL không hợp lệ cho ${sh.symbol}` });
+        }
+        if ((isLong && (slPrice >= entryPrice || tpPrice <= entryPrice)) || (!isLong && (slPrice <= entryPrice || tpPrice >= entryPrice))) {
+          return _sendJson(req, res, 400, { ok: false, error: `Mốc TP/SL bị ngược chiều cho ${sh.symbol} ${isLong ? 'LONG' : 'SHORT'}` });
+        }
         const slPct = sh.slPct || Math.abs((slPrice - entryPrice) / entryPrice) * 100;
         const tpPct = sh.tpPct || Math.abs((tpPrice - entryPrice) / entryPrice) * 100;
-        const beTriggerPrice = sh.beTriggerPrice || (isLong ? entryPrice + (tpPrice - entryPrice) * 0.5 : entryPrice - (entryPrice - tpPrice) * 0.5);
+        const beRatio = Math.max(0.35, Math.min(0.85, parseFloat(process.env.BE_TRIGGER_TP_PCT || '50') / 100));
+        const beTriggerPrice = sh.beTriggerPrice || (isLong ? entryPrice + (tpPrice - entryPrice) * beRatio : entryPrice - (entryPrice - tpPrice) * beRatio);
         const beSlPrice = isLong ? entryPrice * 1.0014 : entryPrice * 0.9986;
 
         // Đồng bộ margin hiển thị theo đúng công thức .env của bot-new (tính % theo NAV/Wallet Balance, chặn trần theo Available)
@@ -989,9 +996,9 @@ function handleApi(req, res) {
         } catch {}
 
         const trade = {
-          id: `${sh.symbol}_${sh.direction}_${Date.now()}_shadow`,
+          id: `${sh.symbol}_${isLong ? 'LONG' : 'SHORT'}_${Date.now()}_shadow`,
           symbol: sh.symbol,
-          direction: sh.direction,
+          direction: isLong ? 'LONG' : 'SHORT',
           entryPrice,
           targetPrice: tpPrice,
           targetPct: parseFloat(tpPct.toFixed(2)),
@@ -1011,14 +1018,47 @@ function handleApi(req, res) {
           source: 'manual_shadow_promote',
         };
 
-        mod.addTrades([trade]);
+        // Đặt lệnh LIMIT thật trực tiếp lên Binance và CHỜ xác nhận orderId (chuẩn 100% như bot-h4 — không xóa Shadow nếu lỗi)
+        const placed = await trader.placeNewTrade(trade);
+        if (!placed) {
+          return _sendJson(req, res, 400, { ok: false, error: `Binance từ chối đặt lệnh LIMIT ${trade.symbol} (kiểm tra logs bot-new)` });
+        }
+        if (placed.insufficientBalance) {
+          return _sendJson(req, res, 400, { ok: false, error: `Số dư khả dụng không đủ ($${(placed.balance || 0).toFixed(2)} USDT)` });
+        }
+        if (placed.symbolNotSupported) {
+          return _sendJson(req, res, 400, { ok: false, error: `${trade.symbol}USDT không được hỗ trợ trên Binance Futures` });
+        }
+        if (placed.agreementRequired) {
+          return _sendJson(req, res, 400, { ok: false, error: `${trade.symbol} yêu cầu ký TradFi-Perps Agreement trên Binance` });
+        }
+        if (!placed.entryOrderId) {
+          return _sendJson(req, res, 400, { ok: false, error: `Binance không trả về orderId cho lệnh LIMIT ${trade.symbol}` });
+        }
+
+        trade.binanceEntryOrderId = String(placed.entryOrderId);
+        trade.binanceQty = placed.qty;
+        if (typeof placed.sizeUsdt === 'number' && placed.sizeUsdt > 0) {
+          trade.margin = parseFloat(placed.sizeUsdt.toFixed(2));
+        }
+
+        // Chỉ lưu vào TradeMonitor & xóa Shadow SAU KHI Binance đã nhận lệnh thật thành công
+        if (typeof mod.registerPromotedTrade === 'function') {
+          mod.registerPromotedTrade(trade);
+        } else {
+          mod.addTrades([trade]);
+        }
         shadowMod.removeShadowPosition(shadowId);
         if (typeof shadowMod.removeShadowBySymbolDirection === 'function') {
           shadowMod.removeShadowBySymbolDirection(trade.symbol, trade.direction);
         }
         _cache.delete('live-trades');
+        _cache.delete('live-pnl');
+        try { broadcastWs('trades', await apiTrades()); } catch {}
         _sendJson(req, res, 200, {
           ok: true,
+          orderId: trade.binanceEntryOrderId,
+          qty: trade.binanceQty,
           symbol: trade.symbol,
           direction: trade.direction,
           entryPrice: trade.entryPrice,
