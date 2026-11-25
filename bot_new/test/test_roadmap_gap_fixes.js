@@ -378,7 +378,8 @@ function makeFractalCandles(lows, highs) {
       assert(Array.isArray(emg.body.errors), 'Emergency API phải trả mảng errors (đã fix closePosition -> placeMarketClose)');
 
       const html = fs.readFileSync(path.join(__dirname, '..', 'src', 'dashboard', 'index.html'), 'utf8');
-      assert(html.includes('id="tab-guards"'), 'index.html phải có tab Bảo vệ & Shadow');
+      assert(html.includes('id="tab-overview"') && html.includes('id="tab-logs"'), 'index.html phải tối ưu gọn 2 màn hình Tổng hợp & Nhật ký');
+      assert(html.includes('id="guardsSection"'), 'index.html phải tích hợp khối Bảo vệ & Shadow trong màn Tổng hợp');
       assert(html.includes('/api/circuit-breaker'), 'index.html phải gọi /api/circuit-breaker');
       assert(html.includes('/api/btc-flash-guard'), 'index.html phải gọi /api/btc-flash-guard');
       assert(html.includes('/api/shadow-trades'), 'index.html phải gọi /api/shadow-trades');
