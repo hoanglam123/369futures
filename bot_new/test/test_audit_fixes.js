@@ -598,6 +598,30 @@ async function run() {
     assert.strictEqual(btcWide.features.spread_slippage, 'SPREAD_WIDE_DANGER', 'BTC spread 0.05% > 0.04% vẫn phải bị SPREAD_WIDE_DANGER');
   });
 
+  await test('Bỏ cộng tay +1%/+2% threshold, VOL_DRY trung tính 1.00 & nhận diện S/R 4H mới (BNB/ZETA)', async () => {
+    const bnbRes = aiReviewerH4.evaluateSignalWithAI(
+      { symbol: 'BNB', signal: 'LONG', targetLevel: 539.67, score: 7, marketCapRank: 4, gridWidthPct: 4.0, actualSlPct: 3.24, actualTpPct: 5.36, leverage: 5, scoreReasons: ['Tại S/R 4H (0.1%, 1x test) (+2)', 'EMA 1H thuận LONG (+1)'] },
+      { btcWave: 'BTC_COUNTER', trend: 'TREND_CONFLICT', marketMetrics: { m15RangePct: 0.5, m15VolRatio: 0.35, h1RangePct: 1.8, h1VolRatio: 0.9 } }
+    );
+    assert.strictEqual(bnbRes.threshold, 50, `Threshold phải giữ nguyên mốc AI tự học (50%), không cộng tay lên 51%: ${bnbRes.threshold}`);
+    assert.ok(!bnbRes.keyFactors.some(f => f.includes('VOL_DRY')), `VOL_DRY phải trung tính 1.00, không phạt -8%: ${JSON.stringify(bnbRes.keyFactors)}`);
+    assert.ok(!bnbRes.reason.includes('thiếu cản'), `BNB có 'Tại S/R 4H' tuyệt đối không được báo thiếu cản: ${bnbRes.reason}`);
+
+    const zetaRes = aiReviewerH4.evaluateSignalWithAI(
+      { symbol: 'ZETA', signal: 'LONG', targetLevel: 0.02526, score: 8, marketCapRank: 336, gridWidthPct: 4.0, actualSlPct: 3.24, actualTpPct: 5.36, leverage: 3, scoreReasons: ['Gần S/R 4H (0.2%, 2x test) (+1)', '[Độ nảy M1] Giá chớm nảy (0.8% < 1.5%)'] },
+      { btcWave: 'BTC_COUNTER', trend: 'TREND_CONFLICT', marketMetrics: { m15RangePct: 0.5, m15VolRatio: 0.35, h1RangePct: 1.8, h1VolRatio: 0.9 } }
+    );
+    assert.strictEqual(zetaRes.threshold, 50, `ZETA không được bị cộng tay +2% lên 52%: ${zetaRes.threshold}`);
+    assert.ok(!zetaRes.reason.includes('thiếu cản'), `ZETA có 'Gần S/R 4H' không được báo thiếu cản: ${zetaRes.reason}`);
+
+    // bot-new VOL_DRY cũng phải trung tính 1.00
+    const newDry = gatekeeperNew.evaluateSignal(
+      { symbol: 'BNB', signal: 'LONG', targetLevel: 540, score: 8, marketCapRank: 4, slPct: 2.0, tpPct: 4.0, leverage: 5 },
+      { m15VolRatio: 0.3 }
+    );
+    assert.ok(!newDry.keyFactors.some(f => f.includes('VOL_DRY')), `bot-new VOL_DRY phải trung tính 1.00: ${JSON.stringify(newDry.keyFactors)}`);
+  });
+
   console.log(`\n📊 Audit Regression Summary: ${passed} passed, ${failed} failed\n`);
   process.exit(failed > 0 ? 1 : 0);
 }

@@ -1784,6 +1784,10 @@ def calibrate_optimal_thresholds(base_dir, feature_weights=None, prior_odds=1.3,
                   feats.get("m15_volatility") in ["M15_VOLUME_SURGE", "M15_VOLATILE_DANGER"]):
                 skip_cats.add("m15_volatility")
 
+            # Khử phạt kép Volume Burst M15 + H1 đồng bộ runtime aiReviewer.js
+            if feats.get("realtime_volume") == "VOL_BURST_DANGER" and feats.get("h1_volume_burst") == "H1_VOL_BURST_DANGER":
+                skip_cats.add("h1_volume_burst")
+
             # Đồng bộ 100% danh mục bị loại bỏ ở runtime aiReviewer.js (tránh train 23 features nhưng runtime chỉ chạy 8 features)
             DEPRECATED_RUNTIME_CATS = {
                 "trend", "rsi", "price_action", "sr_quality", "volume", "adx_strength",
@@ -1797,6 +1801,12 @@ def calibrate_optimal_thresholds(base_dir, feature_weights=None, prior_odds=1.3,
                 mult = 1.0
                 if k in feature_weights:
                     mult = feature_weights[k]["multiplier"]
+
+                # Đồng bộ Baseline Anchoring như runtime aiReviewer.js (trạng thái bình thường không dưới 1.00)
+                if (val.endswith(("_NORMAL", "_NEUTRAL", "_BALANCED", "_SAFE")) or
+                        val in ("H1_HOLD_OR_HOVER", "M15_HOLD_OR_HOVER", "BOUNCE_FRESH", "WALL_CLEAR_PATH")):
+                    if mult < 1.00:
+                        mult = 1.00
 
                 # Đồng bộ Sanity Guards & Điểm phạt rủi ro định lượng như runtime aiReviewer.js (loại bỏ hoàn toàn hard veto)
                 if cat == "oi_change" and val == "OI_SURGE":
@@ -1906,13 +1916,12 @@ def calibrate_optimal_thresholds(base_dir, feature_weights=None, prior_odds=1.3,
             net_pnl = gross_win - gross_loss
 
             # 🎯 TIÊU CHUẨN ĐỊNH LƯỢNG ĐỘNG (QUANT DYNAMIC UTILITY):
-            # Điểm hòa vốn toán học thực tế phụ thuộc vào Profit Factor:
-            # Breakeven WR = 1 / (1 + PF). Nếu PF = 1.78 -> BE WR ~ 36.0%.
-            # Tiêu chuẩn động:
-            # 1. Tỷ lệ thắng thực tế phải vượt điểm hòa vốn toán học theo PF (kèm biên an toàn 2%): wr >= be_wr
-            # 2. Hệ số sinh lời Profit Factor >= 1.15 (có lãi ròng dương ít nhất 15%)
-            # 3. Lãi ròng kỳ vọng Net PnL > 0
-            be_wr = ((1.0 / (1.0 + max(0.5, pf))) * 100.0) + 2.0
+            # Điểm hòa vốn toán học chuẩn xác tính theo Payoff Ratio (AvgWin / AvgLoss), KHÔNG dùng PF:
+            # Breakeven WR = 1 / (1 + AvgWin/AvgLoss). VD R:R thực 1.8:1 -> BE WR = 35.7%.
+            avg_win = (gross_win / n_win) if n_win > 0 else 0.0
+            avg_loss = (gross_loss / n_loss) if n_loss > 0 else 1.0
+            payoff_rr = (avg_win / avg_loss) if avg_loss > 0 else 1.5
+            be_wr = ((1.0 / (1.0 + max(0.3, payoff_rr))) * 100.0) + 2.0
             if wr >= be_wr and pf >= 1.15 and net_pnl > 0:
                 utility = net_pnl * min(pf, 2.5)
                 if utility > best_u:
@@ -1946,7 +1955,10 @@ def calibrate_optimal_thresholds(base_dir, feature_weights=None, prior_odds=1.3,
                     wr = (n_win / total) * 100.0
                     pf = (gross_win / gross_loss) if gross_loss > 0 else 1.0
                     net_pnl = gross_win - gross_loss
-                    be_wr = ((1.0 / (1.0 + max(0.5, pf))) * 100.0)
+                    avg_win = (gross_win / n_win) if n_win > 0 else 0.0
+                    avg_loss = (gross_loss / n_loss) if n_loss > 0 else 1.0
+                    payoff_rr = (avg_win / avg_loss) if avg_loss > 0 else 1.5
+                    be_wr = (1.0 / (1.0 + max(0.3, payoff_rr))) * 100.0
                     if net_pnl > best_u and wr >= be_wr:
                         best_u = net_pnl
                         best_th = th

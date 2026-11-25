@@ -263,9 +263,9 @@ function extractSignalFeatures(reasons, score, rank, gridWidthPct, rawMarketData
     features['price_action'] = 'PA_4_LEVELS';
   } else if (reasonsStr.includes('3 cản cũ')) {
     features['price_action'] = 'PA_3_LEVELS';
-  } else if (reasonsStr.includes('2 cản cũ')) {
+  } else if (reasonsStr.includes('2 cản cũ') || (reasonsStr.includes('S/R 1D') && reasonsStr.includes('S/R 4H'))) {
     features['price_action'] = 'PA_2_LEVELS';
-  } else if (reasonsStr.includes('1 cản cũ')) {
+  } else if (reasonsStr.includes('1 cản cũ') || reasonsStr.includes('Tại S/R') || reasonsStr.includes('Gần S/R')) {
     features['price_action'] = 'PA_1_LEVEL';
   } else {
     features['price_action'] = 'PA_0_LEVEL';
@@ -280,9 +280,9 @@ function extractSignalFeatures(reasons, score, rank, gridWidthPct, rawMarketData
     else features['sr_quality'] = 'SR_NONE';
   } else {
     const d1Part = reasonsStr.includes('D1:') ? reasonsStr.split('D1:')[1] : '';
-    const hasD1 = Boolean(d1Part && !d1Part.includes('không cản') && !d1Part.includes('thiếu nến'));
+    const hasD1 = Boolean((d1Part && !d1Part.includes('không cản') && !d1Part.includes('thiếu nến')) || reasonsStr.includes('S/R 1D'));
     const h4Part = reasonsStr.includes('H4:') ? reasonsStr.split('H4:')[1].split('|')[0] : '';
-    const hasH4 = Boolean(h4Part && !h4Part.includes('chỉ có 0 cản') && !h4Part.includes('0 cản cũ') && !h4Part.includes('thiếu nến'));
+    const hasH4 = Boolean((h4Part && !h4Part.includes('chỉ có 0 cản') && !h4Part.includes('0 cản cũ') && !h4Part.includes('thiếu nến')) || reasonsStr.includes('S/R 4H'));
 
     if (hasD1) {
       features['sr_quality'] = 'SR_DAILY_D1_INCLUDED';
@@ -751,7 +751,7 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
     'realtime_volume:VOL_BURST_DANGER': 0.70,
     'realtime_volume:VOL_SURGE': 0.95,
     'realtime_volume:VOL_STABLE': 1.05,
-    'realtime_volume:VOL_DRY': 0.92,
+    'realtime_volume:VOL_DRY': 1.00,
     'btc_storm:BTC_STORM_VOLATILE': 0.43,
     'btc_storm:BTC_STORM_NORMAL': 1.03,
     'btc_flash:BTC_FLASH_PUMP_ACTIVE': btcFlashMult,
@@ -1223,22 +1223,12 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
   winProb = Math.max(5.0, Math.min(95.0, winProb));
 
   // ── TỰ ĐỘNG NẠP NGƯỠNG TỐI ƯU DO AI TỰ HỌC (AUTONOMOUS THRESHOLD CALIBRATION) ──
-  // Ngưỡng hoàn toàn do AI tự động quyết định (tối ưu hóa Net PnL và Profit Factor từ dữ liệu thị trường)
-  // Không áp sàn cứng 50.0% nhân tạo để AI thích ứng linh hoạt theo Prior Win và phân phối thực tế
+  // Dùng đúng ngưỡng do AI tự hiệu chuẩn từ dữ liệu thực tế (không cộng/trừ cứng thủ công vào threshold)
   const optimalTh = _modelConfig?.optimalThresholds || {};
   const aiLearnedThreshold = typeof optimalTh.uniform === 'number'
     ? optimalTh.uniform
     : (typeof optimalTh.top150 === 'number' ? optimalTh.top150 : (typeof optimalTh.thresholdApprovalPct === 'number' ? optimalTh.thresholdApprovalPct : 48.0));
-  let threshold = aiLearnedThreshold;
-
-  // 🌊 MARKET REGIME FLEXIBILITY (Co giãn linh hoạt theo nhịp thở thị trường do AI quyết định)
-  if (features['btc_wave'] === 'BTC_ALIGNED') {
-    threshold -= 0.5;
-  } else if (features['btc_wave'] === 'BTC_COUNTER') {
-    threshold += (rank > 150 ? 2.0 : 1.0);
-  } else if (features['btc_flash'] !== 'BTC_FLASH_NORMAL') {
-    threshold += 2.0;
-  }
+  const threshold = aiLearnedThreshold;
 
   // ── 🎯 TÍNH TOÁN LỢI NHUẬN KỲ VỌNG RÒNG (NET EXPECTED VALUE - NET EV) SAU PHÍ & TRƯỢT GIÁ ──
   // Dùng đòn bẩy thực tế của lệnh (không giả định cứng SL = -50% ROI như bản cũ) và trừ phí khứ hồi + trượt giá (0.12% notional)
@@ -1342,7 +1332,10 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
         const isHighRiskTarget = rank > 150 || !hasSolidSR;
         if (isHighRiskTarget) {
           vetoCategory = 'BTC_COUNTER_TREND_CONFLICT';
-          reasonText = `[AI VETO NGƯỢC SÓNG KÉP BTC] Altcoin Low-cap/thiếu cản ngược xu hướng trong khi BTC xác nhận sóng giảm kéo xác suất ${winProb.toFixed(1)}% < ${threshold}%! [Rank #${rank}] (${factorSummary})`;
+          const riskTag = (rank > 150 && !hasSolidSR)
+            ? 'Altcoin Low-cap & thiếu cản'
+            : (rank > 150 ? 'Altcoin Low-cap' : 'Thiếu cản S/R bảo vệ');
+          reasonText = `[AI VETO NGƯỢC SÓNG KÉP BTC] ${riskTag} ngược xu hướng trong khi BTC ngược sóng kéo xác suất ${winProb.toFixed(1)}% < ${threshold}%! [Rank #${rank}] (${factorSummary})`;
         }
       } else if (isStrongCounterTrendCondition) {
         vetoCategory = 'COUNTER_STRONG_TREND_DANGER';

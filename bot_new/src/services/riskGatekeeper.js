@@ -347,7 +347,7 @@ function evaluateSignal(sig, marketContext = null) {
     'realtime_volume:VOL_BURST_DANGER': 0.70,
     'realtime_volume:VOL_SURGE': 0.95,
     'realtime_volume:VOL_STABLE': 1.05,
-    'realtime_volume:VOL_DRY': 0.92,
+    'realtime_volume:VOL_DRY': 1.00,
     'pre_entry_bounce:BOUNCE_STALE_EXTREME': 0.45,
     'pre_entry_bounce:BOUNCE_STALE_HIGH': 0.90,
     'pre_entry_bounce:BOUNCE_FRESH': 1.00,
