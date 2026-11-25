@@ -48,6 +48,12 @@ const DEFAULT_PORT = parseInt(process.env.DASHBOARD_PORT || (process.env.PORT &&
 // WebSocket clients
 const _wsClients = new Set();
 
+// Handler đẩy kèo Shadow -> Lệnh Limit thật (được autoTrade.js đăng ký khi khởi động)
+let _promoteShadowHandler = null;
+function setPromoteShadowHandler(fn) {
+  _promoteShadowHandler = typeof fn === 'function' ? fn : null;
+}
+
 function broadcastWs(type, data) {
   if (!_wsClients.size) return;
   const msg = JSON.stringify({ type, data, timestamp: Date.now() });
@@ -1151,7 +1157,7 @@ function createDashboardServer() {
         }
       }
 
-      if (urlPath === '/api/trades/update') {
+      if (urlPath === '/api/trades/update' || urlPath === '/api/shadow-trades/promote') {
         res.writeHead(405, { 'Content-Type': 'application/json; charset=utf-8' });
         res.end(JSON.stringify({ error: 'Method Not Allowed — use POST' }));
         return;
@@ -1195,6 +1201,31 @@ function createDashboardServer() {
 
     // POST Command Endpoints
     if (req.method === 'POST') {
+      if (urlPath === '/api/shadow-trades/promote') {
+        try {
+          const body = await readBodyJson(req);
+          const shadowId = body?.shadowId || body?.id;
+          if (!shadowId) {
+            res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' });
+            res.end(JSON.stringify({ ok: false, error: 'Thiếu shadowId' }));
+            return;
+          }
+          if (!_promoteShadowHandler) {
+            res.writeHead(503, { 'Content-Type': 'application/json; charset=utf-8' });
+            res.end(JSON.stringify({ ok: false, error: 'AutoTrade chưa đăng ký bộ xử lý đẩy Limit' }));
+            return;
+          }
+          const result = await _promoteShadowHandler(shadowId);
+          _cache.delete('live-trades');
+          res.writeHead(result?.ok ? 200 : 400, { 'Content-Type': 'application/json; charset=utf-8' });
+          res.end(JSON.stringify(result));
+        } catch (err) {
+          res.writeHead(err?.statusCode || 500, { 'Content-Type': 'application/json; charset=utf-8' });
+          res.end(JSON.stringify({ ok: false, error: err.message }));
+        }
+        return;
+      }
+
       if (urlPath === '/api/trades/update') {
         try {
           const body = await readBodyJson(req);
@@ -1349,6 +1380,7 @@ module.exports = {
   stopDashboard,
   getActivePort,
   broadcastWs,
+  setPromoteShadowHandler,
   apiHealth,
   apiTrades,
   apiShadowTrades,

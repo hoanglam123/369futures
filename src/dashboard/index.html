@@ -187,9 +187,9 @@ mark{background:rgba(227,179,65,.25);color:var(--yellow);border-radius:2px;paddi
       <table>
         <thead><tr>
           <th>Symbol</th><th>Side</th><th>Lev</th><th>Entry</th><th>Giá hiện tại</th>
-          <th>Unrealized PnL</th><th>Tiến trình</th><th>TP</th><th>SL</th><th>Điểm / Lý do Veto</th><th>Mở lúc</th>
+          <th>Unrealized PnL</th><th>Tiến trình</th><th>TP</th><th>SL</th><th>Điểm / Lý do Veto</th><th>Mở lúc</th><th>Thao tác</th>
         </tr></thead>
-        <tbody id="shadowBody"><tr><td colspan="11" class="empty">Không có vị thế shadow đang chạy</td></tr></tbody>
+        <tbody id="shadowBody"><tr><td colspan="12" class="empty">Không có vị thế shadow đang chạy</td></tr></tbody>
       </table>
     </div>
   </section>
@@ -263,6 +263,7 @@ const $ = id => document.getElementById(id);
 const _authToken = new URLSearchParams(location.search).get('token') || '';
 const _authHeaders = _authToken ? { 'Authorization': `Bearer ${_authToken}` } : {};
 const get = url => fetch(url, { headers: _authHeaders }).then(r => r.json()).catch(() => null);
+const post = (url, body) => fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json', ..._authHeaders }, body: JSON.stringify(body || {}) }).then(r => r.json()).catch(() => null);
 const esc = s => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 
 function fmt(n, d=2) {
@@ -448,7 +449,7 @@ function renderShadowTrades(shadows, pnlMap) {
   if (cnt) cnt.textContent = `(${shadows.length})`;
   if (!tb) return;
   if (!shadows.length) {
-    tb.innerHTML = '<tr><td colspan="11" class="empty">Không có vị thế shadow đang chạy</td></tr>';
+    tb.innerHTML = '<tr><td colspan="12" class="empty">Không có vị thế shadow đang chạy</td></tr>';
     return;
   }
   tb.innerHTML = shadows.map(s => {
@@ -467,10 +468,12 @@ function renderShadowTrades(shadows, pnlMap) {
     const pnlCell = isPending
       ? `<td data-pnl="${s.id}" data-pending="1" style="color:var(--muted);font-size:11px">0.00% <span style="font-size:10px">(Chờ Limit)</span></td>`
       : `<td data-pnl="${s.id}" class="${clr(unrealized)}" style="font-weight:600">${unrealized != null ? fmt(unrealized, 2) : '—'}</td>`;
+    const dirStr = s.direction || s.side || 'LONG';
+    const promoteBtn = `<button onclick="promoteShadow('${esc(s.id)}','${esc(s.symbol)}','${esc(dirStr)}',${Number(s.entryPrice)||0},${Number(s.targetPrice)||0},${Number(s.slPrice)||0},${Number(s.leverage)||5})" style="background:rgba(63,185,80,.15);color:var(--green);border:1px solid rgba(63,185,80,.4);padding:3px 8px;border-radius:4px;cursor:pointer;font-size:11px;font-weight:600;white-space:nowrap" title="Đẩy lệnh LIMIT thật vào Binance để bot tự quản lý TP/SL + BE 50% + Fractal">⚡ Đẩy Limit</button>`;
 
     return `<tr>
       <td><strong>${esc(s.symbol)}</strong> <span class="badge" style="background:rgba(163,113,247,.12);color:var(--purple);border:1px solid rgba(163,113,247,.25);font-size:9px">SHADOW</span>${pendingBadge}</td>
-      <td>${sideBadge(s.direction || s.side)}</td>
+      <td>${sideBadge(dirStr)}</td>
       <td>×${s.leverage || 10}</td>
       <td>${fmtP(s.entryPrice)}</td>
       <td data-price="${s.id}">${curr ? fmtP(curr) : '—'}</td>
@@ -480,8 +483,20 @@ function renderShadowTrades(shadows, pnlMap) {
       <td class="neg">${fmtP(s.slPrice)}</td>
       <td>${scoreBadge}${veto}</td>
       <td style="color:var(--muted);font-size:11px">${ago(s.recommendedAt)}</td>
+      <td style="text-align:center">${promoteBtn}</td>
     </tr>`;
   }).join('');
+}
+
+async function promoteShadow(shadowId, sym, dir, entry, tp, sl, lev) {
+  if (!confirm(`⚡ ĐẨY LỆNH LIMIT THẬT LÊN BINANCE (BOT-H4)?\n\n• Coin: ${sym} ${dir} (×${lev})\n• Entry Limit: $${fmtP(entry)}\n• TP: $${fmtP(tp)} | SL: $${fmtP(sl)}\n\nBot-H4 sẽ tự động treo TP/SL khi khớp, dời BE 50% TP và kéo Fractal Trailing SL.`)) return;
+  const res = await post('/api/shadow-trades/promote', { shadowId });
+  if (res && res.ok) {
+    alert(`✅ Đã đẩy lệnh LIMIT ${res.symbol} ${res.side || dir} @ $${res.entryPrice} thành công!\nOrder ID: ${res.orderId || 'OK'} | Qty: ${res.qty || ''}\nBot đang tự động theo dõi & quản lý TP/SL + BE/Fractal.`);
+    await loadAll();
+  } else {
+    alert('❌ Không thể đẩy lệnh: ' + (res?.error || 'Lỗi không xác định'));
+  }
 }
 
 async function loadTrades() {

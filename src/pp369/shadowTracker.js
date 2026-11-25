@@ -702,6 +702,15 @@ function getShadowStats() {
   };
 }
 
+function removeShadowPosition(shadowId) {
+  if (!shadowId || !activeShadowPositions[shadowId]) return null;
+  const removed = activeShadowPositions[shadowId];
+  delete activeShadowPositions[shadowId];
+  saveActiveShadowPositions();
+  _logger.system(`[Shadow PnL] ⚡ Đã chuyển vị thế bóng tối ${removed.symbol} (${removed.signal}) sang lệnh thật — gỡ khỏi Shadow.`);
+  return removed;
+}
+
 // Initial load
 loadActiveShadowPositions();
 
@@ -709,6 +718,7 @@ module.exports = {
   setLogger,
   registerShadowTrade,
   updateShadowPrices,
+  removeShadowPosition,
   getShadowStats,
   getActiveShadowPositions: () => ({ ...activeShadowPositions }),
   loadActiveShadowPositions,

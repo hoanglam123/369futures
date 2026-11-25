@@ -780,6 +780,90 @@ function handleApi(req, res) {
       return true;
     }
 
+    if (urlPath === '/api/shadow-trades/promote') {
+      readBodyJson(req).then(async (body) => {
+        const shadowId = body?.shadowId || body?.id;
+        if (!shadowId) return _sendJson(req, res, 400, { ok: false, error: 'Thiếu shadowId' });
+        const shadowMod = require('../services/shadowTracker');
+        const activeShadows = shadowMod.getActiveShadowPositions();
+        const sh = activeShadows[shadowId];
+        if (!sh) return _sendJson(req, res, 404, { ok: false, error: 'Không tìm thấy vị thế Shadow đang hoạt động' });
+
+        const mod = tm();
+        const trader = bt();
+        if (!mod || typeof mod.addTrades !== 'function') {
+          return _sendJson(req, res, 503, { ok: false, error: 'TradeMonitor không khả dụng' });
+        }
+        if (!trader || !trader.isEnabled()) {
+          return _sendJson(req, res, 400, { ok: false, error: 'Binance trading chưa bật (kiểm tra TRADE_ENABLED và API Key trong bot_new/.env)' });
+        }
+        const existingLocal = (typeof mod.getActiveTrades === 'function' ? mod.getActiveTrades() : [])
+          .find(t => t.symbol === sh.symbol && t.status === 'active');
+        if (existingLocal) {
+          return _sendJson(req, res, 400, { ok: false, error: `${sh.symbol} đã có lệnh đang theo dõi trên bot-new` });
+        }
+        try {
+          const [livePos, openOrders] = await Promise.all([
+            trader.getAllPositions().catch(() => []),
+            trader.getOpenOrders(sh.symbol).catch(() => []),
+          ]);
+          if ((livePos || []).some(p => p.symbol === `${sh.symbol}USDT` && parseFloat(p.positionAmt || '0') !== 0)) {
+            return _sendJson(req, res, 400, { ok: false, error: `${sh.symbol} đang có vị thế mở trên Binance` });
+          }
+          if (Array.isArray(openOrders) && openOrders.length > 0) {
+            return _sendJson(req, res, 400, { ok: false, error: `${sh.symbol} đã có lệnh chờ mở trên Binance` });
+          }
+        } catch {}
+
+        const isLong = sh.direction === 'LONG' || sh.direction === 'BUY';
+        const entryPrice = parseFloat(sh.entryPrice);
+        const tpPrice = parseFloat(sh.tpPrice || sh.tierTpPrice);
+        const slPrice = parseFloat(sh.slPrice || sh.tierSlPrice);
+        const slPct = sh.slPct || Math.abs((slPrice - entryPrice) / entryPrice) * 100;
+        const tpPct = sh.tpPct || Math.abs((tpPrice - entryPrice) / entryPrice) * 100;
+        const beTriggerPrice = sh.beTriggerPrice || (isLong ? entryPrice + (tpPrice - entryPrice) * 0.5 : entryPrice - (entryPrice - tpPrice) * 0.5);
+        const beSlPrice = isLong ? entryPrice * 1.0014 : entryPrice * 0.9986;
+
+        const trade = {
+          id: `${sh.symbol}_${sh.direction}_${Date.now()}_shadow`,
+          symbol: sh.symbol,
+          direction: sh.direction,
+          entryPrice,
+          targetPrice: tpPrice,
+          targetPct: parseFloat(tpPct.toFixed(2)),
+          slPrice,
+          slPct: parseFloat(slPct.toFixed(2)),
+          beTriggerPrice,
+          beSlPrice,
+          leverage: sh.leverage || 3,
+          margin: sh.margin || 10,
+          confluenceScore: sh.confluenceScore || sh.score || 0,
+          confidence: 80,
+          rrRatio: slPct > 0 ? parseFloat((tpPct / slPct).toFixed(2)) : 1.5,
+          entryFilled: false,
+          status: 'active',
+          recommendedAt: new Date(),
+          reason: `MANUAL SHADOW PROMOTE | Score ${sh.confluenceScore || sh.score || 0}đ | SL -${slPct.toFixed(2)}% | TP +${tpPct.toFixed(2)}%`,
+          source: 'manual_shadow_promote',
+        };
+
+        mod.addTrades([trade]);
+        shadowMod.removeShadowPosition(shadowId);
+        _cache.delete('live-trades');
+        _sendJson(req, res, 200, {
+          ok: true,
+          symbol: trade.symbol,
+          direction: trade.direction,
+          entryPrice: trade.entryPrice,
+          tpPrice: trade.targetPrice,
+          slPrice: trade.slPrice,
+          leverage: trade.leverage,
+          margin: trade.margin,
+        });
+      }).catch(handlePostErr);
+      return true;
+    }
+
     if (urlPath === '/api/trades/update') {
       readBodyJson(req).then(body => apiUpdateTrade(req.url, body)).then(data => _sendJson(req, res, 200, data)).catch(handlePostErr);
       return true;
@@ -794,7 +878,7 @@ function handleApi(req, res) {
   }
 
   // Từ chối các hành động ghi/xóa qua GET (chống CSRF)
-  if (req.method === 'GET' && (urlPath === '/api/trades/update' || urlPath === '/api/trades/delete')) {
+  if (req.method === 'GET' && (urlPath === '/api/trades/update' || urlPath === '/api/trades/delete' || urlPath === '/api/shadow-trades/promote')) {
     _sendJson(req, res, 405, { error: 'Method Not Allowed — use POST' });
     return true;
   }

@@ -231,9 +231,9 @@ mark{background:rgba(227,179,65,.25);color:var(--yellow);border-radius:2px;paddi
       <table>
         <thead><tr>
           <th>Symbol</th><th>Chiều</th><th>Entry</th><th>SL</th><th>TP</th>
-          <th>Lev / Margin</th><th>WinProb</th><th>Score</th><th>Lý do VETO</th><th>Mở từ</th>
+          <th>Lev / Margin</th><th>WinProb</th><th>Score</th><th>Lý do VETO</th><th>Mở từ</th><th>Thao tác</th>
         </tr></thead>
-        <tbody id="shadowBody"><tr><td colspan="10" class="empty">Không có vị thế Shadow đang theo dõi</td></tr></tbody>
+        <tbody id="shadowBody"><tr><td colspan="11" class="empty">Không có vị thế Shadow đang theo dõi</td></tr></tbody>
       </table>
     </div>
   </section>
@@ -649,13 +649,15 @@ async function loadGuards() {
     const activeList = Object.values(sh.active || {});
     if ($('shadowBody')) {
       if (!activeList.length) {
-        $('shadowBody').innerHTML = '<tr><td colspan="10" class="empty">Không có vị thế Shadow đang theo dõi</td></tr>';
+        $('shadowBody').innerHTML = '<tr><td colspan="11" class="empty">Không có vị thế Shadow đang theo dõi</td></tr>';
       } else {
         $('shadowBody').innerHTML = activeList.map(p => {
           const isPending = p.isFilled === false || p.status === 'PENDING_LIMIT';
           const pendingBadge = isPending
             ? ' <span class="badge" style="background:rgba(210,153,34,.15);color:#d29922;border:1px solid rgba(210,153,34,.35);font-size:9px">CHỜ KHỚP</span>'
             : '';
+          const sid = p.id || p.shadowId || '';
+          const promoteBtn = `<button onclick="promoteShadow('${esc(sid)}','${esc(p.symbol)}','${esc(p.direction)}',${Number(p.entryPrice)||0},${Number(p.tpPrice)||0},${Number(p.slPrice)||0},${Number(p.leverage)||3})" style="background:rgba(63,185,80,.15);color:var(--green);border:1px solid rgba(63,185,80,.4);padding:3px 8px;border-radius:4px;cursor:pointer;font-size:11px;font-weight:600;white-space:nowrap" title="Đẩy lệnh LIMIT thật vào Binance để bot-new tự quản lý TP/SL + BE 50% + Fractal">⚡ Đẩy Limit</button>`;
           return `<tr>
             <td><strong>${esc(p.symbol)}</strong>${pendingBadge}</td>
             <td>${sideBadge(p.direction)}</td>
@@ -665,8 +667,9 @@ async function loadGuards() {
             <td>${p.leverage || 3}x / $${(p.margin || 10).toFixed(0)}</td>
             <td>${p.winProbability != null ? p.winProbability + '%' : '—'}</td>
             <td>${p.confluenceScore ?? '—'}</td>
-            <td style="max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(p.vetoReason||'')}">${esc(p.vetoReason||'')}</td>
+            <td style="max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(p.vetoReason||'')}">${esc(p.vetoReason||'')}</td>
             <td style="color:var(--muted)">${ago(p.openedAt)}</td>
+            <td style="text-align:center">${promoteBtn}</td>
           </tr>`;
         }).join('');
       }
@@ -695,6 +698,17 @@ async function loadGuards() {
         }).join('');
       }
     }
+  }
+}
+
+async function promoteShadow(shadowId, sym, dir, entry, tp, sl, lev) {
+  if (!confirm(`⚡ ĐẨY LỆNH LIMIT THẬT LÊN BINANCE (BOT-NEW)?\n\n• Coin: ${sym} ${dir} (×${lev})\n• Entry Limit: $${fmtP(entry)}\n• TP: $${fmtP(tp)} | SL: $${fmtP(sl)}\n\nBot-New sẽ tự động treo TP/SL khi khớp, dời BE 50% TP và kéo Fractal Trailing SL.`)) return;
+  const res = await post('/api/shadow-trades/promote', { shadowId });
+  if (res && res.ok) {
+    alert(`✅ Đã đẩy lệnh LIMIT ${res.symbol} ${res.direction || dir} @ $${res.entryPrice} thành công!\nBot-New đang tự động theo dõi & quản lý TP/SL + BE/Fractal.`);
+    await loadAll();
+  } else {
+    alert('❌ Không thể đẩy lệnh: ' + (res?.error || 'Lỗi không xác định'));
   }
 }
 

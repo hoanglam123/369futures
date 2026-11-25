@@ -36,7 +36,8 @@ const {
   isSafetyBrakeActive,
   runReverseCheck,
 } = require('./safetyBrake');
-const { startDashboard, stopDashboard, broadcastWs } = require('../dashboard');
+const { startDashboard, stopDashboard, broadcastWs, setPromoteShadowHandler } = require('../dashboard');
+const { removeShadowPosition } = require('../pp369/shadowTracker');
 const { startTelegramCommands, stopTelegramCommands } = require('../services');
 const {
   get369Signal,
@@ -2038,6 +2039,143 @@ async function startAutoTrade(coins) {
 
   // ── Khởi động Báo Cáo Tổng Kết Giao Dịch 24H qua Telegram (07:00 UTC+7 mỗi ngày) ──
   startDailyReportScheduler();
+
+  // ── Đăng ký bộ xử lý nút "⚡ Đẩy Limit" từ Shadow Dashboard lên Binance thật (Bot tiếp quản 100% TP/SL + BE/Fractal) ──
+  setPromoteShadowHandler(async (shadowId) => {
+    if (isShadowMode || !client) {
+      return { ok: false, error: 'Bot đang chạy chế độ SHADOW_MODE hoặc chưa có Binance API Key' };
+    }
+    const shadows = getActiveShadowPositions();
+    const sh = shadows[shadowId];
+    if (!sh) {
+      return { ok: false, error: 'Không tìm thấy vị thế Shadow đang hoạt động' };
+    }
+    const sym = sh.symbol;
+    const isLong = sh.signal === 'LONG' || sh.signal === 'BUY';
+    const side = isLong ? 'BUY' : 'SELL';
+    const entryPrice = parseFloat(sh.entryPrice);
+    const tpPrice = parseFloat(sh.tierTpPrice || 0);
+    const slPrice = parseFloat(sh.tierSlPrice || sh.originalSlPrice || 0);
+    const slPct = parseFloat(sh.slPct || (entryPrice > 0 ? Math.abs((slPrice - entryPrice) / entryPrice) * 100 : 3.0));
+    const leverage = Math.max(1, parseInt(sh.leverage || 5, 10));
+    const reqMargin = parseFloat(sh.margin || 12);
+
+    if (!entryPrice || entryPrice <= 0 || !tpPrice || !slPrice) {
+      return { ok: false, error: `Thông số Entry/TP/SL không hợp lệ cho ${sym}` };
+    }
+    if (activeTradesMetadata[sym] && !activeTradesMetadata[sym].isClosed) {
+      return { ok: false, error: `${sym} đang có vị thế/lệnh chờ trong bot-h4` };
+    }
+
+    // Kiểm tra trên Binance để tuyệt đối chống đặt trùng
+    try {
+      const [hasPos, openOrders] = await Promise.all([
+        client.hasOpenPosition(sym),
+        client.getOpenOrders(sym).catch(() => []),
+      ]);
+      if (hasPos) return { ok: false, error: `${sym} đang có vị thế mở trên sàn Binance` };
+      if (Array.isArray(openOrders) && openOrders.length > 0) {
+        return { ok: false, error: `${sym} đã có lệnh chờ mở trên sàn Binance` };
+      }
+    } catch (errCheck) {
+      return { ok: false, error: `Lỗi kiểm tra sàn Binance: ${errCheck.message}` };
+    }
+
+    const availBal = await client.getBalance();
+    if (!availBal || availBal < 5) {
+      return { ok: false, error: `Số dư khả dụng không đủ ($${(availBal || 0).toFixed(2)} USDT)` };
+    }
+    const actualMargin = Math.min(reqMargin, availBal * 0.95);
+    const q = calcQuantity(sym, actualMargin * leverage, entryPrice);
+    if (!q || !q.qty || q.qty <= 0) {
+      return { ok: false, error: `Không tính được khối lượng hợp lệ cho ${sym} (${q?.reason || 'qty=0'})` };
+    }
+
+    const tickSize = getEffectiveTickSize(sym, entryPrice);
+    const decimals = tickSize && tickSize > 0
+      ? Math.max(0, Math.round(-Math.log10(tickSize)))
+      : getDecimals(entryPrice);
+
+    await client.setLeverage(sym, leverage);
+    const order = await client.placeLimit(sym, side, q.qty, entryPrice, decimals, false);
+
+    const beTriggerRatio = Math.max(0.35, Math.min(0.85, parseFloat(process.env.BE_TRIGGER_TP_PCT || '50') / 100));
+    const beTriggerPrice = (typeof sh.beTriggerPrice === 'number' && sh.beTriggerPrice > 0)
+      ? sh.beTriggerPrice
+      : (isLong ? entryPrice + (tpPrice - entryPrice) * beTriggerRatio : entryPrice - (entryPrice - tpPrice) * beTriggerRatio);
+    const step = getStep(entryPrice);
+    const posGridPct = sh.gridWidthPct || (step && entryPrice > 0 ? (step / entryPrice) * 100 : 3.5);
+    const markPrice = getMarkPrice(sym) || entryPrice;
+
+    activeTradesMetadata[sym] = {
+      score: sh.score || 0,
+      isCounterTrend: false,
+      entryPrice,
+      side,
+      gridWidthPct: posGridPct,
+      gridStepPct: posGridPct,
+      step,
+      orderId: order.orderId ?? null,
+      isFilled: false,
+      hasNotifiedFill: false,
+      maxFavorablePrice: null,
+      pendingBouncePeakPrice: null,
+      time: Date.now(),
+      markPrice,
+      scoreReasons: sh.scoreReasons || [],
+      marketCapRank: sh.marketCapRank || 999,
+      leverage,
+      margin: actualMargin,
+      maxRecentBouncePct: null,
+      aiWinProbability: sh.winProbability ?? null,
+      aiExpectedRoi: null,
+      isTrendRunnerEligible: false,
+      tierSlPrice: slPrice,
+      tierTpPrice: tpPrice,
+      beTriggerPrice,
+      slDistance: Math.abs(entryPrice - slPrice),
+      slPct,
+      targetLossUSD: parseFloat((actualMargin * (slPct / 100) * leverage).toFixed(2)),
+      source: 'manual_shadow_promote',
+    };
+    saveActiveTradesMetadata();
+
+    recordTradeEntry({
+      tradeId: `${sym}-${order.orderId || Date.now()}`,
+      orderId: String(order.orderId || ''),
+      symbol: sym,
+      signal: isLong ? 'LONG' : 'SHORT',
+      entryPrice,
+      markPrice,
+      score: sh.score || 0,
+      scoreReasons: sh.scoreReasons || [],
+      marketCapRank: sh.marketCapRank || 999,
+      gridWidthPct: posGridPct,
+      marketMetrics: sh.marketMetrics || null,
+      signalMetrics: sh.signalMetrics || null,
+      microstructure: sh.microstructure || null,
+      leverage,
+      margin: actualMargin,
+      aiWinProbability: sh.winProbability ?? null,
+    });
+
+    removeShadowPosition(shadowId);
+    log.system(`[AutoTrade] ⚡ [Manual Shadow Promote] Đã đẩy LIMIT ${sym} ${side} qty=${q.qty} @ $${entryPrice} (orderId=${order.orderId}) | TP=$${tpPrice} | SL=$${slPrice} | BE=$${beTriggerPrice.toFixed(4)} — Bot tiếp quản 100%!`);
+
+    return {
+      ok: true,
+      orderId: order.orderId,
+      symbol: sym,
+      side,
+      qty: q.qty,
+      entryPrice,
+      tpPrice,
+      slPrice,
+      beTriggerPrice,
+      leverage,
+      margin: parseFloat(actualMargin.toFixed(2)),
+    };
+  });
 
   // ── Khởi động Web Dashboard Express/Canvas Port 3369 (Phase 5) ──
   // Mặc định port 3369 để tránh xung đột với bot_new (port 3000) trên VPS

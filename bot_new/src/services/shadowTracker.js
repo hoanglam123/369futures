@@ -545,6 +545,15 @@ function getShadowStats() {
   };
 }
 
+function removeShadowPosition(shadowId) {
+  if (!shadowId || !_activeShadowPositions[shadowId]) return null;
+  const removed = _activeShadowPositions[shadowId];
+  delete _activeShadowPositions[shadowId];
+  saveActiveShadows();
+  log.system(`[ShadowTracker] [Shadow PnL] ⚡ Đã chuyển vị thế bóng tối ${removed.symbol} (${removed.direction}) sang lệnh thật — gỡ khỏi Shadow.`);
+  return removed;
+}
+
 function clearActiveShadowsForTest() {
   _activeShadowPositions = {};
   _recentResolved.clear();
@@ -555,6 +564,7 @@ module.exports = {
   registerShadowTrade,
   updateShadowPrices,
   applyFractalTrailingSl,
+  removeShadowPosition,
   getActiveShadowPositions,
   isShadowPositionActive,
   getShadowStats,
