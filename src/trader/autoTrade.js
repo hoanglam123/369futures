@@ -36,7 +36,7 @@ const {
   isSafetyBrakeActive,
   runReverseCheck,
 } = require('./safetyBrake');
-const { startDashboard, stopDashboard, broadcastWs, setPromoteShadowHandler } = require('../dashboard');
+const { startDashboard, stopDashboard, broadcastWs, setPromoteShadowHandler, setCancelLimitHandler } = require('../dashboard');
 const { removeShadowPosition } = require('../pp369/shadowTracker');
 const { startTelegramCommands, stopTelegramCommands } = require('../services');
 const {
@@ -2175,6 +2175,54 @@ async function startAutoTrade(coins) {
       leverage,
       margin: parseFloat(actualMargin.toFixed(2)),
     };
+  });
+
+  // ── Đăng ký bộ xử lý nút "✕ Hủy Limit" tại bảng Vị thế thực tế trên Dashboard ──
+  setCancelLimitHandler(async ({ symbol, orderId }) => {
+    const sym = String(symbol || '').toUpperCase().replace(/USDT$/i, '');
+    if (!sym) return { ok: false, error: 'Thiếu symbol' };
+    if (isShadowMode || !client) {
+      return { ok: false, error: 'Bot đang chạy SHADOW_MODE hoặc chưa có Binance API Key' };
+    }
+
+    const openOrders = await client.getOpenOrders(sym).catch(() => []);
+    const targets = (Array.isArray(openOrders) ? openOrders : []).filter(o => {
+      const isEntryLimit = o.type === 'LIMIT' && !o.reduceOnly && !o.closePosition && (o.status === 'NEW' || o.status === 'PARTIALLY_FILLED');
+      if (!isEntryLimit) return false;
+      return orderId ? String(o.orderId) === String(orderId) : true;
+    });
+
+    const canceledOrderIds = [];
+    for (const o of targets) {
+      await client.cancelOrder(sym, o.orderId);
+      canceledOrderIds.push(String(o.orderId));
+    }
+
+    if (canceledOrderIds.length === 0) {
+      const fallbackId = orderId || activeTradesMetadata[sym]?.orderId;
+      if (fallbackId) {
+        try {
+          await client.cancelOrder(sym, fallbackId);
+          canceledOrderIds.push(String(fallbackId));
+        } catch (cancelErr) {
+          const msg = cancelErr?.message || '';
+          if (!msg.includes('-2011') && !msg.includes('Unknown order')) {
+            return { ok: false, error: `Không thể hủy lệnh Limit ${sym}: ${msg}` };
+          }
+        }
+      } else {
+        return { ok: false, error: `Không tìm thấy lệnh LIMIT chờ khớp nào cho ${sym} trên sàn Binance` };
+      }
+    }
+
+    // Dọn metadata trong RAM + active_trades.json nếu lệnh chưa khớp thành vị thế
+    if (activeTradesMetadata[sym] && !activeTradesMetadata[sym].isFilled) {
+      delete activeTradesMetadata[sym];
+      saveActiveTradesMetadata();
+    }
+
+    log.system(`[AutoTrade] ✕ [Dashboard Cancel Limit] Đã hủy lệnh LIMIT chờ khớp ${sym} (orderIds=${canceledOrderIds.join(',') || 'cleaned'})`);
+    return { ok: true, symbol: sym, canceledOrderIds };
   });
 
   // ── Khởi động Web Dashboard Express/Canvas Port 3369 (Phase 5) ──

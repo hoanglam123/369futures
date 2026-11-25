@@ -171,9 +171,9 @@ mark{background:rgba(227,179,65,.25);color:var(--yellow);border-radius:2px;paddi
       <table>
         <thead><tr>
           <th>Symbol</th><th>Side</th><th>Lev</th><th>Entry</th><th>Giá hiện tại</th>
-          <th>Unrealized PnL</th><th>Tiến trình TP/SL</th><th>TP</th><th>SL</th><th>Liq</th><th>Mở từ</th>
+          <th>Unrealized PnL</th><th>Tiến trình TP/SL</th><th>TP</th><th>SL</th><th>Liq</th><th>Mở từ</th><th>Thao tác</th>
         </tr></thead>
-        <tbody id="activeBody"><tr><td colspan="11" class="empty">Không có vị thế thực trên sàn Binance</td></tr></tbody>
+        <tbody id="activeBody"><tr><td colspan="12" class="empty">Không có vị thế thực trên sàn Binance</td></tr></tbody>
       </table>
     </div>
   </section>
@@ -406,7 +406,7 @@ function renderActiveTrades(active, pnlMap, tb) {
   tb = tb || $('activeBody');
   if (!tb) return;
   if (!active.length) {
-    tb.innerHTML = '<tr><td colspan="11" class="empty">Không có vị thế thực trên sàn Binance</td></tr>';
+    tb.innerHTML = '<tr><td colspan="12" class="empty">Không có vị thế thực trên sàn Binance</td></tr>';
     return;
   }
   tb.innerHTML = active.map(t => {
@@ -434,6 +434,9 @@ function renderActiveTrades(active, pnlMap, tb) {
       const liqPrice = t.direction === 'LONG' ? t.entryPrice * (1 - 1/t.leverage + 0.005) : t.entryPrice * (1 + 1/t.leverage - 0.005);
       liqCell = `<span style="color:var(--red);font-size:11px">${fmtP(liqPrice)}</span>`;
     }
+    const actionCell = isPending
+      ? `<td style="text-align:center"><button onclick="cancelLimitOrder('${esc(t.symbol)}','${esc(t.orderId || '')}',${Number(t.entryPrice)||0},'${esc(t.direction || '')}')" style="background:rgba(248,81,73,.15);color:var(--red);border:1px solid rgba(248,81,73,.4);padding:3px 8px;border-radius:4px;cursor:pointer;font-size:11px;font-weight:600;white-space:nowrap" title="Hủy lệnh LIMIT chờ khớp này trên Binance">✕ Hủy Limit</button></td>`
+      : `<td style="text-align:center;color:var(--muted);font-size:11px">—</td>`;
     return `<tr>
       <td><strong>${esc(t.symbol)}</strong>${pendingBadge}${confBadge}</td>
       <td>${sideBadge(t.direction)}</td>
@@ -446,8 +449,20 @@ function renderActiveTrades(active, pnlMap, tb) {
       <td class="neg">${t.slPrice != null ? fmtP(t.slPrice) + slShield : '—'}</td>
       <td>${liqCell}</td>
       <td style="color:var(--muted);font-size:11px">${ago(t.recommendedAt)} ${status}${monitorRow}</td>
+      ${actionCell}
     </tr>`;
   }).join('');
+}
+
+async function cancelLimitOrder(sym, orderId, entryPrice, dir) {
+  if (!confirm(`✕ HỦY LỆNH LIMIT CHỜ KHỚP TRÊN BINANCE (BOT-H4)?\n\n• Coin: ${sym} ${dir}\n• Entry Limit: $${fmtP(entryPrice)}${orderId ? '\n• Order ID: ' + orderId : ''}\n\nChỉ hủy lệnh Limit chờ khớp, không ảnh hưởng vị thế đang mở.`)) return;
+  const res = await post('/api/trades/cancel-limit', { symbol: sym, orderId: orderId || null });
+  if (res && res.ok) {
+    alert(`✅ Đã hủy lệnh LIMIT ${res.symbol} thành công!`);
+    await loadAll();
+  } else {
+    alert('❌ Không thể hủy lệnh Limit: ' + (res?.error || 'Lỗi không xác định'));
+  }
 }
 
 function renderShadowTrades(shadows, pnlMap) {

@@ -48,10 +48,14 @@ const DEFAULT_PORT = parseInt(process.env.DASHBOARD_PORT || (process.env.PORT &&
 // WebSocket clients
 const _wsClients = new Set();
 
-// Handler đẩy kèo Shadow -> Lệnh Limit thật (được autoTrade.js đăng ký khi khởi động)
+// Handler đẩy kèo Shadow -> Lệnh Limit thật & hủy lệnh Limit chờ khớp (được autoTrade.js đăng ký khi khởi động)
 let _promoteShadowHandler = null;
 function setPromoteShadowHandler(fn) {
   _promoteShadowHandler = typeof fn === 'function' ? fn : null;
+}
+let _cancelLimitHandler = null;
+function setCancelLimitHandler(fn) {
+  _cancelLimitHandler = typeof fn === 'function' ? fn : null;
 }
 
 function broadcastWs(type, data) {
@@ -472,6 +476,7 @@ async function apiTrades() {
 
         const trade = {
           id: meta.id || sym,
+          orderId: meta.orderId || null,
           symbol: sym,
           direction: isLong ? 'LONG' : 'SHORT',
           side: meta.side,
@@ -1288,6 +1293,64 @@ function createDashboardServer() {
         return;
       }
 
+      if (urlPath === '/api/trades/cancel-limit') {
+        try {
+          const body = await readBodyJson(req);
+          const sym = String(body?.symbol || '').toUpperCase().replace(/USDT$/i, '').replace(/[^A-Z0-9]/g, '');
+          const orderId = body?.orderId != null && String(body.orderId).trim() !== '' ? String(body.orderId).trim() : null;
+          if (!sym) {
+            res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' });
+            res.end(JSON.stringify({ ok: false, error: 'Thiếu symbol' }));
+            return;
+          }
+          let result;
+          if (_cancelLimitHandler) {
+            result = await _cancelLimitHandler({ symbol: sym, orderId });
+          } else {
+            // Fallback khi dashboard chạy độc lập (không gắn autoTrade)
+            const client = getBinanceClient();
+            if (!client) {
+              res.writeHead(503, { 'Content-Type': 'application/json; charset=utf-8' });
+              res.end(JSON.stringify({ ok: false, error: 'Chưa cấu hình Binance API Key cho bot-h4' }));
+              return;
+            }
+            const openOrders = await client.getOpenOrders(sym).catch(() => []);
+            const targets = (Array.isArray(openOrders) ? openOrders : []).filter(o => {
+              const isEntryLimit = o.type === 'LIMIT' && !o.reduceOnly && !o.closePosition && (o.status === 'NEW' || o.status === 'PARTIALLY_FILLED');
+              if (!isEntryLimit) return false;
+              return orderId ? String(o.orderId) === orderId : true;
+            });
+            const canceledOrderIds = [];
+            for (const o of targets) {
+              await client.cancelOrder(sym, o.orderId);
+              canceledOrderIds.push(String(o.orderId));
+            }
+            if (canceledOrderIds.length === 0 && orderId) {
+              await client.cancelOrder(sym, orderId);
+              canceledOrderIds.push(orderId);
+            }
+            // Dọn active_trades.json nếu lệnh chưa fill
+            const activeFile = path.join(DATA_DIR, 'active_trades.json');
+            const activeTrades = readJson('active_trades.json', {});
+            if (activeTrades[sym] && !activeTrades[sym].isFilled) {
+              delete activeTrades[sym];
+              try { fs.writeFileSync(activeFile, JSON.stringify(activeTrades, null, 2), 'utf8'); } catch {}
+            }
+            result = { ok: true, symbol: sym, canceledOrderIds };
+          }
+          _cache.delete('live-trades');
+          if (result?.ok) {
+            try { broadcastWs('trades', await apiTrades()); } catch {}
+          }
+          res.writeHead(result?.ok ? 200 : 400, { 'Content-Type': 'application/json; charset=utf-8' });
+          res.end(JSON.stringify(result));
+        } catch (err) {
+          res.writeHead(err?.statusCode || 500, { 'Content-Type': 'application/json; charset=utf-8' });
+          res.end(JSON.stringify({ ok: false, error: err.message }));
+        }
+        return;
+      }
+
       if (urlPath === '/api/trades/update') {
         try {
           const body = await readBodyJson(req);
@@ -1443,6 +1506,7 @@ module.exports = {
   getActivePort,
   broadcastWs,
   setPromoteShadowHandler,
+  setCancelLimitHandler,
   apiHealth,
   apiTrades,
   apiShadowTrades,
