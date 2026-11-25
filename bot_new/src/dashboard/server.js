@@ -347,10 +347,20 @@ async function apiLivePnl() {
     const HDR = { 'User-Agent': 'crypto-news-bot/1.0' };
     const allTrades = await apiTrades();
     const trades = allTrades.filter(t => t.status === 'active');
-    if (!trades.length) return [];
 
-    const symbols = [...new Set(trades.map(t => t.symbol))];
-    const prices  = {};
+    let shadowList = [];
+    try {
+      const shMod = require('../services/shadowTracker');
+      shadowList = Object.values(shMod.getActiveShadowPositions() || {});
+    } catch {}
+
+    if (!trades.length && !shadowList.length) return [];
+
+    const symbols = [...new Set([
+      ...trades.map(t => t.symbol),
+      ...shadowList.map(s => s.symbol),
+    ].filter(Boolean))];
+    const prices = {};
     try {
       const { data } = await axios.get('https://fapi.binance.com/fapi/v1/premiumIndex', { timeout: 5000, headers: HDR });
       for (const item of Array.isArray(data) ? data : []) {
@@ -359,23 +369,48 @@ async function apiLivePnl() {
       }
     } catch {}
 
-    return trades.map(t => {
+    const realPnl = trades.map(t => {
       const curr = prices[t.symbol];
       const entry = t.entryPrice;
       if (t.entryFilled === false || t.isPendingLimit === true) {
         return { id: t.id, symbol: t.symbol, currentPrice: curr ?? entry ?? null, unrealizedPct: 0, progress: 0, isPendingLimit: true };
       }
       if (!curr || !entry) return { id: t.id, symbol: t.symbol, currentPrice: curr ?? null, unrealizedPct: null, progress: null };
-      const dir   = t.direction === 'LONG' ? 1 : -1;
+      const dir = t.direction === 'LONG' ? 1 : -1;
       const rawPct = (curr - entry) / entry * 100 * dir;
-      const tpPct  = t.targetPct ?? 0;
-      const slPct  = t.slPct ?? 0;
-      const range  = tpPct + slPct;
+      const tpPct = t.targetPct ?? (t.targetPrice ? Math.abs((t.targetPrice - entry) / entry) * 100 : 0);
+      const slPct = t.slPct ?? (t.slPrice ? Math.abs((entry - t.slPrice) / entry) * 100 : 0);
+      const range = tpPct + slPct;
       const progress = range > 0 ? Math.max(0, Math.min(100, (rawPct + slPct) / range * 100)) : 50;
       return { id: t.id, symbol: t.symbol, currentPrice: curr,
                unrealizedPct: parseFloat(rawPct.toFixed(3)),
                progress: parseFloat(progress.toFixed(1)), tpPct, slPct };
     });
+
+    const shadowPnl = shadowList.map(s => {
+      const sid = s.id || s.shadowId || s.symbol;
+      const curr = prices[s.symbol];
+      const entry = parseFloat(s.entryPrice || 0);
+      const isPending = s.isFilled === false || s.status === 'PENDING_LIMIT';
+      if (isPending) {
+        return { id: sid, symbol: s.symbol, currentPrice: curr ?? entry ?? null, unrealizedPct: 0, progress: 0, isPendingLimit: true, isShadow: true };
+      }
+      if (!curr || !entry) return { id: sid, symbol: s.symbol, currentPrice: curr ?? null, unrealizedPct: null, progress: null, isShadow: true };
+      const isLong = s.direction === 'LONG' || s.direction === 'BUY';
+      const dir = isLong ? 1 : -1;
+      const rawPct = (curr - entry) / entry * 100 * dir;
+      const tpPrice = parseFloat(s.tpPrice || s.tierTpPrice || 0);
+      const slPrice = parseFloat(s.slPrice || s.tierSlPrice || 0);
+      const tpPct = tpPrice > 0 ? Math.abs((tpPrice - entry) / entry) * 100 : (s.tpPct || 0);
+      const slPct = slPrice > 0 ? Math.abs((entry - slPrice) / entry) * 100 : (s.slPct || 0);
+      const range = tpPct + slPct;
+      const progress = range > 0 ? Math.max(0, Math.min(100, (rawPct + slPct) / range * 100)) : 50;
+      return { id: sid, symbol: s.symbol, currentPrice: curr,
+               unrealizedPct: parseFloat(rawPct.toFixed(3)),
+               progress: parseFloat(progress.toFixed(1)), tpPct, slPct, isShadow: true };
+    });
+
+    return [...realPnl, ...shadowPnl];
   });
 }
 
@@ -575,7 +610,7 @@ function apiWatchedCoins() {
   return { ...data, symbols, fixed: resolvedFixed, tier2, liquid, gainers };
 }
 
-function apiHealth() {
+async function apiHealth() {
   const today   = todayStr();
   const logFile = path.join(LOGS_DIR, `bot-${today}.log`);
   let lastLog = null, errorCount = 0, tradeCount = 0, aiCount = 0, warnCount = 0;
@@ -593,9 +628,20 @@ function apiHealth() {
       if (l.includes('[WARN '))   warnCount++;
     }
   }
+  let activeCount = readJson('trades.json', []).filter(t => t.status === 'active').length;
+  try {
+    const liveList = await apiTrades();
+    activeCount = liveList.filter(t => t.status === 'active').length;
+  } catch {}
+  let shadowCount = 0;
+  try {
+    const shMod = require('../services/shadowTracker');
+    shadowCount = Object.keys(shMod.getActiveShadowPositions() || {}).length;
+  } catch {}
   return {
     lastLog, errorCount, tradeCount, aiCount, warnCount, today,
-    activeTrades:  readJson('trades.json', []).filter(t => t.status === 'active').length,
+    activeTrades:  activeCount,
+    shadowTrades:  shadowCount,
     fundingActive: readJson('funding_trades.json', []).filter(t => t.status === 'active').length,
   };
 }
@@ -815,6 +861,49 @@ function handleApi(req, res) {
           errors.push(eOuter.message);
         }
         _sendJson(req, res, 200, { ok: true, closedCount, total: active.length, errors });
+      }).catch(handlePostErr);
+      return true;
+    }
+
+    if (urlPath === '/api/trades/cancel-limit') {
+      readBodyJson(req).then(async (body) => {
+        const sym = String(body?.symbol || '').toUpperCase().replace(/USDT$/i, '').replace(/[^A-Z0-9]/g, '');
+        const orderId = body?.orderId != null && String(body.orderId).trim() !== '' ? String(body.orderId).trim() : null;
+        if (!sym) return _sendJson(req, res, 400, { ok: false, error: 'Thiếu symbol' });
+
+        const trader = bt();
+        const mod = tm();
+        const canceledOrderIds = [];
+
+        if (trader && trader.isEnabled()) {
+          const openOrders = await trader.getOpenOrders(sym).catch(() => []);
+          const targets = (Array.isArray(openOrders) ? openOrders : []).filter(o => {
+            const isEntryLimit = o.type === 'LIMIT' && !o.reduceOnly && !o.closePosition && (o.status === 'NEW' || o.status === 'PARTIALLY_FILLED');
+            if (!isEntryLimit) return false;
+            return orderId ? String(o.orderId) === orderId : true;
+          });
+          for (const o of targets) {
+            await trader.cancelOrderById(sym, o.orderId);
+            canceledOrderIds.push(String(o.orderId));
+          }
+          if (canceledOrderIds.length === 0 && orderId) {
+            await trader.cancelOrderById(sym, orderId);
+            canceledOrderIds.push(orderId);
+          }
+        }
+
+        // Gỡ khỏi tradeMonitor nếu lệnh chưa khớp thành vị thế
+        if (mod && typeof mod.getActiveTrades === 'function' && typeof mod.removeActiveTrade === 'function') {
+          const tracked = mod.getActiveTrades().find(t => t.symbol === sym && t.entryFilled === false);
+          if (tracked) {
+            await mod.removeActiveTrade(tracked.id).catch(() => {});
+          }
+        }
+
+        _cache.delete('live-trades');
+        _cache.delete('live-pnl');
+        try { broadcastWs('trades', await apiTrades()); } catch {}
+        _sendJson(req, res, 200, { ok: true, symbol: sym, canceledOrderIds });
       }).catch(handlePostErr);
       return true;
     }

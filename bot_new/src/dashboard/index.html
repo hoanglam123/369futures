@@ -193,7 +193,7 @@ mark{background:rgba(227,179,65,.25);color:var(--yellow);border-radius:2px;paddi
   <section>
     <div class="sec-head">
       <h2>⚡ Vị thế thực tế (Binance Futures) <span class="cnt" id="activeCount">(0)</span></h2>
-      <button id="btnSyncBinance" onclick="syncWithBinance()" style="background:#238636;color:#fff;border:none;padding:5px 12px;border-radius:6px;cursor:pointer;font-size:12px;font-weight:600;display:flex;align-items:center;gap:5px">
+      <button id="btnSyncBinance" onclick="syncWithBinance()" style="background:rgba(63,185,80,.15);color:var(--green);border:1px solid rgba(63,185,80,.35);padding:4px 10px;border-radius:6px;cursor:pointer;font-size:11px;font-weight:600;display:flex;align-items:center;gap:5px">
         <span>🔄</span> Đồng bộ Binance
       </button>
     </div>
@@ -203,37 +203,23 @@ mark{background:rgba(227,179,65,.25);color:var(--yellow);border-radius:2px;paddi
           <th>Symbol</th><th>Side</th><th>Lev</th><th>Entry</th><th>Giá hiện tại</th>
           <th>Unrealized PnL</th><th>Tiến trình TP/SL</th><th>TP</th><th>SL</th><th>Liq</th><th>Mở từ</th><th>Thao tác</th>
         </tr></thead>
-        <tbody id="activeBody"><tr><td colspan="12" class="empty">Không có lệnh đang theo dõi</td></tr></tbody>
+        <tbody id="activeBody"><tr><td colspan="12" class="empty">Không có vị thế thực trên sàn Binance</td></tr></tbody>
       </table>
     </div>
   </section>
 
-  <section id="guardsSection">
+  <section id="shadowSection">
     <div class="sec-head">
-      <h2>🛡️ Lá chắn Phòng thủ &amp; Shadow PnL</h2>
+      <h2>👻 Vị thế Shadow AI (Ảo — Không vào tiền thật) <span class="cnt" id="shadowCount">(0)</span></h2>
+      <span style="font-size:11px;color:var(--muted)">Theo dõi các setup bị Veto (BE 50% TP + Fractal Trailing SL)</span>
     </div>
-    <div class="guard-grid" style="margin-bottom:14px">
-      <div class="guard-card">
-        <h3>⚡ Directional Circuit Breaker <span id="cbSummary" class="pill pill-green">OK</span></h3>
-        <div id="cbBody" style="font-size:12px;color:var(--muted)">Đang tải...</div>
-      </div>
-      <div class="guard-card">
-        <h3>🌪️ BTC Flash Guard (180s) <span id="fgSummary" class="pill pill-green">NORMAL</span></h3>
-        <div id="fgBody" style="font-size:12px;color:var(--muted)">Đang tải...</div>
-      </div>
-      <div class="guard-card">
-        <h3>⏳ SL Cooldowns (6h) <span id="cdSummary" class="cnt">(0)</span></h3>
-        <div id="cdBody" style="font-size:12px;color:var(--muted)">Đang tải...</div>
-      </div>
-    </div>
-    <div class="stats-grid" id="shadowStatsGrid" style="margin-bottom:10px"></div>
     <div class="tbl-wrap">
       <table>
         <thead><tr>
-          <th>Symbol</th><th>Chiều</th><th>Entry</th><th>SL</th><th>TP</th>
-          <th>Lev / Margin</th><th>WinProb</th><th>Score</th><th>Lý do VETO</th><th>Mở từ</th><th>Thao tác</th>
+          <th>Symbol</th><th>Side</th><th>Lev</th><th>Entry</th><th>Giá hiện tại</th>
+          <th>Unrealized PnL</th><th>Tiến trình</th><th>TP</th><th>SL</th><th>Điểm / Lý do Veto</th><th>Mở lúc</th><th>Thao tác</th>
         </tr></thead>
-        <tbody id="shadowBody"><tr><td colspan="11" class="empty">Không có vị thế Shadow đang theo dõi</td></tr></tbody>
+        <tbody id="shadowBody"><tr><td colspan="12" class="empty">Không có vị thế shadow đang chạy</td></tr></tbody>
       </table>
     </div>
   </section>
@@ -253,8 +239,29 @@ mark{background:rgba(227,179,65,.25);color:var(--yellow);border-radius:2px;paddi
     </div>
   </section>
 
+  <section id="guardsSection">
+    <details class="fold">
+      <summary><span>🛡️ Lá chắn Phòng thủ &amp; Hiệu suất Shadow AI</span><span style="font-size:10px;font-weight:400">Bấm để mở/thu gọn</span></summary>
+      <div class="guard-grid" style="margin-bottom:12px">
+        <div class="guard-card">
+          <h3>⚡ Directional Circuit Breaker <span id="cbSummary" class="pill pill-green">OK</span></h3>
+          <div id="cbBody" style="font-size:12px;color:var(--muted)">Đang tải...</div>
+        </div>
+        <div class="guard-card">
+          <h3>🌪️ BTC Flash Guard (180s) <span id="fgSummary" class="pill pill-green">NORMAL</span></h3>
+          <div id="fgBody" style="font-size:12px;color:var(--muted)">Đang tải...</div>
+        </div>
+        <div class="guard-card">
+          <h3>⏳ SL Cooldowns (6h) <span id="cdSummary" class="cnt">(0)</span></h3>
+          <div id="cdBody" style="font-size:12px;color:var(--muted)">Đang tải...</div>
+        </div>
+      </div>
+      <div class="stats-grid" id="shadowStatsGrid"></div>
+    </details>
+  </section>
+
   <section>
-    <details class="fold" open>
+    <details class="fold">
       <summary>
         <span>🔥 Heatmap Tiệm cận Mốc 369 <span class="cnt" id="hmCount">(0)</span></span>
         <span style="font-size:10px;font-weight:400;text-transform:none">🟢/🔴 ≤0.3% (0ms) | 🟡 ≤0.5% (Top 8) | 🔵 ≤1.0% (WS)</span>
@@ -310,6 +317,7 @@ let logFilter = '';
 let logAutoTimer = null;
 let logLines = [];
 let _cachedTrades = [];
+let _cachedShadows = [];
 let _cachedPnlMap = {};
 let _botControlsState = { scanPaused: false, shadowOnlyMode: false };
 
@@ -404,14 +412,18 @@ async function loadHealth() {
   const h = await get('/api/health');
   if (!h) return;
 
+  const realCount = h.activeTrades ?? 0;
+  const shadowCount = h.shadowTrades ?? 0;
+
   $('hErr').style.display = h.errorCount > 0 ? 'inline-block' : 'none';
   $('hErr').textContent = `⚠ ${h.errorCount} lỗi`;
-  $('hActive').style.display = h.activeTrades > 0 ? 'inline-block' : 'none';
-  $('hActive').textContent = `⚡ ${h.activeTrades} lệnh mở`;
+  $('hActive').style.display = (realCount > 0 || shadowCount > 0) ? 'inline-block' : 'none';
+  $('hActive').textContent = realCount > 0 ? `⚡ ${realCount} lệnh sàn` : `👻 ${shadowCount} shadow`;
 
   $('healthRow').innerHTML = [
     { l:'Bot', v:'Online', cls:'', dot:true },
-    { l:'Vị thế sàn', v:h.activeTrades ?? 0, cls:(h.activeTrades??0)>0?'pos':'', dot:false },
+    { l:'Vị thế sàn', v:realCount, cls:realCount>0?'pos':'', dot:false },
+    { l:'Shadow AI', v:shadowCount, cls:shadowCount>0?'purple':'', dot:false },
     { l:'Log cuối', v:h.lastLog ? ago(h.lastLog)+' trước' : '—', cls:!h.lastLog?'warn':'', dot:true },
     { l:'TRADE hôm nay', v:h.tradeCount ?? 0, cls:'', dot:false },
     { l:'WARN', v:h.warnCount ?? 0, cls:(h.warnCount??0)>10?'warn':'', dot:false },
@@ -451,12 +463,12 @@ async function loadOverview() {
   }
 }
 
-// ── Active Trades ────────────────────────────────────────────────────────────
+// ── Active & Shadow Trades ───────────────────────────────────────────────────
 function renderActiveTrades(active, pnlMap, tb) {
   tb = tb || $('activeBody');
   if (!tb) return;
   if (!active.length) {
-    tb.innerHTML = '<tr><td colspan="12" class="empty">Không có lệnh đang theo dõi</td></tr>';
+    tb.innerHTML = '<tr><td colspan="12" class="empty">Không có vị thế thực trên sàn Binance</td></tr>';
     return;
   }
   tb.innerHTML = active.map(t => {
@@ -484,6 +496,10 @@ function renderActiveTrades(active, pnlMap, tb) {
       const liqPrice = t.direction === 'LONG' ? t.entryPrice * (1 - 1/t.leverage + 0.005) : t.entryPrice * (1 + 1/t.leverage - 0.005);
       liqCell = `<span style="color:var(--red);font-size:11px">${fmtP(liqPrice)}</span>`;
     }
+    const orderId = t.binanceEntryOrderId || t.orderId || '';
+    const actionCell = isPending
+      ? `<td style="text-align:center"><button onclick="cancelLimitOrder('${esc(t.symbol)}','${esc(orderId)}',${Number(t.entryPrice)||0},'${esc(t.direction || '')}')" style="background:rgba(248,81,73,.15);color:var(--red);border:1px solid rgba(248,81,73,.4);padding:3px 8px;border-radius:4px;cursor:pointer;font-size:11px;font-weight:600;white-space:nowrap" title="Hủy lệnh LIMIT chờ khớp này trên Binance">✕ Hủy Limit</button></td>`
+      : `<td style="text-align:center;color:var(--muted);font-size:11px">—</td>`;
     return `<tr>
       <td><strong>${esc(t.symbol)}</strong>${pendingBadge}${confBadge}</td>
       <td>${sideBadge(t.direction)}</td>
@@ -496,9 +512,68 @@ function renderActiveTrades(active, pnlMap, tb) {
       <td class="neg">${t.slPrice != null ? fmtP(t.slPrice) + slShield : '—'}</td>
       <td>${liqCell}</td>
       <td style="color:var(--muted);font-size:11px">${ago(t.recommendedAt)} ${status}${monitorRow}</td>
-      <td style="text-align:center">
-        <button onclick="removeTrade('${t.id}', '${esc(t.symbol)}')" title="Gỡ lệnh" style="background:rgba(248,81,73,.15);color:var(--red);border:1px solid rgba(248,81,73,.35);padding:3px 8px;border-radius:4px;cursor:pointer;font-size:11px;font-weight:600">✕ Xóa</button>
-      </td>
+      ${actionCell}
+    </tr>`;
+  }).join('');
+}
+
+async function cancelLimitOrder(sym, orderId, entryPrice, dir) {
+  if (!confirm(`✕ HỦY LỆNH LIMIT CHỜ KHỚP TRÊN BINANCE (BOT-NEW)?\n\n• Coin: ${sym} ${dir}\n• Entry Limit: $${fmtP(entryPrice)}${orderId ? '\n• Order ID: ' + orderId : ''}\n\nChỉ hủy lệnh Limit chờ khớp, không ảnh hưởng vị thế đang mở.`)) return;
+  const res = await post('/api/trades/cancel-limit', { symbol: sym, orderId: orderId || null });
+  if (res && res.ok) {
+    alert(`✅ Đã hủy lệnh LIMIT ${res.symbol} thành công!`);
+    await loadAll();
+  } else {
+    alert('❌ Không thể hủy lệnh Limit: ' + (res?.error || 'Lỗi không xác định'));
+  }
+}
+
+function renderShadowTrades(shadows, pnlMap) {
+  const tb = $('shadowBody');
+  const cnt = $('shadowCount');
+  if (cnt) cnt.textContent = `(${shadows.length})`;
+  if (!tb) return;
+  if (!shadows.length) {
+    tb.innerHTML = '<tr><td colspan="12" class="empty">Không có vị thế shadow đang chạy</td></tr>';
+    return;
+  }
+  tb.innerHTML = shadows.map(p => {
+    const sid = p.id || p.shadowId || p.symbol;
+    const lv = pnlMap[sid] || pnlMap[p.symbol] || {};
+    const isPending = p.isFilled === false || p.status === 'PENDING_LIMIT' || lv.isPendingLimit === true;
+    const curr = lv.currentPrice || p.currentPrice;
+    const unrealized = isPending ? 0 : (lv.unrealizedPct != null ? lv.unrealizedPct : null);
+    const progress = isPending ? 0 : (lv.progress ?? 50);
+    const pbarColor = isPending ? '#8b949e' : (unrealized == null ? '#58a6ff' : unrealized >= 0 ? '#3fb950' : '#f85149');
+    const pbar = `<div class="pbar-wrap"><div class="pbar" data-pbar="${esc(sid)}" style="width:${progress}%;background:${pbarColor}"></div></div>`;
+    const scoreVal = p.confluenceScore ?? p.score;
+    const scoreBadge = scoreVal != null ? `<span class="badge" style="background:rgba(163,113,247,.15);color:var(--purple);border:1px solid rgba(163,113,247,.3)">${scoreVal}đ</span>` : '';
+    const wpBadge = p.winProbability != null ? ` <span style="font-size:10px;color:var(--blue)">${p.winProbability}%</span>` : '';
+    const vetoTxt = p.vetoReason ? ` <span style="font-size:10px;color:var(--muted)" title="${esc(p.vetoReason)}">${esc(p.vetoReason)}</span>` : '';
+    const pendingBadge = isPending
+      ? ' <span class="badge" style="background:rgba(210,153,34,.15);color:#d29922;border:1px solid rgba(210,153,34,.35);font-size:9px">CHỜ KHỚP</span>'
+      : '';
+    const pnlCell = isPending
+      ? `<td data-pnl="${esc(sid)}" data-pending="1" style="color:var(--muted);font-size:11px">0.00% <span style="font-size:10px">(Chờ Limit)</span></td>`
+      : `<td data-pnl="${esc(sid)}" class="${clr(unrealized)}" style="font-weight:600">${unrealized != null ? fmt(unrealized, 2) : '—'}</td>`;
+    const dirStr = p.direction || p.side || 'LONG';
+    const tpVal = p.tpPrice ?? p.tierTpPrice ?? p.targetPrice;
+    const slVal = p.slPrice ?? p.tierSlPrice;
+    const promoteBtn = `<button onclick="promoteShadow('${esc(sid)}','${esc(p.symbol)}','${esc(dirStr)}',${Number(p.entryPrice)||0},${Number(tpVal)||0},${Number(slVal)||0},${Number(p.leverage)||3})" style="background:rgba(63,185,80,.15);color:var(--green);border:1px solid rgba(63,185,80,.4);padding:3px 8px;border-radius:4px;cursor:pointer;font-size:11px;font-weight:600;white-space:nowrap" title="Đẩy lệnh LIMIT thật vào Binance theo margin .env để bot-new tự quản lý TP/SL + BE 50% + Fractal">⚡ Đẩy Limit</button>`;
+
+    return `<tr>
+      <td><strong>${esc(p.symbol)}</strong> <span class="badge" style="background:rgba(163,113,247,.12);color:var(--purple);border:1px solid rgba(163,113,247,.25);font-size:9px">SHADOW</span>${pendingBadge}</td>
+      <td>${sideBadge(dirStr)}</td>
+      <td>×${p.leverage || 3}</td>
+      <td>${fmtP(p.entryPrice)}</td>
+      <td data-price="${esc(sid)}">${curr ? fmtP(curr) : '—'}</td>
+      ${pnlCell}
+      <td style="min-width:90px">${pbar}</td>
+      <td class="pos">${fmtP(tpVal)}</td>
+      <td class="neg">${fmtP(slVal)}</td>
+      <td style="max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${scoreBadge}${wpBadge}${vetoTxt}</td>
+      <td style="color:var(--muted);font-size:11px">${ago(p.openedAt || p.recommendedAt)}</td>
+      <td style="text-align:center">${promoteBtn}</td>
     </tr>`;
   }).join('');
 }
@@ -508,7 +583,7 @@ async function syncWithBinance() {
   if (btn) { btn.disabled = true; btn.innerHTML = '<span>⏳</span> Đang đồng bộ...'; }
   try {
     const res = await post('/api/sync', {});
-    if (res && res.ok) await loadTrades();
+    if (res && res.ok) await loadAll();
     else alert('Đồng bộ thất bại: ' + (res?.error || 'Lỗi không xác định'));
   } catch (err) {
     alert('Lỗi kết nối khi đồng bộ: ' + err.message);
@@ -517,24 +592,17 @@ async function syncWithBinance() {
   }
 }
 
-async function removeTrade(id, sym) {
-  if (!confirm(`Gỡ lệnh ${sym} (#${id}) khỏi danh sách theo dõi?\nNếu lệnh còn trên Binance, bot sẽ cố gắng hủy.`)) return;
-  try {
-    const res = await post('/api/trades/delete', { id });
-    if (res && res.ok) await loadTrades();
-    else alert('Không thể xóa lệnh: ' + (res?.error || 'Lỗi không xác định'));
-  } catch (err) {
-    alert('Lỗi kết nối khi xóa lệnh: ' + err.message);
-  }
-}
-
 async function loadTrades() {
-  const [all, livePnl] = await Promise.all([get('/api/trades'), get('/api/live-pnl')]);
+  const [all, livePnl, sh] = await Promise.all([
+    get('/api/trades'), get('/api/live-pnl'), get('/api/shadow-trades')
+  ]);
   _cachedTrades = (all || []).filter(t => t.status === 'active');
+  _cachedShadows = sh && sh.active ? Object.values(sh.active) : [];
   _cachedPnlMap = {};
   (livePnl || []).forEach(l => { _cachedPnlMap[l.id || l.symbol] = l; });
   $('activeCount').textContent = `(${_cachedTrades.length})`;
   renderActiveTrades(_cachedTrades, _cachedPnlMap);
+  renderShadowTrades(_cachedShadows, _cachedPnlMap);
 }
 
 async function loadHistory() {
@@ -653,34 +721,8 @@ async function loadGuards() {
         { l: 'Giá trị ròng AI', v: `${(st.netSavedUsd ?? 0) >= 0 ? '+' : ''}$${st.netSavedUsd ?? 0}`, cls: clr(st.netSavedUsd ?? 0) },
       ].map(s => `<div class="stat-card"><div class="stat-lbl">${s.l}</div><div class="stat-val ${s.cls}">${s.v}</div></div>`).join('');
     }
-    const activeList = Object.values(sh.active || {});
-    if ($('shadowBody')) {
-      if (!activeList.length) {
-        $('shadowBody').innerHTML = '<tr><td colspan="11" class="empty">Không có vị thế Shadow đang theo dõi</td></tr>';
-      } else {
-        $('shadowBody').innerHTML = activeList.map(p => {
-          const isPending = p.isFilled === false || p.status === 'PENDING_LIMIT';
-          const pendingBadge = isPending
-            ? ' <span class="badge" style="background:rgba(210,153,34,.15);color:#d29922;border:1px solid rgba(210,153,34,.35);font-size:9px">CHỜ KHỚP</span>'
-            : '';
-          const sid = p.id || p.shadowId || '';
-          const promoteBtn = `<button onclick="promoteShadow('${esc(sid)}','${esc(p.symbol)}','${esc(p.direction)}',${Number(p.entryPrice)||0},${Number(p.tpPrice)||0},${Number(p.slPrice)||0},${Number(p.leverage)||3})" style="background:rgba(63,185,80,.15);color:var(--green);border:1px solid rgba(63,185,80,.4);padding:3px 8px;border-radius:4px;cursor:pointer;font-size:11px;font-weight:600;white-space:nowrap" title="Đẩy lệnh LIMIT thật vào Binance để bot-new tự quản lý TP/SL + BE 50% + Fractal">⚡ Đẩy Limit</button>`;
-          return `<tr>
-            <td><strong>${esc(p.symbol)}</strong>${pendingBadge}</td>
-            <td>${sideBadge(p.direction)}</td>
-            <td>${fmtP(p.entryPrice)}</td>
-            <td class="neg">${fmtP(p.slPrice)}</td>
-            <td class="pos">${fmtP(p.tpPrice)}</td>
-            <td>${p.leverage || 3}x / $${(p.margin || 10).toFixed(0)}</td>
-            <td>${p.winProbability != null ? p.winProbability + '%' : '—'}</td>
-            <td>${p.confluenceScore ?? '—'}</td>
-            <td style="max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(p.vetoReason||'')}">${esc(p.vetoReason||'')}</td>
-            <td style="color:var(--muted)">${ago(p.openedAt)}</td>
-            <td style="text-align:center">${promoteBtn}</td>
-          </tr>`;
-        }).join('');
-      }
-    }
+    _cachedShadows = Object.values(sh.active || {});
+    renderShadowTrades(_cachedShadows, _cachedPnlMap);
   }
 
   if (hm && Array.isArray(hm.items)) {
