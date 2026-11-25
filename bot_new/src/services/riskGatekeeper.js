@@ -241,10 +241,16 @@ function extractGatekeeperFeatures(sig, marketContext = {}) {
     features['btc_flash'] = 'BTC_FLASH_NORMAL';
   }
 
-  // 7. Spread Slippage Guard (Thanh khoản 0ms thay cho turnover_guard)
+  // 7. Spread Slippage Guard (Thanh khoản 0ms + nới sàn theo tickSize cho coin giá siêu nhỏ)
   if (typeof marketContext?.spreadPct === 'number' && marketContext.spreadPct > 0) {
-    const dangerTh  = rank <= 50 ? 0.040 : (rank <= 150 ? 0.060 : 0.080);
-    const cautionTh = rank <= 50 ? 0.025 : (rank <= 150 ? 0.035 : 0.045);
+    let dangerTh  = rank <= 50 ? 0.040 : (rank <= 150 ? 0.060 : 0.080);
+    let cautionTh = rank <= 50 ? 0.025 : (rank <= 150 ? 0.035 : 0.045);
+    const tickSize = parseFloat(marketContext?.tickSize || sig?.tickSize || 0);
+    if (tickSize > 0 && targetLevel > 0) {
+      const minTickSpreadPct = (tickSize / targetLevel) * 100;
+      dangerTh  = Math.max(dangerTh, Math.min(0.25, minTickSpreadPct * 3.5));
+      cautionTh = Math.max(cautionTh, Math.min(0.15, minTickSpreadPct * 2.0));
+    }
     if (marketContext.spreadPct > dangerTh) features['spread_slippage'] = 'SPREAD_WIDE_DANGER';
     else if (marketContext.spreadPct > cautionTh) features['spread_slippage'] = 'SPREAD_MEDIUM_CAUTION';
     else features['spread_slippage'] = 'SPREAD_TIGHT_SAFE';

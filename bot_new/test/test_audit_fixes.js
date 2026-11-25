@@ -574,6 +574,30 @@ async function run() {
     assert.strictEqual(btcRes.isApproved, false, 'BTC SHORT ngược cơn Flash Pump 16.6x vol bắt buộc vẫn phải bị VETO');
   });
 
+  await test('Tick-Aware Spread Guard (cả 2 bot): ZETA giá nhỏ hở 2–3 tick không bị VETO oan, 4+ tick vẫn VETO; BTC giữ nguyên 0.04%', async () => {
+    // ZETA @ $0.02536, tickSize = 0.00001 -> 1 tick = 0.0394%, 3.5 tick = 0.138%
+    const zetaSig = { symbol: 'ZETA', signal: 'LONG', targetLevel: 0.02536, score: 10, marketCapRank: 250, slPct: 3.2, tpPct: 7.3, leverage: 3 };
+    const zeta3Ticks = gatekeeperNew.evaluateSignal(zetaSig, { spreadPct: 0.118, tickSize: 0.00001 });
+    assert.strictEqual(zeta3Ticks.features.spread_slippage, 'SPREAD_MEDIUM_CAUTION', 'ZETA hở 3 tick (0.118% < 0.138%) không được dính SPREAD_WIDE_DANGER');
+    assert.strictEqual(zeta3Ticks.isApproved, true, 'ZETA 10đ hở 3 tick bình thường phải được duyệt');
+
+    const zeta4Ticks = gatekeeperNew.evaluateSignal(zetaSig, { spreadPct: 0.158, tickSize: 0.00001 });
+    assert.strictEqual(zeta4Ticks.features.spread_slippage, 'SPREAD_WIDE_DANGER', 'ZETA hở >=4 tick (0.158% > 0.138%) phải bị SPREAD_WIDE_DANGER');
+    assert.strictEqual(zeta4Ticks.isApproved, false);
+
+    // bot-h4 aiReviewer đồng bộ y hệt
+    const zetaH4Safe = aiReviewerH4.evaluateSignalWithAI(
+      { symbol: 'ZETA', signal: 'LONG', targetLevel: 0.02536, score: 10, marketCapRank: 250, gridWidthPct: 4.0, actualSlPct: 3.2, actualTpPct: 7.3, leverage: 3, scoreReasons: [] },
+      { spreadPct: 0.118, tickSize: 0.00001 }
+    );
+    assert.ok(!zetaH4Safe.keyFactors.some(f => f.includes('SPREAD_WIDE_DANGER')), `bot-h4 không được phạt ZETA 3 tick là SPREAD_WIDE_DANGER: ${JSON.stringify(zetaH4Safe.keyFactors)}`);
+
+    // BTC @ $60,000, tickSize = 0.1 (1 tick = 0.00017%) -> giữ nguyên ngưỡng khắt khe 0.040%
+    const btcSig = { symbol: 'BTC', signal: 'LONG', targetLevel: 60000, score: 8, marketCapRank: 1, slPct: 2.0, tpPct: 4.0, leverage: 5 };
+    const btcWide = gatekeeperNew.evaluateSignal(btcSig, { spreadPct: 0.05, tickSize: 0.1 });
+    assert.strictEqual(btcWide.features.spread_slippage, 'SPREAD_WIDE_DANGER', 'BTC spread 0.05% > 0.04% vẫn phải bị SPREAD_WIDE_DANGER');
+  });
+
   console.log(`\n📊 Audit Regression Summary: ${passed} passed, ${failed} failed\n`);
   process.exit(failed > 0 ? 1 : 0);
 }

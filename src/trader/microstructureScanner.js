@@ -9,6 +9,10 @@
  */
 
 const axios = require('axios');
+let _getSymbolTickSizeSync = null;
+try {
+  _getSymbolTickSizeSync = require('./binance').getSymbolTickSizeSync;
+} catch (_) {}
 
 const BINANCE_FAPI_URL = 'https://fapi.binance.com';
 
@@ -51,10 +55,10 @@ async function getSpreadMetrics(sym, rank = 999) {
 
     const spreadPct = ((askPrice - bidPrice) / bidPrice) * 100;
     
-    // 🛡️ PHÂN TẦNG ĐỘNG THEO RANK COIN (Adaptive Spread Guard):
-    // - Top 50: Cực kỳ khắt khe (> 0.04% là VETO) vì top coin thanh khoản luôn dày
-    // - Rank 51-150: Tiêu chuẩn (> 0.06% là VETO)
-    // - Lowcap (> 150): Nới lỏng nhẹ (> 0.08% mới VETO) vì biên độ nến rộng hơn
+    // 🛡️ PHÂN TẦNG ĐỘNG THEO RANK COIN + BƯỚC GIÁ SÀN (Adaptive Tick-Aware Spread Guard):
+    // - Top 50: > 0.04% | Rank 51-150: > 0.06% | Lowcap (> 150): > 0.08%
+    // - Với coin giá nhỏ có tickSize lớn (VD ZETA $0.025, 1 tick = 0.04%), nới sàn theo 3.5x tick (tối đa 0.25%)
+    //   để không phạt oan khi sổ lệnh chỉ hở 2–3 tick bình thường.
     let dangerTh = 0.060;
     let cautionTh = 0.035;
     if (rank <= 50) {
@@ -66,6 +70,13 @@ async function getSpreadMetrics(sym, rank = 999) {
     } else {
       dangerTh = 0.080;
       cautionTh = 0.045;
+    }
+
+    const tickSize = typeof _getSymbolTickSizeSync === 'function' ? _getSymbolTickSizeSync(sym) : null;
+    if (tickSize && tickSize > 0 && bidPrice > 0) {
+      const minTickSpreadPct = (tickSize / bidPrice) * 100;
+      dangerTh = Math.max(dangerTh, Math.min(0.25, minTickSpreadPct * 3.5));
+      cautionTh = Math.max(cautionTh, Math.min(0.15, minTickSpreadPct * 2.0));
     }
 
     let category = 'SPREAD_TIGHT_SAFE';

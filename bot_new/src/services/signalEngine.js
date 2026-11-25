@@ -209,13 +209,14 @@ async function generateQuantitativeTrade(setup, marketData = null) {
 
   // 2. Tính toán TP/SL & Đòn bẩy bằng Thuật toán Định Lượng (0.01ms)
   let tierSetup = null;
+  let symTickSize = null;
   const effGridWidth = setup.gridWidthPct || (sig369?.step && currentPrice > 0 ? (sig369.step / currentPrice) * 100 : null);
   const realRank = setup.marketCapRank
     || marketData?.topCoins?.find(c => c.symbol === symbol)?.rank
     || (isTier1 ? 20 : 180);
   try {
     const symInfo = await getSymbolInfo(symbol).catch(() => null);
-    const symTickSize = symInfo?.tickSize || null;
+    symTickSize = symInfo?.tickSize || null;
 
     const tradeSizePct = parseFloat(process.env.TRADE_SIZE_PCT || '0');
     let customMargin = null;
@@ -353,6 +354,7 @@ async function generateQuantitativeTrade(setup, marketData = null) {
     preEntryBouncePct,
     btcFlash: btcFlash.activeFlash || 'NORMAL',
     spreadPct: micro.spreadPct,
+    tickSize: symTickSize,
     orderbookWall: micro.orderbookWall,
     slPct: tierSetup.slPct,
     tpPct: tierSetup.tpPct,

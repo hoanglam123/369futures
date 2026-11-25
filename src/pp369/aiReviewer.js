@@ -653,6 +653,20 @@ function extractSignalFeatures(reasons, score, rank, gridWidthPct, rawMarketData
       cautionTh = 0.045;
     }
 
+    // Nới sàn ngưỡng spread theo tickSize cho coin giá siêu nhỏ (tối đa 3.5 tick, trần 0.25%)
+    let tickSizeSpread = typeof rawMarketData?.tickSize === 'number' ? rawMarketData.tickSize : null;
+    if (!tickSizeSpread && rawMarketData?.symbol) {
+      try {
+        const { getSymbolTickSizeSync } = require('../trader/binance');
+        if (typeof getSymbolTickSizeSync === 'function') tickSizeSpread = getSymbolTickSizeSync(rawMarketData.symbol);
+      } catch (_) {}
+    }
+    if (tickSizeSpread && tickSizeSpread > 0 && targetLevel && targetLevel > 0) {
+      const minTickSpreadPct = (tickSizeSpread / targetLevel) * 100;
+      dangerTh = Math.max(dangerTh, Math.min(0.25, minTickSpreadPct * 3.5));
+      cautionTh = Math.max(cautionTh, Math.min(0.15, minTickSpreadPct * 2.0));
+    }
+
     if (spreadPct > dangerTh) spreadCat = 'SPREAD_WIDE_DANGER';
     else if (spreadPct > cautionTh) spreadCat = 'SPREAD_MEDIUM_CAUTION';
     else spreadCat = 'SPREAD_TIGHT_SAFE';
