@@ -848,6 +848,11 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
   if (features['realtime_volume'] && features['volume']) {
     skipForInteraction.set('volume', 'realtime_volume');
   }
+  // 🛡️ Khử phạt kép Volume Burst giữa M15 (VOL_BURST_DANGER) và H1 (H1_VOL_BURST_DANGER):
+  // Một cú nổ volume tức thời trên M15 đương nhiên kéo tổng volume nến H1 tăng theo -> không trừ 2 lần vào cùng 1 sự kiện volume!
+  if (features['realtime_volume'] === 'VOL_BURST_DANGER' && features['h1_volume_burst'] === 'H1_VOL_BURST_DANGER') {
+    skipForInteraction.set('h1_volume_burst', 'VOL_BURST_DANGER');
+  }
 
   // 🛡️ DE-DUPLICATE TREND & ADX STRENGTH (KHỬ PHẠT KÉP NGƯỢC XU HƯỚNG VÀ XUNG LỰC ADX):
   // Rủi ro đi ngược xu hướng chính đã được lượng hóa đầy đủ ở feature 'trend' (TREND_CONFLICT).

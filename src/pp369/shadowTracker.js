@@ -156,17 +156,11 @@ function registerShadowTrade(sig, evalResult, options = {}) {
     tierTpPrice = isLong ? entryPrice * (1 + tpPct / 100) : entryPrice * (1 - tpPct / 100);
   }
 
-  // 🛡️ BREAKEVEN TRIGGER: Mức giá kích hoạt kéo SL về Hòa vốn
-  // [ARCHIVED - BE] Đã đồng bộ tắt dời BE theo mô hình AI mới để theo dõi kết quả dứt điểm TP & SL
-  // Code cũ:
-  //   let beTriggerPrice = options.beTriggerPrice !== undefined ? options.beTriggerPrice : null;
-  //   if (beTriggerPrice === null && options.beTriggerPrice === undefined) {
-  //     const beDeltaPct = 20.0 / leverage;
-  //     beTriggerPrice = isLong ? entryPrice * (1 + beDeltaPct / 100) : entryPrice * (1 - beDeltaPct / 100);
-  //   }
+  // 🛡️ BREAKEVEN TRIGGER: Đồng bộ chuẩn live bot-h4 (mặc định BE @ 50% TP theo BE_TRIGGER_TP_PCT)
+  const beTriggerRatio = Math.max(0.35, Math.min(0.85, parseFloat(process.env.BE_TRIGGER_TP_PCT || '50') / 100));
   let beTriggerPrice = (typeof options.beTriggerPrice === 'number' && options.beTriggerPrice > 0)
     ? options.beTriggerPrice
-    : (isLong ? (entryPrice + (tierTpPrice - entryPrice) * 0.35) : (entryPrice - (entryPrice - tierTpPrice) * 0.35));
+    : (isLong ? (entryPrice + (tierTpPrice - entryPrice) * beTriggerRatio) : (entryPrice - (entryPrice - tierTpPrice) * beTriggerRatio));
 
   // 🛡️ MỨC GIÁ THỊ TRƯỜNG HIỆN TẠI VÀ TRẠNG THÁI KHỚP LỆNH LIMIT
   const currentMark = parseFloat(options.markPrice || entryPrice);
@@ -360,69 +354,62 @@ function updateShadowPrices(priceMap) {
     const wasBeTriggeredBefore = p.isBeTriggered === true;
     const prevSlPrice = p.tierSlPrice;
 
-    // 🌊 FRACTAL CASCADE TRAILING SL (M5 + M15 Williams Fractal):
-    // Kích hoạt khi giá/râu nến chạm mốc 40% TP -> Kéo ngay SL về Entry (BE) làm sàn bảo vệ,
-    // rồi quét sóng M5 & M15 để nâng SL cao hơn theo lợi nhuận
-    if (!p.isBeTriggered && typeof p.beTriggerPrice === 'number' && p.beTriggerPrice > 0) {
-      const hitBeTrigger = isLong ? (candleHigh >= p.beTriggerPrice) : (candleLow <= p.beTriggerPrice);
+    // 🌊 ĐỒNG BỘ 100% EXIT ENGINE LIVE BOT-H4:
+    // - Giai đoạn 1 (BE @ 50% TP theo BE_TRIGGER_TP_PCT): Kéo SL về Entry ± 0.14% đệm phí thực
+    // - Giai đoạn 2 (Dual H1/M15 Williams Fractal Trailing SL — bỏ M5/M1 nhiễu):
+    //   + 50% -> 70% TP: bám theo đáy/đỉnh sóng H1 (đệm 0.15%)
+    //   + >= 70% TP: siết theo đáy/đỉnh sóng M15 (đệm 0.15%)
+    const beTriggerRatioLive = Math.max(0.35, Math.min(0.85, parseFloat(process.env.BE_TRIGGER_TP_PCT || '50') / 100));
+    const totalTpDist = Math.abs(p.tierTpPrice - entry);
+    const liveBeTriggerPrice = totalTpDist > 0
+      ? (isLong ? entry + totalTpDist * beTriggerRatioLive : entry - totalTpDist * beTriggerRatioLive)
+      : p.beTriggerPrice;
+
+    if (!p.isBeTriggered && typeof liveBeTriggerPrice === 'number' && liveBeTriggerPrice > 0) {
+      const hitBeTrigger = isLong ? (candleHigh >= liveBeTriggerPrice) : (candleLow <= liveBeTriggerPrice);
       if (hitBeTrigger) {
         p.isBeTriggered = true;
-        // Khóa ngay mức bảo toàn vốn (Entry) làm điểm tựa sàn tối thiểu
-        const isBetterThanCurrent = isLong ? (entry > p.tierSlPrice) : (entry < p.tierSlPrice);
+        p.beTriggerPrice = liveBeTriggerPrice;
+        // Khóa ngay mốc hòa vốn kèm đệm phí khứ hồi thực 0.14% giá (độc lập đòn bẩy)
+        const beFeeSl = isLong ? (entry * 1.0014) : (entry * 0.9986);
+        const isBetterThanCurrent = isLong ? (beFeeSl > p.tierSlPrice) : (beFeeSl < p.tierSlPrice);
         if (isBetterThanCurrent) {
-          p.tierSlPrice = entry;
-          _logger.system(`[Shadow PnL] ⚖️ [Breakeven Lock] ${p.symbol} (${p.signal}) chạm mốc kích hoạt BE ($${p.beTriggerPrice.toFixed(4)}) -> Đã kéo SL về Entry ($${entry.toFixed(4)}) bảo toàn vốn!`);
+          p.tierSlPrice = beFeeSl;
+          _logger.system(`[Shadow PnL] ⚖️ [Breakeven ${Math.round(beTriggerRatioLive * 100)}% TP] ${p.symbol} (${p.signal}) chạm mốc BE ($${liveBeTriggerPrice.toFixed(4)}) -> Khóa SL hòa vốn + phí 0.14% @ $${beFeeSl.toFixed(4)}!`);
         }
+      }
+    }
 
-        const core = getCoreModule();
-        if (core && typeof core.fetchBinanceKlines === 'function') {
-          const fn = core.getRecentFractalSwing || core.getRecentM15FractalSwing;
-          if (typeof fn === 'function') {
-            Promise.all([
-              core.fetchBinanceKlines(p.symbol, '15m', null, 25),
-              core.fetchBinanceKlines(p.symbol, '5m', null, 25),
-              core.fetchBinanceKlines(p.symbol, '1m', null, 25)
-            ]).then(([m15s, m5s, m1s]) => {
-              const m15Swing = (m15s && m15s.length >= 6) ? fn(m15s, isLong) : null;
-              const m5Swing = (m5s && m5s.length >= 6) ? fn(m5s, isLong) : null;
-              
-              // 1. Ưu tiên M15/M5 trong vùng có lãi
-              const higherCands = [];
-              if (m15Swing && typeof m15Swing.price === 'number') {
-                const sl = isLong ? m15Swing.price * 0.999 : m15Swing.price * 1.001;
-                if (isLong ? sl >= entry : sl <= entry) higherCands.push({ sl, tf: 'M15' });
-              }
-              if (m5Swing && typeof m5Swing.price === 'number') {
-                const sl = isLong ? m5Swing.price * 0.999 : m5Swing.price * 1.001;
-                if (isLong ? sl >= entry : sl <= entry) higherCands.push({ sl, tf: 'M5' });
-              }
-              
-              let best = null;
-              if (higherCands.length > 0) {
-                best = isLong
-                  ? higherCands.reduce((prev, curr) => (curr.sl > prev.sl ? curr : prev))
-                  : higherCands.reduce((prev, curr) => (curr.sl < prev.sl ? curr : prev));
-              } else {
-                // 2. Không đủ M5/M15 -> Quét M1 thông minh trong vùng có lãi
-                const m1Swing = (m1s && m1s.length >= 6) ? fn(m1s, isLong) : null;
-                if (m1Swing && typeof m1Swing.price === 'number') {
-                  const slM1 = isLong ? m1Swing.price * 0.999 : m1Swing.price * 1.001;
-                  if (isLong ? slM1 >= entry : slM1 <= entry) {
-                    best = { sl: slM1, tf: 'M1' };
-                  }
-                }
-              }
-
-              if (best) {
-                const candidateSl = best.sl;
-                const isBetter = isLong ? (candidateSl > p.tierSlPrice) : (candidateSl < p.tierSlPrice);
-                if (isBetter) {
-                  p.tierSlPrice = candidateSl;
-                  _logger.system(`[Shadow PnL] 🌊 [Fractal Cascade Trailing SL] ${p.symbol} (${p.signal}) dời SL theo sóng ${best.tf} về $${candidateSl.toFixed(4)}!`);
-                }
-              }
-            }).catch(() => {});
-          }
+    // Giai đoạn 2: Khi đã qua BE 50% TP, bám sóng H1 (50%-70% TP) & M15 (>=70% TP), throttle 60s/shadow
+    if (p.isBeTriggered && totalTpDist > 0 && (!p._lastFractalShadowCheck || (now - p._lastFractalShadowCheck >= 60_000))) {
+      p._lastFractalShadowCheck = now;
+      const curGainDist = isLong ? (currentPrice - entry) : (entry - currentPrice);
+      const progressPct = (curGainDist / totalTpDist) * 100;
+      const tfInterval = progressPct >= 70 ? '15m' : '1h';
+      const tfLabel = progressPct >= 70 ? 'M15' : 'H1';
+      const tfMs = tfInterval === '15m' ? 15 * 60_000 : 3600_000;
+      const core = getCoreModule();
+      if (core && typeof core.fetchBinanceKlines === 'function') {
+        const fn = core.getRecentFractalSwing || core.getRecentM15FractalSwing;
+        if (typeof fn === 'function') {
+          core.fetchBinanceKlines(p.symbol, tfInterval, null, 30).then((klines) => {
+            if (!Array.isArray(klines) || klines.length < 6) return;
+            const entryTs = p.fillTimestamp || p.entryTimestamp || 0;
+            const filtered = entryTs > 1e12
+              ? klines.filter(c => (c.openTime || c.t || 0) >= (entryTs - 2 * tfMs))
+              : klines;
+            if (filtered.length < 6) return;
+            const swing = fn(filtered, isLong);
+            if (!swing || typeof swing.price !== 'number') return;
+            const candidateSl = isLong ? swing.price * 0.9985 : swing.price * 1.0015;
+            const beFloor = isLong ? (entry * 1.0014) : (entry * 0.9986);
+            const aboveBeFloor = isLong ? (candidateSl >= beFloor) : (candidateSl <= beFloor);
+            const isBetter = isLong ? (candidateSl > p.tierSlPrice) : (candidateSl < p.tierSlPrice);
+            if (aboveBeFloor && isBetter) {
+              p.tierSlPrice = candidateSl;
+              _logger.system(`[Shadow PnL] 🌊 [Fractal ${tfLabel} Trailing SL] ${p.symbol} (${p.signal}, ${progressPct.toFixed(0)}% TP) dời SL về $${candidateSl.toFixed(4)}!`);
+            }
+          }).catch(() => {});
         }
       }
     }
