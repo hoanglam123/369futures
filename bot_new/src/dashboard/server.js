@@ -17,9 +17,16 @@ function broadcastWs(type, data) {
   }
 }
 
-// Lazy-load tradeMonitor để tránh circular require khi server.js được import trước tradeMonitor
+// Lazy-load tradeMonitor & binanceTrader để tránh circular require
 let _tm = null;
 function tm() { if (!_tm) { try { _tm = require('../services/tradeMonitor'); } catch {} } return _tm; }
+let _bt = null;
+function bt() { if (!_bt) { try { _bt = require('../services/binanceTrader'); } catch {} } return _bt; }
+let _rl = null;
+function isRateLimited() {
+  if (!_rl) { try { _rl = require('../services/rateLimitGuard'); } catch {} }
+  return _rl && typeof _rl.isIpBanned === 'function' ? _rl.isIpBanned() : false;
+}
 
 const DATA_DIR  = path.join(__dirname, '..', '..', 'data');
 const LOGS_DIR  = path.join(DATA_DIR, 'logs');
@@ -76,8 +83,124 @@ function apiStats() {
   return { ...stats, winRate, avgPnl, profitFactor, avgDuration };
 }
 
-function apiTrades() { return readJson('trades.json', []); }
-function apiHistory() { return readJson('trade_history.json', []).slice().reverse(); }
+async function apiAccount() {
+  return cached('account', 20_000, async () => {
+    if (isRateLimited()) return { connected: false, error: 'Đang tạm dừng do IP rate limit' };
+    const trader = bt();
+    if (!trader || typeof trader.getAccountSummary !== 'function') {
+      return { connected: false, error: 'Binance trader không khả dụng' };
+    }
+    return await trader.getAccountSummary();
+  });
+}
+
+async function apiTrades() {
+  return cached('live-trades', 10_000, async () => {
+    const localTrades = readJson('trades.json', []);
+    const result = localTrades.map(t => ({ ...t }));
+    const activeBySym = new Map();
+    for (const t of result) {
+      if (t.status === 'active' && t.symbol) activeBySym.set(t.symbol, t);
+    }
+
+    // Kéo trực tiếp vị thế đang mở từ tài khoản Binance của bot-new (ghép thêm TP/SL từ trades.json)
+    const trader = bt();
+    if (trader && typeof trader.getAllPositions === 'function' && trader.isEnabled() && !isRateLimited() && process.env.NODE_ENV !== 'test') {
+      try {
+        const livePos = await trader.getAllPositions();
+        for (const p of (livePos || [])) {
+          const amt = parseFloat(p.positionAmt || '0');
+          if (!amt) continue;
+          const sym = String(p.symbol || '').replace(/USDT$/i, '');
+          const isLong = amt > 0;
+          const entryPrice = parseFloat(p.entryPrice || '0');
+          const markPrice = parseFloat(p.markPrice || '0') || entryPrice;
+          const leverage = parseFloat(p.leverage || '10') || 10;
+          const unrealizedPnlUsd = parseFloat(p.unRealizedProfit || '0');
+          const existing = activeBySym.get(sym);
+          if (existing) {
+            if (entryPrice > 0) existing.entryPrice = entryPrice;
+            existing.currentPrice = markPrice;
+            existing.leverage = leverage;
+            existing.entryFilled = true;
+            existing.unrealizedPnlUsd = parseFloat(unrealizedPnlUsd.toFixed(2));
+          } else {
+            const newTrade = {
+              id: `binance_${sym}`,
+              symbol: sym,
+              direction: isLong ? 'LONG' : 'SHORT',
+              entryPrice,
+              currentPrice: markPrice,
+              targetPrice: null,
+              slPrice: null,
+              leverage,
+              entryFilled: true,
+              manualEntry: true,
+              unrealizedPnlUsd: parseFloat(unrealizedPnlUsd.toFixed(2)),
+              recommendedAt: new Date().toISOString(),
+              status: 'active',
+              source: 'binance-real',
+            };
+            result.push(newTrade);
+            activeBySym.set(sym, newTrade);
+          }
+        }
+      } catch {}
+    }
+
+    return result;
+  });
+}
+
+async function apiHistory() {
+  return cached('real-history', 30_000, async () => {
+    const local = readJson('trade_history.json', []).slice().reverse().map(t => ({ ...t }));
+    const trader = bt();
+    if (trader && typeof trader.getRealizedIncome === 'function' && trader.isEnabled() && !isRateLimited() && process.env.NODE_ENV !== 'test') {
+      try {
+        const incomeRows = await trader.getRealizedIncome(100);
+        const grouped = [];
+        const sorted = [...incomeRows].sort((a, b) => (a.time || 0) - (b.time || 0));
+        for (const r of sorted) {
+          const sym = String(r.symbol || '').replace(/USDT$/i, '');
+          const inc = parseFloat(r.income || '0');
+          const t = Number(r.time || 0);
+          if (!sym || !t || !isFinite(inc) || inc === 0) continue;
+          const prev = grouped[grouped.length - 1];
+          if (prev && prev.symbol === sym && Math.abs(t - prev.time) <= 5000) {
+            prev.income += inc;
+            prev.time = t;
+          } else {
+            grouped.push({ symbol: sym, income: inc, time: t });
+          }
+        }
+        for (const g of grouped) {
+          const dup = local.some(x => x.symbol === g.symbol && x.closedAt && Math.abs(new Date(x.closedAt).getTime() - g.time) <= 120_000);
+          if (dup) continue;
+          const pnlUsd = parseFloat(g.income.toFixed(2));
+          const isWin = pnlUsd > 0;
+          local.push({
+            symbol: g.symbol,
+            direction: 'BINANCE',
+            entryPrice: null,
+            closePrice: null,
+            pnlPct: null,
+            pnlUsd,
+            closedAt: new Date(g.time).toISOString(),
+            exitReason: isWin ? 'tp' : 'sl',
+            hit: isWin ? 'TP' : 'SL',
+            result: isWin ? 'win' : 'loss',
+            durationMs: 0,
+            leverage: null,
+            source: 'binance-income',
+          });
+        }
+        local.sort((a, b) => new Date(b.closedAt || 0) - new Date(a.closedAt || 0));
+      } catch {}
+    }
+    return local.slice(0, 300);
+  });
+}
 
 function apiChart() {
   const history = readJson('trade_history.json', []);
@@ -186,7 +309,8 @@ async function apiMarket() {
 async function apiLivePnl() {
   return cached('live-pnl', 12_000, async () => {
     const HDR = { 'User-Agent': 'crypto-news-bot/1.0' };
-    const trades = readJson('trades.json', []).filter(t => t.status === 'active');
+    const allTrades = await apiTrades();
+    const trades = allTrades.filter(t => t.status === 'active');
     if (!trades.length) return [];
 
     const symbols = [...new Set(trades.map(t => t.symbol))];
@@ -439,6 +563,7 @@ function apiHealth() {
 
 // ─── Router ───────────────────────────────────────────────────────────────────
 const ROUTES = {
+  '/api/account':         () => apiAccount(),
   '/api/stats':           () => apiStats(),
   '/api/trades':          () => apiTrades(),
   '/api/history':         () => apiHistory(),

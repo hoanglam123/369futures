@@ -39,6 +39,11 @@ h2{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;le
 h2 .cnt{font-weight:500;text-transform:none;color:var(--text)}
 
 /* ── Health & KPI Cards ── */
+.acc-bar{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-bottom:12px}
+.acc-card{background:linear-gradient(135deg,rgba(88,166,255,.08),var(--card));border:1px solid rgba(88,166,255,.28);border-radius:10px;padding:11px 14px}
+.acc-card .lbl{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px;display:flex;align-items:center;justify-content:space-between}
+.acc-card .val{font-size:19px;font-weight:700;line-height:1.2}
+.acc-card .sub{font-size:11px;color:var(--muted);margin-top:2px}
 .health-row{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px}
 .hchip{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:5px 11px;display:flex;align-items:center;gap:6px;font-size:12px}
 .hchip .dot{width:7px;height:7px;border-radius:50%;background:var(--green);flex-shrink:0}
@@ -153,6 +158,7 @@ mark{background:rgba(227,179,65,.25);color:var(--yellow);border-radius:2px;paddi
 <!-- ══ MÀN 1: TỔNG HỢP ══ -->
 <div class="tab-content active" id="tab-overview">
   <section>
+    <div class="acc-bar" id="accountBar"></div>
     <div class="health-row" id="healthRow"></div>
     <div class="stats-grid" id="statsGrid"></div>
   </section>
@@ -284,7 +290,14 @@ function ago(iso) {
   return h > 48 ? Math.floor(h/24)+'d' : h > 0 ? `${h}h${m}m` : `${m}m`;
 }
 function clr(v) { return v == null ? 'neu' : v >= 0 ? 'pos' : 'neg'; }
-function sideBadge(d) { return (d==='LONG'||d==='BUY')?'<span class="badge bl">LONG</span>':'<span class="badge bs">SHORT</span>'; }
+function fmtUsd(n) {
+  if (n == null || isNaN(n)) return '—';
+  return (n >= 0 ? '+$' : '-$') + Math.abs(n).toFixed(2);
+}
+function sideBadge(d) {
+  if (d === 'BINANCE') return '<span class="badge brev">BINANCE</span>';
+  return (d==='LONG'||d==='BUY')?'<span class="badge bl">LONG</span>':'<span class="badge bs">SHORT</span>';
+}
 function hitBadge(t) {
   const er = t.exitReason, res = t.result, h = t.hit;
   if (er==='tp' || h==='TP') return '<span class="badge btp">✅ TP</span>';
@@ -309,6 +322,27 @@ document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () =>
   $(`tab-${activeTab}`).classList.add('active');
   if (activeTab === 'logs') loadLogs();
 }));
+
+// ── Binance Account Summary ──────────────────────────────────────────────────
+async function loadAccount() {
+  const a = await get('/api/account');
+  const el = $('accountBar');
+  if (!el) return;
+  if (!a || !a.connected) {
+    el.innerHTML = `<div class="acc-card" style="grid-column:1/-1;border-color:rgba(227,179,65,.35)">
+      <div class="lbl">🏦 Tài khoản Binance (Bot-H4) <span class="yellow">Chưa kết nối</span></div>
+      <div class="sub">${esc(a?.error || 'Chưa cấu hình BINANCE_API_KEY / BINANCE_SECRET trong .env')}</div>
+    </div>`;
+    return;
+  }
+  const keyTag = a.apiKeySuffix ? `<span style="font-size:10px;color:var(--blue)">***${esc(a.apiKeySuffix)}</span>` : '';
+  el.innerHTML = [
+    { l:`🏦 Ví Binance ${keyTag}`, v:`$${a.walletBalance.toFixed(2)}`, cls:'blue', sub:'Wallet Balance (USDT)' },
+    { l:'💰 Tổng Equity', v:`$${a.totalMarginBalance.toFixed(2)}`, cls:'neu', sub:`Ký quỹ đang dùng: $${(a.totalPositionInitialMargin||0).toFixed(2)}` },
+    { l:'✅ Khả dụng', v:`$${a.availableBalance.toFixed(2)}`, cls:'pos', sub:`${a.openPositionsCount||0} vị thế mở trên sàn` },
+    { l:'📈 PnL đang mở', v:fmtUsd(a.totalUnrealizedProfit), cls:clr(a.totalUnrealizedProfit), sub:'Unrealized PnL (Binance)' },
+  ].map(c=>`<div class="acc-card"><div class="lbl">${c.l}</div><div class="val ${c.cls}">${c.v}</div><div class="sub">${c.sub}</div></div>`).join('');
+}
 
 // ── Health & KPI ─────────────────────────────────────────────────────────────
 async function loadHealth() {
@@ -472,8 +506,13 @@ async function loadHistory() {
   tb.innerHTML = history.slice(0, 100).map(t => {
     const pnl = t.pnlPct, lev = t.leverage;
     let acct = '—';
-    if (pnl != null && lev) { const net = pnl*lev - lev*TAKER_FEE*2*100; acct=`<span class="${clr(net)}">${fmt(net)}</span>`; }
-    else if (pnl != null)   { acct=`<span class="${clr(pnl)}">${fmt(pnl)}</span>`; }
+    if (typeof t.pnlUsd === 'number' && t.pnlUsd !== 0) {
+      acct = `<span class="${clr(t.pnlUsd)}" style="font-weight:600">${fmtUsd(t.pnlUsd)}</span>`;
+    } else if (pnl != null && lev) {
+      const net = pnl*lev - lev*TAKER_FEE*2*100; acct = `<span class="${clr(net)}">${fmt(net)}</span>`;
+    } else if (pnl != null) {
+      acct = `<span class="${clr(pnl)}">${fmt(pnl)}</span>`;
+    }
     return `<tr>
       <td style="color:var(--muted);font-size:11px">${fmtT(t.closedAt)}</td>
       <td><strong>${esc(t.symbol)}</strong></td>
@@ -557,6 +596,7 @@ async function loadAll() {
   const now = new Date().toLocaleString('vi-VN',{timeZone:'Asia/Ho_Chi_Minh',hour:'2-digit',minute:'2-digit',second:'2-digit'});
   $('lastUpd').textContent = `↻ ${now}`;
   await Promise.all([
+    loadAccount(),
     loadHealth(),
     loadOverview(),
     loadTrades(),

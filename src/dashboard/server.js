@@ -548,36 +548,117 @@ async function apiLivePnl() {
   });
 }
 
-function apiHistory() {
-  const list = [];
-  const shadowHist = readJsonl('shadow_trades_history.jsonl', 300);
-  for (const item of shadowHist) {
-    const isWin = (item.pnlPct || 0) > 0;
-    list.push({
-      symbol: item.symbol,
-      direction: item.direction || item.side || 'LONG',
-      entryPrice: item.entryPrice,
-      closePrice: item.closePrice || item.exitPrice,
-      pnlPct: parseFloat((item.pnlPct || 0).toFixed(2)),
-      pnlUsd: parseFloat((item.pnlUsd || 0).toFixed(2)),
-      closedAt: item.closedAt || (item.timestamp ? new Date(item.timestamp).toISOString() : new Date().toISOString()),
-      exitReason: item.exitReason ? item.exitReason.toLowerCase() : (isWin ? 'tp' : 'sl'),
-      hit: item.hit || (isWin ? 'TP' : 'SL'),
-      result: isWin ? 'win' : 'loss',
-      durationMs: item.durationMs || 0,
-      leverage: item.leverage || 10,
-      tp1Hit: item.tp1Hit || false,
-      tp2Hit: item.tp2Hit || false,
-      source: 'bot-h4',
-    });
-  }
-
-  list.sort((a, b) => new Date(b.closedAt || 0) - new Date(a.closedAt || 0));
-  return list.slice(0, 300);
+async function apiAccount() {
+  return cached('account', 20_000, async () => {
+    const client = getBinanceClient();
+    if (!client || typeof client.getAccountSummary !== 'function') {
+      return { connected: false, error: 'Chưa cấu hình BINANCE_API_KEY / BINANCE_SECRET cho bot-h4' };
+    }
+    return await client.getAccountSummary();
+  });
 }
 
-function apiStats() {
-  const history = apiHistory();
+async function apiHistory() {
+  return cached('real-history', 30_000, async () => {
+    const list = [];
+
+    // 1. Đọc lịch sử LỆNH THẬT từ ai_trade_dataset.jsonl (loại bỏ hoàn toàn isShadow === true)
+    const datasetRows = readJsonl('ai_trade_dataset.jsonl', 2000);
+    const entryById = new Map();
+    for (const r of datasetRows) {
+      if (r && r.type === 'ENTRY' && r.isShadow !== true && r.tradeId) {
+        entryById.set(r.tradeId, r);
+      }
+    }
+    for (const item of datasetRows) {
+      if (!item || item.type !== 'EXIT' || item.isShadow === true) continue;
+      const en = item.tradeId ? entryById.get(item.tradeId) : null;
+      const pnlPct = typeof item.pnlPercent === 'number' ? item.pnlPercent : (typeof item.pnlPct === 'number' ? item.pnlPct : 0);
+      const pnlUsd = typeof item.pnlUsd === 'number' ? item.pnlUsd : 0;
+      const exitType = String(item.exitType || item.exitReason || '').toUpperCase();
+      const isWin = pnlUsd > 0 || pnlPct > 0 || exitType === 'TP';
+      const isBe = exitType === 'BE' || exitType === 'BREAKEVEN' || (pnlUsd === 0 && pnlPct === 0);
+      const ts = item.exitTimestamp || item.timestamp || Date.now();
+      const lev = Number(item.leverage || en?.leverage || 0) || null;
+      const durationMs = typeof item.holdingDurationMinutes === 'number'
+        ? Math.round(item.holdingDurationMinutes * 60_000)
+        : (item.durationMs || 0);
+
+      list.push({
+        symbol: String(item.symbol || '').replace(/USDT$/i, ''),
+        direction: item.signal || item.direction || en?.signal || 'LONG',
+        entryPrice: item.entryPrice || en?.entryPrice || null,
+        closePrice: item.exitPrice || item.closePrice || null,
+        pnlPct: lev && Math.abs(pnlPct) > 0 ? parseFloat((pnlPct / lev).toFixed(2)) : parseFloat(pnlPct.toFixed(2)),
+        roiPct: parseFloat(pnlPct.toFixed(2)),
+        pnlUsd: parseFloat(pnlUsd.toFixed(2)),
+        closedAt: new Date(ts).toISOString(),
+        closedAtMs: ts,
+        exitReason: isBe ? 'sl' : (isWin ? 'tp' : 'sl'),
+        hit: isBe ? 'BE' : (isWin ? 'TP' : 'SL'),
+        result: isBe ? 'breakeven' : (isWin ? 'win' : 'loss'),
+        durationMs,
+        leverage: lev,
+        source: 'bot-h4-real',
+      });
+    }
+
+    // 2. Bổ sung trực tiếp từ Binance /fapi/v1/income?incomeType=REALIZED_PNL của tài khoản bot-h4
+    const client = getBinanceClient();
+    if (client && typeof client.getRealizedIncome === 'function') {
+      try {
+        const incomeRows = await client.getRealizedIncome(100);
+        // Gộp các partial fill cùng symbol trong 5 giây thành 1 lệnh đóng
+        const grouped = [];
+        const sorted = [...incomeRows].sort((a, b) => (a.time || 0) - (b.time || 0));
+        for (const r of sorted) {
+          const sym = String(r.symbol || '').replace(/USDT$/i, '');
+          const inc = parseFloat(r.income || '0');
+          const t = Number(r.time || 0);
+          if (!sym || !t || !isFinite(inc) || inc === 0) continue;
+          const prev = grouped[grouped.length - 1];
+          if (prev && prev.symbol === sym && Math.abs(t - prev.time) <= 5000) {
+            prev.income += inc;
+            prev.time = t;
+          } else {
+            grouped.push({ symbol: sym, income: inc, time: t });
+          }
+        }
+        for (const g of grouped) {
+          const dup = list.some(x => x.symbol === g.symbol && Math.abs((x.closedAtMs || 0) - g.time) <= 120_000);
+          if (dup) continue;
+          const pnlUsd = parseFloat(g.income.toFixed(2));
+          const isWin = pnlUsd > 0;
+          list.push({
+            symbol: g.symbol,
+            direction: 'BINANCE',
+            entryPrice: null,
+            closePrice: null,
+            pnlPct: null,
+            roiPct: null,
+            pnlUsd,
+            closedAt: new Date(g.time).toISOString(),
+            closedAtMs: g.time,
+            exitReason: isWin ? 'tp' : 'sl',
+            hit: isWin ? 'TP' : 'SL',
+            result: isWin ? 'win' : 'loss',
+            durationMs: 0,
+            leverage: null,
+            source: 'binance-income',
+          });
+        }
+      } catch (err) {
+        log.warn(`[Dashboard] Lỗi lấy lịch sử Realized PnL từ Binance bot-h4: ${err.message}`);
+      }
+    }
+
+    list.sort((a, b) => new Date(b.closedAt || 0) - new Date(a.closedAt || 0));
+    return list.slice(0, 300);
+  });
+}
+
+async function apiStats() {
+  const history = await apiHistory();
   const totalTrades = history.length;
   if (!totalTrades) {
     return {
@@ -589,6 +670,7 @@ function apiStats() {
       currentStreak: 0,
       streakType: 'win',
       totalPnlPct: 0,
+      totalPnlUsd: 0,
       profitFactor: 0.0,
       avgPnl: 0,
       avgDuration: 0,
@@ -597,14 +679,16 @@ function apiStats() {
     };
   }
 
-  const wins = history.filter(t => (t.pnlPct || 0) > 0).length;
-  const losses = history.filter(t => (t.pnlPct || 0) < 0).length;
-  const breakeven = history.filter(t => (t.pnlPct || 0) === 0).length;
+  const metricOf = t => (typeof t.pnlUsd === 'number' && t.pnlUsd !== 0) ? t.pnlUsd : (t.pnlPct || 0);
+  const wins = history.filter(t => t.result === 'win' || metricOf(t) > 0).length;
+  const losses = history.filter(t => t.result === 'loss' || metricOf(t) < 0).length;
+  const breakeven = Math.max(0, totalTrades - wins - losses);
   const winRate = parseFloat(((wins / totalTrades) * 100).toFixed(1));
   const totalPnlPct = parseFloat(history.reduce((sum, t) => sum + (t.pnlPct || 0), 0).toFixed(2));
-  const winPnl = history.filter(t => (t.pnlPct || 0) > 0).reduce((sum, t) => sum + t.pnlPct, 0);
-  const lossPnl = Math.abs(history.filter(t => (t.pnlPct || 0) < 0).reduce((sum, t) => sum + t.pnlPct, 0));
-  const profitFactor = lossPnl > 0 ? parseFloat((winPnl / lossPnl).toFixed(2)) : (winPnl > 0 ? 99.9 : 0.0);
+  const totalPnlUsd = parseFloat(history.reduce((sum, t) => sum + (t.pnlUsd || 0), 0).toFixed(2));
+  const winVal = history.filter(t => metricOf(t) > 0).reduce((sum, t) => sum + metricOf(t), 0);
+  const lossVal = Math.abs(history.filter(t => metricOf(t) < 0).reduce((sum, t) => sum + metricOf(t), 0));
+  const profitFactor = lossVal > 0 ? parseFloat((winVal / lossVal).toFixed(2)) : (winVal > 0 ? 99.9 : 0.0);
   const avgPnl = parseFloat((totalPnlPct / totalTrades).toFixed(2));
 
   const validDurations = history.filter(t => t.durationMs > 0);
@@ -615,17 +699,17 @@ function apiStats() {
   let bestTrade = null;
   let worstTrade = null;
   for (const t of history) {
-    if (!bestTrade || (t.pnlPct || 0) > (bestTrade.pnlPct || 0)) bestTrade = t;
-    if (!worstTrade || (t.pnlPct || 0) < (worstTrade.pnlPct || 0)) worstTrade = t;
+    if (!bestTrade || metricOf(t) > metricOf(bestTrade)) bestTrade = t;
+    if (!worstTrade || metricOf(t) < metricOf(worstTrade)) worstTrade = t;
   }
 
   const chrono = history.slice().sort((a, b) => new Date(a.closedAt || 0) - new Date(b.closedAt || 0));
   let currentStreak = 0;
   let streakType = 'win';
   for (let i = chrono.length - 1; i >= 0; i--) {
-    const pnl = chrono[i].pnlPct || 0;
-    if (pnl === 0) continue;
-    const isWin = pnl > 0;
+    const val = metricOf(chrono[i]);
+    if (val === 0) continue;
+    const isWin = val > 0;
     if (currentStreak === 0) {
       streakType = isWin ? 'win' : 'loss';
       currentStreak = 1;
@@ -645,6 +729,7 @@ function apiStats() {
     currentStreak,
     streakType,
     totalPnlPct,
+    totalPnlUsd,
     profitFactor,
     avgPnl,
     avgDuration,
@@ -653,8 +738,8 @@ function apiStats() {
   };
 }
 
-function apiChart() {
-  const history = apiHistory().slice().sort((a, b) => new Date(a.closedAt || 0) - new Date(b.closedAt || 0));
+async function apiChart() {
+  const history = (await apiHistory()).slice().sort((a, b) => new Date(a.closedAt || 0) - new Date(b.closedAt || 0));
   let cum = 0;
   return history.map(t => {
     cum = parseFloat((cum + (t.pnlPct ?? 0)).toFixed(2));
@@ -665,18 +750,19 @@ function apiChart() {
       hit: t.hit,
       exitReason: t.exitReason,
       pnl: t.pnlPct,
+      pnlUsd: t.pnlUsd,
     };
   });
 }
 
-function apiAnalytics() {
-  const history = apiHistory();
+async function apiAnalytics() {
+  const history = await apiHistory();
   if (!history.length) return { bySymbol: [], byDay: [], duration: [] };
 
   const symMap = {};
   for (const t of history) {
     if (!t.symbol) continue;
-    if (!symMap[t.symbol]) symMap[t.symbol] = { wins: 0, losses: 0, revs: 0, pnl: 0 };
+    if (!symMap[t.symbol]) symMap[t.symbol] = { wins: 0, losses: 0, revs: 0, pnl: 0, pnlUsd: 0 };
     const s = symMap[t.symbol];
     const isWin = (t.pnlPct || 0) > 0 || t.hit === 'TP';
     const isLoss = (t.pnlPct || 0) < 0 || t.hit === 'SL';
@@ -1073,6 +1159,7 @@ function createDashboardServer() {
 
       // JSON API Routes
       const routes = {
+        '/api/account': apiAccount,
         '/api/health': apiHealth,
         '/api/stats': apiStats,
         '/api/trades': apiTrades,

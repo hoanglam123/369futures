@@ -362,6 +362,10 @@ function createClient(apiKey, secret) {
   let _posCacheTime = 0;
   let _balanceCache = null;
   let _balanceCacheTime = 0;
+  let _accountCache = null;
+  let _accountCacheTime = 0;
+  let _incomeCache = null;
+  let _incomeCacheTime = 0;
   const _appliedLeverageCache = new Map();
 
   return {
@@ -383,6 +387,58 @@ function createClient(apiKey, secret) {
       } catch (err) {
         log.warn(`[Binance] getBalance failed: ${err.message}`);
         return _balanceCache !== null ? _balanceCache : 0;
+      }
+    },
+
+    /**
+     * Lấy tổng quan tài khoản Binance Futures (Số dư ví, Equity, Khả dụng, PnL chưa chốt — cache 20s)
+     */
+    async getAccountSummary() {
+      const now = Date.now();
+      if (_accountCache && (now - _accountCacheTime < 20000)) {
+        return _accountCache;
+      }
+      try {
+        const acc = await _get('/fapi/v2/account', {}, apiKey, secret);
+        const openPos = Array.isArray(acc?.positions)
+          ? acc.positions.filter(p => parseFloat(p.positionAmt) !== 0).length
+          : 0;
+        const summary = {
+          connected: true,
+          apiKeySuffix: apiKey ? apiKey.slice(-4) : '',
+          walletBalance: parseFloat(parseFloat(acc?.totalWalletBalance || '0').toFixed(2)),
+          availableBalance: parseFloat(parseFloat(acc?.availableBalance || '0').toFixed(2)),
+          totalMarginBalance: parseFloat(parseFloat(acc?.totalMarginBalance || '0').toFixed(2)),
+          totalUnrealizedProfit: parseFloat(parseFloat(acc?.totalUnrealizedProfit || '0').toFixed(2)),
+          totalPositionInitialMargin: parseFloat(parseFloat(acc?.totalPositionInitialMargin || '0').toFixed(2)),
+          openPositionsCount: openPos,
+          fetchedAt: new Date(now).toISOString(),
+        };
+        _accountCache = summary;
+        _accountCacheTime = now;
+        return summary;
+      } catch (err) {
+        log.warn(`[Binance] getAccountSummary failed: ${err.message}`);
+        return _accountCache || { connected: false, error: err.message };
+      }
+    },
+
+    /**
+     * Lấy lịch sử PnL thực tế đã chốt (REALIZED_PNL) từ Binance Futures (cache 60s)
+     */
+    async getRealizedIncome(limit = 100) {
+      const now = Date.now();
+      if (_incomeCache && (now - _incomeCacheTime < 60000)) {
+        return _incomeCache;
+      }
+      try {
+        const rows = await _get('/fapi/v1/income', { incomeType: 'REALIZED_PNL', limit }, apiKey, secret);
+        _incomeCache = Array.isArray(rows) ? rows : [];
+        _incomeCacheTime = now;
+        return _incomeCache;
+      } catch (err) {
+        log.warn(`[Binance] getRealizedIncome failed: ${err.message}`);
+        return _incomeCache || [];
       }
     },
 

@@ -897,9 +897,61 @@ async function getRecentClosingTrades(symbol, direction, sinceMs, binanceQty = n
   return { avgPrice, orderId: best.orderId, time: best.maxTime, totalQty: best.totalQty };
 }
 
+// Cache tổng quan tài khoản (20s) & Realized PnL income (60s) cho Dashboard
+let _accountSummaryCache = { data: null, fetchedAt: 0 };
+let _incomeCache = { data: null, fetchedAt: 0 };
+
+async function getAccountSummary() {
+  if (!API_KEY || !API_SECRET) {
+    return { connected: false, error: 'Chưa cấu hình BINANCE_API_KEY / BINANCE_API_SECRET' };
+  }
+  const now = Date.now();
+  if (_accountSummaryCache.data && now - _accountSummaryCache.fetchedAt < 20_000) {
+    return _accountSummaryCache.data;
+  }
+  try {
+    const acc = await api('GET', '/fapi/v2/account');
+    const openPos = Array.isArray(acc?.positions)
+      ? acc.positions.filter(p => parseFloat(p.positionAmt) !== 0).length
+      : 0;
+    const summary = {
+      connected: true,
+      apiKeySuffix: API_KEY.slice(-4),
+      walletBalance: parseFloat(parseFloat(acc?.totalWalletBalance || '0').toFixed(2)),
+      availableBalance: parseFloat(parseFloat(acc?.availableBalance || '0').toFixed(2)),
+      totalMarginBalance: parseFloat(parseFloat(acc?.totalMarginBalance || '0').toFixed(2)),
+      totalUnrealizedProfit: parseFloat(parseFloat(acc?.totalUnrealizedProfit || '0').toFixed(2)),
+      totalPositionInitialMargin: parseFloat(parseFloat(acc?.totalPositionInitialMargin || '0').toFixed(2)),
+      openPositionsCount: openPos,
+      fetchedAt: new Date(now).toISOString(),
+    };
+    _accountSummaryCache = { data: summary, fetchedAt: now };
+    return summary;
+  } catch (err) {
+    return _accountSummaryCache.data || { connected: false, error: err.message };
+  }
+}
+
+async function getRealizedIncome(limit = 100) {
+  if (!API_KEY || !API_SECRET) return [];
+  const now = Date.now();
+  if (_incomeCache.data && now - _incomeCache.fetchedAt < 60_000) {
+    return _incomeCache.data;
+  }
+  try {
+    const rows = await api('GET', '/fapi/v1/income', { incomeType: 'REALIZED_PNL', limit });
+    _incomeCache = { data: Array.isArray(rows) ? rows : [], fetchedAt: now };
+    return _incomeCache.data;
+  } catch {
+    return _incomeCache.data || [];
+  }
+}
+
 module.exports = {
   isEnabled,
   getUsdtBalance,
+  getAccountSummary,
+  getRealizedIncome,
   calcQty,
   getSymbolInfo,
   placeNewTrade,
