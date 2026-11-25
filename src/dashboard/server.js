@@ -447,12 +447,13 @@ function apiShadowTrades() {
   const shadowPositions = readJson('shadow_positions.json', {});
   const list = [];
   for (const [id, s] of Object.entries(shadowPositions)) {
-    if (!s || s.status !== 'ACTIVE') continue;
+    if (!s || (s.status !== 'ACTIVE' && s.status !== 'PENDING_LIMIT')) continue;
     const sym = s.symbol;
     const isLong = s.signal === 'LONG' || s.signal === 'BUY';
     const entryPrice = parseFloat(s.entryPrice) || 0;
     const leverage = parseFloat(s.leverage) || 10;
     const margin = parseFloat(s.margin) || 20;
+    const isFilled = s.isFilled !== false && s.status !== 'PENDING_LIMIT';
 
     list.push({
       id: s.shadowId || id,
@@ -474,7 +475,9 @@ function apiShadowTrades() {
       vetoCategory: s.vetoCategory || null,
       vetoReason: s.vetoReason || null,
       recommendedAt: s.entryTimestamp ? new Date(s.entryTimestamp).toISOString() : new Date().toISOString(),
-      status: 'active',
+      status: isFilled ? 'active' : 'pending_limit',
+      shadowStatus: s.status,
+      isFilled,
       isShadow: true,
       source: 'bot-h4-shadow',
     });
@@ -506,6 +509,16 @@ async function apiLivePnl() {
     return allTrades.map(t => {
       const curr = prices[t.symbol] || t.currentPrice;
       const entry = t.entryPrice;
+      if (t.isShadow && t.isFilled === false) {
+        return {
+          id: t.id || t.symbol,
+          symbol: t.symbol,
+          currentPrice: curr ?? null,
+          unrealizedPct: 0,
+          progress: 0,
+          isPendingLimit: true,
+        };
+      }
       if (!curr || !entry) {
         return {
           id: t.id || t.symbol,

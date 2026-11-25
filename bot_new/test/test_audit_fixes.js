@@ -536,6 +536,44 @@ async function run() {
     shadowNew.clearActiveShadowsForTest();
   });
 
+  await test('bot-h4 aiReviewer: M15 hạ nhiệt (INIT) không bị báo bão giả VOL_BURST/x0.55 & btc_wave mặc định BTC_NEUTRAL (không cộng oan +2% ngưỡng)', async () => {
+    // 1. Ca INIT LONG: H1/M15 cũ từng rung nhưng M15 hiện tại đã co hẹp (0.9%, vol 0.24x)
+    const initRaw = {
+      marketMetrics: {
+        m15RangePct: 0.9, m15VolRatio: 0.24,
+        h1RangePct: 4.27, h1VolRatio: 2.53,
+        lastClosedM15RangePct: 3.33, lastClosedH1RangePct: 3.05,
+        max3H1RangePct: 4.27, m15IsGreen: false, m15BodyPct: 0.65
+      },
+      microstructure: { spread: 'SPREAD_TIGHT_SAFE', spreadPct: 0.02, cvd: 'CVD_NEUTRAL', takerBuyRatio: 0.423, wall: 'WALL_CLEAR_PATH' }
+    };
+    const initRes = aiReviewerH4.evaluateSignalWithAI(
+      { symbol: 'INIT', signal: 'LONG', targetLevel: 0.0879, score: 8, marketCapRank: 569, gridWidthPct: 3.41, actualSlPct: 3.24, actualTpPct: 6.62, leverage: 3, scoreReasons: ['RSI1D 41 xác nhận LONG (+1)', 'Tại S/R 4H (+2)'] },
+      initRaw
+    );
+    assert.ok(!initRes.keyFactors.some(f => f.includes('VOL_BURST_DANGER')), `M15 đã cạn vol (0.24x) & biên độ 0.9% không được phạt VOL_BURST_DANGER từ H1 cũ: ${JSON.stringify(initRes.keyFactors)}`);
+    assert.ok(!initRes.keyFactors.some(f => f.includes('H1_VOLATILE_DANGER (x0.55)')), `Bão đã hạ nhiệt trên M15 không được phạt mức tâm bão x0.55: ${JSON.stringify(initRes.keyFactors)}`);
+    assert.ok(initRes.threshold <= 50.0, `Khi thiếu dữ liệu btcWave không được cộng oan +2% ngưỡng lên 52%, thực tế: ${initRes.threshold}%`);
+
+    // 2. Ca BTC SHORT đang Flash Pump thật (M15 3.55%, vol 16.62x) vẫn PHẢI bị VETO dứt khoát
+    const btcRaw = {
+      btcFlashPump: true,
+      marketMetrics: {
+        m15RangePct: 3.55, m15VolRatio: 16.62,
+        h1RangePct: 4.14, h1VolRatio: 4.13,
+        lastClosedM15RangePct: 0.41, lastClosedH1RangePct: 0.63,
+        max3H1RangePct: 4.14, m15IsGreen: true, m15BodyPct: 2.66
+      },
+      microstructure: { spread: 'SPREAD_TIGHT_SAFE', spreadPct: 0.02, cvd: 'CVD_DIVERGENCE_OPPOSING', takerBuyRatio: 0.591, wall: 'WALL_CLEAR_PATH' }
+    };
+    const btcRes = aiReviewerH4.evaluateSignalWithAI(
+      { symbol: 'BTC', signal: 'SHORT', targetLevel: 63608.3, score: 9, marketCapRank: 1, gridWidthPct: 4.71, actualSlPct: 3.24, actualTpPct: 9.23, leverage: 5, scoreReasons: ['MACD BEARISH (+1)'] },
+      btcRaw
+    );
+    assert.ok(btcRes.keyFactors.some(f => f.includes('VOL_BURST_DANGER')), `Nổ vol 16.62x M15 phải vẫn phạt VOL_BURST_DANGER: ${JSON.stringify(btcRes.keyFactors)}`);
+    assert.strictEqual(btcRes.isApproved, false, 'BTC SHORT ngược cơn Flash Pump 16.6x vol bắt buộc vẫn phải bị VETO');
+  });
+
   console.log(`\n📊 Audit Regression Summary: ${passed} passed, ${failed} failed\n`);
   process.exit(failed > 0 ? 1 : 0);
 }

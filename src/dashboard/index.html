@@ -809,23 +809,30 @@ function renderShadowTrades(shadows, pnlMap) {
   }
   tb.innerHTML = shadows.map(s => {
     const lv = pnlMap[s.id] || pnlMap[s.symbol] || {};
+    const isPending = s.isFilled === false || s.shadowStatus === 'PENDING_LIMIT' || lv.isPendingLimit === true;
     const curr = lv.currentPrice || s.currentPrice;
-    const unrealized = lv.unrealizedPct != null ? lv.unrealizedPct : null;
-    const progress = lv.progress ?? 50;
+    const unrealized = isPending ? 0 : (lv.unrealizedPct != null ? lv.unrealizedPct : null);
+    const progress = isPending ? 0 : (lv.progress ?? 50);
     const isLong = s.direction === 'LONG' || s.side === 'BUY';
     const side = isLong ? '<span class="badge bl">LONG</span>' : '<span class="badge bs">SHORT</span>';
-    const pbarColor = unrealized == null ? '#58a6ff' : unrealized >= 0 ? '#3fb950' : '#f85149';
+    const pbarColor = isPending ? '#8b949e' : (unrealized == null ? '#58a6ff' : unrealized >= 0 ? '#3fb950' : '#f85149');
     const pbar = `<div class="pbar-wrap"><div class="pbar" data-pbar="${s.id}" style="width:${progress}%;background:${pbarColor}"></div></div>`;
     const veto = s.vetoCategory ? ` <span style="font-size:10px;color:var(--muted)">[${s.vetoCategory}]</span>` : '';
     const scoreBadge = s.score != null ? `<span class="badge" style="background:rgba(163,113,247,.15);color:var(--purple);border:1px solid rgba(163,113,247,.3)">${s.score}đ</span>` : '';
+    const pendingBadge = isPending
+      ? ' <span class="badge" style="background:rgba(210,153,34,.15);color:#d29922;border:1px solid rgba(210,153,34,.35);font-size:9px">CHỜ KHỚP</span>'
+      : '';
+    const pnlCell = isPending
+      ? `<td data-pnl="${s.id}" style="color:var(--muted);font-size:11px">0.00% <span style="font-size:10px">(Chờ Limit)</span></td>`
+      : `<td data-pnl="${s.id}" class="${clr(unrealized)}" style="font-weight:600">${unrealized != null ? fmt(unrealized, 2) : '—'}</td>`;
 
     return `<tr>
-      <td><strong>${s.symbol}</strong> <span class="badge" style="background:rgba(163,113,247,.12);color:var(--purple);border:1px solid rgba(163,113,247,.25);font-size:9px">SHADOW</span></td>
+      <td><strong>${s.symbol}</strong> <span class="badge" style="background:rgba(163,113,247,.12);color:var(--purple);border:1px solid rgba(163,113,247,.25);font-size:9px">SHADOW</span>${pendingBadge}</td>
       <td>${side}</td>
       <td>×${s.leverage || 10}</td>
       <td>${fmtP(s.entryPrice)}</td>
       <td data-price="${s.id}">${curr ? fmtP(curr) : '—'}</td>
-      <td data-pnl="${s.id}" class="${clr(unrealized)}" style="font-weight:600">${unrealized != null ? fmt(unrealized, 2) : '—'}</td>
+      ${pnlCell}
       <td style="min-width:90px">${pbar}</td>
       <td>${fmtP(s.targetPrice)}</td>
       <td>${fmtP(s.slPrice)}</td>
