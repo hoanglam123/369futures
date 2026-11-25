@@ -160,17 +160,68 @@ function extractGatekeeperFeatures(sig, marketContext = {}) {
     else features['m15_volatility'] = 'M15_VOL_NORMAL';
   }
 
-  // 4. Động lượng nến ngược chiều (Counter-Train Momentum)
+  // 4. Động lượng nến ngược chiều (Counter-Train Momentum) + Thế nến M15 (candle_shape, wick_rejection) + Realtime Volume
+  const m15VolRatio = typeof marketContext?.m15VolRatio === 'number' ? marketContext.m15VolRatio : null;
+  const h1VolRatio  = typeof marketContext?.h1VolRatio === 'number' ? marketContext.h1VolRatio : null;
+
   if (cM15 && cM15.low > 0) {
     const isGreen = cM15.close >= cM15.open;
     const rangePct = ((cM15.high - cM15.low) / cM15.low) * 100;
     const bodyPct  = (Math.abs(cM15.close - cM15.open) / cM15.low) * 100;
-    if (!isLong && isGreen && (bodyPct >= 3.0 || rangePct >= 5.0)) {
+    const totalRange = Math.max(1e-9, cM15.high - cM15.low);
+    const body = Math.abs(cM15.close - cM15.open);
+    const upperWick = cM15.high - Math.max(cM15.open, cM15.close);
+    const lowerWick = Math.min(cM15.open, cM15.close) - cM15.low;
+    const effVolRatio = m15VolRatio ?? 1.0;
+
+    if (!isLong && isGreen && (bodyPct >= 3.0 || rangePct >= 5.0 || (rangePct >= 3.5 && effVolRatio >= 3.0))) {
       features['candle_momentum'] = 'MOMENTUM_COUNTER_PUMP_TRAIN';
-    } else if (isLong && !isGreen && (bodyPct >= 3.0 || rangePct >= 5.0)) {
+    } else if (isLong && !isGreen && (bodyPct >= 3.0 || rangePct >= 5.0 || (rangePct >= 3.5 && effVolRatio >= 3.0))) {
       features['candle_momentum'] = 'MOMENTUM_COUNTER_DUMP_TRAIN';
     } else {
       features['candle_momentum'] = 'MOMENTUM_NORMAL';
+    }
+
+    // 4b. Hình thái nến đơn M15 (Pinbar / Marubozu xả-kéo dốc) & Râu ngược chặn đầu (đồng bộ bot-h4)
+    const isSpike = rangePct > 1.4 && effVolRatio >= 2.5;
+    const isRealMagnitude = (rangePct >= 1.2) || isSpike;
+    if (isLong) {
+      if (lowerWick / totalRange >= 0.40 && !isSpike) {
+        features['candle_shape'] = 'CANDLE_PINBAR_HAMMER';
+      } else if (isRealMagnitude && cM15.close < cM15.open && (body / totalRange >= 0.70) && (targetLevel > 0 ? cM15.close <= targetLevel : true)) {
+        features['candle_shape'] = 'CANDLE_MARUBOZU_DUMP';
+      } else {
+        features['candle_shape'] = 'CANDLE_NORMAL';
+      }
+      if (upperWick / totalRange >= 0.50) {
+        features['wick_rejection'] = 'OPPOSING_WICK_TRAP';
+      }
+    } else {
+      if (upperWick / totalRange >= 0.40 && !isSpike) {
+        features['candle_shape'] = 'CANDLE_PINBAR_SHOOTING';
+      } else if (isRealMagnitude && cM15.close > cM15.open && (body / totalRange >= 0.70) && (targetLevel > 0 ? cM15.close >= targetLevel : true)) {
+        features['candle_shape'] = 'CANDLE_MARUBOZU_PUMP';
+      } else {
+        features['candle_shape'] = 'CANDLE_NORMAL';
+      }
+      if (lowerWick / totalRange >= 0.50) {
+        features['wick_rejection'] = 'OPPOSING_WICK_TRAP';
+      }
+    }
+  }
+
+  // 4c. Realtime Volume Kinematics (nổ volume đột biến M15/H1 — đồng bộ bot-h4)
+  if (m15VolRatio !== null || h1VolRatio !== null) {
+    if ((m15VolRatio !== null && m15VolRatio >= 3.0) || (h1VolRatio !== null && h1VolRatio >= 2.5)) {
+      features['realtime_volume'] = 'VOL_BURST_DANGER';
+    } else if (m15VolRatio !== null && m15VolRatio >= 1.8) {
+      features['realtime_volume'] = 'VOL_SURGE';
+    } else if (m15VolRatio !== null && m15VolRatio >= 0.7) {
+      features['realtime_volume'] = 'VOL_STABLE';
+    } else if (m15VolRatio !== null && m15VolRatio > 0) {
+      features['realtime_volume'] = 'VOL_DRY';
+    } else {
+      features['realtime_volume'] = 'VOL_STABLE';
     }
   }
 
@@ -281,6 +332,16 @@ function evaluateSignal(sig, marketContext = null) {
     'candle_momentum:MOMENTUM_COUNTER_PUMP_TRAIN': 0.55,
     'candle_momentum:MOMENTUM_COUNTER_DUMP_TRAIN': 0.55,
     'candle_momentum:MOMENTUM_NORMAL': 1.00,
+    'candle_shape:CANDLE_PINBAR_HAMMER': 1.15,
+    'candle_shape:CANDLE_PINBAR_SHOOTING': 1.15,
+    'candle_shape:CANDLE_MARUBOZU_DUMP': 0.45,
+    'candle_shape:CANDLE_MARUBOZU_PUMP': 0.45,
+    'candle_shape:CANDLE_NORMAL': 1.00,
+    'wick_rejection:OPPOSING_WICK_TRAP': riskPenalties.opposingWickTrap ?? 0.45,
+    'realtime_volume:VOL_BURST_DANGER': 0.70,
+    'realtime_volume:VOL_SURGE': 0.95,
+    'realtime_volume:VOL_STABLE': 1.05,
+    'realtime_volume:VOL_DRY': 0.92,
     'pre_entry_bounce:BOUNCE_STALE_EXTREME': 0.45,
     'pre_entry_bounce:BOUNCE_STALE_HIGH': 0.90,
     'pre_entry_bounce:BOUNCE_FRESH': 1.00,
@@ -310,6 +371,7 @@ function evaluateSignal(sig, marketContext = null) {
     skip.set('puncture_interaction', riskInteraction);
     skip.set('h1_candle_geometry', riskInteraction);
     skip.set('m15_candle_geometry', riskInteraction);
+    skip.set('candle_shape', riskInteraction);
   } else if (riskInteraction === 'INTERACTION_HIGH_VOLATILITY_WEAK_SETUP') {
     // Volatility + Counter-train đã được gom vào interaction -> tránh nhân phạt 3 lần
     skip.set('m15_volatility', riskInteraction);
@@ -319,11 +381,18 @@ function evaluateSignal(sig, marketContext = null) {
   if (features['puncture_interaction'] && features['puncture_interaction'] !== 'INTERACTION_PUNCTURE_NORMAL' && !skip.has('puncture_interaction')) {
     skip.set('h1_candle_geometry', features['puncture_interaction']);
     skip.set('m15_candle_geometry', features['puncture_interaction']);
+    skip.set('candle_shape', features['puncture_interaction']);
   }
 
-  // Khử trùng lặp Pinbar H1 & M15 (chỉ lấy khung lớn H1)
-  if (features['h1_candle_geometry'] === 'H1_REJECT_PINBAR' && features['m15_candle_geometry'] === 'M15_REJECT_PINBAR') {
-    skip.set('m15_candle_geometry', 'H1_REJECT_PINBAR');
+  // Khử trùng lặp Pinbar H1 / M15 / candle_shape (H1 > M15 > nến đơn, đồng bộ bot-h4)
+  const isH1Pinbar = features['h1_candle_geometry'] === 'H1_REJECT_PINBAR';
+  const isM15Pinbar = features['m15_candle_geometry'] === 'M15_REJECT_PINBAR';
+  const isShapePinbar = features['candle_shape'] === 'CANDLE_PINBAR_HAMMER' || features['candle_shape'] === 'CANDLE_PINBAR_SHOOTING';
+  if (isH1Pinbar) {
+    if (isM15Pinbar) skip.set('m15_candle_geometry', 'H1_REJECT_PINBAR');
+    if (isShapePinbar) skip.set('candle_shape', 'H1_REJECT_PINBAR');
+  } else if (isM15Pinbar && isShapePinbar) {
+    skip.set('candle_shape', 'M15_REJECT_PINBAR');
   }
 
   // Khử trùng lặp bão biến động H1 & M15
@@ -333,8 +402,30 @@ function evaluateSignal(sig, marketContext = null) {
     }
   }
 
+  // 🛡️ Phát hiện tâm bão đang lao dốc & rủi ro cấu trúc nghiêm trọng (đồng bộ bot-h4)
+  const isLongSig = (sig.signal === 'LONG' || sig.signal === 'BUY');
+  const isRunaway = isLongSig
+    ? (features['candle_shape'] === 'CANDLE_MARUBOZU_DUMP')
+    : (features['candle_shape'] === 'CANDLE_MARUBOZU_PUMP');
+  const isM15PuncturedDeep = features['m15_candle_geometry'] === 'M15_PUNCTURED_DEEP';
+  const isM15Storm = features['m15_volatility'] === 'M15_VOLATILE_DANGER' || features['m15_volatility'] === 'M15_EXTREME_STORM';
+  const isVolBurst = features['realtime_volume'] === 'VOL_BURST_DANGER';
+  const isActiveStormAttack = isRunaway || isM15PuncturedDeep || isM15Storm || isVolBurst;
+  const isVolDangerCritical = (features['h1_volatility'] === 'H1_VOLATILE_DANGER' && isActiveStormAttack) ||
+    features['h1_volatility'] === 'H1_EXTREME_STORM_PUMP_DUMP';
+  const hasCriticalRisk = isVolDangerCritical ||
+    riskInteraction === 'INTERACTION_STALE_BOUNCE_RUNAWAY' ||
+    riskInteraction === 'INTERACTION_HIGH_VOLATILITY_WEAK_SETUP' ||
+    riskInteraction === 'INTERACTION_PUNCTURE_RUNAWAY' ||
+    features['puncture_interaction'] === 'INTERACTION_H1_M15_PUNCTURED';
+
+  const spreadWideMult = riskPenalties.spreadWide ?? 0.20;
+  const wallBlockMult  = riskPenalties.wallOpposingBlock ?? 0.35;
+
   let combinedMultiplier = 1.0;
   const keyFactors = [];
+  const penaltyFactors = [];
+  const boostFactors = [];
 
   for (const [cat, val] of Object.entries(features)) {
     if (skip.has(cat)) continue;
@@ -366,20 +457,56 @@ function evaluateSignal(sig, marketContext = null) {
       mult = 1.00;
     }
 
+    // 🛡️ SANITY GUARDS (Đồng bộ bot-h4):
+    // 1. Trần thưởng an toàn cho Pinbar (tránh thổi phồng xác suất)
+    if (cat === 'h1_candle_geometry' && val === 'H1_REJECT_PINBAR') {
+      mult = Math.min(mult, 1.30);
+    } else if (cat === 'm15_candle_geometry' && val === 'M15_REJECT_PINBAR') {
+      mult = Math.min(mult, 1.20);
+    } else if (cat === 'candle_shape' && (val === 'CANDLE_PINBAR_HAMMER' || val === 'CANDLE_PINBAR_SHOOTING')) {
+      mult = Math.min(mult, 1.15);
+    }
+    // 2. Khi dính rủi ro cấu trúc nặng (bão, stale bounce runaway, puncture runaway), không cho điểm thưởng lấp liếm rủi ro
+    if (hasCriticalRisk) {
+      if (['realtime_volume', 'candle_shape', 'm15_candle_geometry', 'pre_entry_bounce', 'h1_candle_geometry'].includes(cat)) {
+        mult = Math.min(1.00, mult);
+      }
+      if (isVolDangerCritical && mult > 1.00) {
+        mult = Math.min(1.00, mult);
+      }
+    }
+    // 3. Khóa trần phạt cho rủi ro thanh khoản cực đoan
+    if (cat === 'spread_slippage' && val === 'SPREAD_WIDE_DANGER') {
+      mult = Math.min(mult, spreadWideMult);
+    }
+    if (cat === 'orderbook_wall' && val === 'WALL_OPPOSING_BLOCK') {
+      mult = Math.min(mult, wallBlockMult);
+    }
+
     if (Math.abs(mult - 1.0) >= 0.02) {
       combinedMultiplier *= mult;
       const pctDiff = Math.round((mult - 1) * 100);
-      keyFactors.push(`${val} (${pctDiff >= 0 ? '+' : ''}${pctDiff}%)`);
+      const label = `${val} (${pctDiff >= 0 ? '+' : ''}${pctDiff}%)`;
+      keyFactors.push(label);
+      if (pctDiff < 0) penaltyFactors.push(label);
+      else boostFactors.push(label);
     }
   }
 
-  // Tính xác suất thắng Bayes
+  // Tính xác suất thắng Bayes (kẹp an toàn [5%, 95%] đồng bộ bot-h4)
   const priorOdds = priorWin / (1 - priorWin);
   const posteriorOdds = priorOdds * combinedMultiplier;
-  const winProbability = posteriorOdds / (1 + posteriorOdds);
+  const winProbability = Math.max(0.05, Math.min(0.95, posteriorOdds / (1 + posteriorOdds)));
 
-  const rawThreshold = _modelConfig?.thresholdApprovalPct || 40;
+  // ── NẠP NGƯỠNG TỐI ƯU DO AI TỰ HỌC (đồng bộ bot-h4, không ép cứng) ──
+  const optimalTh = _modelConfig?.optimalThresholds || {};
+  const rawThreshold = typeof optimalTh.uniform === 'number'
+    ? optimalTh.uniform
+    : (typeof optimalTh.top150 === 'number'
+      ? optimalTh.top150
+      : (_modelConfig?.thresholdApprovalPct ?? 48.0));
   const approvalThreshold = rawThreshold > 1 ? (rawThreshold / 100) : rawThreshold;
+  const approvalThresholdPct = parseFloat((approvalThreshold * 100).toFixed(1));
 
   // 🎯 CỔNG LỢI NHUẬN KỲ VỌNG RÒNG (NET EV SAU PHÍ & TRƯỢT GIÁ)
   const roundtripCostPct = parseFloat(process.env.ROUNDTRIP_FEE_SLIPPAGE_PCT || '0.12');
@@ -400,15 +527,21 @@ function evaluateSignal(sig, marketContext = null) {
   const isEvOk = netEvRoi >= minNetEvRoi;
   const isApproved = isWinProbOk && isEvOk;
 
+  const vetoDetailParts = [];
+  if (penaltyFactors.length > 0) vetoDetailParts.push(`Vi phạm: ${penaltyFactors.join(', ')}`);
+  if (boostFactors.length > 0) vetoDetailParts.push(`Hỗ trợ: ${boostFactors.join(', ')}`);
+  const vetoDetailStr = vetoDetailParts.length > 0 ? vetoDetailParts.join(' | ') : (keyFactors.join(', ') || 'Prior thấp dưới ngưỡng AI');
+
   const reason = isApproved
-    ? `Duyệt lệnh (WinProb ${(winProbability * 100).toFixed(1)}% >= ${(approvalThreshold * 100).toFixed(1)}%, NetEV +${netEvRoi.toFixed(2)}% ROI) | Yếu tố: ${keyFactors.join(', ') || 'Cấu trúc ổn định'}`
+    ? `Duyệt lệnh (WinProb ${(winProbability * 100).toFixed(1)}% >= ${approvalThresholdPct.toFixed(1)}%, NetEV +${netEvRoi.toFixed(2)}% ROI) | Yếu tố: ${keyFactors.join(', ') || 'Cấu trúc ổn định'}`
     : (!isWinProbOk
-      ? `VETO từ chối (WinProb ${(winProbability * 100).toFixed(1)}% < ${(approvalThreshold * 100).toFixed(1)}%) | Vi phạm: ${keyFactors.join(', ')}`
+      ? `VETO từ chối (WinProb ${(winProbability * 100).toFixed(1)}% < ${approvalThresholdPct.toFixed(1)}%) | ${vetoDetailStr}`
       : `VETO NetEV thấp (WinProb ${(winProbability * 100).toFixed(1)}%, NetEV ${netEvRoi.toFixed(2)}% < +${minNetEvRoi.toFixed(2)}% ROI sau phí) | Yếu tố: ${keyFactors.join(', ') || 'R:R không bù phí'}`);
 
   return {
     isApproved,
     winProbability: parseFloat(winProbability.toFixed(3)),
+    approvalThresholdPct,
     expectedValueRoi: parseFloat(netEvRoi.toFixed(2)),
     confidenceScore: sig.score || 7.0,
     multiplier: parseFloat(combinedMultiplier.toFixed(2)),

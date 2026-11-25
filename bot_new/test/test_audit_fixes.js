@@ -421,6 +421,121 @@ async function run() {
     assert.ok(h4Src.includes('POLL_ROTATION_TTL_MS') && h4Src.includes('MAX_SIGNAL_QUEUE_LEN'), 'bot-h4 phải có xoay vòng Top 8 và giới hạn chiều dài signalCheckQueue');
   });
 
+  // ═══════════════════════════════════════════════════════════════════════════
+  // PART D: BOT-NEW AI GATEKEEPER & SHADOW TRACKER SYNC (GÓI 1 & GÓI 2)
+  // ═══════════════════════════════════════════════════════════════════════════
+  const shadowNew = require('../src/services/shadowTracker');
+
+  await test('Gói 1: riskGatekeeper chặn thưởng Pinbar khi dính hasCriticalRisk, tách rõ Vi phạm/Hỗ trợ & đồng bộ vi cấu trúc M15/Vol', async () => {
+    const sig = { symbol: 'LOWCAP', signal: 'LONG', targetLevel: 10.0, score: 8.5, marketCapRank: 250, slPct: 2.0, tpPct: 4.0, leverage: 5 };
+    const pinbarH1 = { open: 10.08, close: 10.12, high: 10.15, low: 9.85 };
+
+    // 1. Khi có INTERACTION_STALE_BOUNCE_RUNAWAY (critical risk), H1_REJECT_PINBAR KHÔNG được cộng thưởng (+40% cũ)
+    const resCrit = gatekeeperNew.evaluateSignal(sig, {
+      candleH1: pinbarH1,
+      preEntryBouncePct: 1.8,
+      spreadPct: 0.07 // Rank 250 (lowcap threshold 0.08) -> chỉ SPREAD_MEDIUM_CAUTION, không bị phạt oan SPREAD_WIDE_DANGER!
+    });
+    assert.strictEqual(resCrit.features.spread_slippage, 'SPREAD_MEDIUM_CAUTION', 'Lowcap Rank 250 spread 0.07% phải là CAUTION, không phải DANGER');
+    assert.ok(!resCrit.keyFactors.some(f => f.includes('H1_REJECT_PINBAR (+')), `Pinbar không được cộng thưởng khi đang critical risk: ${JSON.stringify(resCrit.keyFactors)}`);
+    assert.ok(typeof resCrit.approvalThresholdPct === 'number' && resCrit.approvalThresholdPct >= 30, 'Phải trả approvalThresholdPct động từ mô hình AI');
+
+    // 2. Phát hiện MARUBOZU xả dốc, OPPOSING_WICK_TRAP & VOL_BURST_DANGER
+    const marubozuDump = { open: 10.20, high: 10.21, low: 9.95, close: 9.96 };
+    const resBurst = gatekeeperNew.evaluateSignal(sig, { candleM15: marubozuDump, m15VolRatio: 3.5 });
+    assert.strictEqual(resBurst.features.candle_shape, 'CANDLE_MARUBOZU_DUMP', 'Phải nhận diện CANDLE_MARUBOZU_DUMP');
+    assert.strictEqual(resBurst.features.realtime_volume, 'VOL_BURST_DANGER', 'Phải nhận diện VOL_BURST_DANGER');
+    assert.strictEqual(resBurst.isApproved, false, 'Marubozu xả dốc + nổ volume phải bị VETO');
+
+    const oppWickCandle = { open: 10.05, close: 10.02, high: 10.30, low: 10.00 };
+    const resWick = gatekeeperNew.evaluateSignal(sig, { candleM15: oppWickCandle });
+    assert.strictEqual(resWick.features.wick_rejection, 'OPPOSING_WICK_TRAP', 'Râu trên dài >=50% khi LONG phải kích hoạt OPPOSING_WICK_TRAP');
+
+    // 3. Kiểm tra signalEngine.js đã dùng realRank thay vì hardcode isTier1 ? 20 : 100
+    const seSrc = fs.readFileSync(path.join(__dirname, '..', 'src', 'services', 'signalEngine.js'), 'utf8');
+    assert.ok(seSrc.includes('rank: realRank') && seSrc.includes('marketCapRank: realRank'), 'signalEngine phải truyền realRank vào riskGatekeeper');
+    assert.ok(!seSrc.includes('>= 40% [Risk Gatekeeper]'), 'signalEngine không được in cứng >= 40% trong log AI APPROVED');
+  });
+
+  await test('Gói 2: bot-new ShadowTracker hỗ trợ PENDING_LIMIT, BE 50% TP (+0.14%), Fractal Trailing SL & tính USD theo margin/leverage thật', async () => {
+    shadowNew.clearActiveShadowsForTest();
+
+    // 1. Chờ khớp Limit (markPrice 102 > entry 100 cho LONG -> PENDING_LIMIT)
+    const p1 = shadowNew.registerShadowTrade({
+      symbol: 'ETH_TEST',
+      direction: 'LONG',
+      entryPrice: 100,
+      markPrice: 102,
+      slPrice: 98,
+      tpPrice: 104,
+      leverage: 10,
+      margin: 20,
+      gridWidthPct: 4.0,
+      total: 8.5
+    }, 'TEST_PENDING_LIMIT');
+    assert.strictEqual(p1.status, 'PENDING_LIMIT', 'Giá hiện tại > Entry LONG phải ở trạng thái PENDING_LIMIT');
+    assert.strictEqual(p1.isFilled, false);
+    assert.strictEqual(shadowNew.isShadowPositionActive('ETH_TEST', 'LONG'), true, 'PENDING_LIMIT phải được tính là active shadow để chống spam');
+
+    // Giá chưa chạm 100 (101) -> chưa khớp, không tính TP/SL
+    let res = shadowNew.updateShadowPrices({ ETH_TEST: 101 });
+    assert.strictEqual(res.length, 0);
+
+    // Giá chạm 100 -> khớp Limit -> ACTIVE
+    res = shadowNew.updateShadowPrices({ ETH_TEST: 100 });
+    assert.strictEqual(res.length, 0);
+    assert.strictEqual(shadowNew.getActiveShadowPositions()[p1.id].status, 'ACTIVE', 'Chạm Entry 100 phải chuyển sang ACTIVE');
+
+    // Chạm 50% TP (102) -> kích hoạt BE @ 100 * 1.0014 = 100.14
+    res = shadowNew.updateShadowPrices({ ETH_TEST: 102.1 });
+    assert.strictEqual(res.length, 0);
+    const activeAfterBe = shadowNew.getActiveShadowPositions()[p1.id];
+    assert.strictEqual(activeAfterBe.isBeTriggered, true, 'Chạm 50% TP phải kích hoạt BE');
+    assert.ok(Math.abs(activeAfterBe.slPrice - 100.14) < 1e-6, `SL BE phải có đệm phí 0.14% (100.14), thực tế: ${activeAfterBe.slPrice}`);
+
+    // Kiểm tra Williams Fractal Trailing SL (tạo đáy fractal tại 101.5 -> candidate SL = 101.5 * 0.9985 = 101.34775)
+    const now = Date.now();
+    const mockCandles = [
+      { openTime: now + 1 * 3600_000, open: 102.0, high: 102.5, low: 101.8, close: 102.2 },
+      { openTime: now + 2 * 3600_000, open: 102.2, high: 102.4, low: 101.7, close: 101.9 },
+      { openTime: now + 3 * 3600_000, open: 101.9, high: 102.1, low: 101.5, close: 102.0 }, // Fractal Low = 101.5
+      { openTime: now + 4 * 3600_000, open: 102.0, high: 102.6, low: 101.8, close: 102.5 },
+      { openTime: now + 5 * 3600_000, open: 102.5, high: 103.0, low: 102.2, close: 102.8 },
+      { openTime: now + 6 * 3600_000, open: 102.8, high: 103.2, low: 102.6, close: 103.1 }, // live candle
+    ];
+    const trailed = shadowNew.applyFractalTrailingSl(activeAfterBe, mockCandles, 'H1', 3600_000);
+    assert.strictEqual(trailed, true, 'Fractal Low 101.5 phải dời SL lên 101.34775');
+    assert.ok(Math.abs(activeAfterBe.slPrice - 101.5 * 0.9985) < 1e-4, `SL Fractal không khớp: ${activeAfterBe.slPrice}`);
+
+    // Giá quay về chạm SL trailing 101.30 -> chốt SAVED_BE với lãi USD thực theo margin $20 * 10x!
+    res = shadowNew.updateShadowPrices({ ETH_TEST: 101.30 });
+    assert.strictEqual(res.length, 1);
+    assert.strictEqual(res[0].status, 'SAVED_BE', 'Chạm SL sau khi đã BE/Fractal phải đóng là SAVED_BE');
+    assert.strictEqual(res[0].outcome, 'SAVED_BE');
+    assert.ok(res[0].pnlUsd > 2.5 && res[0].pnlUsd < 2.9, `PnL USD phải tính theo margin $20 * 10x (~+$2.70), thực tế: $${res[0].pnlUsd}`);
+
+    // 2. Test BOUNCE_CANCEL khi giá nảy xa trước khi khớp Limit
+    const p2 = shadowNew.registerShadowTrade({
+      symbol: 'XRP_TEST',
+      direction: 'LONG',
+      entryPrice: 1.0,
+      markPrice: 1.005,
+      slPrice: 0.98,
+      tpPrice: 1.04,
+      leverage: 5,
+      margin: 10,
+      gridWidthPct: 4.0,
+      total: 8.0
+    }, 'TEST_BOUNCE_CANCEL');
+    assert.strictEqual(p2.status, 'PENDING_LIMIT');
+    res = shadowNew.updateShadowPrices({ XRP_TEST: 1.02 }); // +2.0% >= 1.5% bounceCancelPct
+    assert.strictEqual(res.length, 1);
+    assert.strictEqual(res[0].status, 'BOUNCE_CANCEL', 'Giá nảy xa >=1.5% trước khi khớp Limit phải hủy BOUNCE_CANCEL');
+    assert.strictEqual(res[0].pnlUsd, 0);
+
+    shadowNew.clearActiveShadowsForTest();
+  });
+
   console.log(`\n📊 Audit Regression Summary: ${passed} passed, ${failed} failed\n`);
   process.exit(failed > 0 ? 1 : 0);
 }

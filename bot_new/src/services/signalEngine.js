@@ -210,6 +210,9 @@ async function generateQuantitativeTrade(setup, marketData = null) {
   // 2. Tính toán TP/SL & Đòn bẩy bằng Thuật toán Định Lượng (0.01ms)
   let tierSetup = null;
   const effGridWidth = setup.gridWidthPct || (sig369?.step && currentPrice > 0 ? (sig369.step / currentPrice) * 100 : null);
+  const realRank = setup.marketCapRank
+    || marketData?.topCoins?.find(c => c.symbol === symbol)?.rank
+    || (isTier1 ? 20 : 180);
   try {
     const symInfo = await getSymbolInfo(symbol).catch(() => null);
     const symTickSize = symInfo?.tickSize || null;
@@ -231,9 +234,6 @@ async function generateQuantitativeTrade(setup, marketData = null) {
       customMargin = isTier1 ? parseFloat(process.env.TRADE_AMOUNT_TIER1 || '20') : parseFloat(process.env.TRADE_AMOUNT_TIER2 || '10');
     }
 
-    const realRank = setup.marketCapRank
-      || marketData?.topCoins?.find(c => c.symbol === symbol)?.rank
-      || (isTier1 ? 20 : 100);
     const h4RefInput = sig369 ? { step: sig369.step, decimals: sig369.decimals } : null;
     const maxExchLev = symInfo?.maxLeverage || 20;
     // Scale targetLossUSD theo customMargin (tối thiểu $3.0) để không bóp nghẹt đòn bẩy khi tài khoản lớn dùng TRADE_SIZE_PCT
@@ -271,31 +271,49 @@ async function generateQuantitativeTrade(setup, marketData = null) {
     registerShadowTrade({
       ...setup,
       entryPrice,
+      markPrice: currentPrice,
       slPrice: tierSetup?.slPrice,
       tpPrice: tierSetup?.tpPrice,
+      beTriggerPrice: tierSetup?.beTriggerPrice,
+      slPct: tierSetup?.slPct,
+      tpPct: tierSetup?.tpPct,
+      gridWidthPct: effGridWidth,
+      marketCapRank: realRank,
       leverage: tierSetup?.leverage,
       margin: tierSetup?.margin
     }, vetoReason);
     return null;
   }
 
-  // 3. Thẩm định vi cấu trúc nến H1/M15 + Spread + Orderbook Wall qua Risk Gatekeeper (AI Bản Thân Cục Bộ, 0 Token)
+  // 3. Thẩm định vi cấu trúc nến H1/M15 + Realtime Volume + Spread + Orderbook Wall qua Risk Gatekeeper (0 Token)
   let lastH1 = ta?.candleH1 || null;
-  if (!lastH1) {
-    try {
-      const h1Candles = await fetchH1Historical(symbol);
-      if (Array.isArray(h1Candles) && h1Candles.length > 0) {
-        lastH1 = h1Candles[h1Candles.length - 1];
+  let h1VolRatio = null;
+  try {
+    const h1Candles = await fetchH1Historical(symbol);
+    if (Array.isArray(h1Candles) && h1Candles.length > 0) {
+      if (!lastH1) lastH1 = h1Candles[h1Candles.length - 1];
+      if (h1Candles.length >= 21) {
+        const past20 = h1Candles.slice(-21, -1);
+        const avgH1Vol = past20.reduce((s, c) => s + (c.volume || 0), 0) / past20.length;
+        const currH1Vol = h1Candles[h1Candles.length - 1].volume || 0;
+        if (avgH1Vol > 0 && currH1Vol > 0) h1VolRatio = parseFloat((currH1Vol / avgH1Vol).toFixed(2));
       }
-    } catch (_) {}
-  }
+    }
+  } catch (_) {}
 
   let lastM15 = ta?.candleM15 || null;
-  if (!lastM15 && !isIpBanned()) {
+  let m15VolRatio = null;
+  if (!isIpBanned()) {
     try {
-      const m15Candles = await fetchM15Recent(symbol, 5);
+      const m15Candles = await fetchM15Recent(symbol, 25);
       if (Array.isArray(m15Candles) && m15Candles.length > 0) {
-        lastM15 = m15Candles[m15Candles.length - 1];
+        if (!lastM15) lastM15 = m15Candles[m15Candles.length - 1];
+        if (m15Candles.length >= 10) {
+          const past = m15Candles.slice(-Math.min(21, m15Candles.length), -1);
+          const avgM15Vol = past.reduce((s, c) => s + (c.volume || 0), 0) / past.length;
+          const currM15Vol = m15Candles[m15Candles.length - 1].volume || 0;
+          if (avgM15Vol > 0 && currM15Vol > 0) m15VolRatio = parseFloat((currM15Vol / avgM15Vol).toFixed(2));
+        }
       }
     } catch (_) {}
   }
@@ -330,6 +348,8 @@ async function generateQuantitativeTrade(setup, marketData = null) {
     candleH1: lastH1,
     candleM15: lastM15,
     isLiveCandle: true,
+    m15VolRatio,
+    h1VolRatio,
     preEntryBouncePct,
     btcFlash: btcFlash.activeFlash || 'NORMAL',
     spreadPct: micro.spreadPct,
@@ -337,7 +357,7 @@ async function generateQuantitativeTrade(setup, marketData = null) {
     slPct: tierSetup.slPct,
     tpPct: tierSetup.tpPct,
     leverage: tierSetup.leverage,
-    rank: isTier1 ? 20 : 100
+    rank: realRank
   };
 
   const gateResult = evaluateSignal({
@@ -349,7 +369,7 @@ async function generateQuantitativeTrade(setup, marketData = null) {
     tpPct: tierSetup.tpPct,
     leverage: tierSetup.leverage,
     preEntryBouncePct,
-    marketCapRank: isTier1 ? 20 : 100,
+    marketCapRank: realRank,
     scoreReasons: setup.reasons || []
   }, marketContext);
 
@@ -359,19 +379,33 @@ async function generateQuantitativeTrade(setup, marketData = null) {
     if (_shouldLogSignal(symbol, direction, 'gatekeeper_veto', 30 * 60 * 1000)) {
       log.system(`[AutoTrade] 🛑 [AI VETO] ${symbol} (${direction}): ${gateResult.reason} — Bỏ qua`);
     }
+    const h1RangePct = (lastH1 && lastH1.low > 0) ? parseFloat((((lastH1.high - lastH1.low) / lastH1.low) * 100).toFixed(2)) : null;
+    const m15RangePct = (lastM15 && lastM15.low > 0) ? parseFloat((((lastM15.high - lastM15.low) / lastM15.low) * 100).toFixed(2)) : null;
     registerShadowTrade({
       ...setup,
       entryPrice,
+      markPrice: liveMarkPrice,
       slPrice: tierSetup.slPrice,
       tpPrice: tierSetup.tpPrice,
+      beTriggerPrice: tierSetup.beTriggerPrice,
+      slPct: tierSetup.slPct,
+      tpPct: tierSetup.tpPct,
+      gridWidthPct: effGridWidth,
+      marketCapRank: realRank,
       leverage: tierSetup.leverage,
       margin: tierSetup.margin,
-      winProbability: gateResult.winProbability
+      winProbability: gateResult.winProbability,
+      scoreReasons: setup.reasons || [],
+      microstructure: { spreadPct: micro.spreadPct, wall: micro.orderbookWall },
+      marketMetrics: { h1RangePct, m15RangePct, m15VolRatio, h1VolRatio, preEntryBouncePct },
+      features: gateResult.features,
+      keyFactors: gateResult.keyFactors
     }, `GATEKEEPER_VETO: ${gateResult.reason}`);
     return null;
   }
 
-  log.system(`[AutoTrade] 🟢 [AI APPROVED] ${symbol} (${direction}) — Xác suất thắng ${(gateResult.winProbability * 100).toFixed(1)}% >= 40% [Risk Gatekeeper]`);
+  const thPctLabel = typeof gateResult.approvalThresholdPct === 'number' ? gateResult.approvalThresholdPct.toFixed(1) : '50.0';
+  log.system(`[AutoTrade] 🟢 [AI APPROVED] ${symbol} (${direction}) — Xác suất thắng ${(gateResult.winProbability * 100).toFixed(1)}% >= ${thPctLabel}% | NetEV +${gateResult.expectedValueRoi}% ROI [Risk Gatekeeper]`);
 
   // 4. Sinh đối tượng trade chuẩn cho bot_new
   const trade = {
