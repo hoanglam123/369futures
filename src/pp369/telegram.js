@@ -15,16 +15,16 @@ const BOT_TAG = process.env.BOT_TAG !== undefined ? process.env.BOT_TAG : '';
 
 const API_URL = BOT_TOKEN ? `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage` : '';
 
-// Tái sử dụng kết nối HTTPS Keep-Alive tới Telegram API để giảm thiểu độ trễ và tránh handshake lại
+// Tắt HTTP Keep-Alive để tránh lỗi "socket hang up" khi Telegram đóng socket rảnh giữa các nhịp tim 15 phút
 const httpsAgent = new https.Agent({
-  keepAlive: true,
-  keepAliveMsecs: 30_000,
+  keepAlive: false,
   maxSockets: 10,
 });
 
 const axiosTelegram = axios.create({
   httpsAgent,
   timeout: 20_000, // Tăng timeout lên 20s phòng ngừa nghẽn mạng quốc tế
+  headers: { Connection: 'close' },
 });
 
 /**

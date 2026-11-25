@@ -46,6 +46,58 @@ const { isIpBanned } = require('./services/rateLimitGuard');
 
 const POLL_ROTATION_TTL_MS = parseInt(process.env.POLL_ROTATION_TTL_MS || String(2 * 60 * 1000), 10); // 2 phút xoay vòng sang 8 coin tiếp theo
 const _recentPollingScan = new Map(); // sym -> { level, ts }
+const ONDEMAND_MACRO_TTL_MS = 15 * 60 * 1000; // 15 phút cache Whale + Derivatives on-demand cho từng Altcoin
+const _onDemandMacroFetchedAt = new Map(); // sym -> ts
+
+function mergeWhaleCache(existing, incoming) {
+  if (!incoming) return existing || {};
+  const base = existing || {};
+  return {
+    ...base,
+    ...incoming,
+    takerFlow:    { ...(base.takerFlow || {}),    ...(incoming.takerFlow || {}) },
+    binanceLarge: { ...(base.binanceLarge || {}), ...(incoming.binanceLarge || {}) },
+    crossSignals: { ...(base.crossSignals || {}), ...(incoming.crossSignals || {}) },
+    liquidations: { ...(base.liquidations || {}), ...(incoming.liquidations || {}) },
+    onchain:      { ...(base.onchain || {}),      ...(incoming.onchain || {}) },
+  };
+}
+
+/**
+ * Nạp On-Demand Whale + Derivatives riêng cho 1 Altcoin khi có tín hiệu 369 tiềm năng (đồng bộ bot-h4).
+ * Chỉ kích hoạt khi chưa có cache trong 15 phút gần nhất để tiết kiệm tối đa API weight.
+ */
+async function ensureSymbolOnDemandMacro(sym) {
+  if (!sym || isIpBanned()) return false;
+  const now = Date.now();
+  const lastTs = _onDemandMacroFetchedAt.get(sym) || 0;
+  if (now - lastTs < ONDEMAND_MACRO_TTL_MS) return false;
+
+  _onDemandMacroFetchedAt.set(sym, now);
+  if (_onDemandMacroFetchedAt.size > 200) {
+    const oldest = _onDemandMacroFetchedAt.keys().next().value;
+    if (oldest) _onDemandMacroFetchedAt.delete(oldest);
+  }
+
+  try {
+    const [wRes, dRes] = await Promise.allSettled([
+      getWhaleData([sym], 1),
+      getDerivatives([sym], 1),
+    ]);
+    if (!_lastMarketData) _lastMarketData = {};
+    const whale = resolveSettled(wRes, null);
+    if (whale) {
+      _lastMarketData.whale = mergeWhaleCache(_lastMarketData.whale, whale);
+    }
+    const deriv = resolveSettled(dRes, null);
+    if (deriv) {
+      _lastMarketData.derivatives = { ...(_lastMarketData.derivatives || {}), ...deriv };
+    }
+    return Boolean(whale || deriv);
+  } catch (_) {
+    return false;
+  }
+}
 
 let _isRunning = false;        // full market report đang chạy
 let _isSilentRunning = false;  // signal scan (silent) đang chạy
@@ -736,7 +788,7 @@ async function run369AlertScan() {
       if (!ta) continue;
 
       const btcTA = _lastMarketData?.ta?.['BTC'] ?? null;
-      const score = scoreSetup(
+      let score = scoreSetup(
         sig.symbol, sig.signal,
         ta,
         _lastMarketData?.whale ?? {},
@@ -747,6 +799,23 @@ async function run369AlertScan() {
         btcTA,
         signals369[sig.symbol] ?? null,
       );
+      // Nếu Altcoin tiềm năng (chưa bị Hard Filter loại, điểm sơ bộ >= 4đ) -> nạp On-Demand Whale + Derivatives như bot-h4 rồi chấm lại
+      if (!score.disqualified && score.total >= 4 && !isIpBanned()) {
+        const fetched = await ensureSymbolOnDemandMacro(sig.symbol);
+        if (fetched) {
+          score = scoreSetup(
+            sig.symbol, sig.signal,
+            ta,
+            _lastMarketData?.whale ?? {},
+            _lastMarketData?.derivatives ?? {},
+            _lastMarketData?.funding ?? null,
+            _lastMarketData?.fearGreed ?? { value: 50 },
+            _lastMarketData?.social ?? {},
+            btcTA,
+            signals369[sig.symbol] ?? null,
+          );
+        }
+      }
       enriched.push({ ...sig, score });
     }
 
@@ -849,7 +918,7 @@ async function processSingleSymbolSignal(sym, price) {
     if (!ta || isIpBanned()) return;
 
     const btcTA = _lastMarketData?.ta?.['BTC'] ?? null;
-    const score = scoreSetup(
+    let score = scoreSetup(
       sym, sig.signal,
       ta,
       _lastMarketData?.whale ?? {},
@@ -860,6 +929,23 @@ async function processSingleSymbolSignal(sym, price) {
       btcTA,
       sig
     );
+    // Nếu Altcoin tiềm năng (chưa bị Hard Filter loại, điểm sơ bộ >= 4đ) -> nạp On-Demand Whale + Derivatives như bot-h4 rồi chấm lại
+    if (!score.disqualified && score.total >= 4 && !isIpBanned()) {
+      const fetched = await ensureSymbolOnDemandMacro(sym);
+      if (fetched) {
+        score = scoreSetup(
+          sym, sig.signal,
+          ta,
+          _lastMarketData?.whale ?? {},
+          _lastMarketData?.derivatives ?? {},
+          _lastMarketData?.funding ?? null,
+          _lastMarketData?.fearGreed ?? { value: 50 },
+          _lastMarketData?.social ?? {},
+          btcTA,
+          sig
+        );
+      }
+    }
 
     const isReversal = activeDir && activeDir !== sig.signal;
     const minScore = isReversal ? 9.0 : (FIXED_COINS.includes(sym) ? 7.0 : 8.0);
@@ -990,12 +1076,7 @@ async function runMacroRefresh() {
     // Merge BTC/ETH vào cache thay vì ghi đè xóa sạch dữ liệu whale/derivatives của các altcoin khác
     const whale = resolveSettled(whaleRes, null);
     if (whale) {
-      _lastMarketData.whale = {
-        ...(_lastMarketData.whale || {}),
-        ...whale,
-        crossSignals: { ...(_lastMarketData.whale?.crossSignals || {}), ...(whale.crossSignals || {}) },
-        bySymbol: { ...(_lastMarketData.whale?.bySymbol || {}), ...(whale.bySymbol || {}) },
-      };
+      _lastMarketData.whale = mergeWhaleCache(_lastMarketData.whale, whale);
     }
     const deriv = resolveSettled(derivRes, null);
     if (deriv) {
