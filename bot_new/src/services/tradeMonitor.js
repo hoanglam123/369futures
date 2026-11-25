@@ -842,6 +842,7 @@ function addTrades(trades, taMap = {}) {
         } else if (result) {
           ensureMarkPriceWS(tradeRef.symbol);
           try { require('./bounceCancel').trackPendingLimit(tradeRef); } catch (_) {}
+          try { require('./shadowTracker').removeShadowBySymbolDirection(tradeRef.symbol, tradeRef.direction); } catch (_) {}
           saveTrades();
           sendMessages([
             `🤖 <b>AUTO TRADE BINANCE — ${tradeRef.symbol} ${dirLabel} ⚡x${tradeRef.leverage || 10}</b>\n` +

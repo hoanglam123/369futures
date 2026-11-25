@@ -711,6 +711,29 @@ function removeShadowPosition(shadowId) {
   return removed;
 }
 
+function removeShadowBySymbolDirection(symbol, direction) {
+  const normSym = String(symbol || '').toUpperCase().replace(/USDT$/i, '');
+  if (!normSym) return [];
+  const normDir = direction
+    ? ((String(direction).toUpperCase() === 'BUY' || String(direction).toUpperCase() === 'LONG') ? 'LONG' : 'SHORT')
+    : null;
+  const removed = [];
+  for (const [id, p] of Object.entries(activeShadowPositions)) {
+    if (!p) continue;
+    const pSym = String(p.symbol || '').toUpperCase().replace(/USDT$/i, '');
+    const pDir = (p.signal === 'LONG' || p.signal === 'BUY') ? 'LONG' : 'SHORT';
+    if (pSym === normSym && (!normDir || pDir === normDir)) {
+      removed.push(p);
+      delete activeShadowPositions[id];
+    }
+  }
+  if (removed.length > 0) {
+    saveActiveShadowPositions();
+    _logger.system(`[Shadow PnL] 🧹 Đã tự động gỡ ${removed.length} vị thế Shadow cũ của ${normSym}${normDir ? ` (${normDir})` : ''} do bot đã vào lệnh thật.`);
+  }
+  return removed;
+}
+
 // Initial load
 loadActiveShadowPositions();
 
@@ -719,6 +742,7 @@ module.exports = {
   registerShadowTrade,
   updateShadowPrices,
   removeShadowPosition,
+  removeShadowBySymbolDirection,
   getShadowStats,
   getActiveShadowPositions: () => ({ ...activeShadowPositions }),
   loadActiveShadowPositions,

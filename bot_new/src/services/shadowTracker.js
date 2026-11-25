@@ -554,6 +554,29 @@ function removeShadowPosition(shadowId) {
   return removed;
 }
 
+function removeShadowBySymbolDirection(symbol, direction) {
+  const normSym = String(symbol || '').toUpperCase().replace(/USDT$/i, '');
+  if (!normSym) return [];
+  const normDir = direction
+    ? ((String(direction).toUpperCase() === 'BUY' || String(direction).toUpperCase() === 'LONG') ? 'LONG' : 'SHORT')
+    : null;
+  const removed = [];
+  for (const [id, p] of Object.entries(_activeShadowPositions)) {
+    if (!p) continue;
+    const pSym = String(p.symbol || '').toUpperCase().replace(/USDT$/i, '');
+    const pDir = (p.direction === 'LONG' || p.direction === 'BUY') ? 'LONG' : 'SHORT';
+    if (pSym === normSym && (!normDir || pDir === normDir)) {
+      removed.push(p);
+      delete _activeShadowPositions[id];
+    }
+  }
+  if (removed.length > 0) {
+    saveActiveShadows();
+    log.system(`[ShadowTracker] [Shadow PnL] 🧹 Đã tự động gỡ ${removed.length} vị thế Shadow cũ của ${normSym}${normDir ? ` (${normDir})` : ''} do bot đã vào lệnh thật.`);
+  }
+  return removed;
+}
+
 function clearActiveShadowsForTest() {
   _activeShadowPositions = {};
   _recentResolved.clear();
@@ -565,6 +588,7 @@ module.exports = {
   updateShadowPrices,
   applyFractalTrailingSl,
   removeShadowPosition,
+  removeShadowBySymbolDirection,
   getActiveShadowPositions,
   isShadowPositionActive,
   getShadowStats,

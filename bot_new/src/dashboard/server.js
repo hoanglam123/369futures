@@ -990,6 +990,9 @@ function handleApi(req, res) {
 
         mod.addTrades([trade]);
         shadowMod.removeShadowPosition(shadowId);
+        if (typeof shadowMod.removeShadowBySymbolDirection === 'function') {
+          shadowMod.removeShadowBySymbolDirection(trade.symbol, trade.direction);
+        }
         _cache.delete('live-trades');
         _sendJson(req, res, 200, {
           ok: true,

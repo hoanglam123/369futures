@@ -37,7 +37,7 @@ const {
   runReverseCheck,
 } = require('./safetyBrake');
 const { startDashboard, stopDashboard, broadcastWs, setPromoteShadowHandler, setCancelLimitHandler } = require('../dashboard');
-const { removeShadowPosition } = require('../pp369/shadowTracker');
+const { removeShadowPosition, removeShadowBySymbolDirection } = require('../pp369/shadowTracker');
 const { startTelegramCommands, stopTelegramCommands } = require('../services');
 const {
   get369Signal,
@@ -223,6 +223,9 @@ try {
     for (const [sym, meta] of Object.entries(activeTradesMetadata)) {
       if (meta?.isPartialClosed) {
         partialClosedSymbols.add(sym);
+      }
+      if (meta && !meta.isClosed && meta.side) {
+        try { removeShadowBySymbolDirection(sym, meta.side); } catch (_) {}
       }
     }
   }
@@ -2162,6 +2165,7 @@ async function startAutoTrade(coins) {
     });
 
     removeShadowPosition(shadowId);
+    removeShadowBySymbolDirection(sym, isLong ? 'LONG' : 'SHORT');
     log.system(`[AutoTrade] ⚡ [Manual Shadow Promote] Đã đẩy LIMIT ${sym} ${side} qty=${q.qty} @ $${entryPrice} (orderId=${order.orderId}) | Margin=$${actualMargin.toFixed(2)} (Tier ${isTier1 ? 1 : 2} .env) | Lev=${leverage}x | TP=$${tpPrice} | SL=$${slPrice} | BE=$${beTriggerPrice.toFixed(4)} — Bot tiếp quản 100%!`);
 
     return {
@@ -4024,6 +4028,7 @@ async function startAutoTrade(coins) {
           targetLossUSD: targetLossUSD,
         };
         saveActiveTradesMetadata();
+        removeShadowBySymbolDirection(sym, side === 'BUY' ? 'LONG' : 'SHORT');
 
         recordTradeEntry({
           tradeId: `${sym}-${order.orderId || Date.now()}`,
@@ -5061,6 +5066,7 @@ async function checkH1RetestSignals(client, activeSymbols, leverageInfo = {}, ac
           targetLossUSD: targetLossUSDRetest,
         };
         saveActiveTradesMetadata();
+        removeShadowBySymbolDirection(sym, side === 'BUY' ? 'LONG' : 'SHORT');
 
         // Xóa khỏi watchlist vì đã đặt lệnh thành công
         delete lowScoreWatchlist[sym];
