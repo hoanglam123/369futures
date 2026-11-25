@@ -152,6 +152,7 @@ async function apiTrades() {
         }
 
         // Bổ sung các lệnh LIMIT Entry đang CHỜ KHỚP trên sàn Binance (reduceOnly=false)
+        const levMap = typeof trader.getSymbolLeverageMap === 'function' ? trader.getSymbolLeverageMap() : {};
         for (const o of (openOrders || [])) {
           const isEntryLimit = o.type === 'LIMIT' && !o.reduceOnly && !o.closePosition && (o.status === 'NEW' || o.status === 'PARTIALLY_FILLED');
           if (!isEntryLimit) continue;
@@ -168,7 +169,7 @@ async function apiTrades() {
             currentPrice: entryPrice,
             targetPrice: null,
             slPrice: null,
-            leverage: null,
+            leverage: levMap[sym] || null,
             entryFilled: false,
             isPendingLimit: true,
             manualEntry: true,

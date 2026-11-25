@@ -727,6 +727,21 @@ async function cancelAlgoOrderById(symbolOrId, maybeAlgoId) {
   }
 }
 
+let _symbolLeverageCache = {};
+
+function _updateLeverageCacheFromPositions(list) {
+  if (!Array.isArray(list)) return;
+  for (const p of list) {
+    const sym = String(p.symbol || '').replace(/USDT$/i, '');
+    const lev = parseFloat(p.leverage || '0');
+    if (sym && lev > 0) _symbolLeverageCache[sym] = lev;
+  }
+}
+
+function getSymbolLeverageMap() {
+  return { ..._symbolLeverageCache };
+}
+
 /**
  * Lấy toàn bộ vị thế đang mở (positionAmt ≠ 0) trên tài khoản Futures.
  * Throw khi Binance API thất bại — KHÔNG trả về [] để tránh caller hiểu nhầm là "không có vị thế".
@@ -735,7 +750,9 @@ async function getAllPositions() {
   if (!isEnabled()) return [];
   try {
     const res = await api('GET', '/fapi/v2/positionRisk', {});
-    return (Array.isArray(res) ? res : []).filter(p => parseFloat(p.positionAmt) !== 0);
+    const list = Array.isArray(res) ? res : [];
+    _updateLeverageCacheFromPositions(list);
+    return list.filter(p => parseFloat(p.positionAmt) !== 0);
   } catch (err) {
     log.error('BINANCE: getAllPositions thất bại — throw để caller huỷ bỏ thay vì đóng nhầm lệnh', { error: err.message });
     throw err;
@@ -971,6 +988,7 @@ module.exports = {
   getPositionAmt,
   getPositionInfo,
   getAllPositions,
+  getSymbolLeverageMap,
   getOpenOrders,
   getRecentClosingTrades
 };

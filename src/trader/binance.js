@@ -593,6 +593,24 @@ function createClient(apiKey, secret) {
     },
 
     /**
+     * Trả về map đòn bẩy theo symbol (vd { BNB: 5, BTC: 5 }) tận dụng _posCache từ /fapi/v2/positionRisk (0 API weight thêm).
+     */
+    async getSymbolLeverageMap() {
+      const now = Date.now();
+      if (!_posCache || (now - _posCacheTime > 15000)) {
+        _posCache = await _get('/fapi/v2/positionRisk', {}, apiKey, secret);
+        _posCacheTime = now;
+      }
+      const map = {};
+      for (const p of (_posCache || [])) {
+        const sym = String(p.symbol || '').replace(/USDT$/i, '');
+        const lev = parseFloat(p.leverage || '0');
+        if (sym && lev > 0) map[sym] = lev;
+      }
+      return map;
+    },
+
+    /**
      * Lấy danh sách lệnh đang chờ khớp của 1 symbol (hoặc toàn bộ nếu không truyền symbol).
      */
     getOpenOrders(symbol) {

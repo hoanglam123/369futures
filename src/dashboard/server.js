@@ -377,6 +377,9 @@ async function apiTrades() {
         }
 
         // Bổ sung các lệnh LIMIT Entry đang CHỜ KHỚP trên sàn Binance (reduceOnly=false)
+        const levMap = (openOrders && openOrders.length > 0 && typeof client.getSymbolLeverageMap === 'function')
+          ? await client.getSymbolLeverageMap().catch(() => ({}))
+          : {};
         for (const o of (openOrders || [])) {
           const isEntryLimit = o.type === 'LIMIT' && !o.reduceOnly && !o.closePosition && (o.status === 'NEW' || o.status === 'PARTIALLY_FILLED');
           if (!isEntryLimit) continue;
@@ -385,6 +388,10 @@ async function apiTrades() {
           const isLong = o.side === 'BUY';
           const entryPrice = parseFloat(o.price) || 0;
           const qty = parseFloat(o.origQty) || 0;
+          const binanceLev = levMap[sym] || null;
+          const estMargin = (binanceLev && entryPrice > 0 && qty > 0)
+            ? parseFloat(((qty * entryPrice) / binanceLev).toFixed(2))
+            : null;
           const trade = {
             id: `open_${sym}_${o.orderId}`,
             orderId: o.orderId,
@@ -402,8 +409,8 @@ async function apiTrades() {
             beTriggerPrice: null,
             isBreakeven: false,
             slMovedToBreakeven: false,
-            leverage: null,
-            margin: null,
+            leverage: binanceLev,
+            margin: estMargin,
             origQty: qty,
             unrealizedPnlUsd: 0,
             roiPct: 0,
