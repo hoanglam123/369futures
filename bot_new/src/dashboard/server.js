@@ -952,16 +952,19 @@ function handleApi(req, res) {
         const beTriggerPrice = sh.beTriggerPrice || (isLong ? entryPrice + (tpPrice - entryPrice) * 0.5 : entryPrice - (entryPrice - tpPrice) * 0.5);
         const beSlPrice = isLong ? entryPrice * 1.0014 : entryPrice * 0.9986;
 
-        // Đồng bộ margin hiển thị theo đúng công thức .env của bot-new (calcQty cũng sẽ dùng chính công thức này khi đặt sàn)
+        // Đồng bộ margin hiển thị theo đúng công thức .env của bot-new (tính % theo NAV/Wallet Balance, chặn trần theo Available)
         let envMargin = parseFloat(process.env.FLAT_TRADE_USDT || sh.margin || '10');
         try {
           const pct = parseFloat(process.env.TRADE_SIZE_PCT || '5');
           const minU = parseFloat(process.env.TRADE_MIN_USDT || '5');
           const maxU = parseFloat(process.env.TRADE_MAX_USDT || '200');
           const thresh = parseFloat(process.env.BALANCE_THRESHOLD || '0');
-          const bal = typeof trader.getUsdtBalance === 'function' ? await trader.getUsdtBalance() : 0;
-          if (bal > thresh && pct > 0) {
-            envMargin = parseFloat(Math.min(Math.max((bal * pct) / 100, minU), maxU, bal).toFixed(2));
+          const bInfo = typeof trader.getBalanceInfo === 'function'
+            ? await trader.getBalanceInfo()
+            : { walletBalance: await trader.getUsdtBalance(), availableBalance: await trader.getUsdtBalance() };
+          const navBal = bInfo.walletBalance > 0 ? bInfo.walletBalance : bInfo.availableBalance;
+          if (navBal > thresh && pct > 0) {
+            envMargin = parseFloat(Math.min(Math.max((navBal * pct) / 100, minU), maxU, bInfo.availableBalance).toFixed(2));
           }
         } catch {}
 

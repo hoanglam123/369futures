@@ -983,15 +983,23 @@ async function getDynamicMargin(isTier1, clientInstance = null) {
 
   try {
     const cl = clientInstance || (typeof client !== 'undefined' ? client : null);
-    let balance = 0;
-    if (cl && typeof cl.getBalance === 'function') {
-      balance = await cl.getBalance();
+    let navBalance = 0;
+    let availBalance = 0;
+    if (cl && typeof cl.getWalletBalance === 'function') {
+      navBalance = await cl.getWalletBalance();
+      availBalance = typeof cl.getBalance === 'function' ? await cl.getBalance() : navBalance;
+    } else if (cl && typeof cl.getBalance === 'function') {
+      navBalance = await cl.getBalance();
+      availBalance = navBalance;
     }
-    if (balance && balance > 0) {
+    if (navBalance && navBalance > 0) {
       const minMargin = parseFloat(process.env.TRADE_MIN_USDT || '5.0');
       const maxMargin = parseFloat(process.env.TRADE_MAX_USDT || (isTier1 ? '100.0' : '50.0'));
-      const calcMargin = (balance * effPct) / 100.0;
-      return parseFloat(Math.min(Math.max(calcMargin, minMargin), maxMargin).toFixed(2));
+      const calcMargin = (navBalance * effPct) / 100.0;
+      const clamped = Math.min(Math.max(calcMargin, minMargin), maxMargin);
+      // Chặn an toàn không vượt quá 95% số dư khả dụng còn lại trên sàn
+      const safeMargin = availBalance > 0 ? Math.min(clamped, availBalance * 0.95) : clamped;
+      return parseFloat(safeMargin.toFixed(2));
     }
   } catch (_) { }
 

@@ -530,11 +530,11 @@ function _estimateH4EnvMargin(sym, fallbackMargin = 10) {
   const flatMargin = isTier1 ? tier1Fallback : tier2Fallback;
   if (effPct > 0) {
     const accCached = _cache.get('account-summary')?.data;
-    const bal = parseFloat(accCached?.availableBalance || accCached?.walletBalance || '0');
-    if (bal > 0) {
+    const navBal = parseFloat(accCached?.walletBalance || accCached?.availableBalance || '0');
+    if (navBal > 0) {
       const minMargin = parseFloat(process.env.TRADE_MIN_USDT || '5.0');
       const maxMargin = parseFloat(process.env.TRADE_MAX_USDT || (isTier1 ? '100.0' : '50.0'));
-      return parseFloat(Math.min(Math.max((bal * effPct) / 100, minMargin), maxMargin).toFixed(2));
+      return parseFloat(Math.min(Math.max((navBal * effPct) / 100, minMargin), maxMargin).toFixed(2));
     }
   }
   return parseFloat((flatMargin || fallbackMargin).toFixed(2));

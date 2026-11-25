@@ -102,24 +102,35 @@ async function getSymbolInfo(symbol) {
   return symbolInfoCache.get(symbol) || null;
 }
 
-// Cache balance 1 phút — Binance API chỉ được gọi 1 lần/phút
-let _balanceCache = { value: 0, fetchedAt: 0 };
+// Cache balance 1 phút — Binance API chỉ được gọi 1 lần/phút (lưu cả availableBalance & walletBalance/NAV)
+let _balanceCache = { value: 0, wallet: 0, fetchedAt: 0 };
 const BALANCE_CACHE_MS = 60_000;
 
-async function getUsdtBalance() {
+async function getBalanceInfo() {
   const now = Date.now();
   if (_balanceCache.fetchedAt > 0 && now - _balanceCache.fetchedAt < BALANCE_CACHE_MS) {
-    return _balanceCache.value;
+    return { availableBalance: _balanceCache.value, walletBalance: _balanceCache.wallet };
   }
   const balances = await api('GET', '/fapi/v2/balance');
   const usdt = (Array.isArray(balances) ? balances : []).find(b => b.asset === 'USDT');
   const avail = parseFloat(usdt?.availableBalance || '0');
+  const wallet = parseFloat(usdt?.balance || usdt?.availableBalance || '0');
   const isFirst = _balanceCache.fetchedAt === 0;
-  _balanceCache = { value: avail, fetchedAt: now };
+  _balanceCache = { value: avail, wallet, fetchedAt: now };
   if (isFirst && API_KEY) {
-    log.system(`[BinanceTrader] 💼 Binance Account bot-new: Key=***${API_KEY.slice(-4)} | Available Balance: $${avail.toFixed(2)} USDT`);
+    log.system(`[BinanceTrader] 💼 Binance Account bot-new: Key=***${API_KEY.slice(-4)} | NAV (Wallet): $${wallet.toFixed(2)} | Available: $${avail.toFixed(2)} USDT`);
   }
-  return _balanceCache.value;
+  return { availableBalance: avail, walletBalance: wallet };
+}
+
+async function getUsdtBalance() {
+  const info = await getBalanceInfo();
+  return info.availableBalance;
+}
+
+async function getWalletBalance() {
+  const info = await getBalanceInfo();
+  return info.walletBalance;
 }
 
 // Xóa cache ngay sau khi đặt lệnh để lần calcQty kế tiếp lấy balance mới
@@ -149,17 +160,29 @@ function roundPrice(price, info) {
 }
 
 // Tính số lượng coin cần mua/bán
-// - Ưu tiên TRADE_SIZE_PCT % balance nếu được cấu hình (ví dụ 5%)
+// - Ưu tiên TRADE_SIZE_PCT % Wallet Balance (NAV) để mọi lệnh đều cỡ nhau, vẫn chặn trần theo availableBalance
 // - Capped trong [TRADE_MIN_USDT, TRADE_MAX_USDT] hoặc targetMargin
 // - Bảo vệ giá thanh lý: khi có slPct, TUYỆT ĐỐI không đẩy đòn bẩy vượt quá ngưỡng cháy trước SL
 async function calcQty(symbol, entryPrice, leverage, info, targetMargin = null, overrideBalance = null, slPct = null) {
-  const balance = (overrideBalance !== null && overrideBalance !== undefined)
-    ? overrideBalance
-    : await getUsdtBalance();
+  let balance;
+  let navBalance;
+  if (overrideBalance !== null && overrideBalance !== undefined) {
+    if (typeof overrideBalance === 'object') {
+      balance = parseFloat(overrideBalance.availableBalance ?? overrideBalance.walletBalance ?? 0);
+      navBalance = parseFloat(overrideBalance.walletBalance ?? overrideBalance.availableBalance ?? 0);
+    } else {
+      balance = overrideBalance;
+      navBalance = overrideBalance;
+    }
+  } else {
+    const bInfo = await getBalanceInfo();
+    balance = bInfo.availableBalance;
+    navBalance = bInfo.walletBalance > 0 ? bInfo.walletBalance : bInfo.availableBalance;
+  }
 
   let sizeUsdt;
-  if (balance > BALANCE_THRESHOLD && TRADE_SIZE_PCT > 0) {
-    const rawSize = (balance * TRADE_SIZE_PCT) / 100;
+  if (navBalance > BALANCE_THRESHOLD && TRADE_SIZE_PCT > 0) {
+    const rawSize = (navBalance * TRADE_SIZE_PCT) / 100;
     sizeUsdt = Math.min(Math.max(rawSize, TRADE_MIN_USDT), TRADE_MAX_USDT, balance);
   } else if (typeof targetMargin === 'number' && targetMargin > 0) {
     sizeUsdt = Math.min(targetMargin, balance);
@@ -967,6 +990,8 @@ async function getRealizedIncome(limit = 100) {
 module.exports = {
   isEnabled,
   getUsdtBalance,
+  getWalletBalance,
+  getBalanceInfo,
   getAccountSummary,
   getRealizedIncome,
   calcQty,

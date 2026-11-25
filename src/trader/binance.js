@@ -361,6 +361,7 @@ function createClient(apiKey, secret) {
   let _posCache = null;
   let _posCacheTime = 0;
   let _balanceCache = null;
+  let _walletBalanceCache = null;
   let _balanceCacheTime = 0;
   let _accountCache = null;
   let _accountCacheTime = 0;
@@ -368,26 +369,44 @@ function createClient(apiKey, secret) {
   let _incomeCacheTime = 0;
   const _appliedLeverageCache = new Map();
 
+  async function _fetchUsdtBalanceCached() {
+    const now = Date.now();
+    if (_balanceCache !== null && _walletBalanceCache !== null && (now - _balanceCacheTime < 30000)) {
+      return { availableBalance: _balanceCache, walletBalance: _walletBalanceCache };
+    }
+    try {
+      const balances = await _get('/fapi/v2/balance', {}, apiKey, secret);
+      const usdt = (Array.isArray(balances) ? balances : []).find(b => b.asset === 'USDT');
+      const avail = parseFloat(usdt?.availableBalance || usdt?.balance || '0');
+      const wallet = parseFloat(usdt?.balance || usdt?.availableBalance || '0');
+      _balanceCache = avail;
+      _walletBalanceCache = wallet;
+      _balanceCacheTime = now;
+      return { availableBalance: avail, walletBalance: wallet };
+    } catch (err) {
+      log.warn(`[Binance] getBalance failed: ${err.message}`);
+      return {
+        availableBalance: _balanceCache !== null ? _balanceCache : 0,
+        walletBalance: _walletBalanceCache !== null ? _walletBalanceCache : (_balanceCache !== null ? _balanceCache : 0),
+      };
+    }
+  }
+
   return {
     /**
      * Lấy số dư khả dụng USDT từ Binance Futures (RAM cache 30s)
      */
     async getBalance() {
-      const now = Date.now();
-      if (_balanceCache !== null && (now - _balanceCacheTime < 30000)) {
-        return _balanceCache;
-      }
-      try {
-        const balances = await _get('/fapi/v2/balance', {}, apiKey, secret);
-        const usdt = (Array.isArray(balances) ? balances : []).find(b => b.asset === 'USDT');
-        const avail = parseFloat(usdt?.availableBalance || usdt?.balance || '0');
-        _balanceCache = avail;
-        _balanceCacheTime = now;
-        return avail;
-      } catch (err) {
-        log.warn(`[Binance] getBalance failed: ${err.message}`);
-        return _balanceCache !== null ? _balanceCache : 0;
-      }
+      const b = await _fetchUsdtBalanceCached();
+      return b.availableBalance;
+    },
+
+    /**
+     * Lấy tổng số dư ví USDT (Wallet Balance / NAV — không bị tụt khi mở lệnh) từ Binance Futures (RAM cache 30s)
+     */
+    async getWalletBalance() {
+      const b = await _fetchUsdtBalanceCached();
+      return b.walletBalance;
     },
 
     /**
