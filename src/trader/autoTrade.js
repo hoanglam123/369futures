@@ -2573,11 +2573,13 @@ async function startAutoTrade(coins) {
                   meta.touchLow = meta.touchLow == null ? markPrice : Math.min(meta.touchLow, markPrice);
                 }
 
+                const currentBouncedRoi = currentBouncedPct * (meta.leverage || 1);
+                const isRetestCancel = meta.isH1Retest && currentBouncedRoi >= 5.0;
                 const isBouncedFromTouch = meta.touchLow != null && markPrice >= (meta.touchLow * (1 + bouncePct / 100));
-                const isBouncedFromEntry = meta.hasTouchedEntry === true && currentBouncedPct >= bouncePct;
+                const isBouncedFromEntry = currentBouncedPct >= bouncePct;
                 const bounceRef = meta.touchLow != null ? meta.touchLow : entryPrice;
                 const bounceDisplayPct = meta.touchLow != null ? ((markPrice - meta.touchLow) / meta.touchLow * 100) : currentBouncedPct;
-                const shouldCancelNow = checkBounceCancelHoldReady(sym, 'LONG', meta, isBouncedFromTouch || isBouncedFromEntry, bounceDisplayPct, bouncePct);
+                const shouldCancelNow = checkBounceCancelHoldReady(sym, 'LONG', meta, isRetestCancel || isBouncedFromTouch || isBouncedFromEntry, bounceDisplayPct, bouncePct);
 
                 if (shouldCancelNow) {
                   log.system(`[AutoTrade] [BounceCancel] ${sym} LONG: giá từ điểm chạm $${bounceRef.toFixed(6)} duy trì bật lên $${markPrice.toFixed(6)} (+${bounceDisplayPct.toFixed(2)}% >= ${bouncePct.toFixed(2)}% suốt ${BOUNCE_CANCEL_WAIT_SEC}s) → Hủy LIMIT`);
@@ -2631,11 +2633,13 @@ async function startAutoTrade(coins) {
                   meta.touchHigh = meta.touchHigh == null ? markPrice : Math.max(meta.touchHigh, markPrice);
                 }
 
+                const currentBouncedRoi = currentBouncedPct * (meta.leverage || 1);
+                const isRetestCancel = meta.isH1Retest && currentBouncedRoi >= 5.0;
                 const isBouncedFromTouch = meta.touchHigh != null && markPrice <= (meta.touchHigh * (1 - bouncePct / 100));
-                const isBouncedFromEntry = meta.hasTouchedEntry === true && currentBouncedPct >= bouncePct;
+                const isBouncedFromEntry = currentBouncedPct >= bouncePct;
                 const bounceRef = meta.touchHigh != null ? meta.touchHigh : entryPrice;
                 const bounceDisplayPct = meta.touchHigh != null ? ((meta.touchHigh - markPrice) / meta.touchHigh * 100) : currentBouncedPct;
-                const shouldCancelNow = checkBounceCancelHoldReady(sym, 'SHORT', meta, isBouncedFromTouch || isBouncedFromEntry, bounceDisplayPct, bouncePct);
+                const shouldCancelNow = checkBounceCancelHoldReady(sym, 'SHORT', meta, isRetestCancel || isBouncedFromTouch || isBouncedFromEntry, bounceDisplayPct, bouncePct);
 
                 if (shouldCancelNow) {
                   log.system(`[AutoTrade] [BounceCancel] ${sym} SHORT: giá từ điểm chạm $${bounceRef.toFixed(6)} duy trì bật xuống $${markPrice.toFixed(6)} (-${bounceDisplayPct.toFixed(2)}% >= ${bouncePct.toFixed(2)}% suốt ${BOUNCE_CANCEL_WAIT_SEC}s) → Hủy LIMIT`);
