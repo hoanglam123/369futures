@@ -224,8 +224,9 @@ try {
       if (meta?.isPartialClosed) {
         partialClosedSymbols.add(sym);
       }
-      if (meta && !meta.isClosed && meta.side) {
-        try { removeShadowBySymbolDirection(sym, meta.side); } catch (_) {}
+      if (meta && !meta.isClosed) {
+        const dir = meta.side || meta.direction || (meta.isLong === true ? 'LONG' : (meta.isLong === false ? 'SHORT' : null));
+        try { removeShadowBySymbolDirection(sym, dir); } catch (_) {}
       }
     }
   }
@@ -2367,17 +2368,23 @@ async function startAutoTrade(coins) {
       const amt = parseFloat(p.positionAmt);
       if (amt !== 0) {
         const sym = p.symbol.replace('USDT', '');
+        const dir = amt > 0 ? 'LONG' : 'SHORT';
         activePositionsMap.set(sym, {
-          direction: amt > 0 ? 'LONG' : 'SHORT',
+          direction: dir,
           positionAmt: amt,
           entryPrice: parseFloat(p.entryPrice),
           unrealizedPnl: parseFloat(p.unRealizedProfit)
         });
+        try { removeShadowBySymbolDirection(sym, dir); } catch (_) {}
       }
     }
     for (const o of openOrders) {
       const sym = o.symbol.replace('USDT', '');
-      activeOrdersMap.set(sym, o.side === 'BUY' ? 'LONG' : 'SHORT');
+      const dir = o.side === 'BUY' ? 'LONG' : 'SHORT';
+      activeOrdersMap.set(sym, dir);
+      if (!isOrderReduceOnly(o) && (o.type === 'LIMIT' || o.orderType === 'LIMIT')) {
+        try { removeShadowBySymbolDirection(sym, dir); } catch (_) {}
+      }
     }
 
     let cleanedCount = 0;
@@ -3347,6 +3354,12 @@ async function startAutoTrade(coins) {
         if (isNewSignalLog) {
           log.system(`[AutoTrade] 🛑 ${sym} ${sig.signal} @ $${sig.targetLevel} vừa bị Bounce Cancel (đang trong Cooldown 20p) — bỏ qua khuyến nghị`);
         }
+        return;
+      }
+
+      // Chặn đăng ký Shadow trùng nếu coin đã có lệnh/vị thế thật đang chạy trên bot-h4
+      if (activeTradesMetadata[sym] && !activeTradesMetadata[sym].isClosed) {
+        activeSymbols.add(sym);
         return;
       }
 

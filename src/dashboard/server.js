@@ -542,11 +542,27 @@ function _estimateH4EnvMargin(sym, fallbackMargin = 10) {
 
 function apiShadowTrades() {
   const shadowPositions = readJson('shadow_positions.json', {});
+  const activeTrades = readJson('active_trades.json', {});
+  const liveCached = _cache.get('live-trades')?.data || [];
+  const activeRealKeys = new Set();
+  for (const [sym, m] of Object.entries(activeTrades)) {
+    if (!m || m.isClosed) continue;
+    const dir = (m.side === 'BUY' || m.side === 'LONG' || m.direction === 'LONG') ? 'LONG' : 'SHORT';
+    activeRealKeys.add(`${String(sym).toUpperCase().replace(/USDT$/i, '')}_${dir}`);
+  }
+  for (const t of liveCached) {
+    if (!t || !t.symbol) continue;
+    const dir = (t.direction === 'LONG' || t.side === 'BUY') ? 'LONG' : 'SHORT';
+    activeRealKeys.add(`${String(t.symbol).toUpperCase().replace(/USDT$/i, '')}_${dir}`);
+  }
+
   const list = [];
   for (const [id, s] of Object.entries(shadowPositions)) {
     if (!s || (s.status !== 'ACTIVE' && s.status !== 'PENDING_LIMIT')) continue;
     const sym = s.symbol;
     const isLong = s.signal === 'LONG' || s.signal === 'BUY';
+    const dir = isLong ? 'LONG' : 'SHORT';
+    if (activeRealKeys.has(`${String(sym).toUpperCase().replace(/USDT$/i, '')}_${dir}`)) continue;
     const entryPrice = parseFloat(s.entryPrice) || 0;
     const leverage = parseFloat(s.leverage) || 10;
     const margin = parseFloat(s.margin) || 20;

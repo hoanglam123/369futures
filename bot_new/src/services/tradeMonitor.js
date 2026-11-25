@@ -1099,6 +1099,7 @@ async function syncManualPositions(source = 'internal') {
         if (trackedActive._placingBracket) continue; // Đang đặt Dual Bracket từ WS fill -> tránh đặt trùng
         let healed = false;
         trackedActive.binanceQty = Math.abs(posAmt);
+        try { require('./shadowTracker').removeShadowBySymbolDirection(symbol, direction); } catch (_) {}
 
         // 1. Audit TP LIMIT trên sàn
         if (Array.isArray(allOpenOrders)) {
@@ -1342,6 +1343,7 @@ async function syncManualPositions(source = 'internal') {
 
       activeTrades.push(trade);
       saveTrades();
+      try { require('./shadowTracker').removeShadowBySymbolDirection(symbol, direction); } catch (_) {}
       ensureMarkPriceWS(symbol);
 
       log.trade(`syncManualPositions: phát hiện vị thế ${wasExpiredBot ? '(bot gốc đã expire)' : 'thủ công'} ${symbol} ${direction} @ ${fmtPrice(entryPrice)}`);

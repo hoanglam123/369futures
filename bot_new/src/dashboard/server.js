@@ -667,7 +667,27 @@ const ROUTES = {
   '/api/circuit-breaker':    () => { try { return require('../services/directionalCircuitBreaker').getDirectionalStatus(); } catch (e) { return { error: e.message }; } },
   '/api/btc-flash-guard':    () => { try { const g = require('../services/btcFlashGuard'); return { ...g.checkBtcFlashStatus(), velocityPct: g.getBtcVelocity() }; } catch (e) { return { error: e.message }; } },
   '/api/cooldowns':          () => { try { return require('../services/cooldownManager').getAllCooldowns(); } catch (e) { return { error: e.message }; } },
-  '/api/shadow-trades':      () => { try { const s = require('../services/shadowTracker'); return { active: s.getActiveShadowPositions(), stats: s.getShadowStats() }; } catch (e) { return { error: e.message }; } },
+  '/api/shadow-trades':      () => {
+    try {
+      const s = require('../services/shadowTracker');
+      const rawActive = s.getActiveShadowPositions() || {};
+      const liveCached = _cache.get('live-trades')?.data || readJson('trades.json', []);
+      const realKeys = new Set();
+      for (const t of liveCached) {
+        if (!t || t.status !== 'active' || !t.symbol) continue;
+        const dir = (t.direction === 'LONG' || t.side === 'BUY') ? 'LONG' : 'SHORT';
+        realKeys.add(`${String(t.symbol).toUpperCase().replace(/USDT$/i, '')}_${dir}`);
+      }
+      const filteredActive = {};
+      for (const [k, v] of Object.entries(rawActive)) {
+        if (!v) continue;
+        const dir = (v.direction === 'LONG' || v.side === 'BUY') ? 'LONG' : 'SHORT';
+        if (realKeys.has(`${String(v.symbol || '').toUpperCase().replace(/USDT$/i, '')}_${dir}`)) continue;
+        filteredActive[k] = v;
+      }
+      return { active: filteredActive, stats: s.getShadowStats() };
+    } catch (e) { return { error: e.message }; }
+  },
   '/api/proximity-heatmap':  () => {
     try {
       const { getPrices, getLevelCache } = require('../pp369');
