@@ -103,7 +103,7 @@ const COIN_REFRESH_INTERVAL_MS = 4 * 60 * 60_000; // Tái kiểm tra danh sách 
 const LEVERAGE_REFRESH_INTERVAL_MS = 6 * 60 * 60_000; // Tự động cập nhật trần đòn bẩy mỗi 6 giờ
 const SHADOW_REEVAL_SLOT_OFFSET_SEC = parseInt(process.env.SHADOW_REEVAL_SLOT_OFFSET_SEC || '25', 10); // Đồng bộ đồng hồ M30 (:00:25 & :30:25, lệch 15s so với bot-new :00:10/:30:10 để tránh đụng IP weight)
 const SHADOW_REEVAL_MIN_AGE_MS = parseInt(process.env.SHADOW_REEVAL_MIN_AGE_MS || String(30 * 60_000), 10);   // Tối thiểu sống sót 30 phút
-const SHADOW_REEVAL_MAX_AGE_MS = parseInt(process.env.SHADOW_REEVAL_MAX_AGE_MS || String(18 * 60 * 60_000), 10); // Tối đa 18 giờ
+const SHADOW_REEVAL_MAX_AGE_MS = parseInt(process.env.SHADOW_REEVAL_MAX_AGE_MS || '0', 10);                  // 0 = không giới hạn tuổi tối đa (tùy chọn giới hạn qua .env)
 const SHADOW_REEVAL_MAX_TP_PROGRESS = parseFloat(process.env.SHADOW_REEVAL_MAX_TP_PROGRESS || '0.30'); // Không đuổi nếu hiện tại đã chạy > 30% quãng TP
 const SHADOW_REEVAL_MAX_SL_ADVERSE = parseFloat(process.env.SHADOW_REEVAL_MAX_SL_ADVERSE || '0.40');   // Không bắt dao rơi nếu hiện tại đang lỗ > 40% quãng SL
 const SHADOW_REEVAL_MAX_HIST_TP_MFE = parseFloat(process.env.SHADOW_REEVAL_MAX_HIST_TP_MFE || '0.35'); // Mức 1: Chặn mốc đã từng bật quá 35% TP rồi quay về (Stale Bounce)
@@ -4245,7 +4245,10 @@ async function startAutoTrade(coins) {
     };
     const firstDelayMs = scheduleNextShadowReeval();
     const nextRunStr = new Date(Date.now() + firstDelayMs).toLocaleTimeString('vi-VN', { hour12: false, timeZone: 'Asia/Ho_Chi_Minh' });
-    log.system(`[ShadowReEval] Đã bật lịch đồng bộ đồng hồ mỗi 30p (:00:${String(SHADOW_REEVAL_SLOT_OFFSET_SEC).padStart(2, '0')} & :30:${String(SHADOW_REEVAL_SLOT_OFFSET_SEC).padStart(2, '0')}) — Lượt kế tiếp: ${nextRunStr} (còn ${(firstDelayMs / 60_000).toFixed(1)}p | Tuổi: ${Math.round(SHADOW_REEVAL_MIN_AGE_MS / 60_000)}p-${Math.round(SHADOW_REEVAL_MAX_AGE_MS / 3_600_000)}h, Max ${SHADOW_REEVAL_MAX_PROMOTES_PER_CYCLE} lệnh/chu kỳ).`);
+    const ageLabel = SHADOW_REEVAL_MAX_AGE_MS > 0
+      ? `${Math.round(SHADOW_REEVAL_MIN_AGE_MS / 60_000)}p-${Math.round(SHADOW_REEVAL_MAX_AGE_MS / 3_600_000)}h`
+      : `>=${Math.round(SHADOW_REEVAL_MIN_AGE_MS / 60_000)}p (không giới hạn trần)`;
+    log.system(`[ShadowReEval] Đã bật lịch đồng bộ đồng hồ mỗi 30p (:00:${String(SHADOW_REEVAL_SLOT_OFFSET_SEC).padStart(2, '0')} & :30:${String(SHADOW_REEVAL_SLOT_OFFSET_SEC).padStart(2, '0')}) — Lượt kế tiếp: ${nextRunStr} (còn ${(firstDelayMs / 60_000).toFixed(1)}p | Tuổi: ${ageLabel}, Max ${SHADOW_REEVAL_MAX_PROMOTES_PER_CYCLE} lệnh/chu kỳ).`);
   }
 
   // Trả về hàm stop để caller có thể dừng nếu cần
@@ -5211,7 +5214,7 @@ function isShadowEligibleForReeval(sh, markPrice, nowMs = Date.now()) {
   if (ageMs < SHADOW_REEVAL_MIN_AGE_MS) {
     return { eligible: false, reason: 'TOO_YOUNG', ageMinutes: Math.round(ageMs / 60_000) };
   }
-  if (ageMs > SHADOW_REEVAL_MAX_AGE_MS) {
+  if (SHADOW_REEVAL_MAX_AGE_MS > 0 && ageMs > SHADOW_REEVAL_MAX_AGE_MS) {
     return { eligible: false, reason: 'TOO_OLD', ageMinutes: Math.round(ageMs / 60_000) };
   }
 

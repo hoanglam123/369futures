@@ -1164,7 +1164,7 @@ if (typeof _jobPruneTimer.unref === 'function') _jobPruneTimer.unref();
 
 // ─── LUỒNG TÁI ĐÁNH GIÁ SHADOW MỖI 30 PHÚT (PHƯƠNG ÁN B - ĐỒNG BỘ BOT-H4) ─────
 const SHADOW_REEVAL_MIN_AGE_MS = parseInt(process.env.SHADOW_REEVAL_MIN_AGE_MS || String(30 * 60_000), 10);
-const SHADOW_REEVAL_MAX_AGE_MS = parseInt(process.env.SHADOW_REEVAL_MAX_AGE_MS || String(18 * 60 * 60_000), 10);
+const SHADOW_REEVAL_MAX_AGE_MS = parseInt(process.env.SHADOW_REEVAL_MAX_AGE_MS || '0', 10); // 0 = không giới hạn tuổi tối đa
 const SHADOW_REEVAL_MAX_TP_PROGRESS = parseFloat(process.env.SHADOW_REEVAL_MAX_TP_PROGRESS || '0.30');
 const SHADOW_REEVAL_MAX_SL_ADVERSE = parseFloat(process.env.SHADOW_REEVAL_MAX_SL_ADVERSE || '0.40');
 const SHADOW_REEVAL_MAX_HIST_TP_MFE = parseFloat(process.env.SHADOW_REEVAL_MAX_HIST_TP_MFE || '0.35');
@@ -1208,7 +1208,7 @@ function isShadowEligibleForReeval(sh, markPrice, nowMs = Date.now()) {
   if (ageMs < SHADOW_REEVAL_MIN_AGE_MS) {
     return { eligible: false, reason: 'TOO_YOUNG', ageMinutes: Math.round(ageMs / 60_000) };
   }
-  if (ageMs > SHADOW_REEVAL_MAX_AGE_MS) {
+  if (SHADOW_REEVAL_MAX_AGE_MS > 0 && ageMs > SHADOW_REEVAL_MAX_AGE_MS) {
     return { eligible: false, reason: 'TOO_OLD', ageMinutes: Math.round(ageMs / 60_000) };
   }
 
