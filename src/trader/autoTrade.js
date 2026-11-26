@@ -101,7 +101,7 @@ const MONITOR_LIMIT_INTERVAL_MS = 3_000; // Luồng 3: monitor lệnh LIMIT đan
 const DEBOUNCE_MS = 5 * 60_000; // 5 phút / tín hiệu
 const COIN_REFRESH_INTERVAL_MS = 4 * 60 * 60_000; // Tái kiểm tra danh sách coin mỗi 4 giờ
 const LEVERAGE_REFRESH_INTERVAL_MS = 6 * 60 * 60_000; // Tự động cập nhật trần đòn bẩy mỗi 6 giờ
-const SHADOW_REEVAL_INTERVAL_MS = parseInt(process.env.SHADOW_REEVAL_INTERVAL_MS || String(30 * 60_000), 10); // Tái chấm điểm Shadow mỗi 30 phút
+const SHADOW_REEVAL_SLOT_OFFSET_SEC = parseInt(process.env.SHADOW_REEVAL_SLOT_OFFSET_SEC || '25', 10); // Đồng bộ đồng hồ M30 (:00:25 & :30:25, lệch 15s so với bot-new :00:10/:30:10 để tránh đụng IP weight)
 const SHADOW_REEVAL_MIN_AGE_MS = parseInt(process.env.SHADOW_REEVAL_MIN_AGE_MS || String(30 * 60_000), 10);   // Tối thiểu sống sót 30 phút
 const SHADOW_REEVAL_MAX_AGE_MS = parseInt(process.env.SHADOW_REEVAL_MAX_AGE_MS || String(8 * 60 * 60_000), 10); // Tối đa 8 giờ (cửa sổ tối ưu 3h-8h)
 const SHADOW_REEVAL_MAX_TP_PROGRESS = parseFloat(process.env.SHADOW_REEVAL_MAX_TP_PROGRESS || '0.30'); // Không đuổi nếu hiện tại đã chạy > 30% quãng TP
@@ -4227,25 +4227,37 @@ async function startAutoTrade(coins) {
     });
   }, 15000);
 
-  // Luồng 6: Shadow Re-Evaluation — Tái chấm điểm từ đầu mỗi 30 phút cho các vị thế Shadow sống sót (Phương án B)
+  // Luồng 6: Shadow Re-Evaluation — Đồng bộ lịch theo đồng hồ M30 (:00:25 & :30:25, cùng nhịp với bot-new :00:10/:30:10, lệch 15s tránh trùng IP weight)
   let shadowReevalTimer = null;
+  let shadowReevalStopped = false;
   if (process.env.ENABLE_SHADOW_REEVAL !== 'false') {
-    shadowReevalTimer = setInterval(() => {
-      reevaluateShadowPositions(client, activeSymbols, leverageInfo, activeOrdersMap).catch(err => {
-        log.warn(`[ShadowReEval] Lỗi luồng tái đánh giá Shadow 30p: ${err.message}`);
-      });
-    }, SHADOW_REEVAL_INTERVAL_MS);
-    log.system(`[ShadowReEval] Đã bật chu kỳ tái chấm điểm Shadow từ đầu mỗi ${Math.round(SHADOW_REEVAL_INTERVAL_MS / 60_000)} phút (Tuổi: ${Math.round(SHADOW_REEVAL_MIN_AGE_MS / 60_000)}p-${Math.round(SHADOW_REEVAL_MAX_AGE_MS / 3_600_000)}h, Max ${SHADOW_REEVAL_MAX_PROMOTES_PER_CYCLE} lệnh/chu kỳ).`);
+    const scheduleNextShadowReeval = () => {
+      if (shadowReevalStopped) return;
+      const delayMs = msUntilNextHalfHourSlot(SHADOW_REEVAL_SLOT_OFFSET_SEC);
+      shadowReevalTimer = setTimeout(() => {
+        if (shadowReevalStopped) return;
+        // Lập lịch mốc 30 phút kế tiếp trước khi chạy để không bị trôi đồng hồ
+        scheduleNextShadowReeval();
+        reevaluateShadowPositions(client, activeSymbols, leverageInfo, activeOrdersMap).catch(err => {
+          log.warn(`[ShadowReEval] Lỗi luồng tái đánh giá Shadow 30p: ${err.message}`);
+        });
+      }, delayMs);
+      return delayMs;
+    };
+    const firstDelayMs = scheduleNextShadowReeval();
+    const nextRunStr = new Date(Date.now() + firstDelayMs).toLocaleTimeString('vi-VN', { hour12: false, timeZone: 'Asia/Ho_Chi_Minh' });
+    log.system(`[ShadowReEval] Đã bật lịch đồng bộ đồng hồ mỗi 30p (:00:${String(SHADOW_REEVAL_SLOT_OFFSET_SEC).padStart(2, '0')} & :30:${String(SHADOW_REEVAL_SLOT_OFFSET_SEC).padStart(2, '0')}) — Lượt kế tiếp: ${nextRunStr} (còn ${(firstDelayMs / 60_000).toFixed(1)}p | Tuổi: ${Math.round(SHADOW_REEVAL_MIN_AGE_MS / 60_000)}p-${Math.round(SHADOW_REEVAL_MAX_AGE_MS / 3_600_000)}h, Max ${SHADOW_REEVAL_MAX_PROMOTES_PER_CYCLE} lệnh/chu kỳ).`);
   }
 
   // Trả về hàm stop để caller có thể dừng nếu cần
   return function stop() {
+    shadowReevalStopped = true;
     clearInterval(timer);
     clearInterval(trailingSlTimer);
     clearInterval(monitorLimitTimer);
     clearInterval(h1RetestTimer);
     clearInterval(btcFlashTimer);
-    if (shadowReevalTimer) clearInterval(shadowReevalTimer);
+    if (shadowReevalTimer) clearTimeout(shadowReevalTimer);
     clearInterval(leverageRefreshTimer);
     clearInterval(shadowSyncTimer);
     clearInterval(coinRefreshTimer);
@@ -5148,6 +5160,20 @@ async function checkH1RetestSignals(client, activeSymbols, leverageInfo = {}, ac
     // Giãn cách 200ms giữa các symbol để tránh request burst
     await new Promise(r => setTimeout(r, 200));
   }
+}
+
+/**
+ * Tính số mili-giây còn lại tới mốc nửa giờ đồng hồ kế tiếp (:00:offsetSeconds hoặc :30:offsetSeconds).
+ * Zero-dependency (tương đương lịch mỗi 30 phút theo đồng hồ), đồng bộ tuyệt đối với mốc nến M30/H1 và không drift.
+ */
+function msUntilNextHalfHourSlot(offsetSeconds = 25, nowMs = Date.now()) {
+  const SLOT_MS = 30 * 60_000;
+  const offsetMs = Math.max(0, Math.min(59, Number(offsetSeconds) || 0)) * 1000;
+  const rem = (nowMs - offsetMs) % SLOT_MS;
+  const normalizedRem = rem < 0 ? rem + SLOT_MS : rem;
+  let delay = SLOT_MS - normalizedRem;
+  if (delay < 1000) delay += SLOT_MS; // Tránh bắn lặp đôi nếu lệch vài ms ngay sát giây mục tiêu
+  return delay;
 }
 
 /**
@@ -7169,4 +7195,5 @@ module.exports = {
   isOrderReduceOnly,
   isShadowEligibleForReeval,
   reevaluateShadowPositions,
+  msUntilNextHalfHourSlot,
 };
