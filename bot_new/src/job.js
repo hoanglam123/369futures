@@ -1097,6 +1097,8 @@ const SHADOW_REEVAL_MIN_AGE_MS = parseInt(process.env.SHADOW_REEVAL_MIN_AGE_MS |
 const SHADOW_REEVAL_MAX_AGE_MS = parseInt(process.env.SHADOW_REEVAL_MAX_AGE_MS || String(8 * 60 * 60_000), 10);
 const SHADOW_REEVAL_MAX_TP_PROGRESS = parseFloat(process.env.SHADOW_REEVAL_MAX_TP_PROGRESS || '0.30');
 const SHADOW_REEVAL_MAX_SL_ADVERSE = parseFloat(process.env.SHADOW_REEVAL_MAX_SL_ADVERSE || '0.40');
+const SHADOW_REEVAL_MAX_HIST_TP_MFE = parseFloat(process.env.SHADOW_REEVAL_MAX_HIST_TP_MFE || '0.35');
+const SHADOW_REEVAL_MAX_HIST_SL_MAE = parseFloat(process.env.SHADOW_REEVAL_MAX_HIST_SL_MAE || '0.65');
 const SHADOW_REEVAL_MAX_PROMOTES_PER_CYCLE = parseInt(process.env.SHADOW_REEVAL_MAX_PROMOTES_PER_CYCLE || '2', 10);
 const SHADOW_REEVAL_HARD_VETO_RE = /RR_BLOCKED_BY_MAJOR_SR|GRID_|SL_TOO_WIDE|HARD_FILTER|DIRECTIONAL_CB|SL_COOLDOWN|SHADOW_ONLY_MODE|UNTRADABLE/i;
 
@@ -1162,6 +1164,27 @@ function isShadowEligibleForReeval(sh, markPrice, nowMs = Date.now()) {
     return { eligible: false, reason: 'DYING_GUARD_SL_ADVERSE', adverseToSlPct: +(adverseToSl * 100).toFixed(1) };
   }
 
+  // Mức 1 — Kiểm tra biên độ lịch sử (MFE / MAE) đã từng đi qua của Shadow:
+  // 1) Từng bật quá 35% TP rồi quay về -> Stale Bounce (mốc đã xài hết lực bật)
+  // 2) Từng đâm sâu quá 65% SL rồi hồi lên -> Broken Structure (cấu trúc cản đã bị đục hỏng)
+  // 3) Quét râu 40%-65% SL rồi rút chân về <= 40% SL -> Cho đi tiếp để Confluence + AI thẩm định
+  const maxFav = parseFloat(sh.maxFavorablePrice || 0);
+  let histMaxTpProgress = 0;
+  if (maxFav > 0) {
+    histMaxTpProgress = isLong ? ((maxFav - origEntry) / tpDist) : ((origEntry - maxFav) / tpDist);
+    if (histMaxTpProgress > SHADOW_REEVAL_MAX_HIST_TP_MFE) {
+      return { eligible: false, reason: 'STALE_BOUNCE_MFE_GUARD', histMaxTpPct: +(histMaxTpProgress * 100).toFixed(1) };
+    }
+  }
+  const maxAdv = parseFloat(sh.maxAdversePrice || 0);
+  let histMaxSlAdverse = 0;
+  if (maxAdv > 0) {
+    histMaxSlAdverse = isLong ? ((origEntry - maxAdv) / slDist) : ((maxAdv - origEntry) / slDist);
+    if (histMaxSlAdverse > SHADOW_REEVAL_MAX_HIST_SL_MAE) {
+      return { eligible: false, reason: 'BROKEN_STRUCTURE_MAE_GUARD', histMaxSlPct: +(histMaxSlAdverse * 100).toFixed(1) };
+    }
+  }
+
   // Maker-only: LONG luôn <= min(origEntry, mark * 0.9995); SHORT luôn >= max(origEntry, mark * 1.0005)
   const limitEntry = isLong
     ? Math.min(origEntry, currPrice * 0.9995)
@@ -1176,6 +1199,8 @@ function isShadowEligibleForReeval(sh, markPrice, nowMs = Date.now()) {
     ageMinutes: Math.round(ageMs / 60_000),
     progressToTpPct: +(progressToTp * 100).toFixed(1),
     adverseToSlPct: +(adverseToSl * 100).toFixed(1),
+    histMaxTpPct: +(Math.max(0, histMaxTpProgress) * 100).toFixed(1),
+    histMaxSlPct: +(Math.max(0, histMaxSlAdverse) * 100).toFixed(1),
   };
 }
 
