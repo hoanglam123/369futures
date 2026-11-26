@@ -1289,10 +1289,15 @@ async function runShadowReevaluation() {
   _isShadowReevalRunning = true;
   let checked = 0;
   let promoted = 0;
+  const skipCounts = {};
+  const bumpSkip = (reason) => { skipCounts[reason] = (skipCounts[reason] || 0) + 1; };
   try {
     const activeShadows = typeof getActiveShadowPositions === 'function' ? getActiveShadowPositions() : {};
     const entries = Object.entries(activeShadows || {});
-    if (entries.length === 0) return { checked: 0, promoted: 0 };
+    if (entries.length === 0) {
+      log.system('[ShadowReEval] ⏱️ Chu kỳ 30p: 0 vị thế Shadow đang theo dõi → Bỏ qua.');
+      return { checked: 0, promoted: 0 };
+    }
 
     // Làm mới giá REST nhẹ để có markPrice cho mọi shadow coin
     if (typeof updatePricesRest === 'function' && !isIpBanned()) {
@@ -1352,12 +1357,16 @@ async function runShadowReevaluation() {
         isDirectionLocked(direction).isLocked ||
         isLevelBounceCooldown(sym, parseFloat(sh.entryPrice || 0))
       ) {
+        bumpSkip('ACTIVE_OR_LOCKED');
         continue;
       }
 
       const markPrice = (typeof getMarkPrice === 'function' ? getMarkPrice(sym) : null) || pricesMap[sym] || null;
       const elig = isShadowEligibleForReeval(sh, markPrice, nowMs);
-      if (!elig.eligible) continue;
+      if (!elig.eligible) {
+        bumpSkip(elig.reason || 'INELIGIBLE');
+        continue;
+      }
 
       checked++;
       try {
@@ -1496,9 +1505,9 @@ async function runShadowReevaluation() {
       await new Promise(r => setTimeout(r, 600));
     }
 
-    if (checked > 0) {
-      log.system(`[ShadowReEval] Hoàn tất chu kỳ 30p: Đã chấm lại ${checked} Shadow đủ chuẩn → Đẩy lệnh thật ${promoted}/${SHADOW_REEVAL_MAX_PROMOTES_PER_CYCLE}.`);
-    }
+    const skipParts = Object.entries(skipCounts).map(([k, v]) => `${k}:${v}`).join(', ');
+    const skipSummary = skipParts ? ` | Lọc tiền kiểm (${skipParts})` : '';
+    log.system(`[ShadowReEval] ⏱️ Hoàn tất chu kỳ 30p: Tổng ${entries.length} Shadow | Đủ tiền kiểm: ${checked}${skipSummary} → Đẩy lệnh thật ${promoted}/${SHADOW_REEVAL_MAX_PROMOTES_PER_CYCLE}.`);
     return { checked, promoted };
   } finally {
     _isShadowReevalRunning = false;
