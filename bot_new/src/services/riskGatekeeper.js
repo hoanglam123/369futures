@@ -231,12 +231,15 @@ function extractGatekeeperFeatures(sig, marketContext = {}) {
   else if (preBounce >= 0.8) features['pre_entry_bounce'] = 'BOUNCE_STALE_HIGH';
   else features['pre_entry_bounce'] = 'BOUNCE_FRESH';
 
-  // 6. Biến tốc BTC Flash Guard 180s
+  // 6. Biến tốc BTC Flash Guard 180s (Tách 2 cấp MODERATE vs SEVERE, miễn trừ Vàng/Hàng hóa)
   const btcFlash = marketContext?.btcFlash;
-  if (btcFlash === 'FLASH_DUMP' && isLong) {
-    features['btc_flash'] = 'BTC_FLASH_DUMP_ACTIVE';
-  } else if (btcFlash === 'FLASH_PUMP' && !isLong) {
-    features['btc_flash'] = 'BTC_FLASH_PUMP_ACTIVE';
+  const cleanSymFlash = String(sig?.symbol || marketContext?.symbol || '').toUpperCase().replace(/USDT$/i, '');
+  const isBtcFlashExempt = ['PAXG', 'XAU', 'XAG'].includes(cleanSymFlash);
+  const flashSeverity = marketContext?.btcFlashSeverity || 'SEVERE';
+  if (!isBtcFlashExempt && btcFlash === 'FLASH_DUMP' && isLong) {
+    features['btc_flash'] = flashSeverity === 'MODERATE' ? 'BTC_FLASH_DUMP_MODERATE' : 'BTC_FLASH_DUMP_ACTIVE';
+  } else if (!isBtcFlashExempt && btcFlash === 'FLASH_PUMP' && !isLong) {
+    features['btc_flash'] = flashSeverity === 'MODERATE' ? 'BTC_FLASH_PUMP_MODERATE' : 'BTC_FLASH_PUMP_ACTIVE';
   } else {
     features['btc_flash'] = 'BTC_FLASH_NORMAL';
   }
@@ -353,6 +356,8 @@ function evaluateSignal(sig, marketContext = null) {
     'pre_entry_bounce:BOUNCE_FRESH': 1.00,
     'btc_flash:BTC_FLASH_DUMP_ACTIVE': riskPenalties.btcFlashOpposing ?? 0.35,
     'btc_flash:BTC_FLASH_PUMP_ACTIVE': riskPenalties.btcFlashOpposing ?? 0.35,
+    'btc_flash:BTC_FLASH_DUMP_MODERATE': 0.78,
+    'btc_flash:BTC_FLASH_PUMP_MODERATE': 0.78,
     'btc_flash:BTC_FLASH_NORMAL': 1.00,
     'spread_slippage:SPREAD_WIDE_DANGER': riskPenalties.spreadWide ?? 0.20,
     'spread_slippage:SPREAD_MEDIUM_CAUTION': 0.95,

@@ -157,14 +157,17 @@ async function generateQuantitativeTrade(setup, marketData = null) {
   }
 
   // ─── CHỐT CHẶN 3: REAL-TIME BTC FLASH GUARD ───────────────────────
+  // Chỉ chặn cứng tại đây khi bão thật SEVERE (>= 2.0%), miễn trừ nhóm Vàng/Hàng hóa (PAXG/XAU/XAG).
+  // Mức MODERATE đi qua Risk Gatekeeper với mức phạt nhẹ x0.78 để kèo đẹp có cản cứng vẫn vào được.
   const btcFlash = checkBtcFlashStatus();
-  if (btcFlash.activeFlash === 'FLASH_DUMP' && direction === 'LONG') {
-    log.system(`[AutoTrade] 🛑 [VETO BTC Flash Guard] ${symbol} LONG: Đang có bão BTC Flash Dump (${btcFlash.reason})`);
+  const isBtcFlashExempt = ['PAXG', 'XAU', 'XAG'].includes(String(symbol || '').toUpperCase().replace(/USDT$/i, ''));
+  if (!isBtcFlashExempt && btcFlash.severity === 'SEVERE' && btcFlash.activeFlash === 'FLASH_DUMP' && direction === 'LONG') {
+    log.system(`[AutoTrade] 🛑 [VETO BTC Flash Guard SEVERE] ${symbol} LONG: Đang có bão BTC Flash Dump (${btcFlash.reason})`);
     registerShadowTrade(setup, `BTC_FLASH_DUMP: ${btcFlash.reason}`);
     return null;
   }
-  if (btcFlash.activeFlash === 'FLASH_PUMP' && direction === 'SHORT') {
-    log.system(`[AutoTrade] 🛑 [VETO BTC Flash Guard] ${symbol} SHORT: Đang có bão BTC Flash Pump (${btcFlash.reason})`);
+  if (!isBtcFlashExempt && btcFlash.severity === 'SEVERE' && btcFlash.activeFlash === 'FLASH_PUMP' && direction === 'SHORT') {
+    log.system(`[AutoTrade] 🛑 [VETO BTC Flash Guard SEVERE] ${symbol} SHORT: Đang có bão BTC Flash Pump (${btcFlash.reason})`);
     registerShadowTrade(setup, `BTC_FLASH_PUMP: ${btcFlash.reason}`);
     return null;
   }
@@ -353,6 +356,7 @@ async function generateQuantitativeTrade(setup, marketData = null) {
     h1VolRatio,
     preEntryBouncePct,
     btcFlash: btcFlash.activeFlash || 'NORMAL',
+    btcFlashSeverity: btcFlash.severity || 'NORMAL',
     spreadPct: micro.spreadPct,
     tickSize: symTickSize,
     orderbookWall: micro.orderbookWall,

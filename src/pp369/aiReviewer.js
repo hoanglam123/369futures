@@ -556,11 +556,14 @@ function extractSignalFeatures(reasons, score, rank, gridWidthPct, rawMarketData
     features['wick_rejection'] = sm.m15WickRejection;
   }
 
-  // ── [MỚI] 15. BTC Flash Pump / Dump Market Regime ──
-  if (rawMarketData?.btcFlashPump && isShort) {
-    features['btc_flash'] = 'BTC_FLASH_PUMP_ACTIVE';
-  } else if (rawMarketData?.btcFlashDump && isLong) {
-    features['btc_flash'] = 'BTC_FLASH_DUMP_ACTIVE';
+  // ── [MỚI] 15. BTC Flash Pump / Dump Market Regime (Tách 2 cấp MODERATE vs SEVERE, miễn trừ Vàng/Hàng hóa) ──
+  const cleanSymFlash = String(rawMarketData?.symbol || '').toUpperCase().replace(/USDT$/i, '');
+  const isBtcFlashExempt = ['PAXG', 'XAU', 'XAG'].includes(cleanSymFlash);
+  const flashSeverity = rawMarketData?.btcFlashSeverity || 'SEVERE';
+  if (!isBtcFlashExempt && rawMarketData?.btcFlashPump && isShort) {
+    features['btc_flash'] = flashSeverity === 'MODERATE' ? 'BTC_FLASH_PUMP_MODERATE' : 'BTC_FLASH_PUMP_ACTIVE';
+  } else if (!isBtcFlashExempt && rawMarketData?.btcFlashDump && isLong) {
+    features['btc_flash'] = flashSeverity === 'MODERATE' ? 'BTC_FLASH_DUMP_MODERATE' : 'BTC_FLASH_DUMP_ACTIVE';
   } else {
     features['btc_flash'] = 'BTC_FLASH_NORMAL';
   }
@@ -611,7 +614,8 @@ function extractSignalFeatures(reasons, score, rank, gridWidthPct, rawMarketData
   const isStaleExtreme = features['pre_entry_bounce'] === 'BOUNCE_STALE_EXTREME';
   const isStaleHigh = features['pre_entry_bounce'] === 'BOUNCE_STALE_HIGH';
   const isBtcVolatileRegime = features['btc_storm'] === 'BTC_STORM_VOLATILE' ||
-    (features['btc_flash'] && features['btc_flash'] !== 'BTC_FLASH_NORMAL');
+    features['btc_flash'] === 'BTC_FLASH_DUMP_ACTIVE' ||
+    features['btc_flash'] === 'BTC_FLASH_PUMP_ACTIVE';
 
   // Giá đã nảy quá xa cản kết hợp bão BTC -> Kích hoạt rủi ro đu đỉnh/đáy
   if (isStaleExtreme || (isStaleHigh && isBtcVolatileRegime)) {
@@ -756,6 +760,8 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
     'btc_storm:BTC_STORM_NORMAL': 1.03,
     'btc_flash:BTC_FLASH_PUMP_ACTIVE': btcFlashMult,
     'btc_flash:BTC_FLASH_DUMP_ACTIVE': btcFlashMult,
+    'btc_flash:BTC_FLASH_PUMP_MODERATE': 0.78,
+    'btc_flash:BTC_FLASH_DUMP_MODERATE': 0.78,
     'btc_flash:BTC_FLASH_NORMAL': 1.00,
     'risk_interaction:INTERACTION_STALE_BOUNCE_RUNAWAY': 0.45,
     'risk_interaction:INTERACTION_HIGH_VOLATILITY_WEAK_SETUP': 0.50,

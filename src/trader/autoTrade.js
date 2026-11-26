@@ -272,17 +272,18 @@ let btcFlashState = {
 };
 
 const BTC_FLASH_FLIP_COOLDOWN_MS   = 5 * 60_000;  // Chống lật chiều Pump <-> Dump tối thiểu 5 phút
-const BTC_FLASH_FLIP_OVERRIDE_PCT  = 1.20;        // Chỉ cho phép lật chiều ngay trong 5p nếu cú ngược >= 1.20%
-const BTC_FLASH_MODERATE_LOCK_MS   = 20 * 60_000; // Mức 1 (Biến động mạnh): Khóa mở mới 20 phút, KHÔNG ép PanicEscape
-const BTC_FLASH_SEVERE_LOCK_MS     = 45 * 60_000; // Mức 2 (Bão thật >= 1.5%): Khóa 45 phút + PanicEscape lệnh đang lỗ
-const BTC_FLASH_WS_60S_PCT         = 0.65;        // WS 60s >= ±0.65%
-const BTC_FLASH_WS_180S_PCT        = 1.00;        // WS 180s >= ±1.00%
-const BTC_FLASH_M1_BODY_PCT        = 0.55;        // M1 thân nến >= ±0.55% + Vol >= 2.5x
-const BTC_FLASH_M1_CASCADE_PCT     = 0.85;        // 3 nến M1 liên tiếp >= ±0.85%
-const BTC_FLASH_M15_BODY_PCT       = 0.90;        // M15 thân nến >= ±0.90% + Vol >= 2.2x (bỏ bẫy râu rút chân)
+const BTC_FLASH_FLIP_OVERRIDE_PCT  = 1.60;        // Chỉ cho phép lật chiều ngay trong 5p nếu cú ngược >= 1.60%
+const BTC_FLASH_MODERATE_LOCK_MS   = 8 * 60_000;  // Mức 1 (Biến động mạnh): Phạt nhẹ AI 8 phút (x0.78), KHÔNG hủy Limit
+const BTC_FLASH_SEVERE_LOCK_MS     = 25 * 60_000; // Mức 2 (Bão thật >= 2.0%): Phạt nặng 25 phút + hủy Entry Limit ngược sóng
+const BTC_FLASH_WS_60S_PCT         = 1.00;        // WS 60s >= ±1.00%
+const BTC_FLASH_WS_180S_PCT        = 1.50;        // WS 180s >= ±1.50%
+const BTC_FLASH_M1_BODY_PCT        = 0.90;        // M1 thân nến >= ±0.90% + Vol >= 2.5x
+const BTC_FLASH_M1_CASCADE_PCT     = 1.30;        // 3 nến M1 liên tiếp >= ±1.30%
+const BTC_FLASH_M15_BODY_PCT       = 1.40;        // M15 thân nến >= ±1.40% + Vol >= 2.2x
 const BTC_FLASH_M15_VOL_RATIO      = 2.2;
 const BTC_FLASH_M15_VOL_ABS        = 8000;
-const BTC_FLASH_SEVERE_MOVE_PCT    = 1.50;
+const BTC_FLASH_SEVERE_MOVE_PCT    = 2.00;
+const BTC_FLASH_EXEMPT_SYMBOLS     = new Set(['PAXG', 'XAU', 'XAG']);
 
 // ── Sliding Window 180s cho Real-time WebSocket Velocity ────
 const btcTickHistory = []; // { t: number, p: number }
@@ -326,7 +327,7 @@ function isOrderReduceOnly(order) {
 async function triggerBtcFlashPump(client, { reason, source = 'REST', movePct = 0, durationMs = null } = {}) {
   const now = Date.now();
   const absMove = Math.abs(Number(movePct) || 0);
-  const isSevere = absMove >= BTC_FLASH_SEVERE_MOVE_PCT || (source !== 'Nến M15' && absMove >= 1.20);
+  const isSevere = absMove >= BTC_FLASH_SEVERE_MOVE_PCT || (source !== 'Nến M15' && absMove >= 1.80);
   const severity = isSevere ? 'SEVERE' : 'MODERATE';
   const lockMs = durationMs || (isSevere ? BTC_FLASH_SEVERE_LOCK_MS : BTC_FLASH_MODERATE_LOCK_MS);
   const lockMins = Math.round(lockMs / 60_000);
@@ -353,19 +354,19 @@ async function triggerBtcFlashPump(client, { reason, source = 'REST', movePct = 
   if (isNewLock || isUpgradeToSevere) {
     log.system(`[AutoTrade] 🚨 [BTC Flash Pump Guard] [${source} | ${severity}] Kích hoạt khóa SHORT Altcoin trong ${lockMins} phút (${btcFlashState.lockReason})`);
 
-    // Hủy CHỈ các lệnh ENTRY Limit SHORT đang treo (!reduceOnly — tuyệt đối KHÔNG hủy TP LIMIT của vị thế LONG)
+    // Chỉ hủy Entry Limit SHORT ngược sóng khi bão thật SEVERE (và miễn trừ hàng hóa/vàng PAXG/XAU/XAG)
     const effectiveClient = client || globalTradeClient;
-    if (effectiveClient) {
+    if (isSevere && effectiveClient) {
       try {
         const openOrders = await effectiveClient.getOpenOrders();
         for (const order of (openOrders || [])) {
           if (!isOrderReduceOnly(order) && order.side === 'SELL' && (order.type === 'LIMIT' || order.orderType === 'LIMIT')) {
             const sym = order.symbol.replace('USDT', '');
+            if (BTC_FLASH_EXEMPT_SYMBOLS.has(sym)) continue;
             await effectiveClient.cancelOrder(sym, order.orderId).catch(() => { });
-            log.system(`[AutoTrade] [BTC Guard] Hủy lệnh ENTRY LIMIT SHORT treo của ${sym} để phòng ngừa rủi ro.`);
+            log.system(`[AutoTrade] [BTC Guard] Hủy lệnh ENTRY LIMIT SHORT treo của ${sym} để phòng ngừa rủi ro bão SEVERE.`);
           }
         }
-        // Giữ nguyên toàn bộ vị thế đã khớp cùng TP/SL & Fractal Trailing SL trên sàn (không kích hoạt PanicEscape)
       } catch (_) { }
     }
 
@@ -382,7 +383,7 @@ async function triggerBtcFlashPump(client, { reason, source = 'REST', movePct = 
 async function triggerBtcFlashDump(client, { reason, source = 'REST', movePct = 0, durationMs = null } = {}) {
   const now = Date.now();
   const absMove = Math.abs(Number(movePct) || 0);
-  const isSevere = absMove >= BTC_FLASH_SEVERE_MOVE_PCT || (source !== 'Nến M15' && absMove >= 1.20);
+  const isSevere = absMove >= BTC_FLASH_SEVERE_MOVE_PCT || (source !== 'Nến M15' && absMove >= 1.80);
   const severity = isSevere ? 'SEVERE' : 'MODERATE';
   const lockMs = durationMs || (isSevere ? BTC_FLASH_SEVERE_LOCK_MS : BTC_FLASH_MODERATE_LOCK_MS);
   const lockMins = Math.round(lockMs / 60_000);
@@ -409,19 +410,19 @@ async function triggerBtcFlashDump(client, { reason, source = 'REST', movePct = 
   if (isNewLock || isUpgradeToSevere) {
     log.system(`[AutoTrade] 🚨 [BTC Flash Dump Guard] [${source} | ${severity}] Kích hoạt khóa LONG Altcoin trong ${lockMins} phút (${btcFlashState.lockReason})`);
 
-    // Hủy CHỈ các lệnh ENTRY Limit LONG đang treo (!reduceOnly — tuyệt đối KHÔNG hủy TP LIMIT của vị thế SHORT)
+    // Chỉ hủy Entry Limit LONG ngược sóng khi bão thật SEVERE (và miễn trừ hàng hóa/vàng PAXG/XAU/XAG)
     const effectiveClient = client || globalTradeClient;
-    if (effectiveClient) {
+    if (isSevere && effectiveClient) {
       try {
         const openOrders = await effectiveClient.getOpenOrders();
         for (const order of (openOrders || [])) {
           if (!isOrderReduceOnly(order) && order.side === 'BUY' && (order.type === 'LIMIT' || order.orderType === 'LIMIT')) {
             const sym = order.symbol.replace('USDT', '');
+            if (BTC_FLASH_EXEMPT_SYMBOLS.has(sym)) continue;
             await effectiveClient.cancelOrder(sym, order.orderId).catch(() => { });
-            log.system(`[AutoTrade] [BTC Guard] Hủy lệnh ENTRY LIMIT LONG treo của ${sym} để phòng ngừa rủi ro.`);
+            log.system(`[AutoTrade] [BTC Guard] Hủy lệnh ENTRY LIMIT LONG treo của ${sym} để phòng ngừa rủi ro bão SEVERE.`);
           }
         }
-        // Giữ nguyên toàn bộ vị thế đã khớp cùng TP/SL & Fractal Trailing SL trên sàn (không kích hoạt PanicEscape)
       } catch (_) { }
     }
 
@@ -3709,6 +3710,7 @@ async function startAutoTrade(coins) {
           touchCount: (typeof sig.touchCount === 'number' ? sig.touchCount + 1 : 1),
           btcFlashPump: btcFlashState.isShortLocked && Date.now() < btcFlashState.lockedUntil,
           btcFlashDump: btcFlashState.isLongLocked && Date.now() < btcFlashState.lockedUntil,
+          btcFlashSeverity: Date.now() < btcFlashState.lockedUntil ? (btcFlashState.severity || 'MODERATE') : 'NORMAL',
           turnoverBlocked: turnoverCheck.isBlocked,
           symbol: sym,
           maxRecentBouncePct: sig.maxRecentBouncePct ?? null,
@@ -3729,6 +3731,7 @@ async function startAutoTrade(coins) {
           step: sig.step,
           btcFlashPump: btcFlashState.isShortLocked && Date.now() < btcFlashState.lockedUntil,
           btcFlashDump: btcFlashState.isLongLocked && Date.now() < btcFlashState.lockedUntil,
+          btcFlashSeverity: Date.now() < btcFlashState.lockedUntil ? (btcFlashState.severity || 'MODERATE') : 'NORMAL',
           turnoverBlocked: turnoverCheck.isBlocked,
           symbol: sym,
           maxRecentBouncePct: sig.maxRecentBouncePct ?? null,
@@ -4894,6 +4897,7 @@ async function checkH1RetestSignals(client, activeSymbols, leverageInfo = {}, ac
           touchCount: 2,
           btcFlashPump: btcFlashPumpRetest,
           btcFlashDump: btcFlashDumpRetest,
+          btcFlashSeverity: Date.now() < btcFlashState.lockedUntil ? (btcFlashState.severity || 'MODERATE') : 'NORMAL',
           turnoverBlocked: turnoverCheckRetest.isBlocked,
           symbol: sym
         };
@@ -4904,6 +4908,7 @@ async function checkH1RetestSignals(client, activeSymbols, leverageInfo = {}, ac
           touchCount: 2,
           btcFlashPump: btcFlashPumpRetest,
           btcFlashDump: btcFlashDumpRetest,
+          btcFlashSeverity: Date.now() < btcFlashState.lockedUntil ? (btcFlashState.severity || 'MODERATE') : 'NORMAL',
           turnoverBlocked: turnoverCheckRetest.isBlocked,
           symbol: sym
         };

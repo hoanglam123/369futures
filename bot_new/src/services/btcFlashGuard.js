@@ -13,15 +13,15 @@
 const { log } = require('./logger');
 
 const TICK_WINDOW_MS      = 180_000;  // 3 phút
-const MODERATE_LOCK_MS    = 20 * 60 * 1000; // 20 phút cho biến động vừa
-const SEVERE_LOCK_MS      = 45 * 60 * 1000; // 45 phút cho bão thật >= 1.5%
+const MODERATE_LOCK_MS    = 8 * 60 * 1000;  // 8 phút cho biến động vừa (chỉ phạt nhẹ AI x0.78, không hủy Limit)
+const SEVERE_LOCK_MS      = 25 * 60 * 1000; // 25 phút cho bão thật >= 2.0%
 const TRIGGER_COOLDOWN_MS = 180_000; // Cooldown 3 phút giữa các lần cảnh báo cùng chiều
 const FLIP_COOLDOWN_MS    = 5 * 60 * 1000; // Chống lật chiều Ping-Pong 5 phút
-const FLIP_OVERRIDE_PCT   = 1.20;
+const FLIP_OVERRIDE_PCT   = 1.60;
 
-const WS_60S_THRESHOLD_PCT  = parseFloat(process.env.BTC_FLASH_60S_PCT || '0.65');
-const WS_180S_THRESHOLD_PCT = parseFloat(process.env.BTC_FLASH_180S_PCT || '1.00');
-const SEVERE_THRESHOLD_PCT  = 1.50;
+const WS_60S_THRESHOLD_PCT  = parseFloat(process.env.BTC_FLASH_60S_PCT || '1.00');
+const WS_180S_THRESHOLD_PCT = parseFloat(process.env.BTC_FLASH_180S_PCT || '1.50');
+const SEVERE_THRESHOLD_PCT  = 2.00;
 
 let _btcTickHistory = []; // [ { t: timestamp, p: price }, ... ]
 let _lastTriggerTime = 0;
@@ -151,7 +151,7 @@ function triggerFlashDump({ reason, velocityPct = -1.0, nowMs = Date.now() }) {
   log.warn(`[AutoTrade] 🚨 [BTC Flash Dump Guard — ${_flashState.severity}] Kích hoạt khóa LONG Altcoin trong ${Math.round(lockMs / 60000)} phút (${reason})`);
   _emitFlashEvent({
     ..._flashState,
-    directionToCancel: 'LONG',
+    directionToCancel: isSevere ? 'LONG' : null,
     lockMins: Math.round(lockMs / 60000)
   });
   return _flashState;
@@ -179,7 +179,7 @@ function triggerFlashPump({ reason, velocityPct = 1.0, nowMs = Date.now() }) {
   log.warn(`[AutoTrade] 🚨 [BTC Flash Pump Guard — ${_flashState.severity}] Kích hoạt khóa SHORT Altcoin trong ${Math.round(lockMs / 60000)} phút (${reason})`);
   _emitFlashEvent({
     ..._flashState,
-    directionToCancel: 'SHORT',
+    directionToCancel: isSevere ? 'SHORT' : null,
     lockMins: Math.round(lockMs / 60000)
   });
   return _flashState;
