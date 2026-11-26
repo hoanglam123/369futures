@@ -140,10 +140,11 @@ async function generateTradeChart(symbol, direction, entry, tp1, tp2, tp, sl, ta
     return null;
   }
 
-  // 2. Tính vùng giá hiển thị
+  // 2. Tính vùng giá hiển thị (lọc bỏ tp1/tp2 null khi dùng chế độ 1 TP + BE)
   const isLong  = direction === 'LONG';
   const chartW  = W - R_AXIS;
-  const allP    = [...klines.flatMap(k => [k.h, k.l]), entry, tp1, tp2, tp, sl];
+  const allP    = [...klines.flatMap(k => [k.h, k.l]), entry, tp1, tp2, tp, sl]
+    .filter(v => typeof v === 'number' && isFinite(v) && v > 0);
   const pMin    = Math.min(...allP);
   const pMax    = Math.max(...allP);
   const range   = pMax - pMin || pMax * 0.05;
@@ -241,6 +242,7 @@ async function generateTradeChart(symbol, direction, entry, tp1, tp2, tp, sl, ta
 
   // 8. Vẽ đường giá ngang với nhãn bên phải
   function drawLine(price, color, label, showPct, dashed) {
+    if (typeof price !== 'number' || !isFinite(price) || price <= 0) return;
     const y = toY(price);
 
     ctx.save();
@@ -275,11 +277,12 @@ async function generateTradeChart(symbol, direction, entry, tp1, tp2, tp, sl, ta
     }
   }
 
-  drawLine(sl,    C.sl,    'SL',    true,  false);
-  drawLine(tp,    C.tp,    'TP',    true,  false);
-  drawLine(tp2,   C.tp2,   'TP2',   true,  true);
-  drawLine(tp1,   C.tp1,   'TP1',   true,  true);
-  drawLine(entry, C.entry, 'Entry', false, false);
+  const tp1Label = (tp2 == null) ? 'BE' : 'TP1';
+  drawLine(sl,    C.sl,    'SL',     true,  false);
+  drawLine(tp,    C.tp,    'TP',     true,  false);
+  drawLine(tp2,   C.tp2,   'TP2',    true,  true);
+  drawLine(tp1,   C.tp1,   tp1Label, true,  true);
+  drawLine(entry, C.entry, 'Entry',  false, false);
 
   // S/R từ TA (nếu có)
   const support    = Array.isArray(ta?.support)    ? ta.support[0]    : ta?.support;
@@ -358,13 +361,13 @@ async function generateTradeChart(symbol, direction, entry, tp1, tp2, tp, sl, ta
   ctx.fillRect(curX, CHART_H + 12, 1, BAR_H - 24);
   curX += 9;
 
-  // Tags: Entry / TP1 / TP2 / TP / SL
+  // Tags: Entry / BE (hoặc TP1/TP2) / TP / SL — chỉ hiển thị các mốc hợp lệ (> 0)
   const tags = [
-    { label: 'Entry', price: entry, pct: null,               color: C.entry },
-    { label: 'TP1',   price: tp1,   pct: pctStr(tp1, entry), color: C.tp1   },
-    { label: 'TP2',   price: tp2,   pct: pctStr(tp2, entry), color: C.tp2   },
-    { label: 'TP',    price: tp,    pct: pctStr(tp,  entry), color: C.tp    },
-    { label: 'SL',    price: sl,    pct: pctStr(sl,  entry), color: C.sl    },
+    { label: 'Entry',  price: entry, pct: null, color: C.entry },
+    ...(typeof tp1 === 'number' && isFinite(tp1) && tp1 > 0 ? [{ label: tp1Label, price: tp1, pct: pctStr(tp1, entry), color: C.tp1 }] : []),
+    ...(typeof tp2 === 'number' && isFinite(tp2) && tp2 > 0 ? [{ label: 'TP2',    price: tp2, pct: pctStr(tp2, entry), color: C.tp2 }] : []),
+    ...(typeof tp  === 'number' && isFinite(tp)  && tp  > 0 ? [{ label: 'TP',     price: tp,  pct: pctStr(tp,  entry), color: C.tp  }] : []),
+    ...(typeof sl  === 'number' && isFinite(sl)  && sl  > 0 ? [{ label: 'SL',     price: sl,  pct: pctStr(sl,  entry), color: C.sl  }] : []),
   ];
 
   for (const tag of tags) {

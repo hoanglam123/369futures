@@ -3849,7 +3849,9 @@ async function startAutoTrade(coins) {
       }
 
       recordAIEvaluation(sig, aiEval);
-      log.system(`[AutoTrade] 🟢 [AI APPROVED] ${sym} (${sig.signal}) — ${aiEval.reason}`);
+      if (_shouldLogSignal(sym, sig.signal, sig.targetLevel, 'ai_approved_logged', 3 * 60 * 1000)) {
+        log.system(`[AutoTrade] 🟢 [AI APPROVED] ${sym} (${sig.signal}) — ${aiEval.reason}`);
+      }
 
       // ── BƯỚC KIỂM SOÁT CHIẾN THUẬT: PRE-LIMIT TACTICAL GATEKEEPER ──
       // Chỉ áp dụng với lệnh LIMIT (tránh hứng dao rơi khi nến M15 xả Marubozu hoặc Taker Sell > 75%)
@@ -3865,7 +3867,9 @@ async function startAutoTrade(coins) {
 
         if (!gatekeeperCheck.passed) {
           scanWindowStats.rejectGatekeeper++;
-          log.system(`[AutoTrade] ⚠️ [PreLimitGatekeeper] Tạm hoãn đặt Limit cho ${sym} (${sig.signal}): ${gatekeeperCheck.reason}.`);
+          if (_shouldLogSignal(sym, sig.signal, sig.targetLevel, 'prelimit_gatekeeper', 3 * 60 * 1000)) {
+            log.system(`[AutoTrade] ⚠️ [PreLimitGatekeeper] Tạm hoãn đặt Limit cho ${sym} (${sig.signal}): ${gatekeeperCheck.reason}.`);
+          }
 
           // Đăng ký Shadow Trade để theo dõi
           registerShadowTrade(sig, aiEval, {
@@ -4003,7 +4007,9 @@ async function startAutoTrade(coins) {
               : ((liveMark - sig.targetLevel) / sig.targetLevel) * 100;
             if (puncturedPct > 0.15) {
               scanWindowStats.rejectGatekeeper++;
-              log.system(`[AutoTrade] 🛑 [Maker Guard] ${sym} (${sig.signal}): Giá hiện tại ($${liveMark}) đã đâm thủng qua mốc $${sig.targetLevel} (${puncturedPct.toFixed(2)}% > 0.15%) — hủy đặt LIMIT để tránh khớp Taker giữa đà xả.`);
+              if (_shouldLogSignal(sym, sig.signal, sig.targetLevel, 'maker_guard', 3 * 60 * 1000)) {
+                log.system(`[AutoTrade] 🛑 [Maker Guard] ${sym} (${sig.signal}): Giá hiện tại ($${liveMark}) đã đâm thủng qua mốc $${sig.targetLevel} (${puncturedPct.toFixed(2)}% > 0.15%) — hủy đặt LIMIT để tránh khớp Taker giữa đà xả.`);
+              }
               return;
             }
             if (puncturedPct > 0) {
@@ -4277,7 +4283,8 @@ async function checkPendingLimits(client, activeSymbols) {
       const bouncePct = Math.min(Math.max(effGridPct * 0.35, 1.50), 3.00);
 
       // 🛡️ BƯỚC 1: AI PRE-FILL LIMIT CANCEL (Kiểm tra vi cấu trúc thông minh khi giá áp sát cực gần Entry)
-      if (ENABLE_AI_PREFILL_CANCEL) {
+      // Không tự ý hủy lệnh người dùng chủ động đẩy tay từ Shadow Dashboard (source === 'manual_shadow_promote')
+      if (ENABLE_AI_PREFILL_CANCEL && meta.source !== 'manual_shadow_promote') {
         const distToEntryPct = Math.abs(markPrice - entry) / entry * 100;
         const now = Date.now();
         // Chỉ quét khi giá áp sát cực gần Entry (<= 0.35%) hoặc đã chạm Entry, và cách lần quét trước ít nhất 4 giây

@@ -104,6 +104,7 @@ async function getSymbolInfo(symbol) {
 
 // Cache balance 1 phút — Binance API chỉ được gọi 1 lần/phút (lưu cả availableBalance & walletBalance/NAV)
 let _balanceCache = { value: 0, wallet: 0, fetchedAt: 0 };
+let _balanceLoggedOnce = false;
 const BALANCE_CACHE_MS = 60_000;
 
 async function getBalanceInfo() {
@@ -115,9 +116,9 @@ async function getBalanceInfo() {
   const usdt = (Array.isArray(balances) ? balances : []).find(b => b.asset === 'USDT');
   const avail = parseFloat(usdt?.availableBalance || '0');
   const wallet = parseFloat(usdt?.balance || usdt?.availableBalance || '0');
-  const isFirst = _balanceCache.fetchedAt === 0;
   _balanceCache = { value: avail, wallet, fetchedAt: now };
-  if (isFirst && API_KEY) {
+  if (!_balanceLoggedOnce && API_KEY) {
+    _balanceLoggedOnce = true;
     log.system(`[BinanceTrader] 💼 Binance Account bot-new: Key=***${API_KEY.slice(-4)} | NAV (Wallet): $${wallet.toFixed(2)} | Available: $${avail.toFixed(2)} USDT`);
   }
   return { availableBalance: avail, walletBalance: wallet };
@@ -856,7 +857,12 @@ async function cancelOrderById(symbol, orderId) {
     await api('DELETE', '/fapi/v1/order', { symbol: `${symbol}USDT`, orderId });
     log.trade(`BINANCE: huỷ order OK ${symbol}`, { orderId });
   } catch (err) {
-    log.warn(`BINANCE: không thể huỷ order ${symbol} #${orderId}`, { error: err.message });
+    const msg = String(err?.message || '');
+    if (msg.includes('Unknown order') || msg.includes('-2011')) {
+      log.trade(`BINANCE: order ${symbol} #${orderId} đã khớp hoặc tự hủy trước đó (-2011)`);
+    } else {
+      log.warn(`BINANCE: không thể huỷ order ${symbol} #${orderId}`, { error: msg });
+    }
   }
 }
 
