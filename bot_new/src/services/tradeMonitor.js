@@ -10,8 +10,7 @@ const fs        = require('fs');
 const path      = require('path');
 const axios     = require('axios');
 const WebSocket = require('ws');
-const { sendMessages, sendPhoto } = require('./telegram');
-const { generateTradeChart } = require('./chartGenerator');
+const { sendMessages } = require('./telegram');
 const { log } = require('./logger');
 const { recordTradeResult, updateReversedResult } = require('./tradeStats');
 const binanceTrader  = require('./binanceTrader');
@@ -777,24 +776,6 @@ function addTrades(trades, taMap = {}) {
       `<i>🤖 Cơ chế bot-h4: Dual Bracket TP/SL + Fractal Trailing SL H1/M15</i>`;
 
     sendMessages([textMsg]).catch(() => {});
-
-    // Gửi chart ảnh sau text (non-blocking, không làm delay alert chính)
-    const snap = { ...t };
-    setImmediate(async () => {
-      try {
-        const chartBuf = await generateTradeChart(
-          snap.symbol, snap.direction, snap.entryPrice, snap.beTriggerPrice, null, snap.targetPrice, snap.slPrice, snap.ta
-        );
-        if (chartBuf) {
-          const caption = `📊 ${snap.symbol} ${snap.direction} x${snap.leverage || 1}` +
-            `  |  Entry ${fmtPrice(snap.entryPrice)}` +
-            `  |  TP ${fmtPrice(snap.targetPrice)}  |  SL ${fmtPrice(snap.slPrice)}`;
-          await sendPhoto(chartBuf, caption);
-        }
-      } catch (chartErr) {
-        log.warn(`Chart: không thể gửi ảnh cho ${snap.symbol}`, { error: chartErr.message });
-      }
-    });
 
     // Auto-trade: đặt lệnh thực lên Binance Futures nếu TRADE_ENABLED=true
     if (binanceTrader.isEnabled()) {

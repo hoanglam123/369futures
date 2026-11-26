@@ -15,9 +15,10 @@ const axios = require('axios');
 const { log } = require('./logger');
 const { isIpBanned } = require('./rateLimitGuard');
 
-const CACHE_MAX_H1 = 300; // 300 nến H1 ≈ 12.5 ngày
-const CACHE_MAX_H4 = 300; // 300 nến H4 ≈ 50 ngày
-const CACHE_MAX_D1 = 250; // 250 nến D1 ≈ >8 tháng (đủ EMA200D)
+const CACHE_MAX_H1 = 220; // 220 nến H1 ≈ 9 ngày (đủ H1 Swing/Fractal & TA 100 nến, tối ưu RAM VPS 768MB)
+const CACHE_MAX_H4 = 200; // 200 nến H4 ≈ 33 ngày (đủ S/R 150 nến & TA 200 nến)
+const CACHE_MAX_D1 = 220; // 220 nến D1 ≈ 7+ tháng (đủ EMA200D & S/R 180 nến)
+const BOT_NEW_DATA_DIR = path.resolve(__dirname, '../../data');
 
 // Tìm đường dẫn thư mục data dùng chung
 function resolveSharedDataDir() {
@@ -53,6 +54,17 @@ const _fileMtimes = {};
 const _lastDiskCheck = {};
 const DISK_RELOAD_THROTTLE_MS = 60 * 1000;
 
+function compactCandle(c) {
+  return {
+    openTime: c.openTime ?? c.t,
+    open: c.open ?? c.o,
+    high: c.high ?? c.h,
+    low: c.low ?? c.l,
+    close: c.close ?? c.c,
+    volume: c.volume ?? c.v ?? 0,
+  };
+}
+
 function loadDiskCache(filePath, maxCount, targetCache) {
   try {
     if (!fs.existsSync(filePath)) return false;
@@ -67,11 +79,11 @@ function loadDiskCache(filePath, maxCount, targetCache) {
       if (candles.length > 0) {
         const existing = targetCache[sym]?.candles;
         const existLastTs = existing?.length ? existing[existing.length - 1].openTime : 0;
-        const diskLastTs  = candles[candles.length - 1].openTime || 0;
+        const diskLastTs  = candles[candles.length - 1].openTime || candles[candles.length - 1].t || 0;
         if (!existing || diskLastTs > existLastTs || candles.length > existing.length) {
           targetCache[sym] = {
             yearStart: val.yearStart || 0,
-            candles: candles.slice(-maxCount),
+            candles: candles.slice(-maxCount).map(compactCandle),
             cursor: val.cursor || (diskLastTs + 60000)
           };
         }
@@ -160,7 +172,6 @@ async function fetchBinanceKlines(symbol, interval, startTimeMs = null, limit = 
         low: parseFloat(c[3]),
         close: parseFloat(c[4]),
         volume: parseFloat(c[5]),
-        takerBuyBaseVolume: parseFloat(c[9] || 0)
       }));
     } catch (err) {
       if (attempt === 2) {
@@ -173,9 +184,12 @@ async function fetchBinanceKlines(symbol, interval, startTimeMs = null, limit = 
   return [];
 }
 
-// Tự động lưu cache ra đĩa (debounce 1.5s) để coin mới chỉ phải tải từ Binance ĐÚNG 1 LẦN
+// Tự động lưu cache ra đĩa (debounce 1.5s) — CHỈ ghi vào thư mục nội bộ bot_new/data/,
+// TUYỆT ĐỐI KHÔNG ghi đè file cache dùng chung của bot-h4 (root/data/*) để bảo toàn 100% cache 300 nến của bot-h4.
 const _saveTimers = {};
 function scheduleSaveDiskCache(key, filePath, maxCount, sourceMap) {
+  const resolved = path.resolve(filePath);
+  if (!resolved.startsWith(BOT_NEW_DATA_DIR + path.sep)) return;
   if (_saveTimers[key]) return;
   _saveTimers[key] = setTimeout(() => {
     _saveTimers[key] = null;
@@ -263,9 +277,16 @@ async function fetchM15Recent(symbol, limit = 30) {
   }
   const raw = await fetchBinanceKlines(cleanSym, '15m', null, limit);
   if (raw && raw.length > 0) {
-    if (_m15RecentCache.size >= 250) {
-      const firstKey = _m15RecentCache.keys().next().value;
-      _m15RecentCache.delete(firstKey);
+    // Dọn entry M15 hết hạn và giới hạn tối đa 80 coin nóng trong RAM
+    if (_m15RecentCache.size >= 80) {
+      for (const [k, v] of _m15RecentCache.entries()) {
+        if (now - v.ts >= M15_TTL_MS) _m15RecentCache.delete(k);
+      }
+      while (_m15RecentCache.size >= 80) {
+        const firstKey = _m15RecentCache.keys().next().value;
+        if (!firstKey) break;
+        _m15RecentCache.delete(firstKey);
+      }
     }
     _m15RecentCache.set(cleanSym, { ts: now, candles: raw });
     return raw;

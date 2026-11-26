@@ -102,7 +102,7 @@ function buildLevelGrid(upperPrice, lowerPrice, step, decimals, levelsRange = LE
 
 const _klinesCache = new Map();
 const KLINES_CACHE_TTL_MS = 30 * 1000; // 30 giây cache cho nến ngắn hạn
-const MAX_KLINES_CACHE_SIZE = 500;      // Giới hạn số lượng entries chống rò rỉ RAM
+const MAX_KLINES_CACHE_SIZE = 120;      // Giới hạn số lượng entries chống rò rỉ RAM trên VPS 768MB
 
 async function fetchBinanceKlines(symbol, interval, startTimeMs, limit = 1500) {
   if (isIpBanned()) {
@@ -135,8 +135,15 @@ async function fetchBinanceKlines(symbol, interval, startTimeMs, limit = 1500) {
         volume:   parseFloat(c[5]),
       }));
       if (_klinesCache.size >= MAX_KLINES_CACHE_SIZE) {
-        const firstKey = _klinesCache.keys().next().value;
-        _klinesCache.delete(firstKey);
+        const nowTs = Date.now();
+        for (const [k, v] of _klinesCache.entries()) {
+          if (nowTs - v.timestamp >= KLINES_CACHE_TTL_MS) _klinesCache.delete(k);
+        }
+        while (_klinesCache.size >= MAX_KLINES_CACHE_SIZE) {
+          const firstKey = _klinesCache.keys().next().value;
+          if (!firstKey) break;
+          _klinesCache.delete(firstKey);
+        }
       }
       _klinesCache.set(cacheKey, { timestamp: Date.now(), data });
       return data;

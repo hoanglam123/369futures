@@ -4,6 +4,7 @@ const fs = require('fs');
 const path = require('path');
 const axios = require('axios');
 const { isIpBanned } = require('../services/rateLimitGuard');
+const { fetchH1Historical, fetchH4Historical, fetchD1Historical } = require('../services/candleCache');
 
 const BINANCE   = 'https://fapi.binance.com';
 const OKX       = 'https://www.okx.com';
@@ -11,42 +12,24 @@ const HEADERS   = { 'User-Agent': 'crypto-news-bot/1.0' };
 const BAR_MAP   = { '1h': '1H', '4h': '4H', '1d': '1D', '1w': '1W' }; // OKX format
 const STABLECOINS = new Set(['USDT','USDC','BUSD','DAI','TUSD','FDUSD','USDP','FRAX','USDD','GUSD','PYUSD','USDS','USDE','USDX','SUSD']);
 
-// ─── Isolated Disk Persistence cho bot-new (bot_new/data/*_history_cache.json) ───
-// Tuyệt đối không ghi đè thư mục data/ gốc của bot-h4 để tránh cắt ngắn cache H1/H4/D1 của bot-h4
-function resolveDataDir() {
-  return path.resolve(__dirname, '../../data');
-}
+// ─── Tối ưu RAM: Dùng chung cache 1h/4h/1d trực tiếp từ candleCache.js (0 bản sao trùng lặp!) ───
+// Chỉ giữ riêng cache đĩa nhẹ cho khung tuần 1w (52 nến, tối đa 80 coin nóng trong RAM)
+const DATA_DIR = path.resolve(__dirname, '../../data');
+const W1_CACHE_FILE = path.join(DATA_DIR, 'w1_history_cache.json');
+const W1_MAX_KEEP = 52;
+const W1_INTERVAL_MS = 7 * 24 * 60 * 60 * 1000;
+const W1_RAM_MAX_COINS = 80;
+const _w1Cache = new Map(); // sym -> { candles, cursor }
 
-const DATA_DIR = resolveDataDir();
-
-const CACHE_CONFIGS = {
-  '1h': { file: path.join(DATA_DIR, 'h1_history_cache.json'), maxKeep: 300, intervalMs: 60 * 60 * 1000 },
-  '4h': { file: path.join(DATA_DIR, 'h4_history_cache.json'), maxKeep: 300, intervalMs: 4 * 60 * 60 * 1000 },
-  '1d': { file: path.join(DATA_DIR, 'd1_history_cache.json'), maxKeep: 250, intervalMs: 24 * 60 * 60 * 1000 },
-  '1w': { file: path.join(DATA_DIR, 'w1_history_cache.json'), maxKeep: 52,  intervalMs: 7 * 24 * 60 * 60 * 1000 },
-};
-
-const _sharedDiskCaches = { '1h': {}, '4h': {}, '1d': {}, '1w': {} };
-
-function loadSharedDiskCache(interval) {
-  const cfg = CACHE_CONFIGS[interval];
-  if (!cfg) return;
-  try {
-    if (fs.existsSync(cfg.file)) {
-      const raw = JSON.parse(fs.readFileSync(cfg.file, 'utf8'));
-      const items = raw.items || raw;
-      if (items && typeof items === 'object') {
-        for (const [sym, item] of Object.entries(items)) {
-          if (item && Array.isArray(item.candles) && item.candles.length > 0) {
-            _sharedDiskCaches[interval][sym] = {
-              candles: item.candles.slice(-cfg.maxKeep).map(toBotNewCandle),
-              cursor: item.candles[item.candles.length - 1].openTime ?? item.candles[item.candles.length - 1].t,
-            };
-          }
-        }
-      }
-    }
-  } catch (_) {}
+function toCompactW1(k) {
+  return {
+    t: k.t ?? k.openTime,
+    o: k.o ?? k.open,
+    h: k.h ?? k.high,
+    l: k.l ?? k.low,
+    c: k.c ?? k.close,
+    v: k.v ?? k.volume ?? 0,
+  };
 }
 
 function toBotNewCandle(k) {
@@ -55,7 +38,7 @@ function toBotNewCandle(k) {
   const h = k.h ?? k.high;
   const l = k.l ?? k.low;
   const c = k.c ?? k.close;
-  const v = k.v ?? k.volume;
+  const v = k.v ?? k.volume ?? 0;
   return {
     t, o, h, l, c, v,
     openTime: t,
@@ -67,29 +50,58 @@ function toBotNewCandle(k) {
   };
 }
 
-// Tự động nạp toàn bộ cache nến đã lưu từ đĩa
-['1h', '4h', '1d', '1w'].forEach(loadSharedDiskCache);
+function loadW1DiskCache() {
+  try {
+    if (!fs.existsSync(W1_CACHE_FILE)) return;
+    const raw = JSON.parse(fs.readFileSync(W1_CACHE_FILE, 'utf8'));
+    const items = raw.items || raw;
+    if (!items || typeof items !== 'object') return;
+    for (const [sym, item] of Object.entries(items)) {
+      if (_w1Cache.size >= W1_RAM_MAX_COINS) break;
+      if (item && Array.isArray(item.candles) && item.candles.length > 0) {
+        const compact = item.candles.slice(-W1_MAX_KEEP).map(toCompactW1);
+        _w1Cache.set(sym, {
+          candles: compact,
+          cursor: compact[compact.length - 1].t,
+        });
+      }
+    }
+  } catch (_) {}
+}
 
-const _saveTimeouts = {};
-function scheduleSaveDiskCache(interval) {
-  const cfg = CACHE_CONFIGS[interval];
-  if (!cfg || _saveTimeouts[interval]) return;
-  _saveTimeouts[interval] = setTimeout(() => {
-    _saveTimeouts[interval] = null;
+loadW1DiskCache();
+
+let _w1SaveTimeout = null;
+function scheduleSaveW1DiskCache() {
+  if (_w1SaveTimeout) return;
+  _w1SaveTimeout = setTimeout(() => {
+    _w1SaveTimeout = null;
     try {
       if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
       const prunedItems = {};
-      for (const [sym, item] of Object.entries(_sharedDiskCaches[interval])) {
+      for (const [sym, item] of _w1Cache.entries()) {
         if (item && Array.isArray(item.candles) && item.candles.length > 0) {
+          const sliced = item.candles.slice(-W1_MAX_KEEP);
           prunedItems[sym] = {
-            candles: item.candles.slice(-cfg.maxKeep),
-            cursor: item.candles[item.candles.length - 1].openTime ?? item.candles[item.candles.length - 1].t,
+            candles: sliced,
+            cursor: sliced[sliced.length - 1].t,
           };
         }
       }
-      fs.writeFileSync(cfg.file, JSON.stringify({ items: prunedItems }), 'utf8');
+      fs.writeFileSync(W1_CACHE_FILE, JSON.stringify({ items: prunedItems }), 'utf8');
     } catch (_) {}
-  }, 1000);
+  }, 1500);
+  if (typeof _w1SaveTimeout.unref === 'function') _w1SaveTimeout.unref();
+}
+
+function setW1CacheBounded(sym, entry) {
+  if (_w1Cache.has(sym)) _w1Cache.delete(sym);
+  while (_w1Cache.size >= W1_RAM_MAX_COINS) {
+    const oldest = _w1Cache.keys().next().value;
+    if (!oldest) break;
+    _w1Cache.delete(oldest);
+  }
+  _w1Cache.set(sym, entry);
 }
 
 function floorToInterval(tsMs, intervalMs, interval = '') {
@@ -144,85 +156,102 @@ async function fetchKlinesDirect(symbol, interval, limit, startTimeMs = null) {
   }
 }
 
-// ─── Klines thông minh: Ưu tiên đĩa máy chủ, chỉ lấy nến thiếu (Incremental) ──
+// ─── Klines thông minh: Dùng chung trực tiếp candleCache (1h/4h/1d) + W1 nhẹ ──
 
 async function getKlines(symbol, interval, limit) {
   const bnInterval = interval.toLowerCase();
   const cleanSym = (symbol || '').toUpperCase().replace(/USDT$/, '');
-  const cfg = CACHE_CONFIGS[bnInterval];
 
-  if (!cfg) {
+  // 1h / 4h / 1d: Đọc trực tiếp từ candleCache.js (0 bản sao RAM trùng lặp, tái sử dụng đĩa nóng bot-h4)
+  if (bnInterval === '1h' || bnInterval === '4h' || bnInterval === '1d') {
+    let shared = null;
+    if (bnInterval === '1h') shared = await fetchH1Historical(cleanSym).catch(() => null);
+    else if (bnInterval === '4h') shared = await fetchH4Historical(cleanSym).catch(() => null);
+    else shared = await fetchD1Historical(cleanSym).catch(() => null);
+
+    if (Array.isArray(shared) && shared.length > 0) {
+      return shared.slice(-limit).map(toBotNewCandle);
+    }
     return fetchKlinesDirect(cleanSym, bnInterval, limit);
   }
 
-  const currentIntervalStart = floorToInterval(Date.now(), cfg.intervalMs, bnInterval);
-  let cached = _sharedDiskCaches[bnInterval][cleanSym];
+  if (bnInterval !== '1w') {
+    return fetchKlinesDirect(cleanSym, bnInterval, limit);
+  }
 
-  // 1. Nếu chưa có trên đĩa máy chủ: Tải 1 lần và lưu ngay vào đĩa
+  // Khung 1w (52 nến, siêu nhẹ): cache LRU 80 coin
+  const currentIntervalStart = floorToInterval(Date.now(), W1_INTERVAL_MS, '1w');
+  const cached = _w1Cache.get(cleanSym);
+
   if (!cached || !Array.isArray(cached.candles) || cached.candles.length === 0) {
-    const raw = await fetchKlinesDirect(cleanSym, bnInterval, Math.max(limit, cfg.maxKeep));
+    const raw = await fetchKlinesDirect(cleanSym, '1w', Math.max(limit, W1_MAX_KEEP));
     if (raw && raw.length > 0) {
-      const closed = raw.filter(c => c.t < currentIntervalStart);
-      _sharedDiskCaches[bnInterval][cleanSym] = {
-        candles: closed.slice(-cfg.maxKeep),
-        cursor: closed.length > 0 ? closed[closed.length - 1].t : 0,
-      };
-      scheduleSaveDiskCache(bnInterval);
+      const closed = raw.filter(c => c.t < currentIntervalStart).map(toCompactW1).slice(-W1_MAX_KEEP);
+      if (closed.length > 0) {
+        setW1CacheBounded(cleanSym, { candles: closed, cursor: closed[closed.length - 1].t });
+        scheduleSaveW1DiskCache();
+      }
       return raw.slice(-limit);
     }
     return raw || [];
   }
 
-  // 2. Nếu đã có trên đĩa: kiểm tra nến đóng gần nhất
   const candles = cached.candles;
   const lastTime = candles[candles.length - 1].t;
-
-  // Nếu nến chu kỳ trước đã có đủ -> 0 API calls (0ms, 0 IP Weight)
-  if (lastTime + cfg.intervalMs >= currentIntervalStart) {
-    return candles.slice(-limit);
+  if (lastTime + W1_INTERVAL_MS >= currentIntervalStart) {
+    return candles.slice(-limit).map(toBotNewCandle);
   }
 
-  // 3. Thiếu một vài nến (do bot tắt hoặc sang chu kỳ mới): CHỈ LẤY ĐÚNG SỐ NẾN THIẾU
-  const missingFrom = lastTime + cfg.intervalMs;
-  const missingCount = Math.max(1, Math.ceil((currentIntervalStart - missingFrom) / cfg.intervalMs));
-
-  if (missingCount >= cfg.maxKeep) {
-    const raw = await fetchKlinesDirect(cleanSym, bnInterval, Math.max(limit, cfg.maxKeep));
-    if (raw && raw.length > 0) {
-      const closed = raw.filter(c => c.t < currentIntervalStart);
-      _sharedDiskCaches[bnInterval][cleanSym] = {
-        candles: closed.slice(-cfg.maxKeep),
-        cursor: closed.length > 0 ? closed[closed.length - 1].t : 0,
-      };
-      scheduleSaveDiskCache(bnInterval);
-      return raw.slice(-limit);
-    }
-    return raw || [];
-  }
-
-  // Lấy đúng số nến thiếu (1 request nhẹ)
+  const missingFrom = lastTime + W1_INTERVAL_MS;
+  const missingCount = Math.max(1, Math.ceil((currentIntervalStart - missingFrom) / W1_INTERVAL_MS));
   try {
-    const missingBatch = await fetchKlinesDirect(cleanSym, bnInterval, missingCount + 5, missingFrom);
+    const missingBatch = await fetchKlinesDirect(cleanSym, '1w', Math.min(W1_MAX_KEEP, missingCount + 3), missingCount >= W1_MAX_KEEP ? null : missingFrom);
     if (missingBatch && missingBatch.length > 0) {
-      const closedNew = missingBatch.filter(c => c.t < currentIntervalStart && c.t > lastTime);
+      const closedNew = missingBatch.filter(c => c.t < currentIntervalStart && c.t > lastTime).map(toCompactW1);
       if (closedNew.length > 0) {
-        candles.push(...closedNew);
-        if (candles.length > cfg.maxKeep) {
-          _sharedDiskCaches[bnInterval][cleanSym].candles = candles.slice(-cfg.maxKeep);
-        }
-        _sharedDiskCaches[bnInterval][cleanSym].cursor = candles[candles.length - 1].t;
-        scheduleSaveDiskCache(bnInterval);
+        const merged = [...candles, ...closedNew].slice(-W1_MAX_KEEP);
+        setW1CacheBounded(cleanSym, { candles: merged, cursor: merged[merged.length - 1].t });
+        scheduleSaveW1DiskCache();
+        return merged.slice(-limit).map(toBotNewCandle);
       }
     }
   } catch (_) {}
 
-  return _sharedDiskCaches[bnInterval][cleanSym].candles.slice(-limit);
+  return candles.slice(-limit).map(toBotNewCandle);
 }
 
 const _oiCache = new Map();
 const _lsCache = new Map();
 const _fullTaCache = new Map();
 const TA_MEM_TTL_MS = 5 * 60 * 1000; // 5 phút RAM cache chống gọi lặp Binance
+const TA_MEM_MAX_SIZE = 80;          // Tối đa 80 coin nóng trong RAM
+
+function setBoundedCache(map, key, data, maxSize = TA_MEM_MAX_SIZE) {
+  const now = Date.now();
+  if (map.has(key)) map.delete(key);
+  if (map.size >= maxSize) {
+    for (const [k, v] of map.entries()) {
+      if (now - v.ts >= TA_MEM_TTL_MS) map.delete(k);
+    }
+    while (map.size >= maxSize) {
+      const oldest = map.keys().next().value;
+      if (!oldest) break;
+      map.delete(oldest);
+    }
+  }
+  map.set(key, { ts: now, data });
+}
+
+// Dọn rác RAM định kỳ mỗi 10 phút (.unref() để không giữ tiến trình test/CLI)
+const _taPruneTimer = setInterval(() => {
+  const now = Date.now();
+  for (const m of [_oiCache, _lsCache, _fullTaCache]) {
+    for (const [k, v] of m.entries()) {
+      if (now - v.ts >= TA_MEM_TTL_MS * 2) m.delete(k);
+    }
+  }
+}, 10 * 60 * 1000);
+if (typeof _taPruneTimer.unref === 'function') _taPruneTimer.unref();
 
 async function getOI(symbol) {
   const cached = _oiCache.get(symbol);
@@ -255,7 +284,7 @@ async function getOI(symbol) {
       }
       if (oi && price) {
         const result = { valueMil: oi * price / 1e6, change24h };
-        _oiCache.set(symbol, { ts: Date.now(), data: result });
+        setBoundedCache(_oiCache, symbol, result);
         return result;
       }
     } catch { /* fall through to OKX */ }
@@ -270,7 +299,7 @@ async function getOI(symbol) {
     const oiUsd = parseFloat(data.data?.[0]?.oiUsd);
     if (!oiUsd) return null;
     const result = { valueMil: oiUsd / 1e6, change24h: null };
-    _oiCache.set(symbol, { ts: Date.now(), data: result });
+    setBoundedCache(_oiCache, symbol, result);
     return result;
   } catch { return null; }
 }
@@ -293,7 +322,7 @@ async function getLongShort(symbol) {
         const ratio    = parseFloat(d.longShortRatio);
         if (!isNaN(longPct) && !isNaN(shortPct)) {
           const result = { longPct, shortPct, ratio };
-          _lsCache.set(symbol, { ts: Date.now(), data: result });
+          setBoundedCache(_lsCache, symbol, result);
           return result;
         }
       }
@@ -313,7 +342,7 @@ async function getLongShort(symbol) {
     const longPct  = ratio / (1 + ratio) * 100;
     const shortPct = 100 - longPct;
     const result = { longPct, shortPct, ratio };
-    _lsCache.set(symbol, { ts: Date.now(), data: result });
+    setBoundedCache(_lsCache, symbol, result);
     return result;
   } catch { return null; }
 }
@@ -660,11 +689,7 @@ async function getFullTA(symbol) {
   ta.ls    = ls;
   ta.topLS = null;
 
-  if (_fullTaCache.size >= 250) {
-    const firstKey = _fullTaCache.keys().next().value;
-    _fullTaCache.delete(firstKey);
-  }
-  _fullTaCache.set(cleanSym, { ts: Date.now(), data: ta });
+  setBoundedCache(_fullTaCache, cleanSym, ta);
   return ta;
 }
 

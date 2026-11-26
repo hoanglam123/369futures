@@ -1085,12 +1085,82 @@ async function runMacroRefresh() {
     if (deriv) {
       _lastMarketData.derivatives = { ...(_lastMarketData.derivatives || {}), ...deriv };
     }
+    pruneRuntimeMemoryCaches();
   } catch (err) {
     log.warn(`[MacroRefresh] Lỗi cập nhật vĩ mô nền: ${err.message}`);
   } finally {
     _isMacroRefreshRunning = false;
   }
 }
+
+/**
+ * Dọn rác các RAM cache của bot-new (giữ tối đa 80 coin nóng, luôn bảo toàn BTC/ETH, lệnh đang mở & Shadow)
+ * Chặn tình trạng phình bộ nhớ kéo dài trên VPS 768MB.
+ */
+function pruneRuntimeMemoryCaches() {
+  const now = Date.now();
+  const protectedSyms = new Set(['BTC', 'ETH']);
+  try {
+    for (const t of getActiveTrades()) {
+      if (t?.symbol) protectedSyms.add(t.symbol);
+    }
+    const shadows = typeof getActiveShadowPositions === 'function' ? getActiveShadowPositions() : {};
+    for (const sh of Object.values(shadows || {})) {
+      if (sh?.symbol) protectedSyms.add(sh.symbol);
+    }
+  } catch (_) {}
+
+  // 1. Cắt tỉa _lastMarketData.ta (xóa entry quá 15p và giới hạn tối đa 80 coin)
+  if (_lastMarketData?.ta && typeof _lastMarketData.ta === 'object') {
+    const entries = Object.entries(_lastMarketData.ta);
+    for (const [sym, ta] of entries) {
+      if (protectedSyms.has(sym)) continue;
+      if (!ta?._fetchedAt || (now - ta._fetchedAt > 15 * 60 * 1000)) {
+        delete _lastMarketData.ta[sym];
+      }
+    }
+    const remaining = Object.entries(_lastMarketData.ta).filter(([s]) => !protectedSyms.has(s));
+    if (remaining.length > 80) {
+      remaining.sort((a, b) => (a[1]?._fetchedAt || 0) - (b[1]?._fetchedAt || 0));
+      for (const [sym] of remaining.slice(0, remaining.length - 80)) {
+        delete _lastMarketData.ta[sym];
+      }
+    }
+  }
+
+  // 2. Cắt trần _lastMarketData.derivatives & whale sub-maps (tối đa 100 coin)
+  const trimObj = (obj, maxKeys = 100) => {
+    if (!obj || typeof obj !== 'object') return;
+    const keys = Object.keys(obj).filter(k => !protectedSyms.has(k));
+    if (keys.length <= maxKeys) return;
+    for (const k of keys.slice(0, keys.length - maxKeys)) {
+      delete obj[k];
+    }
+  };
+  if (_lastMarketData?.derivatives) trimObj(_lastMarketData.derivatives, 100);
+  if (_lastMarketData?.whale) {
+    trimObj(_lastMarketData.whale.takerFlow, 100);
+    trimObj(_lastMarketData.whale.binanceLarge, 100);
+    trimObj(_lastMarketData.whale.crossSignals, 100);
+    trimObj(_lastMarketData.whale.liquidations, 100);
+  }
+
+  // 3. Dọn các map cooldown / polling tạm đã hết hạn
+  for (const [sym, rec] of _recentPollingScan.entries()) {
+    if (!rec?.ts || (now - rec.ts > POLL_ROTATION_TTL_MS * 2)) _recentPollingScan.delete(sym);
+  }
+  for (const [sym, ts] of _onDemandMacroFetchedAt.entries()) {
+    if (now - ts > ONDEMAND_MACRO_TTL_MS * 2) _onDemandMacroFetchedAt.delete(sym);
+  }
+  for (const sym of Object.keys(_symbolSignalCooldown)) {
+    if (now - (_symbolSignalCooldown[sym] || 0) > 5 * 60 * 1000) {
+      delete _symbolSignalCooldown[sym];
+    }
+  }
+}
+
+const _jobPruneTimer = setInterval(pruneRuntimeMemoryCaches, 10 * 60 * 1000);
+if (typeof _jobPruneTimer.unref === 'function') _jobPruneTimer.unref();
 
 // ─── LUỒNG TÁI ĐÁNH GIÁ SHADOW MỖI 30 PHÚT (PHƯƠNG ÁN B - ĐỒNG BỘ BOT-H4) ─────
 const SHADOW_REEVAL_MIN_AGE_MS = parseInt(process.env.SHADOW_REEVAL_MIN_AGE_MS || String(30 * 60_000), 10);
