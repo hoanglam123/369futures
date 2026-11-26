@@ -5579,6 +5579,7 @@ async function reevaluateShadowPositions(client, activeSymbols, leverageInfo, ac
         }
 
         promoted++;
+        scanWindowStats.ordersDispatched++;
         livePositionSyms.add(sym);
         if (activeSymbols) activeSymbols.add(sym);
         if (activeOrdersMap) activeOrdersMap.set(sym, direction);
@@ -5589,7 +5590,10 @@ async function reevaluateShadowPositions(client, activeSymbols, leverageInfo, ac
           entryPrice: limitEntry,
           orderId: String(limitId),
           time: Date.now(),
+          markPrice,
           score: scoreRes.total,
+          scoreReasons: scoreRes.reasons || [],
+          marketCapRank: rank,
           isCounterTrend: false,
           leverage: effectiveLeverage,
           step,
@@ -5597,6 +5601,7 @@ async function reevaluateShadowPositions(client, activeSymbols, leverageInfo, ac
           gridStepPct,
           margin: actualTradeMargin,
           qty,
+          maxRecentBouncePct: null,
           isFilled: false,
           hasNotifiedFill: false,
           maxFavorablePrice: null,
@@ -5615,6 +5620,24 @@ async function reevaluateShadowPositions(client, activeSymbols, leverageInfo, ac
         };
         saveActiveTradesMetadata();
         recordAIEvaluation(sigForAI, aiEval);
+        recordTradeEntry({
+          tradeId: `${sym}-${limitId}`,
+          orderId: String(limitId),
+          symbol: sym,
+          signal: direction,
+          entryPrice: limitEntry,
+          markPrice,
+          score: scoreRes.total,
+          scoreReasons: scoreRes.reasons || [],
+          marketCapRank: rank,
+          gridWidthPct: gridStepPct,
+          maxRecentBouncePct: null,
+          marketMetrics,
+          signalMetrics: sh.signalMetrics || null,
+          leverage: effectiveLeverage,
+          margin: actualTradeMargin,
+        });
+        _markFired({ symbol: sym, signal: direction, targetLevel: limitEntry });
 
         // Gỡ Shadow cũ sau khi đã đặt lệnh thật thành công trên sàn
         removeShadowPosition(shadowId);

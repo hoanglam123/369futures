@@ -871,7 +871,7 @@ function addTrades(trades, taMap = {}) {
  * Bỏ qua bộ lọc Cooldown 6h / R:R của addTrades() và KHÔNG gọi placeNewTrade() trùng lặp,
  * đồng thời kích hoạt đầy đủ WebSocket giá, BounceCancel, TP/SL khi fill, BE 50% TP & Fractal Trailing SL.
  */
-function registerPromotedTrade(t) {
+function registerPromotedTrade(t, opts = {}) {
   if (!t || !t.symbol) return null;
   const isLong = t.direction === 'LONG' || t.direction === 'BUY';
   t.direction = isLong ? 'LONG' : 'SHORT';
@@ -900,7 +900,8 @@ function registerPromotedTrade(t) {
   try { require('./bounceCancel').trackPendingLimit(t); } catch (_) {}
   try { _wsBroadcast('trades', getActiveTrades()); } catch (_) {}
 
-  log.trade(`[Manual Shadow Promote] ✓ Đăng ký theo dõi lệnh thật ${t.symbol} ${t.direction}`, {
+  const logTag = t.source === 'shadow_reeval_30m' ? 'Shadow Re-Eval 30m' : 'Manual Shadow Promote';
+  log.trade(`[${logTag}] ✓ Đăng ký theo dõi lệnh thật ${t.symbol} ${t.direction}`, {
     orderId: t.binanceEntryOrderId,
     qty: t.binanceQty,
     entry: t.entryPrice,
@@ -911,17 +912,19 @@ function registerPromotedTrade(t) {
     margin: t.margin,
   });
 
-  const dirLabel = isLong ? '🟢 LONG' : '🔴 SHORT';
-  sendMessages([
-    `⚡ <b>ĐẨY LIMIT TỪ SHADOW — ${t.symbol} ${dirLabel} ⚡x${t.leverage || 3}</b>\n` +
-    `━━━━━━━━━━━━━━━━\n` +
-    `✅ Entry LIMIT: <code>#${t.binanceEntryOrderId || 'OK'}</code> @ <code>${fmtPrice(t.entryPrice)}</code>\n` +
-    `   Qty: <b>${t.binanceQty || '—'}</b> | Margin (.env): <b>$${t.margin ?? '—'} USDT</b>\n` +
-    `🎯 TP: <code>${fmtPrice(t.targetPrice)}</code> | 🛑 SL: <code>${fmtPrice(t.slPrice)}</code>\n` +
-    (t.beTriggerPrice ? `🌊 BE ${Math.round(beRatio * 100)}%: <code>${fmtPrice(t.beTriggerPrice)}</code>\n` : '') +
-    `━━━━━━━━━━━━━━━━\n` +
-    `<i>🤖 Bot-New sẽ tự treo TP/SL khi khớp + kéo BE &amp; Fractal Trailing SL H1/M15</i>`,
-  ], 1500, NEWS_CHAT_ID).catch(() => {});
+  if (!opts.silentTelegram) {
+    const dirLabel = isLong ? '🟢 LONG' : '🔴 SHORT';
+    sendMessages([
+      `⚡ <b>ĐẨY LIMIT TỪ SHADOW — ${t.symbol} ${dirLabel} ⚡x${t.leverage || 3}</b>\n` +
+      `━━━━━━━━━━━━━━━━\n` +
+      `✅ Entry LIMIT: <code>#${t.binanceEntryOrderId || 'OK'}</code> @ <code>${fmtPrice(t.entryPrice)}</code>\n` +
+      `   Qty: <b>${t.binanceQty || '—'}</b> | Margin (.env): <b>$${t.margin ?? '—'} USDT</b>\n` +
+      `🎯 TP: <code>${fmtPrice(t.targetPrice)}</code> | 🛑 SL: <code>${fmtPrice(t.slPrice)}</code>\n` +
+      (t.beTriggerPrice ? `🌊 BE ${Math.round(beRatio * 100)}%: <code>${fmtPrice(t.beTriggerPrice)}</code>\n` : '') +
+      `━━━━━━━━━━━━━━━━\n` +
+      `<i>🤖 Bot-New sẽ tự treo TP/SL khi khớp + kéo BE &amp; Fractal Trailing SL H1/M15</i>`,
+    ], 1500, NEWS_CHAT_ID).catch(() => {});
+  }
 
   return t;
 }

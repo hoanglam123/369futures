@@ -1400,8 +1400,8 @@ async function runShadowReevaluation() {
           trade.margin = parseFloat(placed.sizeUsdt.toFixed(2));
         }
 
-        // 7. Đăng ký vào TradeMonitor và gỡ Shadow cũ
-        registerPromotedTrade(trade);
+        // 7. Đăng ký vào TradeMonitor (silentTelegram để không gửi đúp với tin Re-Eval bên dưới) và gỡ Shadow cũ
+        registerPromotedTrade(trade, { silentTelegram: true });
         removeShadowPosition(shadowId);
         removeShadowBySymbolDirection(sym, direction);
 
