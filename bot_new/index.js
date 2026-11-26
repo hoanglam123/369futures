@@ -16,7 +16,7 @@
 require('dotenv').config({ override: true });
 
 const cron = require('node-cron');
-const { runJob, run369AlertScan, runMacroRefresh, initPriceTickListener } = require('./src/job');
+const { runJob, run369AlertScan, runMacroRefresh, runShadowReevaluation, initPriceTickListener } = require('./src/job');
 const { start369Stream } = require('./src/pp369/stream');
 const { checkBTCAlert } = require('./src/services/priceAlert');
 const { checkActiveTrades, getActiveTrades, sendActiveTradesSummary, runBacktest, initBinanceStream, syncManualPositions, consumeSignalScanFlag, onWsPush } = require('./src/services/tradeMonitor');
@@ -193,6 +193,24 @@ if (process.argv.includes('--run-now')) {
           log.error('Auto-sync: thất bại', { trigger: 'cron', error: e.message });
         }
       }, { timezone: TIMEZONE, scheduled: true });
+    }
+  }
+
+  // Mỗi 30 phút: Tái chấm điểm từ đầu các vị thế Shadow sống sót (Phương án B - đồng bộ bot-h4)
+  // Lệch sang giây thứ 10 (10 */30 * * * *) để không đụng cron :00 và :20
+  if (process.env.ENABLE_SHADOW_REEVAL !== 'false') {
+    const shadowReevalCron = process.env.SHADOW_REEVAL_CRON || '10 */30 * * * *';
+    if (!cron.validate(shadowReevalCron)) {
+      console.error(`❌ SHADOW_REEVAL_CRON không hợp lệ: "${shadowReevalCron}"`);
+    } else {
+      cron.schedule(shadowReevalCron, async () => {
+        try {
+          await runShadowReevaluation();
+        } catch (e) {
+          log.warn(`[ShadowReEval] Lỗi chu kỳ 30p: ${e.message}`);
+        }
+      }, { timezone: TIMEZONE, scheduled: true });
+      log.system(`[ShadowReEval] Đã bật lịch tái chấm điểm Shadow mỗi 30 phút (${shadowReevalCron})`);
     }
   }
 

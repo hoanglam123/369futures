@@ -129,7 +129,8 @@ function _clearVetoCooldownForTest() {
 /**
  * Thẩm định và tạo lệnh giao dịch định lượng cho một setup
  */
-async function generateQuantitativeTrade(setup, marketData = null) {
+async function generateQuantitativeTrade(setup, marketData = null, options = {}) {
+  const isReeval = Boolean(options?.isReeval);
   const symbol = setup.symbol;
   const direction = setup.direction;
   const score = setup.total;
@@ -145,14 +146,14 @@ async function generateQuantitativeTrade(setup, marketData = null) {
   const dirLock = isDirectionLocked(direction);
   if (dirLock.isLocked) {
     log.system(`[AutoTrade] 🛑 [VETO Directional CB] ${symbol} ${direction}: Chiều ${direction} đang bị khóa còn ${dirLock.remainingMinutes}p (${dirLock.reason})`);
-    registerShadowTrade(setup, `DIRECTIONAL_CB_LOCKED: ${dirLock.reason}`);
+    if (!isReeval) registerShadowTrade(setup, `DIRECTIONAL_CB_LOCKED: ${dirLock.reason}`);
     return null;
   }
 
   // ─── CHỐT CHẶN 2: COOLDOWN TỪNG COIN (SL COOLDOWN) ───────────────
   if (isSymbolInCooldown(symbol)) {
     log.system(`[AutoTrade] 🛑 [VETO Cooldown] ${symbol} ${direction}: Coin đang trong thời gian hồi chiêu sau SL`);
-    registerShadowTrade(setup, 'SYMBOL_IN_SL_COOLDOWN');
+    if (!isReeval) registerShadowTrade(setup, 'SYMBOL_IN_SL_COOLDOWN');
     return null;
   }
 
@@ -163,12 +164,12 @@ async function generateQuantitativeTrade(setup, marketData = null) {
   const isBtcFlashExempt = ['PAXG', 'XAU', 'XAG'].includes(String(symbol || '').toUpperCase().replace(/USDT$/i, ''));
   if (!isBtcFlashExempt && btcFlash.severity === 'SEVERE' && btcFlash.activeFlash === 'FLASH_DUMP' && direction === 'LONG') {
     log.system(`[AutoTrade] 🛑 [VETO BTC Flash Guard SEVERE] ${symbol} LONG: Đang có bão BTC Flash Dump (${btcFlash.reason})`);
-    registerShadowTrade(setup, `BTC_FLASH_DUMP: ${btcFlash.reason}`);
+    if (!isReeval) registerShadowTrade(setup, `BTC_FLASH_DUMP: ${btcFlash.reason}`);
     return null;
   }
   if (!isBtcFlashExempt && btcFlash.severity === 'SEVERE' && btcFlash.activeFlash === 'FLASH_PUMP' && direction === 'SHORT') {
     log.system(`[AutoTrade] 🛑 [VETO BTC Flash Guard SEVERE] ${symbol} SHORT: Đang có bão BTC Flash Pump (${btcFlash.reason})`);
-    registerShadowTrade(setup, `BTC_FLASH_PUMP: ${btcFlash.reason}`);
+    if (!isReeval) registerShadowTrade(setup, `BTC_FLASH_PUMP: ${btcFlash.reason}`);
     return null;
   }
 
@@ -188,8 +189,10 @@ async function generateQuantitativeTrade(setup, marketData = null) {
     return null;
   }
 
-  // Ưu tiên: setup.targetLevel -> nếu sig369 có targetLevel cùng chiều -> currentPrice
-  let entryPrice = setup.targetLevel;
+  // Ưu tiên: overrideEntryPrice (luồng Shadow Re-Eval Maker-only) -> setup.targetLevel -> sig369.targetLevel -> currentPrice
+  let entryPrice = (isReeval && Number(options.overrideEntryPrice) > 0)
+    ? Number(options.overrideEntryPrice)
+    : setup.targetLevel;
   if (!entryPrice && sig369 && sig369.signal === direction && sig369.targetLevel) {
     entryPrice = sig369.targetLevel;
   }
@@ -197,10 +200,12 @@ async function generateQuantitativeTrade(setup, marketData = null) {
     entryPrice = currentPrice;
   }
 
-  // ─── CHỐT CHẶN BẢO VỆ: CỰ LY ENTRY VS GIÁ THỊ TRƯỜNG HIỆN TẠI (TỐI ĐA 0.5%) ─────────
+  // ─── CHỐT CHẶN BẢO VỆ: CỰ LY ENTRY VS GIÁ THỊ TRƯỜNG HIỆN TẠI ─────────
+  // Quét thường: tối đa 0.5%. Re-Eval 30m: đã có chốt chặn <= 30% TP & <= 40% SL, cho phép biên an toàn tối đa 3.0% (chờ hồi Maker).
+  const maxEntryDistPct = isReeval ? 0.03 : 0.005;
   const entryDistPct = Math.abs(entryPrice - currentPrice) / currentPrice;
-  if (entryDistPct > 0.005) {
-    log.system(`[AutoTrade] 🛑 [VETO Entry Distance] ${symbol} ${direction}: Entry $${entryPrice} cách giá hiện tại $${currentPrice} quá xa (${(entryDistPct * 100).toFixed(2)}% > 0.5%) — Hủy`);
+  if (entryDistPct > maxEntryDistPct) {
+    log.system(`[AutoTrade] 🛑 [VETO Entry Distance] ${symbol} ${direction}: Entry $${entryPrice} cách giá hiện tại $${currentPrice} quá xa (${(entryDistPct * 100).toFixed(2)}% > ${(maxEntryDistPct * 100).toFixed(1)}%) — Hủy`);
     return null;
   }
 
@@ -220,6 +225,17 @@ async function generateQuantitativeTrade(setup, marketData = null) {
   try {
     const symInfo = await getSymbolInfo(symbol).catch(() => null);
     symTickSize = symInfo?.tickSize || null;
+    if (isReeval && symTickSize && symTickSize > 0) {
+      const decTick = Math.min(8, Math.max(0, Math.round(-Math.log10(symTickSize))));
+      const snapped = direction === 'LONG'
+        ? Math.floor(entryPrice / symTickSize) * symTickSize
+        : Math.ceil(entryPrice / symTickSize) * symTickSize;
+      entryPrice = Number(snapped.toFixed(decTick));
+      if (!entryPrice || entryPrice <= 0) return null;
+      if ((direction === 'LONG' && entryPrice >= currentPrice) || (direction === 'SHORT' && entryPrice <= currentPrice)) {
+        return null;
+      }
+    }
 
     const tradeSizePct = parseFloat(process.env.TRADE_SIZE_PCT || '0');
     let customMargin = null;
@@ -268,24 +284,28 @@ async function generateQuantitativeTrade(setup, marketData = null) {
   if (!tierSetup || !tierSetup.valid) {
     _engineScanStats.rejectMath++;
     const vetoReason = tierSetup?.reason || 'Không đạt chuẩn R:R';
-    _setVetoCooldown(symbol, direction, 30 * 60 * 1000);
-    if (_shouldLogSignal(symbol, direction, 'math_veto', 30 * 60 * 1000)) {
-      log.system(`[AutoTrade] 🛑 [VETO Toán học] ${symbol} ${direction}: ${vetoReason}`);
+    if (!isReeval) {
+      _setVetoCooldown(symbol, direction, 30 * 60 * 1000);
+      if (_shouldLogSignal(symbol, direction, 'math_veto', 30 * 60 * 1000)) {
+        log.system(`[AutoTrade] 🛑 [VETO Toán học] ${symbol} ${direction}: ${vetoReason}`);
+      }
+      registerShadowTrade({
+        ...setup,
+        entryPrice,
+        markPrice: currentPrice,
+        slPrice: tierSetup?.slPrice,
+        tpPrice: tierSetup?.tpPrice,
+        beTriggerPrice: tierSetup?.beTriggerPrice,
+        slPct: tierSetup?.slPct,
+        tpPct: tierSetup?.tpPct,
+        gridWidthPct: effGridWidth,
+        marketCapRank: realRank,
+        leverage: tierSetup?.leverage,
+        margin: tierSetup?.margin
+      }, vetoReason);
+    } else {
+      log.system(`[ShadowReEval] ⏭️ ${symbol} ${direction}: VETO Toán học (${vetoReason})`);
     }
-    registerShadowTrade({
-      ...setup,
-      entryPrice,
-      markPrice: currentPrice,
-      slPrice: tierSetup?.slPrice,
-      tpPrice: tierSetup?.tpPrice,
-      beTriggerPrice: tierSetup?.beTriggerPrice,
-      slPct: tierSetup?.slPct,
-      tpPct: tierSetup?.tpPct,
-      gridWidthPct: effGridWidth,
-      marketCapRank: realRank,
-      leverage: tierSetup?.leverage,
-      margin: tierSetup?.margin
-    }, vetoReason);
     return null;
   }
 
@@ -381,37 +401,41 @@ async function generateQuantitativeTrade(setup, marketData = null) {
 
   if (!gateResult.isApproved) {
     _engineScanStats.rejectGatekeeper++;
-    _setVetoCooldown(symbol, direction, 30 * 60 * 1000);
-    if (_shouldLogSignal(symbol, direction, 'gatekeeper_veto', 30 * 60 * 1000)) {
-      log.system(`[AutoTrade] 🛑 [AI VETO] ${symbol} (${direction}): ${gateResult.reason} — Bỏ qua`);
+    if (!isReeval) {
+      _setVetoCooldown(symbol, direction, 30 * 60 * 1000);
+      if (_shouldLogSignal(symbol, direction, 'gatekeeper_veto', 30 * 60 * 1000)) {
+        log.system(`[AutoTrade] 🛑 [AI VETO] ${symbol} (${direction}): ${gateResult.reason} — Bỏ qua`);
+      }
+      const h1RangePct = (lastH1 && lastH1.low > 0) ? parseFloat((((lastH1.high - lastH1.low) / lastH1.low) * 100).toFixed(2)) : null;
+      const m15RangePct = (lastM15 && lastM15.low > 0) ? parseFloat((((lastM15.high - lastM15.low) / lastM15.low) * 100).toFixed(2)) : null;
+      registerShadowTrade({
+        ...setup,
+        entryPrice,
+        markPrice: liveMarkPrice,
+        slPrice: tierSetup.slPrice,
+        tpPrice: tierSetup.tpPrice,
+        beTriggerPrice: tierSetup.beTriggerPrice,
+        slPct: tierSetup.slPct,
+        tpPct: tierSetup.tpPct,
+        gridWidthPct: effGridWidth,
+        marketCapRank: realRank,
+        leverage: tierSetup.leverage,
+        margin: tierSetup.margin,
+        winProbability: gateResult.winProbability,
+        scoreReasons: setup.reasons || [],
+        microstructure: { spreadPct: micro.spreadPct, wall: micro.orderbookWall },
+        marketMetrics: { h1RangePct, m15RangePct, m15VolRatio, h1VolRatio, preEntryBouncePct },
+        features: gateResult.features,
+        keyFactors: gateResult.keyFactors
+      }, `GATEKEEPER_VETO: ${gateResult.reason}`);
+    } else {
+      log.system(`[ShadowReEval] 🛑 ${symbol} (${direction}): AI VETO (${gateResult.reason}) — giữ nguyên trong Shadow`);
     }
-    const h1RangePct = (lastH1 && lastH1.low > 0) ? parseFloat((((lastH1.high - lastH1.low) / lastH1.low) * 100).toFixed(2)) : null;
-    const m15RangePct = (lastM15 && lastM15.low > 0) ? parseFloat((((lastM15.high - lastM15.low) / lastM15.low) * 100).toFixed(2)) : null;
-    registerShadowTrade({
-      ...setup,
-      entryPrice,
-      markPrice: liveMarkPrice,
-      slPrice: tierSetup.slPrice,
-      tpPrice: tierSetup.tpPrice,
-      beTriggerPrice: tierSetup.beTriggerPrice,
-      slPct: tierSetup.slPct,
-      tpPct: tierSetup.tpPct,
-      gridWidthPct: effGridWidth,
-      marketCapRank: realRank,
-      leverage: tierSetup.leverage,
-      margin: tierSetup.margin,
-      winProbability: gateResult.winProbability,
-      scoreReasons: setup.reasons || [],
-      microstructure: { spreadPct: micro.spreadPct, wall: micro.orderbookWall },
-      marketMetrics: { h1RangePct, m15RangePct, m15VolRatio, h1VolRatio, preEntryBouncePct },
-      features: gateResult.features,
-      keyFactors: gateResult.keyFactors
-    }, `GATEKEEPER_VETO: ${gateResult.reason}`);
     return null;
   }
 
   const thPctLabel = typeof gateResult.approvalThresholdPct === 'number' ? gateResult.approvalThresholdPct.toFixed(1) : '50.0';
-  log.system(`[AutoTrade] 🟢 [AI APPROVED] ${symbol} (${direction}) — Xác suất thắng ${(gateResult.winProbability * 100).toFixed(1)}% >= ${thPctLabel}% | NetEV +${gateResult.expectedValueRoi}% ROI [Risk Gatekeeper]`);
+  log.system(`[AutoTrade] 🟢 [${isReeval ? 'ShadowReEval AI APPROVED' : 'AI APPROVED'}] ${symbol} (${direction}) — Xác suất thắng ${(gateResult.winProbability * 100).toFixed(1)}% >= ${thPctLabel}% | NetEV +${gateResult.expectedValueRoi}% ROI [Risk Gatekeeper]`);
 
   // 4. Sinh đối tượng trade chuẩn cho bot_new
   const trade = {
@@ -430,11 +454,12 @@ async function generateQuantitativeTrade(setup, marketData = null) {
     confluenceScore: score,
     confidence: setup.confidence || 75,
     rrRatio: tierSetup.rrRatio,
+    winProbability: +(gateResult.winProbability * 100).toFixed(1),
     entryFilled: false,
     status: 'active',
     recommendedAt: new Date(),
-    reason: `QUANT 369 | Score ${score}đ [${setup.verdict}] | SL: ${tierSetup.slScenario} (+${tierSetup.slPct}%) | TP: ${tierSetup.tpAnchorType} (-${tierSetup.tpPct}%) | R:R = ${tierSetup.rrRatio} | Gate: ${(gateResult.winProbability * 100).toFixed(0)}%`,
-    source: 'quantitative_deterministic'
+    reason: `${isReeval ? 'RE-EVAL 30m | ' : ''}QUANT 369 | Score ${score}đ [${setup.verdict}] | SL: ${tierSetup.slScenario} (+${tierSetup.slPct}%) | TP: ${tierSetup.tpAnchorType} (-${tierSetup.tpPct}%) | R:R = ${tierSetup.rrRatio} | Gate: ${(gateResult.winProbability * 100).toFixed(0)}%`,
+    source: isReeval ? 'shadow_reeval_30m' : 'quantitative_deterministic'
   };
 
   _engineScanStats.ordersDispatched++;

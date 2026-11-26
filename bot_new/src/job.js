@@ -20,8 +20,8 @@ const { getFundingRates } = require('./collectors/fundingRates');
 const { analyzeMarket } = require('./services/aiAnalysis');
 const { sendMessages, sendErrorAlert } = require('./services/telegram');
 const { buildMarketMessage, buildAnalysisMessage } = require('./formatters/message');
-const { parseTrades, addTrades, getActiveTrades } = require('./services/tradeMonitor');
-const { processCandidateSetups, consumeEngineScanStats } = require('./services/signalEngine');
+const { parseTrades, addTrades, registerPromotedTrade, getActiveTrades } = require('./services/tradeMonitor');
+const { generateQuantitativeTrade, processCandidateSetups, consumeEngineScanStats, MIN_SCORE_TIER1, MIN_SCORE_TIER2 } = require('./services/signalEngine');
 const { getAllActiveFuturesSymbols, filterSymbolsByGrid } = require('./services/dynamicUniverse');
 const { parseFundingTrades, addFundingTrades } = require('./services/fundingTracker');
 const { getTAReport, getFullTA, STABLECOINS } = require('./collectors/technicalAnalysis');
@@ -39,10 +39,13 @@ const {
   logSignal369, start369Stream, getNearbySymbols, getMarkPrice, format369Alert,
   syncWebSocketSubscriptions, getPrices, updatePricesRest
 } = pp369;
-const { registerShadowTrade, updateShadowPrices, getShadowStats, getActiveShadowPositions } = require('./services/shadowTracker');
+const { registerShadowTrade, updateShadowPrices, getShadowStats, getActiveShadowPositions, removeShadowPosition, removeShadowBySymbolDirection } = require('./services/shadowTracker');
 const { initH1RefCache, prePopulateLevelCache, checkMonthTransition } = require('./services/h1RefCache');
 const { isLevelBounceCooldown } = require('./services/bounceCancel');
 const { isIpBanned } = require('./services/rateLimitGuard');
+const binanceTrader = require('./services/binanceTrader');
+const { isDirectionLocked } = require('./services/directionalCircuitBreaker');
+const { isSymbolInCooldown } = require('./services/cooldownManager');
 
 const POLL_ROTATION_TTL_MS = parseInt(process.env.POLL_ROTATION_TTL_MS || String(2 * 60 * 1000), 10); // 2 phút xoay vòng sang 8 coin tiếp theo
 const _recentPollingScan = new Map(); // sym -> { level, ts }
@@ -1089,11 +1092,331 @@ async function runMacroRefresh() {
   }
 }
 
+// ─── LUỒNG TÁI ĐÁNH GIÁ SHADOW MỖI 30 PHÚT (PHƯƠNG ÁN B - ĐỒNG BỘ BOT-H4) ─────
+const SHADOW_REEVAL_MIN_AGE_MS = parseInt(process.env.SHADOW_REEVAL_MIN_AGE_MS || String(30 * 60_000), 10);
+const SHADOW_REEVAL_MAX_AGE_MS = parseInt(process.env.SHADOW_REEVAL_MAX_AGE_MS || String(8 * 60 * 60_000), 10);
+const SHADOW_REEVAL_MAX_TP_PROGRESS = parseFloat(process.env.SHADOW_REEVAL_MAX_TP_PROGRESS || '0.30');
+const SHADOW_REEVAL_MAX_SL_ADVERSE = parseFloat(process.env.SHADOW_REEVAL_MAX_SL_ADVERSE || '0.40');
+const SHADOW_REEVAL_MAX_PROMOTES_PER_CYCLE = parseInt(process.env.SHADOW_REEVAL_MAX_PROMOTES_PER_CYCLE || '2', 10);
+const SHADOW_REEVAL_HARD_VETO_RE = /RR_BLOCKED_BY_MAJOR_SR|GRID_|SL_TOO_WIDE|HARD_FILTER|DIRECTIONAL_CB|SL_COOLDOWN|SHADOW_ONLY_MODE|UNTRADABLE/i;
+
+/**
+ * Bộ lọc tiền kiểm thuần toán học (pure function) cho luồng Shadow Re-Evaluation 30 phút.
+ * Kiểm tra: ACTIVE/PENDING_LIMIT, chưa BE, tuổi 30p-8h, loại trừ hard/structural veto,
+ * chưa chạy quá 30% TP (chống đuổi giá) và chưa lỗ quá 40% SL (chống bắt dao rơi).
+ * Trả về mức giá limitEntry bảo toàn Maker-only.
+ */
+function isShadowEligibleForReeval(sh, markPrice, nowMs = Date.now()) {
+  if (!sh || typeof sh !== 'object') return { eligible: false, reason: 'INVALID_SHADOW' };
+  const status = String(sh.status || '').toUpperCase();
+  if (status !== 'ACTIVE' && status !== 'PENDING_LIMIT') {
+    return { eligible: false, reason: `STATUS_${status || 'UNKNOWN'}` };
+  }
+  if (sh.isBeTriggered) {
+    return { eligible: false, reason: 'ALREADY_BREAKEVEN' };
+  }
+
+  const sym = String(sh.symbol || '').toUpperCase().replace(/USDT$/i, '');
+  const rawDir = String(sh.direction || sh.signal || '').toUpperCase();
+  const direction = (rawDir === 'LONG' || rawDir === 'BUY') ? 'LONG' : ((rawDir === 'SHORT' || rawDir === 'SELL') ? 'SHORT' : '');
+  const origEntry = parseFloat(sh.entryPrice || 0);
+  const tpPrice = parseFloat(sh.tpPrice || sh.tierTpPrice || 0);
+  const slPrice = parseFloat(sh.originalSlPrice || sh.slPrice || sh.tierSlPrice || 0);
+  const currPrice = parseFloat(markPrice || 0);
+
+  if (!sym || !direction || origEntry <= 0 || tpPrice <= 0 || slPrice <= 0 || currPrice <= 0) {
+    return { eligible: false, reason: 'MISSING_PRICE_FIELDS' };
+  }
+
+  const openedMs = Number(sh.openedAtMs || sh.entryTimestamp || (sh.openedAt ? Date.parse(sh.openedAt) : 0));
+  if (!Number.isFinite(openedMs) || openedMs <= 0) {
+    return { eligible: false, reason: 'MISSING_TIMESTAMP' };
+  }
+  const ageMs = nowMs - openedMs;
+  if (ageMs < SHADOW_REEVAL_MIN_AGE_MS) {
+    return { eligible: false, reason: 'TOO_YOUNG', ageMinutes: Math.round(ageMs / 60_000) };
+  }
+  if (ageMs > SHADOW_REEVAL_MAX_AGE_MS) {
+    return { eligible: false, reason: 'TOO_OLD', ageMinutes: Math.round(ageMs / 60_000) };
+  }
+
+  const vetoCombined = `${sh.vetoCategory || ''} ${sh.vetoReason || ''}`;
+  if (SHADOW_REEVAL_HARD_VETO_RE.test(vetoCombined)) {
+    return { eligible: false, reason: 'HARD_VETO_EXCLUDED' };
+  }
+
+  const isLong = direction === 'LONG';
+  const tpDist = isLong ? (tpPrice - origEntry) : (origEntry - tpPrice);
+  const slDist = isLong ? (origEntry - slPrice) : (slPrice - origEntry);
+  if (tpDist <= 0 || slDist <= 0) {
+    return { eligible: false, reason: 'INVALID_TP_SL_GEOMETRY' };
+  }
+
+  const progressToTp = isLong ? ((currPrice - origEntry) / tpDist) : ((origEntry - currPrice) / tpDist);
+  const adverseToSl = isLong ? ((origEntry - currPrice) / slDist) : ((currPrice - origEntry) / slDist);
+
+  if (progressToTp > SHADOW_REEVAL_MAX_TP_PROGRESS) {
+    return { eligible: false, reason: 'CHASE_GUARD_TP_PROGRESS', progressToTpPct: +(progressToTp * 100).toFixed(1) };
+  }
+  if (adverseToSl > SHADOW_REEVAL_MAX_SL_ADVERSE) {
+    return { eligible: false, reason: 'DYING_GUARD_SL_ADVERSE', adverseToSlPct: +(adverseToSl * 100).toFixed(1) };
+  }
+
+  // Maker-only: LONG luôn <= min(origEntry, mark * 0.9995); SHORT luôn >= max(origEntry, mark * 1.0005)
+  const limitEntry = isLong
+    ? Math.min(origEntry, currPrice * 0.9995)
+    : Math.max(origEntry, currPrice * 1.0005);
+
+  return {
+    eligible: true,
+    symbol: sym,
+    direction,
+    origEntry,
+    limitEntry,
+    ageMinutes: Math.round(ageMs / 60_000),
+    progressToTpPct: +(progressToTp * 100).toFixed(1),
+    adverseToSlPct: +(adverseToSl * 100).toFixed(1),
+  };
+}
+
+let _isShadowReevalRunning = false;
+
+/**
+ * Luồng tái chấm điểm Shadow từ đầu mỗi 30 phút (Phương án B).
+ * Chấm lại Confluence + On-Demand Macro + Tier SL/TP + Risk Gatekeeper từ 0.
+ * Nếu vượt qua tất cả các tầng → đặt lệnh Maker LIMIT thật trên Binance (tối đa 2 lệnh/chu kỳ).
+ */
+async function runShadowReevaluation() {
+  if (process.env.ENABLE_SHADOW_REEVAL === 'false') return { checked: 0, promoted: 0 };
+  if (_isShadowReevalRunning || isIpBanned() || _scanPaused || _shadowOnlyMode) return { checked: 0, promoted: 0 };
+  if (!binanceTrader || !binanceTrader.isEnabled()) return { checked: 0, promoted: 0 };
+
+  _isShadowReevalRunning = true;
+  let checked = 0;
+  let promoted = 0;
+  try {
+    const activeShadows = typeof getActiveShadowPositions === 'function' ? getActiveShadowPositions() : {};
+    const entries = Object.entries(activeShadows || {});
+    if (entries.length === 0) return { checked: 0, promoted: 0 };
+
+    // Làm mới giá REST nhẹ để có markPrice cho mọi shadow coin
+    if (typeof updatePricesRest === 'function' && !isIpBanned()) {
+      await updatePricesRest().catch(() => {});
+    }
+
+    const nowMs = Date.now();
+    // Ưu tiên shadow sống lâu hơn trong cửa sổ 30p-8h
+    entries.sort((a, b) => (a[1]?.openedAtMs || a[1]?.entryTimestamp || 0) - (b[1]?.openedAtMs || b[1]?.entryTimestamp || 0));
+
+    const activeTrades = getActiveTrades();
+    const activeSymSet = new Set(activeTrades.filter(t => t && t.status === 'active').map(t => t.symbol));
+
+    // Kiểm tra 1 lần danh sách vị thế thật đang mở trên Binance
+    const livePositionSyms = new Set();
+    try {
+      const livePos = await binanceTrader.getAllPositions();
+      if (Array.isArray(livePos)) {
+        for (const p of livePos) {
+          if (parseFloat(p.positionAmt || '0') !== 0) {
+            livePositionSyms.add(String(p.symbol || '').replace(/USDT$/i, '').toUpperCase());
+          }
+        }
+      }
+    } catch (_) {}
+
+    // Đảm bảo có BTC TA tươi mới cho Confluence Scorer
+    if (!_lastMarketData) _lastMarketData = {};
+    if (!_lastMarketData.ta) _lastMarketData.ta = {};
+    let btcTA = _lastMarketData.ta['BTC'] ?? null;
+    if (!btcTA || !btcTA._fetchedAt || (nowMs - btcTA._fetchedAt > 15 * 60_000)) {
+      try {
+        btcTA = await getFullTA('BTC');
+        if (btcTA) {
+          btcTA._fetchedAt = Date.now();
+          _lastMarketData.ta['BTC'] = btcTA;
+        }
+      } catch (_) {}
+    }
+
+    const pricesMap = typeof getPrices === 'function' ? (getPrices() || {}) : {};
+    const levelCache = getLevelCache() || {};
+
+    for (const [shadowId, sh] of entries) {
+      if (isIpBanned() || promoted >= SHADOW_REEVAL_MAX_PROMOTES_PER_CYCLE) break;
+      if (!sh || !sh.symbol) continue;
+
+      const sym = String(sh.symbol).toUpperCase().replace(/USDT$/i, '');
+      const rawDir = String(sh.direction || sh.signal || '').toUpperCase();
+      const direction = (rawDir === 'SHORT' || rawDir === 'SELL') ? 'SHORT' : 'LONG';
+
+      if (
+        activeSymSet.has(sym) ||
+        livePositionSyms.has(sym) ||
+        _processingSymbols.has(sym) ||
+        isSymbolInCooldown(sym) ||
+        isDirectionLocked(direction).isLocked ||
+        isLevelBounceCooldown(sym, parseFloat(sh.entryPrice || 0))
+      ) {
+        continue;
+      }
+
+      const markPrice = (typeof getMarkPrice === 'function' ? getMarkPrice(sym) : null) || pricesMap[sym] || null;
+      const elig = isShadowEligibleForReeval(sh, markPrice, nowMs);
+      if (!elig.eligible) continue;
+
+      checked++;
+      try {
+        // 1. Nạp TA tươi mới cho coin
+        let ta = _lastMarketData.ta[sym];
+        const isTaStale = !ta || !ta._fetchedAt || (Date.now() - ta._fetchedAt > 10 * 60_000);
+        if (isTaStale) {
+          ta = await getFullTA(sym);
+          if (ta) {
+            ta._fetchedAt = Date.now();
+            _lastMarketData.ta[sym] = ta;
+          }
+        }
+        if (!ta) {
+          await new Promise(r => setTimeout(r, 600));
+          continue;
+        }
+
+        // 2. Nạp On-Demand Whale + Derivatives nếu chưa có cache tươi
+        await ensureSymbolOnDemandMacro(sym);
+
+        const cachedLvl = levelCache[sym] || null;
+        const sig369Stub = {
+          symbol: sym,
+          signal: direction,
+          targetLevel: elig.limitEntry,
+          currentPrice: markPrice,
+          step: cachedLvl?.step || null,
+          decimals: cachedLvl?.decimals || null,
+        };
+
+        // 3. Chấm lại Confluence Score từ 0
+        const score = scoreSetup(
+          sym,
+          direction,
+          ta,
+          _lastMarketData.whale ?? {},
+          _lastMarketData.derivatives ?? {},
+          _lastMarketData.funding ?? null,
+          _lastMarketData.fearGreed ?? { value: 50 },
+          _lastMarketData.social ?? {},
+          btcTA,
+          sig369Stub
+        );
+
+        const isTier1 = FIXED_COINS.includes(sym);
+        const minRequired = isTier1 ? MIN_SCORE_TIER1 : MIN_SCORE_TIER2;
+        if (!score || score.disqualified || typeof score.total !== 'number' || score.total < minRequired) {
+          log.system(`[ShadowReEval] ⏭️ ${sym} (${direction}, ${elig.ageMinutes}p): Không đạt Confluence (${score?.total?.toFixed?.(1) ?? 0}đ < ${minRequired}đ${score?.disqualifyReason ? ` | ${score.disqualifyReason}` : ''})`);
+          await new Promise(r => setTimeout(r, 600));
+          continue;
+        }
+
+        // 4. Qua đầy đủ tầng Tier SL/TP + L2 Microstructure + AI Risk Gatekeeper với Maker-only limitEntry
+        const candidate = {
+          symbol: sym,
+          direction,
+          targetLevel: elig.limitEntry,
+          total: score.total,
+          verdict: score.verdict,
+          confidence: score.confidence,
+          reasons: score.reasons || [],
+          gridWidthPct: sh.gridWidthPct || null,
+          marketCapRank: sh.marketCapRank || null,
+        };
+
+        const marketCtx = {
+          ..._lastMarketData,
+          signals369: { ...(_lastMarketData.signals369 || {}), [sym]: sig369Stub },
+        };
+
+        const trade = await generateQuantitativeTrade(candidate, marketCtx, {
+          isReeval: true,
+          overrideEntryPrice: elig.limitEntry,
+        });
+        if (!trade) {
+          await new Promise(r => setTimeout(r, 600));
+          continue;
+        }
+
+        // 5. Kiểm tra lần cuối không có lệnh chờ mở trên sàn
+        const openOrders = await binanceTrader.getOpenOrders(sym).catch(() => []);
+        if (Array.isArray(openOrders) && openOrders.length > 0) {
+          activeSymSet.add(sym);
+          await new Promise(r => setTimeout(r, 600));
+          continue;
+        }
+
+        // 6. Đặt lệnh Maker LIMIT thật trên Binance và CHỜ xác nhận orderId
+        const placed = await binanceTrader.placeNewTrade(trade);
+        if (
+          !placed ||
+          placed.insufficientBalance ||
+          placed.symbolNotSupported ||
+          placed.agreementRequired ||
+          !placed.entryOrderId
+        ) {
+          log.warn(`[ShadowReEval] Đặt lệnh LIMIT thất bại cho ${sym} (${direction}) — giữ nguyên trong Shadow`, {
+            insufficientBalance: Boolean(placed?.insufficientBalance),
+            symbolNotSupported: Boolean(placed?.symbolNotSupported),
+            agreementRequired: Boolean(placed?.agreementRequired),
+          });
+          await new Promise(r => setTimeout(r, 600));
+          continue;
+        }
+
+        trade.binanceEntryOrderId = String(placed.entryOrderId);
+        trade.binanceQty = placed.qty;
+        if (typeof placed.sizeUsdt === 'number' && placed.sizeUsdt > 0) {
+          trade.margin = parseFloat(placed.sizeUsdt.toFixed(2));
+        }
+
+        // 7. Đăng ký vào TradeMonitor và gỡ Shadow cũ
+        registerPromotedTrade(trade);
+        removeShadowPosition(shadowId);
+        removeShadowBySymbolDirection(sym, direction);
+
+        promoted++;
+        activeSymSet.add(sym);
+        livePositionSyms.add(sym);
+
+        log.trade(`[ShadowReEval] ♻️✓ ĐÃ ĐẨY LỆNH MAKER LIMIT #${sym} (${direction}) @ $${trade.entryPrice} (orderId=${trade.binanceEntryOrderId} | Tuổi Shadow: ${elig.ageMinutes}p | Score mới: ${score.total.toFixed(1)}đ | AI WinProb: ${trade.winProbability}% | x${trade.leverage} | Margin $${trade.margin})`);
+
+        await sendMessages([
+          `♻️ <b>[Shadow Re-Eval 30m] Đẩy lệnh MAKER LIMIT</b>\n` +
+          `• Coin: <b>#${sym}USDT (${direction})</b>\n` +
+          `• Entry Limit: <b>$${trade.entryPrice}</b> (Shadow gốc: $${elig.origEntry}, giá HT: $${markPrice})\n` +
+          `• SL: <b>$${trade.slPrice}</b> (-${trade.slPct}%) | TP: <b>$${trade.targetPrice}</b> (+${trade.targetPct}%)\n` +
+          `• Đòn bẩy: <b>${trade.leverage}x</b> | Ký quỹ: <b>$${trade.margin}</b>\n` +
+          `• Chấm lại: Score <b>${score.total.toFixed(1)}đ</b> | AI <b>${trade.winProbability}%</b> | Sống sót <b>${elig.ageMinutes}p</b>`
+        ]).catch(() => {});
+      } catch (err) {
+        log.warn(`[ShadowReEval] Lỗi tái đánh giá ${sym} (${direction}): ${err.message}`);
+      }
+
+      await new Promise(r => setTimeout(r, 600));
+    }
+
+    if (checked > 0) {
+      log.system(`[ShadowReEval] Hoàn tất chu kỳ 30p: Đã chấm lại ${checked} Shadow đủ chuẩn → Đẩy lệnh thật ${promoted}/${SHADOW_REEVAL_MAX_PROMOTES_PER_CYCLE}.`);
+    }
+    return { checked, promoted };
+  } finally {
+    _isShadowReevalRunning = false;
+  }
+}
+
 module.exports = {
   runJob,
   isJobRunning,
   run369AlertScan,
   runMacroRefresh,
+  runShadowReevaluation,
+  isShadowEligibleForReeval,
   initPriceTickListener,
   setScanPaused,
   isScanPaused,
