@@ -1460,13 +1460,12 @@ async function calculateTierSLTP(
   // khiến giá không thể đạt được R:R >= 1.48 (vị trí bức tường nằm trước khoảng cách tối thiểu)!
   // Nếu là cản yếu (Minor S/R: 1x H1 wick): KÍCH HOẠT WEAK S/R BYPASS (Bỏ qua cản yếu để không reject oan uổng)
   for (const c of opposingClusters) {
-    const rawDistToWall = isLong ? (c.zoneMin - entryPrice) : (entryPrice - c.zoneMax);
+    const frontRunPrice = isLong ? (c.zoneMin - entryPrice * 0.002) : (c.zoneMax + entryPrice * 0.002);
+    const distToWall = isLong ? Math.max(0, frontRunPrice - entryPrice) : Math.max(0, entryPrice - frontRunPrice);
 
-    if (rawDistToWall < minRequiredTpDist) {
+    if (distToWall < minRequiredTpDist) {
       if (c.isMajor) {
-        // Bức tường cản cứng chặn đầu -> VETO chính xác vì giá không thể vượt qua cản cứng này để đạt 1.48R
-        const frontRunPrice = isLong ? (c.zoneMin - entryPrice * 0.002) : (c.zoneMax + entryPrice * 0.002);
-        const distToWall = Math.max(0, Math.abs(entryPrice - frontRunPrice));
+        // Bức tường cản cứng chặn đầu -> VETO chính xác vì mốc front-run trước cản cứng không đạt 1.48R (không bao giờ đặt TP xuyên tường)
         const blockedRR = distToWall / slDist;
         const finalTpPriceFail = roundTpConservative(frontRunPrice, effTickSize, isLong);
         const flipTag = c.isRoleFlipped ? ' S/R-Flip' : '';

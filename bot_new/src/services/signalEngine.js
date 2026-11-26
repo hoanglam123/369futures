@@ -289,20 +289,8 @@ async function generateQuantitativeTrade(setup, marketData = null, options = {})
       if (_shouldLogSignal(symbol, direction, 'math_veto', 30 * 60 * 1000)) {
         log.system(`[AutoTrade] 🛑 [VETO Toán học] ${symbol} ${direction}: ${vetoReason}`);
       }
-      registerShadowTrade({
-        ...setup,
-        entryPrice,
-        markPrice: currentPrice,
-        slPrice: tierSetup?.slPrice,
-        tpPrice: tierSetup?.tpPrice,
-        beTriggerPrice: tierSetup?.beTriggerPrice,
-        slPct: tierSetup?.slPct,
-        tpPct: tierSetup?.tpPct,
-        gridWidthPct: effGridWidth,
-        marketCapRank: realRank,
-        leverage: tierSetup?.leverage,
-        margin: tierSetup?.margin
-      }, vetoReason);
+      // Đồng bộ bot-h4: không ghi lệnh bị RR_BLOCKED_BY_MAJOR_SR (R:R bị ép sát cản < 1.48) vào Shadow Tracker
+      // để tránh làm sai lệch thống kê Shadow PnL & nhiễu dữ liệu retrain AI.
     } else {
       log.system(`[ShadowReEval] ⏭️ ${symbol} ${direction}: VETO Toán học (${vetoReason})`);
     }

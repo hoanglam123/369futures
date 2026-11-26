@@ -1239,7 +1239,9 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
   // ── 🎯 TÍNH TOÁN LỢI NHUẬN KỲ VỌNG RÒNG (NET EXPECTED VALUE - NET EV) SAU PHÍ & TRƯỢT GIÁ ──
   // Dùng đòn bẩy thực tế của lệnh (không giả định cứng SL = -50% ROI như bản cũ) và trừ phí khứ hồi + trượt giá (0.12% notional)
   const ROUNDTRIP_FEE_SLIPPAGE_PCT = parseFloat(process.env.ROUNDTRIP_FEE_SLIPPAGE_PCT || '0.12');
-  const minEvRoiThreshold = parseFloat(process.env.MIN_NET_EV_ROI || '0.5');
+  const envMinEvRoi = process.env.MIN_NET_EV_ROI;
+  const learnedMinEvRoi = typeof optimalTh.minExpectedEvRoi === 'number' ? optimalTh.minExpectedEvRoi : 0.5;
+  const minEvRoiThreshold = (envMinEvRoi !== undefined && envMinEvRoi !== '') ? parseFloat(envMinEvRoi) : learnedMinEvRoi;
 
   // Khoảng cách SL/TP thực tế của lệnh
   const slCfg = _modelConfig?.adaptiveSlProfile;

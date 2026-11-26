@@ -573,14 +573,14 @@ async function calculateTierSLTP(
     ? resistanceClusters.filter(c => c.zoneMin > entryPrice * 1.001).sort((a, b) => a.zoneMin - b.zoneMin)
     : supportClusters.filter(c => c.zoneMax < entryPrice * 0.999).sort((a, b) => b.zoneMax - a.zoneMax);
 
-  // 5.1. Hard Major Wall Blocking Check: Chỉ VETO khi cản cứng (Major S/R) chặn trước R:R < 1.48
+  // 5.1. Hard Major Wall Blocking Check: Chỉ VETO khi mốc front-run (-0.2%) trước cản cứng (Major S/R) không đạt R:R >= 1.48
+  // Đo bằng frontRunPrice đồng nhất 100% với Pass 1 chọn TP để tuyệt đối không đặt TP xuyên tường Major S/R.
   for (const c of opposingClusters) {
-    const rawDistToWall = isLong ? (c.zoneMin - entryPrice) : (entryPrice - c.zoneMax);
+    const frontRunPrice = isLong ? (c.zoneMin - entryPrice * 0.002) : (c.zoneMax + entryPrice * 0.002);
+    const distToWall = isLong ? Math.max(0, frontRunPrice - entryPrice) : Math.max(0, entryPrice - frontRunPrice);
 
-    if (rawDistToWall < minRequiredTpDist) {
+    if (distToWall < minRequiredTpDist) {
       if (c.isMajor) {
-        const frontRunPrice = isLong ? (c.zoneMin - entryPrice * 0.002) : (c.zoneMax + entryPrice * 0.002);
-        const distToWall = Math.max(0, Math.abs(entryPrice - frontRunPrice));
         const blockedRR = distToWall / slDist;
         const finalTpPriceFail = roundTpConservative(frontRunPrice, effTickSize, isLong);
         const flipTag = c.isRoleFlipped ? ' S/R-Flip' : '';

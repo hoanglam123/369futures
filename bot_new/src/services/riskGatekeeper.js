@@ -276,7 +276,9 @@ function extractGatekeeperFeatures(sig, marketContext = {}) {
     features['m15_volatility'] === 'M15_EXTREME_STORM';
   const isCounterTrain = features['candle_momentum'] === 'MOMENTUM_COUNTER_PUMP_TRAIN' ||
     features['candle_momentum'] === 'MOMENTUM_COUNTER_DUMP_TRAIN';
-  const isBtcFlashActive = features['btc_flash'] !== 'BTC_FLASH_NORMAL';
+  // Chỉ coi là bão BTC Flash nặng (SEVERE) khi kết hợp với BOUNCE_STALE_HIGH (đồng bộ bot-h4, không phạt nặng mức MODERATE)
+  const isBtcFlashActive = features['btc_flash'] === 'BTC_FLASH_DUMP_ACTIVE' ||
+    features['btc_flash'] === 'BTC_FLASH_PUMP_ACTIVE';
 
   if (features['pre_entry_bounce'] === 'BOUNCE_STALE_EXTREME' ||
       (features['pre_entry_bounce'] === 'BOUNCE_STALE_HIGH' && isBtcFlashActive)) {
@@ -532,7 +534,9 @@ function evaluateSignal(sig, marketContext = null) {
   const netTpRoi = Math.max(0.5, (effTpPct * effLev) - feeRoi);
   const netSlRoi = (effSlPct * effLev) + feeRoi;
   const netEvRoi = (winProbability * netTpRoi) - ((1 - winProbability) * netSlRoi);
-  const minNetEvRoi = parseFloat(process.env.MIN_NET_EV_ROI || '0.5');
+  const envMinEv = process.env.MIN_NET_EV_ROI;
+  const learnedMinEv = typeof optimalTh.minExpectedEvRoi === 'number' ? optimalTh.minExpectedEvRoi : 0.5;
+  const minNetEvRoi = (envMinEv !== undefined && envMinEv !== '') ? parseFloat(envMinEv) : learnedMinEv;
 
   const isWinProbOk = winProbability >= approvalThreshold;
   const isEvOk = netEvRoi >= minNetEvRoi;
