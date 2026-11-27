@@ -1163,7 +1163,7 @@ const _jobPruneTimer = setInterval(pruneRuntimeMemoryCaches, 10 * 60 * 1000);
 if (typeof _jobPruneTimer.unref === 'function') _jobPruneTimer.unref();
 
 // ─── LUỒNG TÁI ĐÁNH GIÁ SHADOW MỖI 30 PHÚT (PHƯƠNG ÁN B - ĐỒNG BỘ BOT-H4) ─────
-const SHADOW_REEVAL_MIN_AGE_MS = parseInt(process.env.SHADOW_REEVAL_MIN_AGE_MS || String(30 * 60_000), 10);
+const SHADOW_REEVAL_MIN_AGE_MS = parseInt(process.env.SHADOW_REEVAL_MIN_AGE_MS || String(15 * 60_000), 10); // Tối thiểu sống sót 15 phút
 const SHADOW_REEVAL_MAX_AGE_MS = parseInt(process.env.SHADOW_REEVAL_MAX_AGE_MS || '0', 10); // 0 = không giới hạn tuổi tối đa
 const SHADOW_REEVAL_MAX_TP_PROGRESS = parseFloat(process.env.SHADOW_REEVAL_MAX_TP_PROGRESS || '0.30');
 const SHADOW_REEVAL_MAX_SL_ADVERSE = parseFloat(process.env.SHADOW_REEVAL_MAX_SL_ADVERSE || '0.40');

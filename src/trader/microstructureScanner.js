@@ -141,14 +141,18 @@ async function getCvdMomentum(sym, side = 'LONG') {
 function formatCvdForSide(baseData, side) {
   const ratio = baseData.takerBuyRatio;
   const isLong = side === 'LONG' || side === 'BUY';
+  // Siết ngưỡng CVD ngược chiều lên >= 72% (thay vì 58% quá nhạy khiến lệnh Limit chạm cản đẹp như B2 bị phạt oan)
+  // Chỉ coi là phân kỳ ngược chiều nguy hiểm khi lực Taker áp đảo cực đoan (xe lửa xuyên cản)
+  const oppHigh = parseFloat(process.env.CVD_OPPOSING_THRESHOLD || '0.72');
+  const oppLow = 1 - oppHigh;
 
   let cvdCategory = 'CVD_NEUTRAL';
   if (isLong) {
-    if (ratio >= 0.58) cvdCategory = 'CVD_SURGE_ALIGNED';       // Taker Buy áp đảo thuận hướng Long
-    else if (ratio <= 0.42) cvdCategory = 'CVD_DIVERGENCE_OPPOSING'; // Taker Sell ép xả ngược hướng Long
+    if (ratio >= 0.58) cvdCategory = 'CVD_SURGE_ALIGNED';         // Taker Buy áp đảo thuận hướng Long
+    else if (ratio <= oppLow) cvdCategory = 'CVD_DIVERGENCE_OPPOSING'; // Taker Sell ép xả cực đoan (>= 72%) ngược hướng Long
   } else {
-    if (ratio <= 0.42) cvdCategory = 'CVD_SURGE_ALIGNED';       // Taker Sell áp đảo thuận hướng Short
-    else if (ratio >= 0.58) cvdCategory = 'CVD_DIVERGENCE_OPPOSING'; // Taker Buy hấp thụ ngược hướng Short
+    if (ratio <= 0.42) cvdCategory = 'CVD_SURGE_ALIGNED';         // Taker Sell áp đảo thuận hướng Short
+    else if (ratio >= oppHigh) cvdCategory = 'CVD_DIVERGENCE_OPPOSING'; // Taker Buy càn quét cực đoan (>= 72%) ngược hướng Short
   }
 
   return {

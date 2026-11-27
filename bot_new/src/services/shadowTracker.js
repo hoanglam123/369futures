@@ -497,50 +497,92 @@ function isShadowPositionActive(sym, side = null) {
   return false;
 }
 
-function getShadowStats() {
-  let totalSavedSl = 0;
-  let totalSavedBe = 0;
-  let totalMissedTp = 0;
-  let savedUsd = 0;
-  let missedUsd = 0;
+// Incremental chunked reader cache cho SHADOW_HISTORY_FILE (chống OOM khi file history phình lớn)
+let _shadowHistoryStatsCache = null;
 
+function _emptyShadowStats() {
+  return { fileSize: 0, totalSavedSl: 0, totalSavedBe: 0, totalMissedTp: 0, savedUsd: 0, missedUsd: 0 };
+}
+
+function _consumeShadowHistoryLine(state, line) {
+  if (!line) return;
   try {
-    if (fs.existsSync(SHADOW_HISTORY_FILE)) {
-      const lines = fs.readFileSync(SHADOW_HISTORY_FILE, 'utf8').split('\n').filter(Boolean);
-      for (const line of lines) {
-        try {
-          const t = JSON.parse(line);
-          if (isTestSymbol(t.symbol)) continue;
-          const st = t.outcome || t.status;
-          if (st === 'SAVED_SL' || st === 'TIMEOUT_LOSS') {
-            totalSavedSl++;
-            savedUsd += Math.abs(t.pnlUsd || 3.0);
-          } else if (st === 'SAVED_BE') {
-            totalSavedBe++;
-            if (typeof t.pnlUsd === 'number' && t.pnlUsd > 0) {
-              missedUsd += t.pnlUsd;
-            }
-          } else if (st === 'MISSED_TP' || st === 'TIMEOUT_PROFIT') {
-            totalMissedTp++;
-            missedUsd += Math.max(0, t.pnlUsd || 0);
-          }
-        } catch (_) {}
+    const t = JSON.parse(line);
+    if (isTestSymbol(t.symbol)) return;
+    const st = t.outcome || t.status;
+    if (st === 'SAVED_SL' || st === 'TIMEOUT_LOSS') {
+      state.totalSavedSl++;
+      state.savedUsd += Math.abs(t.pnlUsd || 3.0);
+    } else if (st === 'SAVED_BE') {
+      state.totalSavedBe++;
+      if (typeof t.pnlUsd === 'number' && t.pnlUsd > 0) {
+        state.missedUsd += t.pnlUsd;
       }
+    } else if (st === 'MISSED_TP' || st === 'TIMEOUT_PROFIT') {
+      state.totalMissedTp++;
+      state.missedUsd += Math.max(0, t.pnlUsd || 0);
+    }
+  } catch (_) {}
+}
+
+function getShadowStats() {
+  let state = _emptyShadowStats();
+  try {
+    if (!fs.existsSync(SHADOW_HISTORY_FILE)) {
+      _shadowHistoryStatsCache = _emptyShadowStats();
+      state = _shadowHistoryStatsCache;
+    } else {
+      const stat = fs.statSync(SHADOW_HISTORY_FILE);
+      if (!_shadowHistoryStatsCache || stat.size < _shadowHistoryStatsCache.fileSize) {
+        _shadowHistoryStatsCache = _emptyShadowStats();
+      }
+      if (stat.size > _shadowHistoryStatsCache.fileSize) {
+        const CHUNK_SIZE = 64 * 1024;
+        const buf = Buffer.allocUnsafe(CHUNK_SIZE);
+        let fd = null;
+        let offset = _shadowHistoryStatsCache.fileSize;
+        let leftover = '';
+        try {
+          fd = fs.openSync(SHADOW_HISTORY_FILE, 'r');
+          while (offset < stat.size) {
+            const toRead = Math.min(CHUNK_SIZE, stat.size - offset);
+            const bytesRead = fs.readSync(fd, buf, 0, toRead, offset);
+            if (bytesRead <= 0) break;
+            offset += bytesRead;
+            const chunkStr = leftover + buf.toString('utf8', 0, bytesRead);
+            const parts = chunkStr.split('\n');
+            leftover = parts.pop() || '';
+            for (let i = 0; i < parts.length; i++) {
+              const line = parts[i].trim();
+              if (line) _consumeShadowHistoryLine(_shadowHistoryStatsCache, line);
+            }
+          }
+          if (leftover.trim()) {
+            _consumeShadowHistoryLine(_shadowHistoryStatsCache, leftover.trim());
+          }
+          _shadowHistoryStatsCache.fileSize = offset;
+        } finally {
+          if (fd !== null) {
+            try { fs.closeSync(fd); } catch (_) {}
+          }
+        }
+      }
+      state = _shadowHistoryStatsCache;
     }
   } catch (_) {}
 
-  const totalEvaluated = totalSavedSl + totalMissedTp;
-  const vetoAccuracyPct = totalEvaluated > 0 ? parseFloat(((totalSavedSl / totalEvaluated) * 100).toFixed(1)) : 100.0;
-  const netSavedUsd = parseFloat((savedUsd - missedUsd).toFixed(2));
+  const totalEvaluated = state.totalSavedSl + state.totalMissedTp;
+  const vetoAccuracyPct = totalEvaluated > 0 ? parseFloat(((state.totalSavedSl / totalEvaluated) * 100).toFixed(1)) : 100.0;
+  const netSavedUsd = parseFloat((state.savedUsd - state.missedUsd).toFixed(2));
 
   return {
     activeCount: Object.keys(_activeShadowPositions).length,
-    totalSavedSl,
-    totalSavedBe,
-    totalMissedTp,
+    totalSavedSl: state.totalSavedSl,
+    totalSavedBe: state.totalSavedBe,
+    totalMissedTp: state.totalMissedTp,
     vetoAccuracyPct,
-    savedUsd: parseFloat(savedUsd.toFixed(2)),
-    missedUsd: parseFloat(missedUsd.toFixed(2)),
+    savedUsd: parseFloat(state.savedUsd.toFixed(2)),
+    missedUsd: parseFloat(state.missedUsd.toFixed(2)),
     netSavedUsd
   };
 }

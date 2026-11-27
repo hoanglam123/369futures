@@ -635,70 +635,128 @@ function _resolveShadowTrade(p, outcome, exitPrice, exitRoi, exitTimestamp) {
   }
 }
 
+// Incremental chunked reader cache cho SHADOW_HISTORY_FILE (tránh fs.readFileSync nguyên file 47MB+ gây OOM)
+let _historyStatsCache = null;
+
+function _createEmptyHistoryStats() {
+  return {
+    fileSize: 0,
+    totalResolved: 0,
+    totalSavedSL: 0,
+    totalSavedBE: 0,
+    totalMissedTP: 0,
+    totalCancelled: 0,
+    totalSavedUSD: 0,
+    totalMissedUSD: 0,
+    categoryStats: {},
+  };
+}
+
+function _consumeHistoryLine(state, line) {
+  if (!line) return;
+  try {
+    const rec = JSON.parse(line);
+    state.totalResolved++;
+    const cat = rec.vetoCategory || 'OTHER';
+    if (!state.categoryStats[cat]) {
+      state.categoryStats[cat] = { total: 0, savedSL: 0, savedBE: 0, missedTP: 0, cancelled: 0 };
+    }
+    state.categoryStats[cat].total++;
+
+    if (rec.isSavedSL) {
+      state.totalSavedSL++;
+      state.totalSavedUSD += (rec.savedLossUSD || 15);
+      state.categoryStats[cat].savedSL++;
+    } else if (rec.isSavedBE) {
+      state.totalSavedBE++;
+      state.categoryStats[cat].savedBE++;
+    } else if (rec.isMissedTP) {
+      state.totalMissedTP++;
+      state.totalMissedUSD += (rec.missedProfitUSD || 15);
+      state.categoryStats[cat].missedTP++;
+    } else if (rec.isCancelled) {
+      state.totalCancelled++;
+      state.categoryStats[cat].cancelled++;
+    }
+  } catch (_) {}
+}
+
+function _refreshHistoryStatsIncremental() {
+  if (!fs.existsSync(SHADOW_HISTORY_FILE)) {
+    _historyStatsCache = _createEmptyHistoryStats();
+    return _historyStatsCache;
+  }
+
+  const stat = fs.statSync(SHADOW_HISTORY_FILE);
+  if (!_historyStatsCache || stat.size < _historyStatsCache.fileSize) {
+    _historyStatsCache = _createEmptyHistoryStats();
+  }
+  if (stat.size === _historyStatsCache.fileSize) {
+    return _historyStatsCache;
+  }
+
+  const CHUNK_SIZE = 64 * 1024; // Đọc từng khối 64KB -> peak RAM < 1MB ngay cả với file 100MB
+  const buf = Buffer.allocUnsafe(CHUNK_SIZE);
+  let fd = null;
+  let offset = _historyStatsCache.fileSize;
+  let leftover = '';
+  try {
+    fd = fs.openSync(SHADOW_HISTORY_FILE, 'r');
+    while (offset < stat.size) {
+      const toRead = Math.min(CHUNK_SIZE, stat.size - offset);
+      const bytesRead = fs.readSync(fd, buf, 0, toRead, offset);
+      if (bytesRead <= 0) break;
+      offset += bytesRead;
+      const chunkStr = leftover + buf.toString('utf8', 0, bytesRead);
+      const parts = chunkStr.split('\n');
+      leftover = parts.pop() || '';
+      for (let i = 0; i < parts.length; i++) {
+        const line = parts[i].trim();
+        if (line) _consumeHistoryLine(_historyStatsCache, line);
+      }
+    }
+    if (leftover.trim()) {
+      _consumeHistoryLine(_historyStatsCache, leftover.trim());
+    }
+    _historyStatsCache.fileSize = offset;
+  } finally {
+    if (fd !== null) {
+      try { fs.closeSync(fd); } catch (_) {}
+    }
+  }
+  return _historyStatsCache;
+}
+
 /**
- * Get comprehensive summary statistics of shadow trades
+ * Get comprehensive summary statistics of shadow trades (O(delta) RAM-safe)
  */
 function getShadowStats() {
   const activeCount = Object.keys(activeShadowPositions).length;
-  let totalResolved = 0;
-  let totalSavedSL = 0;
-  let totalSavedBE = 0;
-  let totalMissedTP = 0;
-  let totalCancelled = 0;
-  let totalSavedUSD = 0;
-  let totalMissedUSD = 0;
-  const categoryStats = {};
+  let state = _createEmptyHistoryStats();
 
   try {
-    if (fs.existsSync(SHADOW_HISTORY_FILE)) {
-      const lines = fs.readFileSync(SHADOW_HISTORY_FILE, 'utf8').trim().split('\n').filter(Boolean);
-      for (const line of lines) {
-        try {
-          const rec = JSON.parse(line);
-          totalResolved++;
-          const cat = rec.vetoCategory || 'OTHER';
-          if (!categoryStats[cat]) categoryStats[cat] = { total: 0, savedSL: 0, savedBE: 0, missedTP: 0, cancelled: 0 };
-          categoryStats[cat].total++;
-
-          if (rec.isSavedSL) {
-            totalSavedSL++;
-            totalSavedUSD += (rec.savedLossUSD || 15);
-            categoryStats[cat].savedSL++;
-          } else if (rec.isSavedBE) {
-            totalSavedBE++;
-            categoryStats[cat].savedBE++;
-          } else if (rec.isMissedTP) {
-            totalMissedTP++;
-            totalMissedUSD += (rec.missedProfitUSD || 15);
-            categoryStats[cat].missedTP++;
-          } else if (rec.isCancelled) {
-            totalCancelled++;
-            categoryStats[cat].cancelled++;
-          }
-        } catch (_) {}
-      }
-    }
+    state = _refreshHistoryStatsIncremental();
   } catch (e) {
     _logger.warn(`Lỗi tính shadow stats: ${e.message}`);
   }
 
-  const netValueUSD = totalSavedUSD - totalMissedUSD;
+  const netValueUSD = state.totalSavedUSD - state.totalMissedUSD;
   // Độ chính xác chuẩn: tỷ lệ bảo toàn vốn thành công (Cứu SL + Thoát BE) trên tổng số lệnh có kết quả rõ ràng (SL + BE + TP)
-  const decisiveCount = totalSavedSL + totalSavedBE + totalMissedTP;
-  const aiPrecision = decisiveCount > 0 ? ((totalSavedSL + totalSavedBE) / decisiveCount) * 100 : 0;
+  const decisiveCount = state.totalSavedSL + state.totalSavedBE + state.totalMissedTP;
+  const aiPrecision = decisiveCount > 0 ? ((state.totalSavedSL + state.totalSavedBE) / decisiveCount) * 100 : 0;
 
   return {
     activePositionsCount: activeCount,
-    totalResolved,
-    totalSavedSL,
-    totalSavedBE,
-    totalMissedTP,
-    totalCancelled,
-    totalSavedUSD: Math.round(totalSavedUSD * 100) / 100,
-    totalMissedUSD: Math.round(totalMissedUSD * 100) / 100,
+    totalResolved: state.totalResolved,
+    totalSavedSL: state.totalSavedSL,
+    totalSavedBE: state.totalSavedBE,
+    totalMissedTP: state.totalMissedTP,
+    totalCancelled: state.totalCancelled,
+    totalSavedUSD: Math.round(state.totalSavedUSD * 100) / 100,
+    totalMissedUSD: Math.round(state.totalMissedUSD * 100) / 100,
     netValueUSD: Math.round(netValueUSD * 100) / 100,
     aiVetoAccuracyPct: Math.round(aiPrecision * 10) / 10,
-    categoryStats
+    categoryStats: state.categoryStats
   };
 }
 

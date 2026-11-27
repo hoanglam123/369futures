@@ -102,7 +102,7 @@ const DEBOUNCE_MS = 5 * 60_000; // 5 phút / tín hiệu
 const COIN_REFRESH_INTERVAL_MS = 4 * 60 * 60_000; // Tái kiểm tra danh sách coin mỗi 4 giờ
 const LEVERAGE_REFRESH_INTERVAL_MS = 6 * 60 * 60_000; // Tự động cập nhật trần đòn bẩy mỗi 6 giờ
 const SHADOW_REEVAL_SLOT_OFFSET_SEC = parseInt(process.env.SHADOW_REEVAL_SLOT_OFFSET_SEC || '25', 10); // Đồng bộ đồng hồ M30 (:00:25 & :30:25, lệch 15s so với bot-new :00:10/:30:10 để tránh đụng IP weight)
-const SHADOW_REEVAL_MIN_AGE_MS = parseInt(process.env.SHADOW_REEVAL_MIN_AGE_MS || String(30 * 60_000), 10);   // Tối thiểu sống sót 30 phút
+const SHADOW_REEVAL_MIN_AGE_MS = parseInt(process.env.SHADOW_REEVAL_MIN_AGE_MS || String(15 * 60_000), 10);   // Tối thiểu sống sót 15 phút (bắt kịp các kèo bị chặn CVD/nhiễu ngắn hạn)
 const SHADOW_REEVAL_MAX_AGE_MS = parseInt(process.env.SHADOW_REEVAL_MAX_AGE_MS || '0', 10);                  // 0 = không giới hạn tuổi tối đa (tùy chọn giới hạn qua .env)
 const SHADOW_REEVAL_MAX_TP_PROGRESS = parseFloat(process.env.SHADOW_REEVAL_MAX_TP_PROGRESS || '0.30'); // Không đuổi nếu hiện tại đã chạy > 30% quãng TP
 const SHADOW_REEVAL_MAX_SL_ADVERSE = parseFloat(process.env.SHADOW_REEVAL_MAX_SL_ADVERSE || '0.40');   // Không bắt dao rơi nếu hiện tại đang lỗ > 40% quãng SL
@@ -2933,9 +2933,8 @@ async function startAutoTrade(coins) {
       const verdict = scoreRes.verdict || '';
       const confidence = scoreRes.confidence || 0;
 
-      log.system(`[AutoTrade] 🔍 [Check Đảo Chiều] ${sym}: Đang có ${activeDir} | Tín hiệu ${sig.signal} @ $${sig.targetLevel} đạt ${score.toFixed(1)}đ [${verdict}] (Cần >= ${MIN_SCORE_REVERSAL}đ)`);
-
       if (score >= MIN_SCORE_REVERSAL) {
+        log.system(`[AutoTrade] 🔍 [Check Đảo Chiều] ${sym}: Đang có ${activeDir} | Tín hiệu ${sig.signal} @ $${sig.targetLevel} đạt ${score.toFixed(1)}đ [${verdict}] (Cần >= ${MIN_SCORE_REVERSAL}đ)`);
         reversalAlertCooldown[sym] = Date.now();
 
         // Tính toán thông số TP/SL động và lưu vào hàng chờ Đảo Chiều (Pending Reversal)
@@ -3004,7 +3003,10 @@ async function startAutoTrade(coins) {
 
         log.system(`[AutoTrade] 🔁 [ĐÃ GỬI CẢNH BÁO ĐẢO CHIỀU & LƯU HÀNG CHỜ] ${sym}: ${activeDir} → ${sig.signal} (${score.toFixed(1)}đ >= ${MIN_SCORE_REVERSAL}đ)`);
       } else {
-        log.system(`[AutoTrade] 🛑 [Bỏ qua Đảo Chiều] ${sym}: Tín hiệu ${sig.signal} chỉ đạt ${score.toFixed(1)}đ < ${MIN_SCORE_REVERSAL}đ → Bỏ qua`);
+        // Throttle 5 phút/mốc để tránh spam hàng chục dòng log Check/Bỏ qua Đảo Chiều mỗi 15s khi giá dao động quanh mốc
+        if (_shouldLogSignal(sym, sig.signal, sig.targetLevel, 'reversal_check_skip', 5 * 60 * 1000)) {
+          log.system(`[AutoTrade] 🛑 [Bỏ qua Đảo Chiều] ${sym}: Đang có ${activeDir} | Tín hiệu ${sig.signal} @ $${sig.targetLevel} chỉ đạt ${score.toFixed(1)}đ [${verdict}] < ${MIN_SCORE_REVERSAL}đ → Bỏ qua`);
+        }
       }
     } catch (err) {
       log.warn(`[AutoTrade] Lỗi trong handleReversalSignal cho ${sym}: ${err.message}`);
