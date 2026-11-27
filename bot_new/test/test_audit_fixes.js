@@ -703,6 +703,26 @@ async function run() {
     assert.ok(h1PinNew.winProbability > m15PinNew.winProbability, 'H1 Pinbar phải có trọng số thưởng cao hơn M15 Pinbar');
   });
 
+  await test('bot-h4 PreLimitGatekeeper & AI_PREFILL_CANCEL đồng bộ SL rộng / 2x-4x', async () => {
+    const { checkPreLimitTacticalGatekeeper } = require('../../src/trader/autoTrade');
+    // 1. Nến M15 đỏ thân 1.2% (râu dưới 5%): chặn ở SL hẹp 1.5%/10x, NHƯNG cho qua ở SL rộng 5%/3x (ngưỡng 2.25%)
+    const mildMaru = { open: 101.2, high: 101.25, low: 99.95, close: 100.0 };
+    const heavyMaru = { open: 102.6, high: 102.65, low: 99.95, close: 100.0 };
+    assert.strictEqual(checkPreLimitTacticalGatekeeper({ sym: 'GALA', signal: 'LONG', targetLevel: 100, markPrice: 100.1, currM15: mildMaru, slPct: 1.5, leverage: 10 }).passed, false, 'SL hẹp 1.5% phải chặn M15 đỏ 1.2%');
+    assert.strictEqual(checkPreLimitTacticalGatekeeper({ sym: 'GALA', signal: 'LONG', targetLevel: 100, markPrice: 100.1, currM15: mildMaru, slPct: 5.0, leverage: 3 }).passed, true, 'SL rộng 5% phải cho qua M15 đỏ 1.2% (<2.25%)');
+    assert.strictEqual(checkPreLimitTacticalGatekeeper({ sym: 'GALA', signal: 'LONG', targetLevel: 100, markPrice: 100.1, currM15: heavyMaru, slPct: 5.0, leverage: 3 }).passed, false, 'SL rộng 5% vẫn phải chặn M15 đỏ 2.6% (>=2.25%)');
+
+    // 2. Taker Sell 80% (takerBuyRatio=0.20): chặn ở SL hẹp (>=75%), cho qua ở SL rộng 5%/3x (<88%); Taker Sell 90% (0.10) vẫn chặn
+    assert.strictEqual(checkPreLimitTacticalGatekeeper({ sym: 'GALA', signal: 'LONG', targetLevel: 100, markPrice: 100.1, microstructure: { takerBuyRatio: 0.20, wall: 'WALL_CLEAR_PATH' }, slPct: 1.5, leverage: 10 }).passed, false, 'SL hẹp phải chặn Taker Sell 80%');
+    assert.strictEqual(checkPreLimitTacticalGatekeeper({ sym: 'GALA', signal: 'LONG', targetLevel: 100, markPrice: 100.1, microstructure: { takerBuyRatio: 0.20, wall: 'WALL_CLEAR_PATH' }, slPct: 5.0, leverage: 3 }).passed, true, 'SL rộng 5%/3x cho qua Taker Sell 80% (<88%)');
+    assert.strictEqual(checkPreLimitTacticalGatekeeper({ sym: 'GALA', signal: 'LONG', targetLevel: 100, markPrice: 100.1, microstructure: { takerBuyRatio: 0.10, wall: 'WALL_CLEAR_PATH' }, slPct: 5.0, leverage: 3 }).passed, false, 'SL rộng 5%/3x vẫn phải chặn Taker Sell 90% (>=88%)');
+    assert.strictEqual(checkPreLimitTacticalGatekeeper({ sym: 'GALA', signal: 'LONG', targetLevel: 100, markPrice: 100.1, microstructure: { takerBuyRatio: 0.50, wall: 'WALL_CRUSHING_ENTRY' }, slPct: 5.0, leverage: 3 }).passed, false, 'WALL_CRUSHING_ENTRY vẫn phải chặn ngay cả SL rộng');
+
+    // 3. Kiểm tra AI_PREFILL_CANCEL đã truyền { slPct, leverage } vào scanMicrostructure
+    const atSrc = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'trader', 'autoTrade.js'), 'utf8');
+    assert.ok(atSrc.includes('scanMicrostructure(sym, entry, meta.tierTpPrice || 0, side, rank, { slPct: metaSlPct, leverage: metaLev })'), 'AI_PREFILL_CANCEL phải truyền { slPct, leverage } vào scanMicrostructure');
+  });
+
   console.log(`\n📊 Audit Regression Summary: ${passed} passed, ${failed} failed\n`);
   process.exit(failed > 0 ? 1 : 0);
 }

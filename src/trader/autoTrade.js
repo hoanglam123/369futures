@@ -1719,19 +1719,25 @@ function _markFired(sig) {
 /**
  * Pre-Limit Tactical Gatekeeper:
  * Kiểm tra các rủi ro chiến thuật tức thì trước khi thực sự bắn lệnh LIMIT lên sàn Binance.
- * Ngăn chặn tuyệt đối việc "hứng dao rơi" (M15 Marubozu xả thẳng hoặc Taker Sell > 75%).
- * Nếu nguy hiểm: tạm hoãn đặt Limit và đưa vào Watchlist chờ nến H1 đóng rút chân/râu xác nhận.
+ * Tự co giãn theo độ rộng SL / đòn bẩy (2x-4x / SL >= 3%):
+ * - Ngưỡng thân nến M15 Marubozu co giãn theo max(0.70%, 0.45 * SL) (SL 5% -> 2.25%)
+ * - Ngưỡng dòng tiền Taker 5p nâng từ 75% lên 88% (chỉ chặn bán/mua hoảng loạn cực đoan)
+ * - Tường đè sát Entry (WALL_CRUSHING_ENTRY) vẫn giữ chặn nghiêm ngặt.
  */
-function checkPreLimitTacticalGatekeeper({ sym, signal, targetLevel, markPrice, currM15, microstructure }) {
+function checkPreLimitTacticalGatekeeper({ sym, signal, targetLevel, markPrice, currM15, microstructure, slPct = 0, leverage = 0 }) {
   const isLong = signal === 'LONG';
+  const effSlPct = parseFloat(slPct || 0);
+  const effLev = parseFloat(leverage || 0);
+  const isWideSlOrLowLev = (effSlPct >= 3.0) || (effLev > 0 && effLev <= 4);
 
-  // 1. Kiểm tra nến M15 tức thì (Marubozu Dump / Flush into Entry)
+  // 1. Kiểm tra nến M15 tức thì (Marubozu Dump / Flush into Entry — co giãn theo độ rộng SL)
   if (currM15 && currM15.open && currM15.close && currM15.high && currM15.low) {
     const range = currM15.high - currM15.low;
     const body = Math.abs(currM15.close - currM15.open);
     const bodyPct = (body / (currM15.low || 1)) * 100;
+    const minBodyPct = Math.max(0.70, effSlPct > 0 ? effSlPct * 0.45 : 0);
 
-    if (range > 0 && bodyPct >= 0.70) {
+    if (range > 0 && bodyPct >= minBodyPct) {
       if (isLong && currM15.close < currM15.open) {
         // Nến đỏ xả mạnh vào Entry
         const lowerWick = currM15.close - currM15.low;
@@ -1741,7 +1747,7 @@ function checkPreLimitTacticalGatekeeper({ sym, signal, targetLevel, markPrice, 
         if (bodyRatio >= 0.65 && lowerWickRatio < 0.15) {
           return {
             passed: false,
-            reason: `M15 Marubozu xả dốc (-${bodyPct.toFixed(2)}%, râu dưới chỉ ${(lowerWickRatio * 100).toFixed(1)}% < 15%) — Hứng dao rơi nguy hiểm`
+            reason: `M15 Marubozu xả dốc (-${bodyPct.toFixed(2)}% >= ${minBodyPct.toFixed(2)}%, râu dưới chỉ ${(lowerWickRatio * 100).toFixed(1)}% < 15%) — Hứng dao rơi nguy hiểm`
           };
         }
       } else if (!isLong && currM15.close > currM15.open) {
@@ -1753,24 +1759,27 @@ function checkPreLimitTacticalGatekeeper({ sym, signal, targetLevel, markPrice, 
         if (bodyRatio >= 0.65 && upperWickRatio < 0.15) {
           return {
             passed: false,
-            reason: `M15 Marubozu bơm dốc (+${bodyPct.toFixed(2)}%, râu trên chỉ ${(upperWickRatio * 100).toFixed(1)}% < 15%) — Cản tàu nguy hiểm`
+            reason: `M15 Marubozu bơm dốc (+${bodyPct.toFixed(2)}% >= ${minBodyPct.toFixed(2)}%, râu trên chỉ ${(upperWickRatio * 100).toFixed(1)}% < 15%) — Cản tàu nguy hiểm`
           };
         }
       }
     }
   }
 
-  // 2. Kiểm tra Microstructure Order Flow (Taker Volume Flush & Tường đè)
+  // 2. Kiểm tra Microstructure Order Flow (Taker Volume Flush 5p & Tường đè sát Entry)
+  // Với SL rộng (>=3%) / đòn bẩy thấp (<=4x), chỉ chặn khi Taker 5p hoảng loạn cực đoan (>= 88%) thay vì 75%
   if (microstructure) {
     const takerBuyRatio = microstructure.takerBuyRatio ?? 0.5;
     const wallCategory = microstructure.wall;
+    const takerPanicPct = isWideSlOrLowLev ? 88 : 75;
+    const longTakerFloor = isWideSlOrLowLev ? 0.12 : 0.25;
+    const shortTakerCeil = isWideSlOrLowLev ? 0.88 : 0.75;
 
     if (isLong) {
-      // Áp lực bán Taker Sell >= 75% (takerBuyRatio <= 0.25)
-      if (takerBuyRatio <= 0.25) {
+      if (takerBuyRatio <= longTakerFloor) {
         return {
           passed: false,
-          reason: `Áp lực xả chủ động Taker Sell cực lớn (${((1 - takerBuyRatio) * 100).toFixed(1)}% >= 75%) — Dòng tiền đang bán tháo`
+          reason: `Áp lực xả chủ động Taker Sell cực lớn (${((1 - takerBuyRatio) * 100).toFixed(1)}% >= ${takerPanicPct}%) — Dòng tiền đang bán tháo`
         };
       }
       if (wallCategory === 'WALL_CRUSHING_ENTRY') {
@@ -1780,11 +1789,10 @@ function checkPreLimitTacticalGatekeeper({ sym, signal, targetLevel, markPrice, 
         };
       }
     } else {
-      // Áp lực mua Taker Buy >= 75%
-      if (takerBuyRatio >= 0.75) {
+      if (takerBuyRatio >= shortTakerCeil) {
         return {
           passed: false,
-          reason: `Áp lực mua chủ động Taker Buy cực lớn (${(takerBuyRatio * 100).toFixed(1)}% >= 75%) — Dòng tiền đang FOMO đẩy giá`
+          reason: `Áp lực mua chủ động Taker Buy cực lớn (${(takerBuyRatio * 100).toFixed(1)}% >= ${takerPanicPct}%) — Dòng tiền đang FOMO đẩy giá`
         };
       }
       if (wallCategory === 'WALL_CRUSHING_ENTRY') {
@@ -3825,7 +3833,10 @@ async function startAutoTrade(coins) {
         rawMarketData.marketMetrics = marketMetrics;
         rawMarketData.signalMetrics = sig.signalMetrics || null;
         try {
-          rawMarketData.microstructure = await scanMicrostructure(sym, sig.targetLevel, prelimSetup?.tpPrice || 0, sig.signal, rank);
+          rawMarketData.microstructure = await scanMicrostructure(sym, sig.targetLevel, prelimSetup?.tpPrice || 0, sig.signal, rank, {
+            slPct: prelimSetup?.slPct || sig?.actualSlPct || 0,
+            leverage: prelimSetup?.leverage || sig?.leverage || 0
+          });
         } catch (_) { }
       }
 
@@ -3909,7 +3920,9 @@ async function startAutoTrade(coins) {
           targetLevel: sig.targetLevel,
           markPrice,
           currM15: rawMarketData?.currM15,
-          microstructure: rawMarketData?.microstructure
+          microstructure: rawMarketData?.microstructure,
+          slPct: prelimSetup?.slPct || sig?.actualSlPct || 0,
+          leverage: prelimSetup?.leverage || sig?.leverage || 0
         });
 
         if (!gatekeeperCheck.passed) {
@@ -4368,7 +4381,9 @@ async function checkPendingLimits(client, activeSymbols) {
           try {
             const side = meta.side === 'BUY' ? 'LONG' : 'SHORT';
             const rank = meta.marketCapRank || 999;
-            const micro = await scanMicrostructure(sym, entry, meta.tierTpPrice || 0, side, rank);
+            const metaSlPct = parseFloat(meta.actualSlPct || meta.slPct || (entry > 0 && meta.tierSlPrice > 0 ? (Math.abs(entry - meta.tierSlPrice) / entry) * 100 : 0) || 0);
+            const metaLev = parseFloat(meta.leverage || 0);
+            const micro = await scanMicrostructure(sym, entry, meta.tierTpPrice || 0, side, rank, { slPct: metaSlPct, leverage: metaLev });
 
             let cancelReason = null;
             if (side === 'LONG') {
@@ -5018,7 +5033,10 @@ async function checkH1RetestSignals(client, activeSymbols, leverageInfo = {}, ac
         rawMarketDataRetest.marketMetrics = marketMetricsRetest;
         rawMarketDataRetest.signalMetrics = sigForAI.signalMetrics || null;
         try {
-          rawMarketDataRetest.microstructure = await scanMicrostructure(sym, targetLevel, prelimRetest?.tpPrice || 0, signal, rank);
+          rawMarketDataRetest.microstructure = await scanMicrostructure(sym, targetLevel, prelimRetest?.tpPrice || 0, signal, rank, {
+            slPct: prelimRetest?.slPct || 0,
+            leverage: prelimRetest?.leverage || 0
+          });
         } catch (_) { }
       }
 
@@ -5092,7 +5110,9 @@ async function checkH1RetestSignals(client, activeSymbols, leverageInfo = {}, ac
         targetLevel,
         markPrice: h1Close || targetLevel,
         currM15: rawMarketDataRetest?.currM15,
-        microstructure: rawMarketDataRetest?.microstructure
+        microstructure: rawMarketDataRetest?.microstructure,
+        slPct: tierSetupRetest?.slPct || prelimRetest?.slPct || 0,
+        leverage: effectiveLeverageRetest || prelimRetest?.leverage || 0
       });
       if (!gatekeeperRetest.passed) {
         log.system(`[H1Retest] ⚠️ [PreLimitGatekeeper] Tạm hoãn đặt Limit Retest cho ${sym} (${signal}): ${gatekeeperRetest.reason}. Giữ lại Watchlist.`);
@@ -5531,7 +5551,10 @@ async function reevaluateShadowPositions(client, activeSymbols, leverageInfo, ac
           m15BodyPct: currM15 ? Number(((Math.abs(currM15.close - currM15.open) / (currM15.low || 1)) * 100).toFixed(2)) : null,
         };
 
-        const microstructure = await scanMicrostructure(sym, limitEntry, prelimSetup.tpPrice || 0, direction, rank).catch(() => null);
+        const microstructure = await scanMicrostructure(sym, limitEntry, prelimSetup.tpPrice || 0, direction, rank, {
+          slPct: prelimSetup?.slPct || 0,
+          leverage: prelimSetup?.leverage || 0
+        }).catch(() => null);
         const rawMarketData = {
           lastM15: currM15,
           currM15,
@@ -5565,6 +5588,7 @@ async function reevaluateShadowPositions(client, activeSymbols, leverageInfo, ac
           margin: tradeAmount,
           actualSlPct: prelimSetup.slPct,
           actualTpPct: prelimSetup.tpPct,
+          leverage: prelimSetup.leverage,
           marketMetrics,
           signalMetrics: sh.signalMetrics || null,
         };
@@ -5595,6 +5619,8 @@ async function reevaluateShadowPositions(client, activeSymbols, leverageInfo, ac
           markPrice,
           currM15,
           microstructure,
+          slPct: tierSetup?.slPct || prelimSetup?.slPct || 0,
+          leverage: tierSetup?.leverage || prelimSetup?.leverage || 0,
         });
         if (!tactical.passed) {
           log.system(`[ShadowReEval] ⚠️ [PreLimitGatekeeper] Hoãn ${sym} (${direction}): ${tactical.reason}`);
