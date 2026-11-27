@@ -749,6 +749,20 @@ async function run() {
     // 7. Case thực tế AKE LONG trên bot-new (9.12 / 6.08 = 1.4999999999999998): tradeMonitor không được SKIP R:R vì lỗi dấu phẩy động IEEE 754 hay MIN_RR_RATIO=1.5
     const tmSrc = fs.readFileSync(path.join(__dirname, '..', 'src', 'services', 'tradeMonitor.js'), 'utf8');
     assert.ok(tmSrc.includes('rrInitial + 1e-6 < effMinRr') && tmSrc.includes('Math.min(MIN_RR_RATIO, 1.48)'), 'tradeMonitor.js phải có tolerance 1e-6 và effMinRr <= 1.48 cho lệnh định lượng');
+
+    // 8. RR_BLOCKED_BY_MAJOR_SR (R:R >= 1.0): đưa vào Shadow với SL/TP thật, cho Shadow Re-Eval xét lại trên cả 2 bot, nhưng loại trừ khỏi train_ai_model.py
+    const { isShadowEligibleForReeval: isEligNew } = require('../src/job');
+    const nowRe = Date.now();
+    const rrBlockedShadow = {
+      symbol: 'PORTAL', direction: 'LONG', status: 'PENDING_LIMIT',
+      entryPrice: 0.01306, slPrice: 0.01240, tpPrice: 0.01386,
+      openedAtMs: nowRe - 20 * 60_000,
+      vetoReason: 'RR_BLOCKED_BY_MAJOR_SR (Cản cứng D1 S/R-Flip chặn tại R:R = 1.23 < 1.48)',
+    };
+    const eligRes = isEligNew(rrBlockedShadow, 0.01300, nowRe);
+    assert.strictEqual(eligRes.eligible, true, `RR_BLOCKED_BY_MAJOR_SR phải đủ điều kiện cho Shadow Re-Eval xét lại: ${JSON.stringify(eligRes)}`);
+    const trainPySrc = fs.readFileSync(path.join(__dirname, '..', '..', 'scripts', 'train_ai_model.py'), 'utf8');
+    assert.ok(trainPySrc.includes('RR_BLOCKED_BY_MAJOR_SR') && trainPySrc.includes('excludeFromRetrain'), 'train_ai_model.py phải loại trừ RR_BLOCKED_BY_MAJOR_SR khỏi mẫu train');
   });
 
   console.log(`\n📊 Audit Regression Summary: ${passed} passed, ${failed} failed\n`);

@@ -745,6 +745,10 @@ def train_and_export_model():
                     # Chống trùng lặp tuyệt đối: nếu đã có trong real trades thì bỏ qua
                     if sid in seen_trade_ids:
                         continue
+                    # Loại trừ lệnh bị cản cứng chặn (R:R ngắn < 1.48) khỏi tập train AI để không làm méo xác suất thắng
+                    veto_tag = f"{rec.get('vetoCategory') or ''} {rec.get('vetoReason') or ''}"
+                    if rec.get("excludeFromRetrain") or "RR_BLOCKED_BY_MAJOR_SR" in veto_tag:
+                        continue
 
                     outcome = rec.get("outcome")
                     # Chỉ lấy lệnh đã khớp Limit bóng tối và kết thúc rõ ràng
@@ -1411,6 +1415,9 @@ def analyze_mfe_mae_profiles(base_dir):
                         continue
                     shadow_count += 1
                     t = json.loads(line.strip())
+                    veto_tag_t = f"{t.get('vetoCategory') or ''} {t.get('vetoReason') or ''}"
+                    if t.get("excludeFromRetrain") or "RR_BLOCKED_BY_MAJOR_SR" in veto_tag_t:
+                        continue
                     ep = float(t.get("entryPrice") or 0)
                     sl = float(t.get("tierSlPrice") or 0)
                     tp = float(t.get("tierTpPrice") or 0)
@@ -1683,6 +1690,9 @@ def calibrate_optimal_thresholds(base_dir, feature_weights=None, prior_odds=1.3,
                     if not line: continue
                     try:
                         rec = json.loads(line)
+                        veto_tag_r = f"{rec.get('vetoCategory') or ''} {rec.get('vetoReason') or ''}"
+                        if rec.get("excludeFromRetrain") or "RR_BLOCKED_BY_MAJOR_SR" in veto_tag_r:
+                            continue
                         outcome = rec.get("outcome")
                         if outcome not in ["MISSED_TP", "SAVED_SL", "SAVED_BE", "TP", "SL", "BE"]:
                             continue

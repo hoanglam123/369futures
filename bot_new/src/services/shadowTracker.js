@@ -197,6 +197,7 @@ function registerShadowTrade(sig, vetoReason = 'AI_VETO') {
     winProbability: winProbPct != null ? parseFloat(winProbPct.toFixed(1)) : null,
     targetLossUsd,
     vetoReason: typeof vetoReason === 'string' ? vetoReason : JSON.stringify(vetoReason),
+    excludeFromRetrain: Boolean(sig.excludeFromRetrain || /^RR_BLOCKED_BY_MAJOR_SR/i.test(String(vetoReason || ''))),
     confluenceScore: sig.total || sig.score || 0,
     score: sig.total || sig.score || 0,
     scoreReasons: Array.isArray(sig.scoreReasons) ? sig.scoreReasons : (Array.isArray(sig.reasons) ? sig.reasons : []),

@@ -109,7 +109,7 @@ const SHADOW_REEVAL_MAX_SL_ADVERSE = parseFloat(process.env.SHADOW_REEVAL_MAX_SL
 const SHADOW_REEVAL_MAX_HIST_TP_MFE = parseFloat(process.env.SHADOW_REEVAL_MAX_HIST_TP_MFE || '0.35'); // Mức 1: Chặn mốc đã từng bật quá 35% TP rồi quay về (Stale Bounce)
 const SHADOW_REEVAL_MAX_HIST_SL_MAE = parseFloat(process.env.SHADOW_REEVAL_MAX_HIST_SL_MAE || '0.65'); // Mức 1: Chặn mốc đã từng đâm sâu quá 65% SL (gãy cấu trúc)
 const SHADOW_REEVAL_MAX_PROMOTES_PER_CYCLE = parseInt(process.env.SHADOW_REEVAL_MAX_PROMOTES_PER_CYCLE || '2', 10);
-const SHADOW_REEVAL_HARD_VETO_RE = /RR_BLOCKED_BY_MAJOR_SR|GRID_|SL_TOO_WIDE|HARD_FILTER|DIRECTIONAL_CB|SL_COOLDOWN|SHADOW_ONLY_MODE|UNTRADABLE/i;
+const SHADOW_REEVAL_HARD_VETO_RE = /GRID_|SL_TOO_WIDE|HARD_FILTER|DIRECTIONAL_CB|SL_COOLDOWN|SHADOW_ONLY_MODE|UNTRADABLE/i;
 const MIN_CONFLUENCE_SCORE = parseFloat(process.env.MIN_CONFLUENCE_SCORE || '5.0'); // Ngưỡng Confluence Score tối thiểu (mặc định 5.0đ)
 let isShadowMode = process.env.SHADOW_MODE === 'true' || !process.env.BINANCE_API_KEY || !(process.env.BINANCE_SECRET || process.env.BINANCE_API_SECRET);
 
@@ -3809,6 +3809,38 @@ async function startAutoTrade(coins) {
       if (!prelimSetup.valid) {
         scanWindowStats.rejectMath++;
         log.system(`[AutoTrade] ⚠️ Bỏ qua ${sym} (${sig.signal}): ${prelimSetup.reason} — Không đạt chuẩn R:R >= 1.5.`);
+        // Đồng bộ bot-new: ghi vào Shadow Tracker với đúng SL/TP/Leverage/Margin thật khi bị cản cứng chặn nhưng R:R >= 1.0
+        // (cho phép theo dõi Dashboard & Shadow Re-Eval 30p xét lại nếu giá đẹp hơn làm R:R >= 1.48; loại trừ khỏi re-train AI)
+        if (
+          /^RR_BLOCKED_BY_MAJOR_SR/i.test(prelimSetup.reason || '') &&
+          typeof prelimSetup.rrRatio === 'number' &&
+          prelimSetup.rrRatio >= 1.0 &&
+          prelimSetup.slPrice > 0 &&
+          prelimSetup.tpPrice > 0
+        ) {
+          const isLongSig = sig.signal === 'LONG' || sig.signal === 'BUY';
+          const beRatio = Math.max(0.35, Math.min(0.85, parseFloat(process.env.BE_TRIGGER_TP_PCT || '50') / 100));
+          const beTriggerPrice = isLongSig
+            ? (sig.targetLevel + (prelimSetup.tpPrice - sig.targetLevel) * beRatio)
+            : (sig.targetLevel - (sig.targetLevel - prelimSetup.tpPrice) * beRatio);
+          registerShadowTrade(
+            sig,
+            { winProbability: 0, vetoCategory: 'RR_BLOCKED_BY_MAJOR_SR', reason: prelimSetup.reason },
+            {
+              markPrice,
+              marketCapRank: rank,
+              gridWidthPct: sig.gridWidthPct || gridStepPct,
+              leverage: prelimSetup.leverage,
+              margin: prelimSetup.margin,
+              tierSlPrice: prelimSetup.slPrice,
+              tierTpPrice: prelimSetup.tpPrice,
+              beTriggerPrice,
+              slPct: prelimSetup.slPct,
+              signalMetrics: sig.signalMetrics || null,
+              excludeFromRetrain: true,
+            }
+          );
+        }
         return;
       }
       sig.actualSlPct = prelimSetup.slPct;

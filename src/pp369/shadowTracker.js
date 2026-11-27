@@ -150,8 +150,9 @@ function registerShadowTrade(sig, evalResult, options = {}) {
     tpPct = Math.abs((tierTpPrice - entryPrice) / entryPrice) * 100;
   }
 
-  // 🛡️ BẢO VỆ R:R >= 1.5: Đảm bảo khoảng cách TP luôn >= 1.5 * khoảng cách SL, tránh tình trạng SL xa hơn TP
-  if (slPct > 0 && tpPct < slPct * 1.48) {
+  // 🛡️ BẢO VỆ R:R >= 1.5: Đảm bảo khoảng cách TP luôn >= 1.5 * khoảng cách SL (trừ lệnh RR_BLOCKED_BY_MAJOR_SR cần giữ đúng mốc TP thực trước tường cản)
+  const isRrBlockedShadow = Boolean(options.excludeFromRetrain || aiEval?.vetoCategory === 'RR_BLOCKED_BY_MAJOR_SR');
+  if (!isRrBlockedShadow && slPct > 0 && tpPct < slPct * 1.48) {
     tpPct = slPct * 1.5;
     tierTpPrice = isLong ? entryPrice * (1 + tpPct / 100) : entryPrice * (1 - tpPct / 100);
   }
@@ -188,6 +189,7 @@ function registerShadowTrade(sig, evalResult, options = {}) {
     tpPct,
     gridWidthPct,
     leverage,
+    excludeFromRetrain: isRrBlockedShadow,
     margin,
     hypotheticalLossUSD: Math.round(hypotheticalLossUSD * 100) / 100,
     hypotheticalProfitUSD: Math.round(hypotheticalProfitUSD * 100) / 100,

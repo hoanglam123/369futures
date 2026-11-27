@@ -279,8 +279,38 @@ async function generateQuantitativeTrade(setup, marketData = null, options = {})
       if (_shouldLogSignal(symbol, direction, 'math_veto', 30 * 60 * 1000)) {
         log.system(`[AutoTrade] 🛑 [VETO Toán học] ${symbol} ${direction}: ${vetoReason}`);
       }
-      // Đồng bộ bot-h4: không ghi lệnh bị RR_BLOCKED_BY_MAJOR_SR (R:R bị ép sát cản < 1.48) vào Shadow Tracker
-      // để tránh làm sai lệch thống kê Shadow PnL & nhiễu dữ liệu retrain AI.
+      // Ghi vào Shadow Tracker với đúng SL/TP/Leverage/Margin thật khi bị cản cứng chặn nhưng R:R >= 1.0
+      // (để theo dõi Dashboard & cho phép Shadow Re-Eval 30p xét lại nếu giá lùi về điểm đẹp hơn giúp R:R >= 1.48; gắn excludeFromRetrain tránh nhiễu AI)
+      if (
+        tierSetup &&
+        /^RR_BLOCKED_BY_MAJOR_SR/i.test(vetoReason) &&
+        typeof tierSetup.rrRatio === 'number' &&
+        tierSetup.rrRatio >= 1.0 &&
+        tierSetup.slPrice > 0 &&
+        tierSetup.tpPrice > 0
+      ) {
+        const isLongDir = direction === 'LONG';
+        const beRatio = Math.max(0.35, Math.min(0.85, parseFloat(process.env.BE_TRIGGER_TP_PCT || '50') / 100));
+        const beTriggerPrice = isLongDir
+          ? (entryPrice + (tierSetup.tpPrice - entryPrice) * beRatio)
+          : (entryPrice - (entryPrice - tierSetup.tpPrice) * beRatio);
+        registerShadowTrade({
+          ...setup,
+          entryPrice,
+          markPrice: currentPrice,
+          slPrice: tierSetup.slPrice,
+          tpPrice: tierSetup.tpPrice,
+          beTriggerPrice,
+          slPct: tierSetup.slPct,
+          tpPct: tierSetup.tpPct,
+          gridWidthPct: effGridWidth,
+          marketCapRank: realRank,
+          leverage: tierSetup.leverage,
+          margin: tierSetup.margin,
+          scoreReasons: setup.reasons || [],
+          excludeFromRetrain: true,
+        }, vetoReason);
+      }
     } else {
       log.system(`[ShadowReEval] ⏭️ ${symbol} ${direction}: VETO Toán học (${vetoReason})`);
     }
