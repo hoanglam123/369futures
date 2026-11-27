@@ -176,10 +176,9 @@ function extractSignalFeatures(reasons, score, rank, gridWidthPct, rawMarketData
 
     if (maxM15Range >= m15StormTh) {
       features['m15_volatility'] = 'M15_EXTREME_STORM';
-    } else if (m15Vol >= 3.0 || maxM15Range >= m15DangerTh) {
+    } else if (maxM15Range >= m15DangerTh) {
+      // Tách sạch biến động biên độ giá M15 khỏi đột biến Volume (đã đo riêng ở realtime_volume — đồng bộ bot-new, triệt tiêu phạt kép)
       features['m15_volatility'] = 'M15_VOLATILE_DANGER';
-    } else if (m15Vol >= 2.0) {
-      features['m15_volatility'] = 'M15_VOLUME_SURGE';
     } else if (maxM15Range <= 0.8) {
       features['m15_volatility'] = 'M15_ULTRA_COMPRESSED';
     } else if (maxM15Range <= 1.5) {
@@ -966,6 +965,7 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
       val === 'INTERACTION_PUNCTURE_NORMAL' ||
       val === 'OI_STABLE' ||
       val === 'BOUNCE_FRESH' ||
+      val === 'BOUNCE_MODERATE' ||
       val === 'PA_0_LEVEL' ||
       val === 'SR_NONE' ||
       val === 'INTERACTION_NO_SR_WEAK_SETUP' ||

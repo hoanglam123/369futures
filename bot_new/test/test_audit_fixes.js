@@ -735,6 +735,16 @@ async function run() {
     assert.ok(!seSrc2.includes('[VETO BTC Flash Guard SEVERE]'), 'bot-new signalEngine phải chuyển giao BTC_FLASH SEVERE sang Risk Gatekeeper giống bot-h4');
     const idxSrc = fs.readFileSync(path.join(__dirname, '..', 'index.js'), 'utf8');
     assert.ok(idxSrc.includes('Shadow Re-Eval:') && idxSrc.includes('không giới hạn trần'), 'bot-new index.js phải log đầy đủ lịch Shadow Re-Eval & tuổi >=15p');
+
+    // 6. Case thực tế CELO SHORT @ $0.061 (SL 3.25%, TP 9.62%, 3x): m15Vol >= 3.0 với biên độ M15 bình thường KHÔNG được phạt kép M15_VOLATILE_DANGER + VOL_BURST_DANGER x0.65, và BOUNCE_MODERATE phải trung tính 1.00
+    const celoRes = aiReviewerH4.evaluateSignalWithAI(
+      { symbol: 'CELO', signal: 'SHORT', targetLevel: 0.061, score: 8.0, marketCapRank: 396, gridWidthPct: 4.9, actualSlPct: 3.25, actualTpPct: 9.62, leverage: 3, scoreReasons: [] },
+      { marketMetrics: { h1RangePct: 2.8, m15RangePct: 1.6, m15VolRatio: 3.5 }, maxRecentBouncePct: 0.60, preEntryBouncePct: 1.50 }
+    );
+    assert.ok(!celoRes.keyFactors.some(f => f.includes('M15_VOLATILE_DANGER') || f.includes('M15_VOLUME_SURGE')), `CELO biên độ M15 1.6% không được bị phạt M15_VOLATILE_DANGER/SURGE chỉ vì m15Vol=3.5: ${JSON.stringify(celoRes.keyFactors)}`);
+    assert.ok(!celoRes.keyFactors.some(f => f.includes('BOUNCE_MODERATE (x0.')), `BOUNCE_MODERATE phải trung tính 1.00, không phạt oan: ${JSON.stringify(celoRes.keyFactors)}`);
+    assert.ok(celoRes.keyFactors.some(f => f.includes('VOL_BURST_DANGER (x0.92)')), `CELO nến sạch 3x/SL 3.25% phải được nới VOL_BURST_DANGER về x0.92 thay vì x0.65: ${JSON.stringify(celoRes.keyFactors)}`);
+    assert.ok(celoRes.winProbability >= 47.0, `CELO sau khi vá phạt kép phải đạt WinProb >= 47% (thực tế: ${celoRes.winProbability}%)`);
   });
 
   console.log(`\n📊 Audit Regression Summary: ${passed} passed, ${failed} failed\n`);
