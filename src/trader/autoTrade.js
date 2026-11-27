@@ -867,6 +867,40 @@ function getDynamicRiskProfile(rank, winProb, score = null, baseLossUSD = 7.5) {
 }
 
 /**
+ * Kéo gọn mục tiêu TP về đúng 1.50R cho lệnh duyệt qua Làn Cận Biên (Borderline Clean-Structure Lane)
+ * nhằm tăng tỷ lệ chạm trọn 100% TP thay vì quay đầu về BE, đồng thời giữ nguyên 100% Full Margin & SL.
+ */
+function applyBorderlineCompactTp(tierSetup, direction, entryPrice, tickSize, aiEval) {
+  if (!tierSetup || !tierSetup.valid || !aiEval?.isBorderlineApproved) return tierSetup;
+  const targetRR = aiEval.recommendedTpRatio || 1.50;
+  if (typeof tierSetup.rrRatio !== 'number' || tierSetup.rrRatio <= targetRR + 0.05) return tierSetup;
+  const slDist = tierSetup.slDistance || Math.abs(entryPrice - tierSetup.slPrice);
+  if (!slDist || slDist <= 0) return tierSetup;
+
+  const isLong = direction === 'LONG' || direction === 'BUY';
+  const rawCompactTp = isLong ? (entryPrice + slDist * targetRR) : (entryPrice - slDist * targetRR);
+  const dec = getDecimals(entryPrice);
+  const effTick = (typeof tickSize === 'number' && tickSize > 0) ? tickSize : Math.pow(10, -dec);
+  const compactTp = roundTpConservative(rawCompactTp, effTick, isLong);
+  const newTpDist = Math.abs(compactTp - entryPrice);
+  const newTpPct = parseFloat(((newTpDist / entryPrice) * 100).toFixed(2));
+  const newRr = parseFloat((newTpDist / slDist).toFixed(2));
+  const beRatio = Math.max(0.35, Math.min(0.85, parseFloat(process.env.BE_TRIGGER_TP_PCT || '50') / 100));
+  const rawBe = isLong ? (entryPrice + newTpDist * beRatio) : (entryPrice - newTpDist * beRatio);
+  const newBe = roundTpConservative(rawBe, effTick, isLong);
+
+  return {
+    ...tierSetup,
+    tpPrice: compactTp,
+    tpDistance: newTpDist,
+    tpPct: newTpPct,
+    rrRatio: newRr,
+    beTriggerPrice: newBe,
+    tpAnchorType: `BORDERLINE_COMPACT_${targetRR.toFixed(1)}R`,
+  };
+}
+
+/**
  * Backward compatibility alias
  */
 function getDynamicTargetLossUSD(rank, winProb, score, baseLossUSD = 5.0) {
@@ -3931,13 +3965,14 @@ async function startAutoTrade(coins) {
       // ── LOGIC MỚI: TÍNH TOÁN STOPLOSS THEO TIER, TP ĐỘNG (1:1.5 -> 1:2.0), VÀ ĐÒN BẨY / MARGIN ĐỘNG (100% TỪ AI) ──
       const riskProfile = getDynamicRiskProfile(rank, aiEval.winProbability, null, baseTargetLossUSD);
       const targetLossUSD = riskProfile.targetLossUSD;
-      const tpRatio = riskProfile.tpRatio;
+      const tpRatio = aiEval.isBorderlineApproved ? (aiEval.recommendedTpRatio || 1.50) : riskProfile.tpRatio;
 
-      const tierSetup = await calculateTierSLTP(sym, sig.signal, sig.targetLevel, h4Ref, tickSize, maxAllowed, targetLossUSD, tpRatio, rank, sig.gridWidthPct, null, tradeAmount);
+      let tierSetup = await calculateTierSLTP(sym, sig.signal, sig.targetLevel, h4Ref, tickSize, maxAllowed, targetLossUSD, tpRatio, rank, sig.gridWidthPct, null, tradeAmount);
       if (!tierSetup.valid) {
         log.system(`[AutoTrade] ⏭️ ${sym} (${sig.signal}) bỏ qua: ${tierSetup.reason}`);
         return;
       }
+      tierSetup = applyBorderlineCompactTp(tierSetup, sig.signal, sig.targetLevel, tickSize, aiEval);
 
       const effectiveLeverage = tierSetup.leverage;
       const actualTradeMargin = Number(tierSetup.margin.toFixed(2));
@@ -5027,14 +5062,15 @@ async function checkH1RetestSignals(client, activeSymbols, leverageInfo = {}, ac
       // ── TÍNH TOÁN STOPLOSS THEO TIER, TP ĐỘNG (1:1.5 -> 1:2.0), VÀ ĐÒN BẨY / MARGIN ĐỘNG CHO RETEST H1 (100% TỪ AI) ──
       const riskProfileRetest = getDynamicRiskProfile(rank, aiEval.winProbability, null, baseLossRetest);
       const targetLossUSDRetest = riskProfileRetest.targetLossUSD;
-      const tpRatioRetest = riskProfileRetest.tpRatio;
+      const tpRatioRetest = aiEval.isBorderlineApproved ? (aiEval.recommendedTpRatio || 1.50) : riskProfileRetest.tpRatio;
 
-      const tierSetupRetest = await calculateTierSLTP(sym, signal, targetLevel, h4RefRetest, tickSizeRetest, maxAllowedRetest, targetLossUSDRetest, tpRatioRetest, rank, watchData.gridWidthPct || gridStepPct, null, tradeAmountRetest);
+      let tierSetupRetest = await calculateTierSLTP(sym, signal, targetLevel, h4RefRetest, tickSizeRetest, maxAllowedRetest, targetLossUSDRetest, tpRatioRetest, rank, watchData.gridWidthPct || gridStepPct, null, tradeAmountRetest);
       if (!tierSetupRetest.valid) {
         log.system(`[H1Retest] ⏭️ ${sym} (${signal}) bỏ qua: ${tierSetupRetest.reason}`);
         delete lowScoreWatchlist[sym];
         continue;
       }
+      tierSetupRetest = applyBorderlineCompactTp(tierSetupRetest, signal, targetLevel, tickSizeRetest, aiEval);
 
       const effectiveLeverageRetest = tierSetupRetest.leverage;
       const actualTradeMarginRetest = Number(tierSetupRetest.margin.toFixed(2));
@@ -5543,11 +5579,13 @@ async function reevaluateShadowPositions(client, activeSymbols, leverageInfo, ac
 
         // 8. Tính lại Tier SL/TP với hồ sơ rủi ro động từ xác suất thắng AI mới
         const riskProfile = getDynamicRiskProfile(rank, aiEval.winProbability, null, baseLoss);
-        const tierSetup = await calculateTierSLTP(sym, direction, limitEntry, h4Ref, tickSize, maxAllowedLev, riskProfile.targetLossUSD, riskProfile.tpRatio, rank, gridStepPct, null, tradeAmount);
+        const effTpRatio = aiEval.isBorderlineApproved ? (aiEval.recommendedTpRatio || 1.50) : riskProfile.tpRatio;
+        let tierSetup = await calculateTierSLTP(sym, direction, limitEntry, h4Ref, tickSize, maxAllowedLev, riskProfile.targetLossUSD, effTpRatio, rank, gridStepPct, null, tradeAmount);
         if (!tierSetup || !tierSetup.valid) {
           await new Promise(r => setTimeout(r, 600));
           continue;
         }
+        tierSetup = applyBorderlineCompactTp(tierSetup, direction, limitEntry, tickSize, aiEval);
 
         // 9. Tầng Pre-Limit Tactical Gatekeeper
         const tactical = checkPreLimitTacticalGatekeeper({
@@ -7233,4 +7271,5 @@ module.exports = {
   isShadowEligibleForReeval,
   reevaluateShadowPositions,
   msUntilNextHalfHourSlot,
+  applyBorderlineCompactTp,
 };

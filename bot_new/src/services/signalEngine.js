@@ -422,8 +422,36 @@ async function generateQuantitativeTrade(setup, marketData = null, options = {})
     return null;
   }
 
+  // Làn Cận Biên (Borderline Clean-Structure Lane): giữ Full Margin 100%, kéo gọn TP về đúng 1.50R để tăng tỷ lệ ăn trọn TP
+  if (gateResult.isBorderlineApproved && tierSetup.rrRatio > 1.55) {
+    const targetRR = gateResult.recommendedTpRatio || 1.50;
+    const isLongDir = direction === 'LONG';
+    const slDist = tierSetup.slDistance || Math.abs(entryPrice - tierSetup.slPrice);
+    if (slDist > 0) {
+      const { roundTpConservative } = require('./tierSLTP');
+      const rawCompactTp = isLongDir ? (entryPrice + slDist * targetRR) : (entryPrice - slDist * targetRR);
+      const compactTp = symTickSize ? roundTpConservative(rawCompactTp, symTickSize, isLongDir) : parseFloat(rawCompactTp.toFixed(entryPrice >= 100 ? 2 : (entryPrice >= 1 ? 4 : 6)));
+      const newTpDist = Math.abs(compactTp - entryPrice);
+      const beRatio = Math.max(0.35, Math.min(0.85, parseFloat(process.env.BE_TRIGGER_TP_PCT || '50') / 100));
+      const rawBe = isLongDir ? (entryPrice + newTpDist * beRatio) : (entryPrice - newTpDist * beRatio);
+      const newBe = symTickSize ? roundTpConservative(rawBe, symTickSize, isLongDir) : parseFloat(rawBe.toFixed(entryPrice >= 100 ? 2 : (entryPrice >= 1 ? 4 : 6)));
+      tierSetup = {
+        ...tierSetup,
+        tpPrice: compactTp,
+        tpDistance: newTpDist,
+        tpPct: parseFloat(((newTpDist / entryPrice) * 100).toFixed(2)),
+        rrRatio: parseFloat((newTpDist / slDist).toFixed(2)),
+        beTriggerPrice: newBe,
+        tpAnchorType: `BORDERLINE_COMPACT_${targetRR.toFixed(1)}R`,
+      };
+    }
+  }
+
   const thPctLabel = typeof gateResult.approvalThresholdPct === 'number' ? gateResult.approvalThresholdPct.toFixed(1) : '50.0';
-  log.system(`[AutoTrade] 🟢 [${isReeval ? 'ShadowReEval AI APPROVED' : 'AI APPROVED'}] ${symbol} (${direction}) — Xác suất thắng ${(gateResult.winProbability * 100).toFixed(1)}% >= ${thPctLabel}% | NetEV +${gateResult.expectedValueRoi}% ROI [Risk Gatekeeper]`);
+  const approveTag = gateResult.isBorderlineApproved
+    ? (isReeval ? 'ShadowReEval BORDERLINE 1.5R' : 'AI BORDERLINE 1.5R')
+    : (isReeval ? 'ShadowReEval AI APPROVED' : 'AI APPROVED');
+  log.system(`[AutoTrade] 🟢 [${approveTag}] ${symbol} (${direction}) — Xác suất thắng ${(gateResult.winProbability * 100).toFixed(1)}% (ngưỡng ${thPctLabel}%) | NetEV +${gateResult.expectedValueRoi}% ROI | TP ${tierSetup.rrRatio}R [Risk Gatekeeper]`);
 
   // 4. Sinh đối tượng trade chuẩn cho bot_new
   const trade = {
@@ -443,10 +471,11 @@ async function generateQuantitativeTrade(setup, marketData = null, options = {})
     confidence: setup.confidence || 75,
     rrRatio: tierSetup.rrRatio,
     winProbability: +(gateResult.winProbability * 100).toFixed(1),
+    isBorderlineApproved: Boolean(gateResult.isBorderlineApproved),
     entryFilled: false,
     status: 'active',
     recommendedAt: new Date(),
-    reason: `${isReeval ? 'RE-EVAL 30m | ' : ''}QUANT 369 | Score ${score}đ [${setup.verdict}] | SL: ${tierSetup.slScenario} (+${tierSetup.slPct}%) | TP: ${tierSetup.tpAnchorType} (-${tierSetup.tpPct}%) | R:R = ${tierSetup.rrRatio} | Gate: ${(gateResult.winProbability * 100).toFixed(0)}%`,
+    reason: `${isReeval ? 'RE-EVAL 30m | ' : ''}${gateResult.isBorderlineApproved ? 'BORDERLINE 1.5R | ' : ''}QUANT 369 | Score ${score}đ [${setup.verdict}] | SL: ${tierSetup.slScenario} (+${tierSetup.slPct}%) | TP: ${tierSetup.tpAnchorType} (-${tierSetup.tpPct}%) | R:R = ${tierSetup.rrRatio} | Gate: ${(gateResult.winProbability * 100).toFixed(0)}%`,
     source: isReeval ? 'shadow_reeval_30m' : 'quantitative_deterministic'
   };
 

@@ -1291,14 +1291,14 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
   const isRrAcceptable = rrRatio >= minRequiredRr;
 
   // ── AI LÀ NGƯỜI RA QUYẾT ĐỊNH 100% ĐỊNH LƯỢNG — XÓA BỎ HOÀN TOÀN LỆNH CẤM CỨNG (NO HARD BOOLEAN VETOES) ──
-  // Quyết định phê duyệt hoàn toàn dựa trên 3 trụ cột định lượng:
+  // Quyết định phê duyệt chuẩn dựa trên 3 trụ cột định lượng:
   // 1. Xác suất thắng Bayesian (winProb >= threshold) sau khi đã tích lũy toàn bộ điểm thưởng/phạt
   // 2. Lợi nhuận kỳ vọng thực nghiệm dương (evRoi >= minEvRoiThreshold)
   // 3. Tỷ lệ R:R đáp ứng tiêu chuẩn thích ứng (isRrAcceptable)
-  const isApproved = winProb >= threshold && evRoi >= minEvRoiThreshold && isRrAcceptable;
+  const isStandardApproved = winProb >= threshold && evRoi >= minEvRoiThreshold && isRrAcceptable;
   const factorSummary = keyFactors.length > 0 ? keyFactors.join(', ') : 'Điều kiện trung tính';
 
-  // Chẩn đoán nhân tố rủi ro nổi bật (nếu có) khi không được phê duyệt
+  // Chẩn đoán nhân tố rủi ro nổi bật (nếu có)
   const hasRejectionConfirmation =
     features['h1_candle_geometry'] === 'H1_REJECT_PINBAR' ||
     features['m15_candle_geometry'] === 'M15_REJECT_PINBAR' ||
@@ -1323,6 +1323,55 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
   const isBtcFlashCondition = (features['btc_flash'] === 'BTC_FLASH_DUMP_ACTIVE' && (sig.signal === 'LONG' || sig.signal === 'BUY')) ||
     (features['btc_flash'] === 'BTC_FLASH_PUMP_ACTIVE' && (sig.signal === 'SHORT' || sig.signal === 'SELL'));
   const isWallBlockedCondition = features['orderbook_wall'] === 'WALL_OPPOSING_BLOCK' && features['cvd_momentum'] !== 'CVD_SURGE_ALIGNED';
+
+  // ── LÀN CẬN BIÊN (BORDERLINE CLEAN-STRUCTURE LANE — FULL MARGIN, TP GỌN 1.5R) ──
+  // Dành cho kèo sạch hoàn toàn mọi rủi ro bão/đâm thủng/spread/tường L2, R:R >= 1.80 & EV dương >= minEvRoiThreshold,
+  // điểm Confluence mạnh, chỉ thiếu sát ngưỡng WinProb trong [max(40%, threshold - 7%), threshold).
+  const enableBorderline = process.env.ENABLE_BORDERLINE_LANE !== 'false';
+  const borderlineMinProb = Math.max(
+    parseFloat(process.env.BORDERLINE_MIN_WINPROB || '40.0'),
+    threshold - parseFloat(process.env.BORDERLINE_MAX_GAP_PCT || '7.0')
+  );
+  const borderlineMinRr = parseFloat(process.env.BORDERLINE_MIN_RR || '1.80');
+  const borderlineMinScore = (rank <= 50) ? 7.0 : 8.0;
+  const hasAnyVolatilityStorm =
+    features['h1_volatility'] === 'H1_EXTREME_STORM_PUMP_DUMP' ||
+    features['h1_volatility'] === 'H1_VOLATILE_DANGER' ||
+    features['m15_volatility'] === 'M15_EXTREME_STORM' ||
+    features['m15_volatility'] === 'M15_VOLATILE_DANGER';
+  const hasAnyPunctureOrTrain =
+    features['h1_candle_geometry'] === 'H1_PUNCTURED_DEEP' ||
+    features['m15_candle_geometry'] === 'M15_PUNCTURED_DEEP' ||
+    (features['puncture_interaction'] && features['puncture_interaction'] !== 'INTERACTION_PUNCTURE_NORMAL') ||
+    (features['risk_interaction'] && features['risk_interaction'] !== 'INTERACTION_BALANCED') ||
+    features['candle_momentum'] === 'MOMENTUM_COUNTER_PUMP_TRAIN' ||
+    features['candle_momentum'] === 'MOMENTUM_COUNTER_DUMP_TRAIN' ||
+    isOpposingRunaway;
+  const hasBlockingRiskForBorderline =
+    hasAnyVolatilityStorm ||
+    hasAnyPunctureOrTrain ||
+    isExtremeStormCondition ||
+    isStrongCounterTrendCondition ||
+    isOpposingWickCondition ||
+    isEconomicRedCondition ||
+    isSpreadDangerCondition ||
+    isBtcFlashCondition ||
+    isWallBlockedCondition;
+  const isScoreStrongForBorderline = (typeof sig.score === 'number') ? (sig.score >= borderlineMinScore) : true;
+  const isBorderlineApproved = Boolean(
+    enableBorderline &&
+    !isStandardApproved &&
+    winProb >= borderlineMinProb &&
+    winProb < threshold &&
+    rrRatio >= borderlineMinRr &&
+    evRoi >= minEvRoiThreshold &&
+    isRrAcceptable &&
+    isScoreStrongForBorderline &&
+    !hasBlockingRiskForBorderline
+  );
+
+  const isApproved = isStandardApproved || isBorderlineApproved;
+  const recommendedTpRatio = isBorderlineApproved ? 1.50 : null;
 
   let vetoCategory = null;
   let reasonText = '';
@@ -1388,11 +1437,13 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
       vetoCategory = 'AI_VETO';
       reasonText = `Phủ quyết bởi AI [Rank #${rank}] (${factorSummary})`;
     }
+  } else if (isBorderlineApproved) {
+    reasonText = `[BORDERLINE LANE | Full Margin | TP 1.5R] Xác suất thắng ${winProb.toFixed(1)}% (ngưỡng chuẩn ${threshold}%) [Rank #${rank}] | R:R gốc ${rrRatio.toFixed(2)}:1 >= ${borderlineMinRr.toFixed(2)} & EV = +${evRoi.toFixed(2)}% ROI ($${evUsd.toFixed(2)}) (${factorSummary})`;
   } else {
     reasonText = `Xác suất thắng ${winProb.toFixed(1)}% >= ${threshold}% [Rank #${rank}] & EV = +${evRoi.toFixed(2)}% ROI ($${evUsd.toFixed(2)}) (${factorSummary})`;
   }
 
-  const isTrendRunnerEligible = isApproved && (
+  const isTrendRunnerEligible = isStandardApproved && (
     (features['trend'] === 'TREND_PERFECT' || features['trend'] === 'TREND_EMA') &&
     (features['adx_strength'] === 'ADX_STRONG_TREND' || features['ls_flow'] === 'LS_GOLD' || evRoi >= 10.0)
   );
@@ -1403,6 +1454,8 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
     expectedValueRoi: parseFloat(evRoi.toFixed(2)),
     expectedValueUsd: parseFloat(evUsd.toFixed(2)),
     isApproved,
+    isBorderlineApproved,
+    recommendedTpRatio,
     isTrendRunnerEligible,
     vetoCategory,
     reason: reasonText,

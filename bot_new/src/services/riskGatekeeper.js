@@ -540,21 +540,79 @@ function evaluateSignal(sig, marketContext = null) {
 
   const isWinProbOk = winProbability >= approvalThreshold;
   const isEvOk = netEvRoi >= minNetEvRoi;
-  const isApproved = isWinProbOk && isEvOk;
+  const isStandardApproved = isWinProbOk && isEvOk;
+
+  // ── LÀN CẬN BIÊN (BORDERLINE CLEAN-STRUCTURE LANE — FULL MARGIN, TP GỌN 1.5R) ──
+  // Đồng bộ 100% bot-h4: chỉ mở khi kèo sạch mọi bão nến/đâm thủng/spread/tường L2/BTC Flash SEVERE,
+  // R:R gốc >= 1.80, NetEV >= minNetEvRoi, Confluence mạnh, và WinProb trong [max(40%, threshold - 7%), threshold).
+  const enableBorderline = process.env.ENABLE_BORDERLINE_LANE !== 'false';
+  const winProbPct = winProbability * 100;
+  const borderlineMinProbPct = Math.max(
+    parseFloat(process.env.BORDERLINE_MIN_WINPROB || '40.0'),
+    approvalThresholdPct - parseFloat(process.env.BORDERLINE_MAX_GAP_PCT || '7.0')
+  );
+  const borderlineMinRr = parseFloat(process.env.BORDERLINE_MIN_RR || '1.80');
+  const rrRatio = effSlPct > 0 ? (effTpPct / effSlPct) : 1.0;
+  const coinRank = parseInt(sig?.marketCapRank || marketContext?.rank || 100, 10);
+  const borderlineMinScore = (coinRank <= 50) ? 7.0 : 8.0;
+  const isScoreStrong = (typeof sig?.score === 'number') ? (sig.score >= borderlineMinScore) : true;
+
+  const hasAnyVolatilityStorm =
+    features['h1_volatility'] === 'H1_EXTREME_STORM_PUMP_DUMP' ||
+    features['h1_volatility'] === 'H1_VOLATILE_DANGER' ||
+    features['m15_volatility'] === 'M15_EXTREME_STORM' ||
+    features['m15_volatility'] === 'M15_VOLATILE_DANGER';
+  const hasAnyPunctureOrTrain =
+    features['h1_candle_geometry'] === 'H1_PUNCTURED_DEEP' ||
+    features['m15_candle_geometry'] === 'M15_PUNCTURED_DEEP' ||
+    (features['puncture_interaction'] && features['puncture_interaction'] !== 'INTERACTION_PUNCTURE_NORMAL') ||
+    (features['risk_interaction'] && features['risk_interaction'] !== 'INTERACTION_BALANCED') ||
+    features['candle_momentum'] === 'MOMENTUM_COUNTER_PUMP_TRAIN' ||
+    features['candle_momentum'] === 'MOMENTUM_COUNTER_DUMP_TRAIN' ||
+    isRunaway;
+  const isBtcFlashSevere =
+    features['btc_flash'] === 'BTC_FLASH_DUMP_ACTIVE' ||
+    features['btc_flash'] === 'BTC_FLASH_PUMP_ACTIVE';
+  const hasBlockingRiskForBorderline =
+    hasCriticalRisk ||
+    hasAnyVolatilityStorm ||
+    hasAnyPunctureOrTrain ||
+    isBtcFlashSevere ||
+    features['wick_rejection'] === 'OPPOSING_WICK_TRAP' ||
+    features['spread_slippage'] === 'SPREAD_WIDE_DANGER' ||
+    features['orderbook_wall'] === 'WALL_OPPOSING_BLOCK';
+
+  const isBorderlineApproved = Boolean(
+    enableBorderline &&
+    !isStandardApproved &&
+    winProbPct >= borderlineMinProbPct &&
+    winProbPct < approvalThresholdPct &&
+    rrRatio >= borderlineMinRr &&
+    isEvOk &&
+    isScoreStrong &&
+    !hasBlockingRiskForBorderline
+  );
+
+  const isApproved = isStandardApproved || isBorderlineApproved;
+  const recommendedTpRatio = isBorderlineApproved ? 1.50 : null;
 
   const vetoDetailParts = [];
   if (penaltyFactors.length > 0) vetoDetailParts.push(`Vi phạm: ${penaltyFactors.join(', ')}`);
   if (boostFactors.length > 0) vetoDetailParts.push(`Hỗ trợ: ${boostFactors.join(', ')}`);
   const vetoDetailStr = vetoDetailParts.length > 0 ? vetoDetailParts.join(' | ') : (keyFactors.join(', ') || 'Prior thấp dưới ngưỡng AI');
 
-  const reason = isApproved
-    ? `Duyệt lệnh (WinProb ${(winProbability * 100).toFixed(1)}% >= ${approvalThresholdPct.toFixed(1)}%, NetEV +${netEvRoi.toFixed(2)}% ROI) | Yếu tố: ${keyFactors.join(', ') || 'Cấu trúc ổn định'}`
-    : (!isWinProbOk
-      ? `VETO từ chối (WinProb ${(winProbability * 100).toFixed(1)}% < ${approvalThresholdPct.toFixed(1)}%) | ${vetoDetailStr}`
-      : `VETO NetEV thấp (WinProb ${(winProbability * 100).toFixed(1)}%, NetEV ${netEvRoi.toFixed(2)}% < +${minNetEvRoi.toFixed(2)}% ROI sau phí) | Yếu tố: ${keyFactors.join(', ') || 'R:R không bù phí'}`);
+  const reason = isStandardApproved
+    ? `Duyệt lệnh (WinProb ${winProbPct.toFixed(1)}% >= ${approvalThresholdPct.toFixed(1)}%, NetEV +${netEvRoi.toFixed(2)}% ROI) | Yếu tố: ${keyFactors.join(', ') || 'Cấu trúc ổn định'}`
+    : (isBorderlineApproved
+      ? `[BORDERLINE LANE | Full Margin | TP 1.5R] WinProb ${winProbPct.toFixed(1)}% (ngưỡng chuẩn ${approvalThresholdPct.toFixed(1)}%) | R:R gốc ${rrRatio.toFixed(2)}:1 >= ${borderlineMinRr.toFixed(2)} & NetEV +${netEvRoi.toFixed(2)}% ROI — Cấu trúc sạch | Yếu tố: ${keyFactors.join(', ') || 'Cấu trúc ổn định'}`
+      : (!isWinProbOk
+        ? `VETO từ chối (WinProb ${winProbPct.toFixed(1)}% < ${approvalThresholdPct.toFixed(1)}%) | ${vetoDetailStr}`
+        : `VETO NetEV thấp (WinProb ${winProbPct.toFixed(1)}%, NetEV ${netEvRoi.toFixed(2)}% < +${minNetEvRoi.toFixed(2)}% ROI sau phí) | Yếu tố: ${keyFactors.join(', ') || 'R:R không bù phí'}`));
 
   return {
     isApproved,
+    isBorderlineApproved,
+    recommendedTpRatio,
     winProbability: parseFloat(winProbability.toFixed(3)),
     approvalThresholdPct,
     expectedValueRoi: parseFloat(netEvRoi.toFixed(2)),
