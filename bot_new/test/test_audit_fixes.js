@@ -721,6 +721,20 @@ async function run() {
     // 3. Kiểm tra AI_PREFILL_CANCEL đã truyền { slPct, leverage } vào scanMicrostructure
     const atSrc = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'trader', 'autoTrade.js'), 'utf8');
     assert.ok(atSrc.includes('scanMicrostructure(sym, entry, meta.tierTpPrice || 0, side, rank, { slPct: metaSlPct, leverage: metaLev })'), 'AI_PREFILL_CANCEL phải truyền { slPct, leverage } vào scanMicrostructure');
+    assert.ok(atSrc.includes('sigForAI.leverage = prelimRetest.leverage;'), 'H1 Retest phải truyền sigForAI.leverage cho AI Reviewer');
+
+    // 4. bot-h4 aiReviewer: cờ isPreEntryStale/isPreEntryExtremeStale cũ không được ghi đè ngưỡng bounce đã co giãn theo SL
+    const resBounceNoOverride = aiReviewerH4.evaluateSignalWithAI(
+      { symbol: 'GALA', signal: 'LONG', targetLevel: 900, score: 8.5, marketCapRank: 300, gridWidthPct: 3.3, actualSlPct: 5.0, actualTpPct: 9.0, leverage: 3, scoreReasons: [] },
+      { maxRecentBouncePct: 1.8, preEntryBouncePct: 1.5, isPreEntryStale: true, isPreEntryExtremeStale: true }
+    );
+    assert.ok(!resBounceNoOverride.keyFactors.some(f => f.includes('BOUNCE_STALE') || f.includes('INTERACTION_STALE_BOUNCE')), `bot-h4 SL 5% bounce 1.8% (<2.25%) không được bị cờ cũ ép thành STALE: ${JSON.stringify(resBounceNoOverride.keyFactors)}`);
+
+    // 5. bot-new signalEngine không hard-block BTC_FLASH SEVERE trước Risk Gatekeeper & index.js log đủ ShadowReEval
+    const seSrc2 = fs.readFileSync(path.join(__dirname, '..', 'src', 'services', 'signalEngine.js'), 'utf8');
+    assert.ok(!seSrc2.includes('[VETO BTC Flash Guard SEVERE]'), 'bot-new signalEngine phải chuyển giao BTC_FLASH SEVERE sang Risk Gatekeeper giống bot-h4');
+    const idxSrc = fs.readFileSync(path.join(__dirname, '..', 'index.js'), 'utf8');
+    assert.ok(idxSrc.includes('Shadow Re-Eval:') && idxSrc.includes('không giới hạn trần'), 'bot-new index.js phải log đầy đủ lịch Shadow Re-Eval & tuổi >=15p');
   });
 
   console.log(`\n📊 Audit Regression Summary: ${passed} passed, ${failed} failed\n`);

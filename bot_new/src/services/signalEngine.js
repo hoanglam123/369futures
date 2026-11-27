@@ -157,21 +157,11 @@ async function generateQuantitativeTrade(setup, marketData = null, options = {})
     return null;
   }
 
-  // ─── CHỐT CHẶN 3: REAL-TIME BTC FLASH GUARD ───────────────────────
-  // Chỉ chặn cứng tại đây khi bão thật SEVERE (>= 2.0%), miễn trừ nhóm Vàng/Hàng hóa (PAXG/XAU/XAG).
-  // Mức MODERATE đi qua Risk Gatekeeper với mức phạt nhẹ x0.78 để kèo đẹp có cản cứng vẫn vào được.
+  // ─── CHỐT CHẶN 3: REAL-TIME BTC FLASH GUARD (CHUYỂN GIAO TOÀN QUYỀN CHO RISK GATEKEEPER — ĐỒNG BỘ BOT-H4) ───
+  // Cả MODERATE & SEVERE đều đi vào Risk Gatekeeper để phân hóa theo SL/đòn bẩy & cấu trúc nến:
+  // - Đòn bẩy cao / SL hẹp (>=5x) hoặc nến H1 thủng sâu / Marubozu -> phạt nặng (VETO ngay)
+  // - Đòn bẩy thấp / SL rộng (2x-4x, SL >= 3%) + cấu trúc sạch Maker LIMIT -> cảnh báo nhẹ x0.80 (-20%)
   const btcFlash = checkBtcFlashStatus();
-  const isBtcFlashExempt = ['PAXG', 'XAU', 'XAG'].includes(String(symbol || '').toUpperCase().replace(/USDT$/i, ''));
-  if (!isBtcFlashExempt && btcFlash.severity === 'SEVERE' && btcFlash.activeFlash === 'FLASH_DUMP' && direction === 'LONG') {
-    log.system(`[AutoTrade] 🛑 [VETO BTC Flash Guard SEVERE] ${symbol} LONG: Đang có bão BTC Flash Dump (${btcFlash.reason})`);
-    if (!isReeval) registerShadowTrade(setup, `BTC_FLASH_DUMP: ${btcFlash.reason}`);
-    return null;
-  }
-  if (!isBtcFlashExempt && btcFlash.severity === 'SEVERE' && btcFlash.activeFlash === 'FLASH_PUMP' && direction === 'SHORT') {
-    log.system(`[AutoTrade] 🛑 [VETO BTC Flash Guard SEVERE] ${symbol} SHORT: Đang có bão BTC Flash Pump (${btcFlash.reason})`);
-    if (!isReeval) registerShadowTrade(setup, `BTC_FLASH_PUMP: ${btcFlash.reason}`);
-    return null;
-  }
 
   // 1. Xác định mức giá Entry — ưu tiên giá thực tế live (WebSocket / REST ticker) trước TA cache
   const ta = marketData?.ta?.[symbol];

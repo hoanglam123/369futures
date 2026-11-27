@@ -3814,6 +3814,13 @@ async function startAutoTrade(coins) {
       sig.actualSlPct = prelimSetup.slPct;
       sig.actualTpPct = prelimSetup.tpPct;
       sig.leverage = prelimSetup.leverage;
+      if (rawMarketData && typeof sig.maxRecentBouncePct === 'number') {
+        const effBaseBounce = (typeof sig.preEntryBouncePct === 'number') ? sig.preEntryBouncePct : 1.5;
+        const slScaledBounceTh = Math.max(effBaseBounce, prelimSetup.slPct > 0 ? prelimSetup.slPct * 0.45 : 0);
+        const slScaledExtremeTh = Math.max(3.0, slScaledBounceTh * 1.8, prelimSetup.slPct > 0 ? prelimSetup.slPct * 0.85 : 0);
+        rawMarketData.isPreEntryStale = sig.maxRecentBouncePct >= slScaledBounceTh;
+        rawMarketData.isPreEntryExtremeStale = sig.maxRecentBouncePct >= slScaledExtremeTh;
+      }
 
       const marketMetrics = {
         m15RangePct: rawMarketData?.m15RangePct != null ? Number(rawMarketData.m15RangePct.toFixed(2)) : null,
@@ -5014,6 +5021,7 @@ async function checkH1RetestSignals(client, activeSymbols, leverageInfo = {}, ac
       }
       sigForAI.actualSlPct = prelimRetest.slPct;
       sigForAI.actualTpPct = prelimRetest.tpPct;
+      sigForAI.leverage = prelimRetest.leverage;
 
       const marketMetricsRetest = {
         m15RangePct: rawMarketDataRetest?.m15RangePct != null ? Number(rawMarketDataRetest.m15RangePct.toFixed(2)) : null,
@@ -5414,14 +5422,7 @@ async function reevaluateShadowPositions(client, activeSymbols, leverageInfo, ac
         continue;
       }
 
-      // Chặn bão BTC Flash SEVERE ngược chiều (miễn trừ PAXG/XAU/XAG)
-      const isBtcFlashExempt = ['PAXG', 'XAU', 'XAG'].includes(sym);
-      const btcFlashCheck = checkBtcFlashGatekeeper(direction);
-      if (!isBtcFlashExempt && btcFlashCheck.isLocked && btcFlashCheck.severity === 'SEVERE') {
-        bumpSkip('BTC_FLASH_SEVERE');
-        continue;
-      }
-
+      // Chuyển giao trạng thái BTC Flash (cả MODERATE & SEVERE) cho AI Reviewer thẩm định theo SL/đòn bẩy & cấu trúc nến (đồng bộ bot-new)
       checked++;
       try {
         const isTier1 = isTop50Symbol(sym);

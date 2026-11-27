@@ -442,9 +442,10 @@ function extractSignalFeatures(reasons, score, rank, gridWidthPct, rawMarketData
 
   const extremeBounceThreshold = Math.max(3.0, preEntryThreshold * 1.8, actualSlForBounce > 0 ? actualSlForBounce * 0.85 : 0);
   if (bouncePct !== null) {
-    if (bouncePct >= extremeBounceThreshold || rawMarketData?.isPreEntryExtremeStale) {
+    // Khi đã có số liệu bouncePct thực tế, luôn đánh giá thuần theo ngưỡng đã co giãn theo SL (không để cờ cũ chưa co giãn ghi đè)
+    if (bouncePct >= extremeBounceThreshold) {
       features['pre_entry_bounce'] = 'BOUNCE_STALE_EXTREME';
-    } else if (bouncePct >= preEntryThreshold || rawMarketData?.isPreEntryStale) {
+    } else if (bouncePct >= preEntryThreshold) {
       features['pre_entry_bounce'] = 'BOUNCE_STALE_HIGH';
     } else if (bouncePct >= 0.40) {
       features['pre_entry_bounce'] = 'BOUNCE_MODERATE';

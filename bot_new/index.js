@@ -198,11 +198,13 @@ if (process.argv.includes('--run-now')) {
 
   // Mỗi 30 phút: Tái chấm điểm từ đầu các vị thế Shadow sống sót (Phương án B - đồng bộ bot-h4)
   // Lệch sang giây thứ 10 (10 */30 * * * *) để không đụng cron :00 và :20
+  let activeShadowReevalCron = null;
   if (process.env.ENABLE_SHADOW_REEVAL !== 'false') {
     const shadowReevalCron = process.env.SHADOW_REEVAL_CRON || '10 */30 * * * *';
     if (!cron.validate(shadowReevalCron)) {
       console.error(`❌ SHADOW_REEVAL_CRON không hợp lệ: "${shadowReevalCron}"`);
     } else {
+      activeShadowReevalCron = shadowReevalCron;
       cron.schedule(shadowReevalCron, async () => {
         try {
           await runShadowReevaluation();
@@ -210,7 +212,6 @@ if (process.argv.includes('--run-now')) {
           log.warn(`[ShadowReEval] Lỗi chu kỳ 30p: ${e.message}`);
         }
       }, { timezone: TIMEZONE, scheduled: true });
-      log.system(`[ShadowReEval] Đã bật lịch tái chấm điểm Shadow mỗi 30 phút (${shadowReevalCron})`);
     }
   }
 
@@ -270,7 +271,14 @@ if (process.argv.includes('--run-now')) {
   createDashboard();
   onWsPush(broadcastWs);
   log.system('[PP369] [AutoTrade] ✓ Khởi động hệ thống giao dịch tự động định lượng 369 Futures');
-  log.system(`[PP369] [AutoTrade] Chu kỳ quét định lượng: ${SIGNAL_SCAN_CRON} | Auto-sync vị thế: ${syncCron || 'tắt'}`);
+  log.system(`[PP369] [AutoTrade] Chu kỳ quét định lượng: ${SIGNAL_SCAN_CRON} | Auto-sync vị thế: ${syncCron || 'tắt'} | Shadow Re-Eval: ${activeShadowReevalCron || 'tắt'}`);
+  if (activeShadowReevalCron) {
+    const minAgeMin = Math.round(parseInt(process.env.SHADOW_REEVAL_MIN_AGE_MS || String(15 * 60_000), 10) / 60_000);
+    const maxAgeMs = parseInt(process.env.SHADOW_REEVAL_MAX_AGE_MS || '0', 10);
+    const ageLabel = maxAgeMs > 0 ? `${minAgeMin}p-${Math.round(maxAgeMs / 3600_000)}h` : `>=${minAgeMin}p (không giới hạn trần)`;
+    const maxProm = parseInt(process.env.SHADOW_REEVAL_MAX_PROMOTES_PER_CYCLE || '2', 10);
+    log.system(`[ShadowReEval] Đã bật lịch đồng bộ đồng hồ mỗi 30p (${activeShadowReevalCron} — :00:10 & :30:10) | Tuổi: ${ageLabel}, Max ${maxProm} lệnh/chu kỳ.`);
+  }
 
   // Gửi Telegram summary nếu có lệnh đang theo dõi sau khi restart
   const restored = getActiveTrades();

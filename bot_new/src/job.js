@@ -1174,7 +1174,7 @@ const SHADOW_REEVAL_HARD_VETO_RE = /RR_BLOCKED_BY_MAJOR_SR|GRID_|SL_TOO_WIDE|HAR
 
 /**
  * Bộ lọc tiền kiểm thuần toán học (pure function) cho luồng Shadow Re-Evaluation 30 phút.
- * Kiểm tra: ACTIVE/PENDING_LIMIT, chưa BE, tuổi 30p-8h, loại trừ hard/structural veto,
+ * Kiểm tra: ACTIVE/PENDING_LIMIT, chưa BE, tuổi >=15p (không giới hạn trần), loại trừ hard/structural veto,
  * chưa chạy quá 30% TP (chống đuổi giá) và chưa lỗ quá 40% SL (chống bắt dao rơi).
  * Trả về mức giá limitEntry bảo toàn Maker-only.
  */
@@ -1305,7 +1305,7 @@ async function runShadowReevaluation() {
     }
 
     const nowMs = Date.now();
-    // Ưu tiên shadow sống lâu hơn trong cửa sổ 30p-8h
+    // Ưu tiên shadow sống lâu hơn (>=15p, không giới hạn trần)
     entries.sort((a, b) => (a[1]?.openedAtMs || a[1]?.entryTimestamp || 0) - (b[1]?.openedAtMs || b[1]?.entryTimestamp || 0));
 
     const activeTrades = getActiveTrades();
