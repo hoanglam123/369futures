@@ -745,6 +745,10 @@ async function run() {
     assert.ok(!celoRes.keyFactors.some(f => f.includes('BOUNCE_MODERATE (x0.')), `BOUNCE_MODERATE phải trung tính 1.00, không phạt oan: ${JSON.stringify(celoRes.keyFactors)}`);
     assert.ok(celoRes.keyFactors.some(f => f.includes('VOL_BURST_DANGER (x0.92)')), `CELO nến sạch 3x/SL 3.25% phải được nới VOL_BURST_DANGER về x0.92 thay vì x0.65: ${JSON.stringify(celoRes.keyFactors)}`);
     assert.ok(celoRes.winProbability >= 47.0, `CELO sau khi vá phạt kép phải đạt WinProb >= 47% (thực tế: ${celoRes.winProbability}%)`);
+
+    // 7. Case thực tế AKE LONG trên bot-new (9.12 / 6.08 = 1.4999999999999998): tradeMonitor không được SKIP R:R vì lỗi dấu phẩy động IEEE 754 hay MIN_RR_RATIO=1.5
+    const tmSrc = fs.readFileSync(path.join(__dirname, '..', 'src', 'services', 'tradeMonitor.js'), 'utf8');
+    assert.ok(tmSrc.includes('rrInitial + 1e-6 < effMinRr') && tmSrc.includes('Math.min(MIN_RR_RATIO, 1.48)'), 'tradeMonitor.js phải có tolerance 1e-6 và effMinRr <= 1.48 cho lệnh định lượng');
   });
 
   console.log(`\n📊 Audit Regression Summary: ${passed} passed, ${failed} failed\n`);

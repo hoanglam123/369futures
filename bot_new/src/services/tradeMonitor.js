@@ -670,27 +670,31 @@ function addTrades(trades, taMap = {}) {
     const isLongNew = t.direction === 'LONG';
 
     // ── R:R ban đầu: bắt lỗi AI đặt ngược TP < SL (như ZEC: R:R=0.44) ─────────
+    // Với lệnh định lượng (tierSLTP đã duyệt >= 1.48 sau làm tròn tickSize), dùng trần tối đa 1.48 + epsilon 1e-6
+    // để tránh lỗi dấu phẩy động IEEE 754 (VD AKE: 9.12 / 6.08 = 1.4999999999999998 < 1.5 bị SKIP R:R oan!)
     if (!t.slPct || t.slPct <= 0 || !t.targetPct || t.targetPct <= 0) {
       log.trade(`SKIP INVALID ${t.symbol} ${t.direction}: targetPct=${t.targetPct} slPct=${t.slPct} — dữ liệu lệnh không hợp lệ`);
       continue;
     }
+    const isQuantTrade = t.source === 'quantitative_deterministic' || t.source === 'shadow_reeval_30m';
+    const effMinRr = isQuantTrade ? Math.min(MIN_RR_RATIO, 1.48) : MIN_RR_RATIO;
     const rrInitial = t.targetPct / t.slPct;
-    if (rrInitial < MIN_RR_RATIO) {
-      log.trade(`SKIP R:R ${t.symbol} ${t.direction}: R:R ${rrInitial.toFixed(2)} < ${MIN_RR_RATIO} (TP+${t.targetPct}% / SL-${t.slPct}%) — AI đặt TP quá hẹp hoặc SL quá rộng`);
+    if (rrInitial + 1e-6 < effMinRr) {
+      log.trade(`SKIP R:R ${t.symbol} ${t.direction}: R:R ${rrInitial.toFixed(2)} < ${effMinRr} (TP+${t.targetPct}% / SL-${t.slPct}%) — AI đặt TP quá hẹp hoặc SL quá rộng`);
       sendMessages([
         `⚠️ <b>Lọc lệnh R:R — ${t.symbol} ${isLongNew ? '🟢 LONG' : '🔴 SHORT'}</b>\n` +
         `━━━━━━━━━━━━━━━━\n` +
         `Entry: <code>${fmtPrice(t.entryPrice)}</code>\n` +
         `TP: <code>${fmtPrice(t.targetPrice)}</code> <b>+${t.targetPct}%</b>\n` +
         `SL: <code>${fmtPrice(t.slPrice)}</code> <b>-${t.slPct}%</b>\n` +
-        `R:R = <b>${rrInitial.toFixed(2)}</b> < ${MIN_RR_RATIO} → <b>BỎ LỆNH</b>\n` +
+        `R:R = <b>${rrInitial.toFixed(2)}</b> < ${effMinRr} → <b>BỎ LỆNH</b>\n` +
         `<i>SL quá rộng hoặc TP quá hẹp — AI đặt setup không đủ lợi thế</i>`,
       ]).catch(() => {});
       continue;
     }
 
     // ── SL auto-adjust: chỉ áp dụng cho lệnh AI cũ, các lệnh định lượng toán học (tierSLTP) đã tính chuẩn 3 tầng ──
-    if (t.source !== 'quantitative_deterministic') {
+    if (!isQuantTrade) {
       const atrAbs = taMap[t.symbol]?.atr ?? null;
       if (atrAbs && atrAbs > 0) {
         const actualSlDist = Math.abs(t.entryPrice - t.slPrice);
@@ -708,12 +712,12 @@ function addTrades(trades, taMap = {}) {
 
     // ── R:R sau khi SL được mở rộng: nếu vẫn < ngưỡng → bỏ lệnh ──────────────
     const rrFinal = t.slPct > 0 ? t.targetPct / t.slPct : 0;
-    if (rrFinal < MIN_RR_RATIO) {
-      log.trade(`SKIP R:R (post-widen) ${t.symbol} ${t.direction}: R:R ${rrFinal.toFixed(2)} < ${MIN_RR_RATIO} sau khi mở SL về ${MIN_SL_ATR_MULT}×ATR — ATR quá cao so với khoảng cách TP`);
+    if (rrFinal + 1e-6 < effMinRr) {
+      log.trade(`SKIP R:R (post-widen) ${t.symbol} ${t.direction}: R:R ${rrFinal.toFixed(2)} < ${effMinRr} sau khi mở SL về ${MIN_SL_ATR_MULT}×ATR — ATR quá cao so với khoảng cách TP`);
       sendMessages([
         `⚠️ <b>Lọc lệnh (SL widen) — ${t.symbol} ${isLongNew ? '🟢 LONG' : '🔴 SHORT'}</b>\n` +
         `━━━━━━━━━━━━━━━━\n` +
-        `SL đã mở rộng về ${MIN_SL_ATR_MULT}×ATR → R:R = <b>${rrFinal.toFixed(2)}</b> < ${MIN_RR_RATIO}\n` +
+        `SL đã mở rộng về ${MIN_SL_ATR_MULT}×ATR → R:R = <b>${rrFinal.toFixed(2)}</b> < ${effMinRr}\n` +
         `TP <b>+${t.targetPct}%</b> / SL <b>-${t.slPct}%</b> → <b>BỎ LỆNH</b>\n` +
         `<i>ATR quá cao, không đủ room giữa SL an toàn và TP</i>`,
       ]).catch(() => {});
