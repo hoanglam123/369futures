@@ -33,13 +33,18 @@ function setCache(key, data) {
 }
 
 /**
- * Đo độ dãn Spread giữa giá Bid và Ask tốt nhất (Phân tầng ngưỡng an toàn theo Rank coin)
+ * Đo độ dãn Spread giữa giá Bid và Ask tốt nhất (Phân tầng ngưỡng an toàn theo Rank coin & SL/đòn bẩy)
  * @param {string} sym - Symbol không có hậu tố (e.g. BTC, ETH)
  * @param {number} [rank=999] - Thứ hạng vốn hóa thị trường
+ * @param {object} [opts={}] - Tùy chọn { slPct, leverage }
  * @returns {Promise<{ spreadPct: number, bidPrice: number, askPrice: number, category: string }>}
  */
-async function getSpreadMetrics(sym, rank = 999) {
-  const cacheKey = `spread_${sym}`;
+async function getSpreadMetrics(sym, rank = 999, opts = {}) {
+  const slPct = parseFloat(opts?.slPct || 0);
+  const leverage = parseFloat(opts?.leverage || 0);
+  const isWideSlOrLowLev = (slPct >= 3.0) || (leverage > 0 && leverage <= 4);
+  const tierKey = rank <= 50 ? 't50' : (rank <= 150 ? 'mid' : (isWideSlOrLowLev ? 'low_wide' : 'low_std'));
+  const cacheKey = `spread_${sym}_${tierKey}`;
   const cached = getCached(cacheKey);
   if (cached) return cached;
 
@@ -56,7 +61,7 @@ async function getSpreadMetrics(sym, rank = 999) {
     const spreadPct = ((askPrice - bidPrice) / bidPrice) * 100;
     
     // 🛡️ PHÂN TẦNG ĐỘNG THEO RANK COIN + BƯỚC GIÁ SÀN (Adaptive Tick-Aware Spread Guard):
-    // - Top 50: > 0.04% | Rank 51-150: > 0.06% | Lowcap (> 150): > 0.08%
+    // - Top 50: > 0.04% | Rank 51-150: > 0.06% | Lowcap (> 150): > 0.08% (hoặc 0.15% với SL rộng >=3% / đòn bẩy <=4x Maker LIMIT)
     // - Với coin giá nhỏ có tickSize lớn (VD ZETA $0.025, 1 tick = 0.04%), nới sàn theo 3.5x tick (tối đa 0.25%)
     //   để không phạt oan khi sổ lệnh chỉ hở 2–3 tick bình thường.
     let dangerTh = 0.060;
@@ -68,8 +73,8 @@ async function getSpreadMetrics(sym, rank = 999) {
       dangerTh = 0.060;
       cautionTh = 0.035;
     } else {
-      dangerTh = 0.080;
-      cautionTh = 0.045;
+      dangerTh = isWideSlOrLowLev ? 0.150 : 0.080;
+      cautionTh = isWideSlOrLowLev ? 0.080 : 0.045;
     }
 
     const tickSize = typeof _getSymbolTickSizeSync === 'function' ? _getSymbolTickSizeSync(sym) : null;
@@ -255,10 +260,10 @@ async function getOrderbookWall(sym, entryPrice, tpPrice, side = 'LONG', rank = 
  * @param {number} [rank=999]
  * @returns {Promise<{ spreadMetrics: object, cvdMetrics: object, wallMetrics: object }>}
  */
-async function scanMicrostructure(sym, entryPrice = 0, tpPrice = 0, side = 'LONG', rank = 999) {
+async function scanMicrostructure(sym, entryPrice = 0, tpPrice = 0, side = 'LONG', rank = 999, opts = {}) {
   try {
     const [spreadMetrics, cvdMetrics, wallMetrics] = await Promise.all([
-      getSpreadMetrics(sym, rank),
+      getSpreadMetrics(sym, rank, opts),
       getCvdMomentum(sym, side),
       getOrderbookWall(sym, entryPrice, tpPrice, side, rank)
     ]);

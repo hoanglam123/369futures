@@ -70,19 +70,20 @@ function checkModelHotReload(force = false) {
 loadModel();
 
 /**
- * Phân loại hình thái nến đối với mốc Entry (Geometry Classification)
+ * Phân loại hình thái nến đối với mốc Entry (Geometry Classification — co giãn thích ứng theo độ rộng SL)
  */
-function classifyCandleGeometry(candle, targetLevel, isLong, step, isLive = false) {
+function classifyCandleGeometry(candle, targetLevel, isLong, step, isLive = false, slPct = 0) {
   if (!candle || !targetLevel || typeof candle.close !== 'number') return 'HOLD_OR_HOVER';
   const totalRange = Math.max(1e-9, candle.high - candle.low);
   const stepDist = step || (targetLevel * 0.01);
+  const slRatio = (typeof slPct === 'number' && slPct > 0) ? (slPct / 100) : 0;
 
   const deepThreshold = isLive
-    ? Math.max(stepDist * 0.40, targetLevel * 0.015)
-    : Math.max(stepDist * 0.20, targetLevel * 0.005);
+    ? Math.max(stepDist * 0.40, targetLevel * Math.max(0.015, slRatio * 0.50))
+    : Math.max(stepDist * 0.20, targetLevel * Math.max(0.005, slRatio * 0.35));
   const lightThreshold = isLive
-    ? Math.max(stepDist * 0.25, targetLevel * 0.008)
-    : Math.max(stepDist * 0.10, targetLevel * 0.002);
+    ? Math.max(stepDist * 0.25, targetLevel * Math.max(0.008, slRatio * 0.25))
+    : Math.max(stepDist * 0.10, targetLevel * Math.max(0.002, slRatio * 0.15));
 
   if (isLong) {
     const lowerWick = Math.min(candle.open, candle.close) - candle.low;
@@ -115,21 +116,23 @@ function extractGatekeeperFeatures(sig, marketContext = {}) {
   const targetLevel = sig.targetLevel || sig.price || 0;
   const step = getStep(targetLevel);
   const rank = parseInt(sig.marketCapRank || marketContext?.rank || 100, 10);
+  const slPct = parseFloat(sig?.slPct ?? marketContext?.slPct ?? 0);
+  const leverage = parseFloat(sig?.leverage ?? marketContext?.leverage ?? 0);
   const features = {};
 
   const cH1  = marketContext?.candleH1 || null;
   const cM15 = marketContext?.candleM15 || null;
 
-  // 1. Hình thái nến H1 & M15 (hỗ trợ isLiveCandle cho nến đang chạy để tránh phạt quá chặt râu live)
+  // 1. Hình thái nến H1 & M15 (hỗ trợ isLiveCandle + co giãn ngưỡng đâm lụt theo độ rộng SL)
   const isLiveCandle = Boolean(marketContext?.isLiveCandle);
   let geoH1 = null;
   let geoM15 = null;
   if (cH1 && targetLevel > 0) {
-    geoH1 = classifyCandleGeometry(cH1, targetLevel, isLong, step, isLiveCandle);
+    geoH1 = classifyCandleGeometry(cH1, targetLevel, isLong, step, isLiveCandle, slPct);
     features['h1_candle_geometry'] = `H1_${geoH1}`;
   }
   if (cM15 && targetLevel > 0) {
-    geoM15 = classifyCandleGeometry(cM15, targetLevel, isLong, step, isLiveCandle);
+    geoM15 = classifyCandleGeometry(cM15, targetLevel, isLong, step, isLiveCandle, slPct);
     features['m15_candle_geometry'] = `M15_${geoM15}`;
   }
 
@@ -146,17 +149,21 @@ function extractGatekeeperFeatures(sig, marketContext = {}) {
     features['puncture_interaction'] = 'INTERACTION_PUNCTURE_NORMAL';
   }
 
-  // 3. Biến động bão H1 & M15 (Volatility Compression / Storm)
+  // 3. Biến động bão H1 & M15 (Co giãn thích ứng theo độ rộng SL cho đòn bẩy x2-x3)
+  const h1DangerTh = Math.max(4.0, slPct > 0 ? slPct * 1.4 : 0);
+  const h1StormTh  = Math.max(8.0, slPct > 0 ? slPct * 2.2 : 0);
   if (cH1 && cH1.low > 0) {
     const h1RangePct = ((cH1.high - cH1.low) / cH1.low) * 100;
-    if (h1RangePct >= 8.0) features['h1_volatility'] = 'H1_EXTREME_STORM_PUMP_DUMP';
-    else if (h1RangePct >= 4.0) features['h1_volatility'] = 'H1_VOLATILE_DANGER';
+    if (h1RangePct >= h1StormTh) features['h1_volatility'] = 'H1_EXTREME_STORM_PUMP_DUMP';
+    else if (h1RangePct >= h1DangerTh) features['h1_volatility'] = 'H1_VOLATILE_DANGER';
     else features['h1_volatility'] = 'H1_VOL_NORMAL';
   }
+  const m15DangerTh = Math.max(3.0, slPct > 0 ? slPct * 0.9 : 0);
+  const m15StormTh  = Math.max(6.0, slPct > 0 ? slPct * 1.6 : 0);
   if (cM15 && cM15.low > 0) {
     const m15RangePct = ((cM15.high - cM15.low) / cM15.low) * 100;
-    if (m15RangePct >= 6.0) features['m15_volatility'] = 'M15_EXTREME_STORM';
-    else if (m15RangePct >= 3.0) features['m15_volatility'] = 'M15_VOLATILE_DANGER';
+    if (m15RangePct >= m15StormTh) features['m15_volatility'] = 'M15_EXTREME_STORM';
+    else if (m15RangePct >= m15DangerTh) features['m15_volatility'] = 'M15_VOLATILE_DANGER';
     else features['m15_volatility'] = 'M15_VOL_NORMAL';
   }
 
@@ -247,10 +254,11 @@ function extractGatekeeperFeatures(sig, marketContext = {}) {
     features['btc_flash'] = 'BTC_FLASH_NORMAL';
   }
 
-  // 7. Spread Slippage Guard (Thanh khoản 0ms + nới sàn theo tickSize cho coin giá siêu nhỏ)
+  // 7. Spread Slippage Guard (Thanh khoản 0ms + nới sàn theo tickSize + nới Lowcap cho Maker LIMIT SL rộng / đòn bẩy x2-x3)
   if (typeof marketContext?.spreadPct === 'number' && marketContext.spreadPct > 0) {
-    let dangerTh  = rank <= 50 ? 0.040 : (rank <= 150 ? 0.060 : 0.080);
-    let cautionTh = rank <= 50 ? 0.025 : (rank <= 150 ? 0.035 : 0.045);
+    const isWideSlOrLowLevSpread = (slPct >= 3.0) || (leverage > 0 && leverage <= 4);
+    let dangerTh  = rank <= 50 ? 0.040 : (rank <= 150 ? 0.060 : (isWideSlOrLowLevSpread ? 0.150 : 0.080));
+    let cautionTh = rank <= 50 ? 0.025 : (rank <= 150 ? 0.035 : (isWideSlOrLowLevSpread ? 0.080 : 0.045));
     const tickSize = parseFloat(marketContext?.tickSize || sig?.tickSize || 0);
     if (tickSize > 0 && targetLevel > 0) {
       const minTickSpreadPct = (tickSize / targetLevel) * 100;

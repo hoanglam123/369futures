@@ -2080,22 +2080,23 @@ async function getCachedBtcState() {
  * @param {boolean} isLong - Chiều lệnh (true = LONG, false = SHORT)
  * @param {number} [step] - Grid step
  * @param {boolean} [isLive=false] - Nến đang chạy (chưa đóng) hay nến đã đóng
+ * @param {number} [slPct=0] - Độ rộng SL thực tế (%) để chuẩn hóa ngưỡng đâm lụt theo đòn bẩy x2-x3
  * @returns {'PUNCTURED_DEEP' | 'PUNCTURED_LIGHT' | 'REJECT_PINBAR' | 'HOLD_OR_HOVER'}
  */
-function classifyCandleGeometry(candle, targetLevel, isLong, step, isLive = false) {
+function classifyCandleGeometry(candle, targetLevel, isLong, step, isLive = false, slPct = 0) {
   if (!candle || !targetLevel || typeof candle.close !== 'number') return 'HOLD_OR_HOVER';
   const totalRange = Math.max(1e-9, candle.high - candle.low);
   const stepDist = step || (targetLevel * 0.01);
-  
-  // Với nến đã đóng: ngưỡng đâm lụt sâu là 20% step (hoặc 0.5% giá)
-  // Với nến đang chạy (live): thị giá nhúng quanh mốc để đón limit là hoàn toàn bình thường;
-  // chỉ coi là đâm lụt sâu khi giá xả thủng cực xa (> 40% step hoặc 1.5% giá)
+  const slRatio = (typeof slPct === 'number' && slPct > 0) ? (slPct / 100) : 0;
+
+  // Với nến đã đóng: ngưỡng đâm lụt sâu tối thiểu 20% step hoặc 0.5% giá, co giãn theo 35% SL (chớm lụt: 15% SL)
+  // Với nến đang chạy (live): co giãn theo 50% SL sâu / 25% SL nhẹ (tối thiểu 1.5% / 0.8% giá)
   const deepThreshold = isLive
-    ? Math.max(stepDist * 0.40, targetLevel * 0.015)
-    : Math.max(stepDist * 0.20, targetLevel * 0.005);
+    ? Math.max(stepDist * 0.40, targetLevel * Math.max(0.015, slRatio * 0.50))
+    : Math.max(stepDist * 0.20, targetLevel * Math.max(0.005, slRatio * 0.35));
   const lightThreshold = isLive
-    ? Math.max(stepDist * 0.25, targetLevel * 0.008)
-    : Math.max(stepDist * 0.10, targetLevel * 0.002);
+    ? Math.max(stepDist * 0.25, targetLevel * Math.max(0.008, slRatio * 0.25))
+    : Math.max(stepDist * 0.10, targetLevel * Math.max(0.002, slRatio * 0.15));
 
   if (isLong) {
     const lowerWick = Math.min(candle.open, candle.close) - candle.low;

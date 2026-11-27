@@ -101,6 +101,8 @@ function extractSignalFeatures(reasons, score, rank, gridWidthPct, rawMarketData
   const features = {};
 
   const sm = rawMarketData?.signalMetrics || null;
+  const actualSlPct = parseFloat(rawMarketData?.actualSlPct || 0);
+  const leverageVal = parseFloat(rawMarketData?.leverage || 0);
 
   // 1. MarketCap Rank
   if (rank <= 10) features['rank_group'] = 'RANK_TOP10';
@@ -149,10 +151,13 @@ function extractSignalFeatures(reasons, score, rank, gridWidthPct, rawMarketData
       maxKlinesH1Range = Math.max(...rawMarketData.h1Klines.slice(-3).map(k => (((k.high ?? k[2]) - (k.low ?? k[3])) / ((k.low ?? k[3]) || 1)) * 100));
     }
     const maxH1Range = Math.max(...[currH1Range, lastH1Range, mm?.max3H1RangePct, maxKlinesH1Range].filter(r => typeof r === 'number' && !isNaN(r)), 0.0);
+    // Co giãn ngưỡng biến động H1 theo độ rộng SL (đòn bẩy x2-x3 SL 4%-5% không bị coi là bão khi H1 dao động 5%-6%)
+    const h1DangerTh = Math.max(4.0, actualSlPct > 0 ? actualSlPct * 1.4 : 0);
+    const h1StormTh = Math.max(8.0, actualSlPct > 0 ? actualSlPct * 2.2 : 0);
 
-    if (maxH1Range >= 8.0) {
+    if (maxH1Range >= h1StormTh) {
       features['h1_volatility'] = 'H1_EXTREME_STORM_PUMP_DUMP';
-    } else if (maxH1Range >= 4.0) {
+    } else if (maxH1Range >= h1DangerTh) {
       features['h1_volatility'] = 'H1_VOLATILE_DANGER';
     } else if (maxH1Range <= 1.5) {
       features['h1_volatility'] = 'H1_ULTRA_COMPRESSED';
@@ -166,10 +171,12 @@ function extractSignalFeatures(reasons, score, rank, gridWidthPct, rawMarketData
     const currM15Range = mm?.m15RangePct ?? (rawMarketData?.currM15 ? ((rawMarketData.currM15.high - rawMarketData.currM15.low) / (rawMarketData.currM15.low || 1)) * 100 : null);
     const lastM15Range = mm?.lastClosedM15RangePct ?? (rawMarketData?.lastClosedM15 ? ((rawMarketData.lastClosedM15.high - rawMarketData.lastClosedM15.low) / (rawMarketData.lastClosedM15.low || 1)) * 100 : null);
     const maxM15Range = Math.max(...[currM15Range, lastM15Range].filter(r => typeof r === 'number'), 0.0);
+    const m15DangerTh = Math.max(3.0, actualSlPct > 0 ? actualSlPct * 0.9 : 0);
+    const m15StormTh = Math.max(6.0, actualSlPct > 0 ? actualSlPct * 1.6 : 0);
 
-    if (maxM15Range >= 6.0) {
+    if (maxM15Range >= m15StormTh) {
       features['m15_volatility'] = 'M15_EXTREME_STORM';
-    } else if (m15Vol >= 3.0 || maxM15Range >= 3.0) {
+    } else if (m15Vol >= 3.0 || maxM15Range >= m15DangerTh) {
       features['m15_volatility'] = 'M15_VOLATILE_DANGER';
     } else if (m15Vol >= 2.0) {
       features['m15_volatility'] = 'M15_VOLUME_SURGE';
@@ -480,8 +487,8 @@ function extractSignalFeatures(reasons, score, rank, gridWidthPct, rawMarketData
   if (targetLevel && (rawMarketData?.currH1 || rawMarketData?.lastClosedH1)) {
     const c1 = rawMarketData.currH1;
     const c2 = rawMarketData.lastClosedH1;
-    const g1 = classifyCandleGeometry(c1, targetLevel, isLong, step, true); // c1 live
-    const g2 = classifyCandleGeometry(c2, targetLevel, isLong, step, false); // c2 closed
+    const g1 = classifyCandleGeometry(c1, targetLevel, isLong, step, true, actualSlPct); // c1 live
+    const g2 = classifyCandleGeometry(c2, targetLevel, isLong, step, false, actualSlPct); // c2 closed
     if (g1 === 'REJECT_PINBAR' || g2 === 'REJECT_PINBAR') h1Geom = 'H1_REJECT_PINBAR';
     else if (g2 === 'PUNCTURED_DEEP' || g1 === 'PUNCTURED_DEEP') h1Geom = 'H1_PUNCTURED_DEEP';
     else if (g2 === 'PUNCTURED_LIGHT' || g1 === 'PUNCTURED_LIGHT') h1Geom = 'H1_PUNCTURED_LIGHT';
@@ -491,8 +498,8 @@ function extractSignalFeatures(reasons, score, rank, gridWidthPct, rawMarketData
   if (targetLevel && (rawMarketData?.currM15 || rawMarketData?.lastClosedM15 || rawMarketData?.lastM15)) {
     const c1 = rawMarketData.currM15 || rawMarketData.lastM15;
     const c2 = rawMarketData.lastClosedM15;
-    const g1 = classifyCandleGeometry(c1, targetLevel, isLong, step, true); // c1 live
-    const g2 = classifyCandleGeometry(c2, targetLevel, isLong, step, false); // c2 closed
+    const g1 = classifyCandleGeometry(c1, targetLevel, isLong, step, true, actualSlPct); // c1 live
+    const g2 = classifyCandleGeometry(c2, targetLevel, isLong, step, false, actualSlPct); // c2 closed
     if (g1 === 'REJECT_PINBAR' || g2 === 'REJECT_PINBAR') m15Geom = 'M15_REJECT_PINBAR';
     else if (g2 === 'PUNCTURED_DEEP' || g1 === 'PUNCTURED_DEEP') m15Geom = 'M15_PUNCTURED_DEEP';
     else if (g2 === 'PUNCTURED_LIGHT' || g1 === 'PUNCTURED_LIGHT') m15Geom = 'M15_PUNCTURED_LIGHT';
@@ -641,11 +648,14 @@ function extractSignalFeatures(reasons, score, rank, gridWidthPct, rawMarketData
   }
   features['economic_calendar'] = isBlackout ? 'CALENDAR_RED_DANGER' : 'CALENDAR_SAFE';
 
-  // ── [MỚI] 21. Bid-Ask Spread Guard (Độ dãn Spread & Trượt giá Scalping) ──
-  let spreadCat = rawMarketData?.microstructure?.spread || rawMarketData?.spreadCategory;
+  // ── [MỚI] 21. Bid-Ask Spread Guard (Độ dãn Spread & Trượt giá, thích ứng SL rộng / đòn bẩy x2-x3 cho Maker LIMIT) ──
+  const rawSpreadPct = rawMarketData?.microstructure?.spreadPct ?? rawMarketData?.spreadPct;
+  const hasNumericSpreadPct = typeof rawSpreadPct === 'number' && !isNaN(rawSpreadPct) && rawSpreadPct > 0;
+  let spreadCat = hasNumericSpreadPct ? null : (rawMarketData?.microstructure?.spread || rawMarketData?.spreadCategory);
   if (!spreadCat) {
-    const spreadPct = parseFloat(rawMarketData?.spreadPct || 0);
+    const spreadPct = parseFloat(rawSpreadPct || 0);
     const rk = parseInt(rank || 999, 10);
+    const isWideSlOrLowLevSpread = (actualSlPct >= 3.0) || (leverageVal > 0 && leverageVal <= 4);
     let dangerTh = 0.060;
     let cautionTh = 0.035;
     if (rk <= 50) {
@@ -655,8 +665,9 @@ function extractSignalFeatures(reasons, score, rank, gridWidthPct, rawMarketData
       dangerTh = 0.060;
       cautionTh = 0.035;
     } else {
-      dangerTh = 0.080;
-      cautionTh = 0.045;
+      // Lowcap (> 150) + SL rộng (>=3%) / đòn bẩy thấp (<=4x) + Maker LIMIT: nới ngưỡng 0.08% -> 0.15% (caution 0.045% -> 0.08%)
+      dangerTh = isWideSlOrLowLevSpread ? 0.150 : 0.080;
+      cautionTh = isWideSlOrLowLevSpread ? 0.080 : 0.045;
     }
 
     // Nới sàn ngưỡng spread theo tickSize cho coin giá siêu nhỏ (tối đa 3.5 tick, trần 0.25%)
@@ -794,6 +805,7 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
     maxRecentBouncePct: rawMarketData?.maxRecentBouncePct ?? sig?.maxRecentBouncePct ?? null,
     preEntryBouncePct: rawMarketData?.preEntryBouncePct ?? sig?.preEntryBouncePct ?? null,
     actualSlPct: sig?.actualSlPct ?? rawMarketData?.actualSlPct ?? null,
+    leverage: sig?.leverage ?? rawMarketData?.leverage ?? null,
   };
   const features = extractSignalFeatures(reasons, score, rank, gridWidthPct, mergedMarketData, sig.signal, entryPrice, sig.timestamp);
 
@@ -1111,7 +1123,7 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
       }
     }
     if (cat === 'realtime_volume' && val === 'VOL_BURST_DANGER') {
-      const volSlPct = parseFloat(sig?.actualSlPct || 0);
+      const volSlPct = parseFloat(sig?.actualSlPct || rawMarketData?.actualSlPct || 0);
       const volLev = parseFloat(sig?.leverage || rawMarketData?.leverage || 0);
       const isWideSlOrLowLev = (volSlPct >= 3.0) || (volLev > 0 && volLev <= 4);
       const isCleanCandleForVol = !isRunaway && !isM15PuncturedDeep && !isM15Storm &&
@@ -1124,6 +1136,18 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
         mult = 0.88; // Nổ volume nhưng thuận trend và rút râu
       } else if (isActiveStormAttack) {
         mult = 0.65; // Nổ volume trong nhịp xả dốc -> Phạt nặng
+      }
+    }
+    if (cat === 'h1_volume_burst' && val === 'H1_VOL_BURST_DANGER') {
+      const volSlPct = parseFloat(sig?.actualSlPct || rawMarketData?.actualSlPct || 0);
+      const volLev = parseFloat(sig?.leverage || rawMarketData?.leverage || 0);
+      const isWideSlOrLowLev = (volSlPct >= 3.0) || (volLev > 0 && volLev <= 4);
+      const isCleanCandleForH1Vol = !isRunaway && !isM15PuncturedDeep && !isM15Storm &&
+        features['h1_candle_geometry'] !== 'H1_PUNCTURED_DEEP' &&
+        features['candle_momentum'] !== 'MOMENTUM_COUNTER_PUMP_TRAIN' &&
+        features['candle_momentum'] !== 'MOMENTUM_COUNTER_DUMP_TRAIN';
+      if (isWideSlOrLowLev && isCleanCandleForH1Vol) {
+        mult = Math.max(mult, 0.95); // SL rộng (>=3%) / đòn bẩy thấp (<=4x) + nến sạch -> giảm nhẹ phạt H1 3-candle volume burst
       }
     }
     if (cat === 'm15_volatility' && val === 'M15_VOLATILE_DANGER') {
