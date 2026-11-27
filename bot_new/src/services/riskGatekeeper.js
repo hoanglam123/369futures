@@ -189,9 +189,12 @@ function extractGatekeeperFeatures(sig, marketContext = {}) {
       features['candle_momentum'] = 'MOMENTUM_NORMAL';
     }
 
-    // 4b. Hình thái nến đơn M15 (Pinbar / Marubozu xả-kéo dốc) & Râu ngược chặn đầu (đồng bộ bot-h4)
-    const isSpike = rangePct > 1.4 && effVolRatio >= 2.5;
-    const isRealMagnitude = (rangePct >= 1.2) || isSpike;
+    // 4b. Hình thái nến đơn M15 (Pinbar / Marubozu co giãn theo SL) & Râu ngược chặn đầu có ngưỡng biên độ tối thiểu (đồng bộ bot-h4)
+    const marubozuMinRange = Math.max(1.2, slPct > 0 ? slPct * 0.45 : 0);
+    const spikeMinRange = Math.max(1.4, slPct > 0 ? slPct * 0.40 : 0);
+    const oppWickMinRange = Math.max(1.5, slPct > 0 ? slPct * 0.40 : 0);
+    const isSpike = rangePct > spikeMinRange && effVolRatio >= 2.5;
+    const isRealMagnitude = (rangePct >= marubozuMinRange) || isSpike;
     if (isLong) {
       if (lowerWick / totalRange >= 0.40 && !isSpike) {
         features['candle_shape'] = 'CANDLE_PINBAR_HAMMER';
@@ -200,7 +203,7 @@ function extractGatekeeperFeatures(sig, marketContext = {}) {
       } else {
         features['candle_shape'] = 'CANDLE_NORMAL';
       }
-      if (upperWick / totalRange >= 0.50) {
+      if (rangePct >= oppWickMinRange && upperWick / totalRange >= 0.50) {
         features['wick_rejection'] = 'OPPOSING_WICK_TRAP';
       }
     } else {
@@ -211,7 +214,7 @@ function extractGatekeeperFeatures(sig, marketContext = {}) {
       } else {
         features['candle_shape'] = 'CANDLE_NORMAL';
       }
-      if (lowerWick / totalRange >= 0.50) {
+      if (rangePct >= oppWickMinRange && lowerWick / totalRange >= 0.50) {
         features['wick_rejection'] = 'OPPOSING_WICK_TRAP';
       }
     }
@@ -446,6 +449,16 @@ function evaluateSignal(sig, marketContext = null) {
   const spreadWideMult = riskPenalties.spreadWide ?? 0.20;
   const wallBlockMult  = riskPenalties.wallOpposingBlock ?? 0.35;
 
+  // Chế độ lệnh Swing / Đòn bẩy thấp (2x-4x hoặc SL >= 3%): khung cầm lệnh nhiều giờ (đồng bộ bot-h4)
+  const guardSlPct = parseFloat(sig?.slPct ?? marketContext?.slPct ?? 0);
+  const guardLev = parseFloat(sig?.leverage ?? marketContext?.leverage ?? 0);
+  const isWideSlOrLowLev = (guardSlPct >= 3.0) || (guardLev > 0 && guardLev <= 4);
+  const isH1Holding = features['h1_candle_geometry'] === 'H1_HOLD_OR_HOVER' ||
+    features['h1_candle_geometry'] === 'H1_REJECT_PINBAR' ||
+    !features['h1_candle_geometry'];
+  const isCounterTrainSig = features['candle_momentum'] === 'MOMENTUM_COUNTER_PUMP_TRAIN' ||
+    features['candle_momentum'] === 'MOMENTUM_COUNTER_DUMP_TRAIN';
+
   let combinedMultiplier = 1.0;
   const keyFactors = [];
   const penaltyFactors = [];
@@ -482,13 +495,37 @@ function evaluateSignal(sig, marketContext = null) {
     }
 
     // 🛡️ SANITY GUARDS (Đồng bộ bot-h4):
-    // 1. Trần thưởng an toàn cho Pinbar (tránh thổi phồng xác suất)
+    // 1. Trần thưởng an toàn cho Pinbar (H1 tối đa x1.30; ở đòn bẩy 2x-4x / SL rộng, M15 Pinbar chỉ thưởng nhẹ tối đa x1.05)
     if (cat === 'h1_candle_geometry' && val === 'H1_REJECT_PINBAR') {
       mult = Math.min(mult, 1.30);
     } else if (cat === 'm15_candle_geometry' && val === 'M15_REJECT_PINBAR') {
-      mult = Math.min(mult, 1.20);
+      mult = Math.min(mult, isWideSlOrLowLev ? 1.05 : 1.20);
     } else if (cat === 'candle_shape' && (val === 'CANDLE_PINBAR_HAMMER' || val === 'CANDLE_PINBAR_SHOOTING')) {
-      mult = Math.min(mult, 1.15);
+      mult = Math.min(mult, isWideSlOrLowLev ? 1.05 : 1.15);
+    }
+    // 1b. Nhóm 2 (M15): M15 đâm lụt đơn lẻ khi H1 vẫn giữ mốc -> giảm phạt; bẫy râu ngược M15 -> nới nhẹ ở SL rộng / đòn bẩy thấp
+    if (isWideSlOrLowLev && isH1Holding) {
+      if ((cat === 'puncture_interaction' && val === 'INTERACTION_M15_PUNCTURED_DEEP') ||
+          (cat === 'm15_candle_geometry' && val === 'M15_PUNCTURED_DEEP')) {
+        mult = Math.max(mult, 0.80);
+      } else if (cat === 'm15_candle_geometry' && val === 'M15_PUNCTURED_LIGHT') {
+        mult = Math.max(mult, 0.88);
+      }
+    }
+    if (cat === 'wick_rejection' && val === 'OPPOSING_WICK_TRAP' && isWideSlOrLowLev && features['h1_candle_geometry'] !== 'H1_PUNCTURED_DEEP') {
+      mult = Math.max(mult, 0.78);
+    }
+    // 1c. Nhóm 1 (Sub-5m): BTC Flash 3 phút giảm phạt ở SL rộng / đòn bẩy thấp khi nến sạch (không tử hình -65% lệnh Maker LIMIT đón râu)
+    if (cat === 'btc_flash' && isWideSlOrLowLev) {
+      if (val === 'BTC_FLASH_DUMP_ACTIVE' || val === 'BTC_FLASH_PUMP_ACTIVE') {
+        if (!isRunaway && features['h1_candle_geometry'] !== 'H1_PUNCTURED_DEEP' && !isCounterTrainSig) {
+          mult = Math.max(mult, 0.80);
+        } else {
+          mult = Math.min(mult, 0.40);
+        }
+      } else if (val === 'BTC_FLASH_DUMP_MODERATE' || val === 'BTC_FLASH_PUMP_MODERATE') {
+        mult = Math.max(mult, 0.90);
+      }
     }
     // 2. Khi dính rủi ro cấu trúc nặng (bão, stale bounce runaway, puncture runaway), không cho điểm thưởng lấp liếm rủi ro
     if (hasCriticalRisk) {
@@ -520,7 +557,11 @@ function evaluateSignal(sig, marketContext = null) {
       mult = Math.min(mult, spreadWideMult);
     }
     if (cat === 'orderbook_wall' && val === 'WALL_OPPOSING_BLOCK') {
-      mult = Math.min(mult, wallBlockMult);
+      if (isWideSlOrLowLev) {
+        mult = Math.max(mult, 0.90); // Tường L2 tức thời chỉ tồn tại vài phút, không tử hình lệnh TP nhiều giờ
+      } else {
+        mult = Math.min(mult, wallBlockMult);
+      }
     }
 
     if (Math.abs(mult - 1.0) >= 0.02) {
@@ -607,7 +648,7 @@ function evaluateSignal(sig, marketContext = null) {
     isBtcFlashSevere ||
     features['wick_rejection'] === 'OPPOSING_WICK_TRAP' ||
     features['spread_slippage'] === 'SPREAD_WIDE_DANGER' ||
-    features['orderbook_wall'] === 'WALL_OPPOSING_BLOCK';
+    (!isWideSlOrLowLev && features['orderbook_wall'] === 'WALL_OPPOSING_BLOCK');
 
   const isBorderlineApproved = Boolean(
     enableBorderline &&

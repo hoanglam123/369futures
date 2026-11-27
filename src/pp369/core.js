@@ -1524,7 +1524,7 @@ function calculateBollingerBands(candles, period = 20, stdDev = 2) {
   return { sma, upper, lower, bandwidth };
 }
 
-function calculateWickMetrics(candle, direction) {
+function calculateWickMetrics(candle, direction, slPct = 0) {
   if (!candle) return { rejectionState: 'WICK_NORMAL', wickRatio: 0 };
   const totalRange = candle.high - candle.low;
   if (totalRange <= 0) return { rejectionState: 'WICK_NORMAL', wickRatio: 0 };
@@ -1537,12 +1537,15 @@ function calculateWickMetrics(candle, direction) {
   const isLong = direction === 'LONG' || direction === 'BUY';
   const lowerWickRatio = lowerWick / totalRange;
   const upperWickRatio = upperWick / totalRange;
+  const rangePct = candle.low > 0 ? (totalRange / candle.low) * 100 : 0;
+  // Chỉ coi là bẫy râu ngược khi cây nến có biên độ thực tế đáng kể (>= max(1.5%, 40% SL)), tránh phạt Doji nhỏ xíu 0.2%
+  const oppWickMinRange = Math.max(1.5, slPct > 0 ? slPct * 0.40 : 0);
 
   if (isLong) {
     if (lowerWickRatio >= 0.50) {
       return { rejectionState: 'BULLISH_PINBAR_REJECTION', wickRatio: Number(lowerWickRatio.toFixed(2)) };
     }
-    if (upperWickRatio >= 0.50) {
+    if (upperWickRatio >= 0.50 && rangePct >= oppWickMinRange) {
       return { rejectionState: 'OPPOSING_WICK_TRAP', wickRatio: Number(upperWickRatio.toFixed(2)) };
     }
     return { rejectionState: 'WICK_NORMAL', wickRatio: Number(lowerWickRatio.toFixed(2)) };
@@ -1551,7 +1554,7 @@ function calculateWickMetrics(candle, direction) {
     if (upperWickRatio >= 0.50) {
       return { rejectionState: 'BEARISH_PINBAR_REJECTION', wickRatio: Number(upperWickRatio.toFixed(2)) };
     }
-    if (lowerWickRatio >= 0.50) {
+    if (lowerWickRatio >= 0.50 && rangePct >= oppWickMinRange) {
       return { rejectionState: 'OPPOSING_WICK_TRAP', wickRatio: Number(lowerWickRatio.toFixed(2)) };
     }
     return { rejectionState: 'WICK_NORMAL', wickRatio: Number(upperWickRatio.toFixed(2)) };
@@ -2939,14 +2942,16 @@ async function score369Method(sig369, direction) {
         } else if (btcState.isStorm) {
           signalMetrics.btcStorm = 'BTC_STORM_VOLATILE';
           const stormDir = btcState.btcStormDir || (btcState.btcM15ChangePct < 0 ? 'DUMP' : 'PUMP');
+          signalMetrics.btcStormDir = stormDir;
+          signalMetrics.btcM15Pct = btcState.btcM15Pct;
           if (isLong) {
-            signalMetrics.btcWave = 'BTC_COUNTER';
-            btcScore = 0;
-            btcReasons.push(`BTC bão xả: M15 biến động ${btcState.btcM15Pct.toFixed(2)}% (thay đổi ${btcState.btcM15ChangePct?.toFixed(2)}%) (+0đ)`);
+            signalMetrics.btcWave = stormDir === 'PUMP' ? 'BTC_ALIGNED' : 'BTC_COUNTER';
+            btcScore = stormDir === 'PUMP' ? 0.5 : 0;
+            btcReasons.push(`BTC bão ${stormDir === 'PUMP' ? 'tăng' : 'xả'}: M15 biến động ${btcState.btcM15Pct.toFixed(2)}% (thay đổi ${btcState.btcM15ChangePct?.toFixed(2)}%) (+${btcScore.toFixed(1)}đ)`);
           } else {
             signalMetrics.btcWave = stormDir === 'DUMP' ? 'BTC_ALIGNED' : 'BTC_COUNTER';
             btcScore = stormDir === 'DUMP' ? 0.5 : 0;
-            btcReasons.push(`BTC bão giá: M15 biến động ${btcState.btcM15Pct.toFixed(2)}% (+${btcScore.toFixed(1)}đ)`);
+            btcReasons.push(`BTC bão ${stormDir === 'DUMP' ? 'xả' : 'tăng'}: M15 biến động ${btcState.btcM15Pct.toFixed(2)}% (+${btcScore.toFixed(1)}đ)`);
           }
         } else if (!btcState.hasData) {
           btcReasons.push(`BTC: thiếu dữ liệu nến (+0.5đ)`);

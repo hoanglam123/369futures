@@ -622,6 +622,87 @@ async function run() {
     assert.ok(!newDry.keyFactors.some(f => f.includes('VOL_DRY')), `bot-new VOL_DRY phải trung tính 1.00: ${JSON.stringify(newDry.keyFactors)}`);
   });
 
+  await test('Swing Horizon (2x-3x / SL rộng): Nhóm 1 (Sub-5m: Wall, BTC Flash, CVD) & Nhóm 2 (M15: Wick, Marubozu, M15 Puncture, BTC Storm, M15 Pinbar) trên CẢ 2 bot', async () => {
+    const sigNewWide = { symbol: 'GALAUSDT', signal: 'LONG', targetLevel: 900, score: 8.5, marketCapRank: 300, slPct: 5.0, tpPct: 9.0, leverage: 3, tickSize: 0.0001 };
+    const sigNewTight = { ...sigNewWide, slPct: 1.5, tpPct: 3.0, leverage: 10 };
+    const sigH4Wide = { symbol: 'GALA', signal: 'LONG', targetLevel: 900, score: 8.5, marketCapRank: 300, gridWidthPct: 3.3, actualSlPct: 5.0, actualTpPct: 9.0, leverage: 3, scoreReasons: [] };
+    const sigH4Tight = { ...sigH4Wide, actualSlPct: 1.5, actualTpPct: 3.0, leverage: 10 };
+
+    // 1. Nhóm 1a — WALL_OPPOSING_BLOCK: nới về x0.90 ở SL rộng / 3x, giữ phạt nặng x0.35 ở SL hẹp / 10x
+    const wallNewWide = gatekeeperNew.evaluateSignal(sigNewWide, { orderbookWall: 'WALL_OPPOSING_BLOCK' });
+    const wallNewTight = gatekeeperNew.evaluateSignal(sigNewTight, { orderbookWall: 'WALL_OPPOSING_BLOCK' });
+    assert.ok(wallNewWide.keyFactors.some(f => f.includes('WALL_OPPOSING_BLOCK (-10%)')), `bot-new wide wall phải là -10%: ${JSON.stringify(wallNewWide.keyFactors)}`);
+    assert.ok(wallNewWide.winProbability > wallNewTight.winProbability + 0.15, `bot-new wide wall (${wallNewWide.winProbability}) phải cao hơn rõ rệt tight wall (${wallNewTight.winProbability})`);
+
+    const wallH4Wide = aiReviewerH4.evaluateSignalWithAI(sigH4Wide, { microstructure: { wall: 'WALL_OPPOSING_BLOCK', spread: 'SPREAD_TIGHT_SAFE', cvd: 'CVD_NEUTRAL' } });
+    const wallH4Tight = aiReviewerH4.evaluateSignalWithAI(sigH4Tight, { microstructure: { wall: 'WALL_OPPOSING_BLOCK', spread: 'SPREAD_TIGHT_SAFE', cvd: 'CVD_NEUTRAL' } });
+    assert.ok(wallH4Wide.keyFactors.some(f => f.includes('WALL_OPPOSING_BLOCK (x0.90)')), `bot-h4 wide wall phải là x0.90: ${JSON.stringify(wallH4Wide.keyFactors)}`);
+    assert.ok(wallH4Wide.winProbability > wallH4Tight.winProbability + 15, `bot-h4 wide wall (${wallH4Wide.winProbability}) phải cao hơn rõ rệt tight wall (${wallH4Tight.winProbability})`);
+
+    // 2. Nhóm 1b — BTC_FLASH 3 phút: nới về x0.80 khi nến sạch & SL rộng, nhưng VẪN phạt nặng <= x0.40 khi H1 đâm thủng sâu
+    const flashNewWideClean = gatekeeperNew.evaluateSignal(sigNewWide, { btcFlash: 'FLASH_DUMP', btcFlashSeverity: 'SEVERE' });
+    const flashNewTight = gatekeeperNew.evaluateSignal(sigNewTight, { btcFlash: 'FLASH_DUMP', btcFlashSeverity: 'SEVERE' });
+    assert.ok(flashNewWideClean.keyFactors.some(f => f.includes('BTC_FLASH_DUMP_ACTIVE (-20%)')), `bot-new wide clean flash phải là -20%: ${JSON.stringify(flashNewWideClean.keyFactors)}`);
+    assert.ok(flashNewWideClean.winProbability > flashNewTight.winProbability + 0.10, 'bot-new wide clean flash phải cao hơn tight flash');
+
+    const flashNewWideBroken = gatekeeperNew.evaluateSignal(sigNewWide, {
+      btcFlash: 'FLASH_DUMP', btcFlashSeverity: 'SEVERE',
+      candleH1: { open: 910, high: 912, low: 878, close: 880 }, isLiveCandle: false,
+    });
+    assert.ok(flashNewWideBroken.keyFactors.some(f => f.includes('BTC_FLASH_DUMP_ACTIVE (-60%)') || f.includes('BTC_FLASH_DUMP_ACTIVE (-65%)')), `bot-new flash + H1 thủng sâu phải giữ phạt nặng: ${JSON.stringify(flashNewWideBroken.keyFactors)}`);
+
+    const flashH4WideClean = aiReviewerH4.evaluateSignalWithAI(sigH4Wide, { btcFlashDump: true, btcFlashSeverity: 'SEVERE' });
+    const flashH4Tight = aiReviewerH4.evaluateSignalWithAI(sigH4Tight, { btcFlashDump: true, btcFlashSeverity: 'SEVERE' });
+    assert.ok(flashH4WideClean.keyFactors.some(f => f.includes('BTC_FLASH_DUMP_ACTIVE (x0.80)')), `bot-h4 wide clean flash phải là x0.80: ${JSON.stringify(flashH4WideClean.keyFactors)}`);
+    assert.ok(flashH4WideClean.winProbability > flashH4Tight.winProbability + 25, 'bot-h4 wide clean flash phải cao hơn mạnh tight flash (x0.08)');
+
+    // 3. Nhóm 1c — CVD_SURGE_ALIGNED 5p (bot-h4): giảm trần thưởng về x1.05 ở SL rộng
+    const cvdH4Wide = aiReviewerH4.evaluateSignalWithAI(sigH4Wide, { microstructure: { cvd: 'CVD_SURGE_ALIGNED', spread: 'SPREAD_TIGHT_SAFE', wall: 'WALL_CLEAR_PATH' } });
+    assert.ok(cvdH4Wide.keyFactors.some(f => f.includes('CVD_SURGE_ALIGNED (x1.05)')), `bot-h4 wide CVD 5p chỉ tối đa x1.05: ${JSON.stringify(cvdH4Wide.keyFactors)}`);
+
+    // 4. Nhóm 2a — OPPOSING_WICK_TRAP: Doji nhỏ 0.3% KHÔNG bị phạt; nến râu ngược thật >=2% bị phạt nhẹ x0.78 ở SL rộng
+    const tinyDoji = { open: 901, close: 900.5, high: 902.7, low: 900.0 }; // range = 0.3%
+    const resDojiNew = gatekeeperNew.evaluateSignal(sigNewWide, { candleM15: tinyDoji });
+    assert.notStrictEqual(resDojiNew.features.wick_rejection, 'OPPOSING_WICK_TRAP', 'bot-new Doji nhỏ 0.3% không được kích hoạt OPPOSING_WICK_TRAP');
+    const resDojiH4 = aiReviewerH4.evaluateSignalWithAI(sigH4Wide, { lastM15: tinyDoji });
+    assert.ok(!resDojiH4.keyFactors.some(f => f.includes('OPPOSING_WICK_TRAP')), `bot-h4 Doji nhỏ 0.3% không được kích hoạt OPPOSING_WICK_TRAP: ${JSON.stringify(resDojiH4.keyFactors)}`);
+
+    const bigOppWick = { open: 905, close: 902, high: 924, low: 900 }; // range = 2.67% >= 2.0%, upperWick = 19/24 = 79%
+    const resBigWickNew = gatekeeperNew.evaluateSignal(sigNewWide, { candleM15: bigOppWick });
+    assert.strictEqual(resBigWickNew.features.wick_rejection, 'OPPOSING_WICK_TRAP');
+    assert.ok(resBigWickNew.keyFactors.some(f => f.includes('OPPOSING_WICK_TRAP (-22%)')), `bot-new wide big opp wick phải là -22%: ${JSON.stringify(resBigWickNew.keyFactors)}`);
+    const resBigWickH4 = aiReviewerH4.evaluateSignalWithAI(sigH4Wide, { lastM15: bigOppWick });
+    assert.ok(resBigWickH4.keyFactors.some(f => f.includes('OPPOSING_WICK_TRAP (x0.78)')), `bot-h4 wide big opp wick phải là x0.78: ${JSON.stringify(resBigWickH4.keyFactors)}`);
+
+    // 5. Nhóm 2b — MARUBOZU co giãn theo SL: nến M15 đặc 1.5% là NORMAL với SL 5% (ngưỡng 2.25%), nhưng nến 2.6% vẫn là MARUBOZU_DUMP
+    const mildRed = { open: 912, high: 912.5, low: 899, close: 899.2 }; // range 1.50% < 2.25%
+    const heavyRed = { open: 922, high: 922.5, low: 898.5, close: 899 }; // range 2.67% >= 2.25%
+    assert.strictEqual(gatekeeperNew.extractGatekeeperFeatures(sigNewWide, { candleM15: mildRed }).candle_shape, 'CANDLE_NORMAL', 'bot-new SL 5% nến đỏ 1.5% -> CANDLE_NORMAL');
+    assert.strictEqual(gatekeeperNew.extractGatekeeperFeatures(sigNewWide, { candleM15: heavyRed }).candle_shape, 'CANDLE_MARUBOZU_DUMP', 'bot-new SL 5% nến đỏ 2.67% -> CANDLE_MARUBOZU_DUMP');
+    assert.strictEqual(gatekeeperNew.extractGatekeeperFeatures(sigNewTight, { candleM15: mildRed }).candle_shape, 'CANDLE_MARUBOZU_DUMP', 'bot-new SL 1.5% nến đỏ 1.5% vẫn -> CANDLE_MARUBOZU_DUMP');
+
+    // 6. Nhóm 2c — M15_PUNCTURED_DEEP đơn lẻ khi H1 giữ mốc -> giảm phạt về x0.80 ở SL rộng; H1 thủng sâu VẪN phạt nặng!
+    const h1Hold = { open: 905, high: 912, low: 898, close: 902 };
+    const m15Deep = { open: 905, high: 906, low: 879, close: 880 }; // 2.22% dưới 900 (>1.75% deepTh)
+    const m15OnlyNew = gatekeeperNew.evaluateSignal(sigNewWide, { candleH1: h1Hold, candleM15: m15Deep, isLiveCandle: false });
+    assert.ok(m15OnlyNew.keyFactors.some(f => f.includes('INTERACTION_M15_PUNCTURED_DEEP (-20%)')), `bot-new M15 thủng đơn lẻ khi H1 giữ mốc phải là -20%: ${JSON.stringify(m15OnlyNew.keyFactors)}`);
+    const h1DeepNew = gatekeeperNew.evaluateSignal(sigNewWide, { candleH1: m15Deep, candleM15: h1Hold, isLiveCandle: false });
+    assert.ok(h1DeepNew.winProbability < m15OnlyNew.winProbability - 0.15, 'H1 thủng sâu phải bị phạt nặng hơn hẳn M15 thủng đơn lẻ');
+
+    // 7. Nhóm 2d — BTC_STORM_VOLATILE (bot-h4): thuận chiều (LONG + BTC PUMP) không phạt (x1.00); ngược chiều <1.8% chỉ phạt x0.78
+    const stormAligned = aiReviewerH4.evaluateSignalWithAI(sigH4Wide, { signalMetrics: { btcStorm: 'BTC_STORM_VOLATILE', btcStormDir: 'PUMP', btcM15Pct: 1.25 } });
+    assert.ok(!stormAligned.keyFactors.some(f => f.includes('BTC_STORM_VOLATILE')), `bot-h4 LONG + BTC PUMP không được phạt BTC_STORM_VOLATILE: ${JSON.stringify(stormAligned.keyFactors)}`);
+    const stormOppWide = aiReviewerH4.evaluateSignalWithAI(sigH4Wide, { signalMetrics: { btcStorm: 'BTC_STORM_VOLATILE', btcStormDir: 'DUMP', btcM15Pct: 1.25 } });
+    assert.ok(stormOppWide.keyFactors.some(f => f.includes('BTC_STORM_VOLATILE (x0.78)')), `bot-h4 wide SL + BTC DUMP 1.25% phải phạt x0.78: ${JSON.stringify(stormOppWide.keyFactors)}`);
+
+    // 8. Nhóm 2e — M15 Pinbar trần thưởng giảm về x1.05 ở SL rộng, H1 Pinbar vẫn giữ cao hơn
+    const pinbarC = { open: 905, close: 907, high: 909, low: 895 };
+    const m15PinNew = gatekeeperNew.evaluateSignal(sigNewWide, { candleM15: pinbarC });
+    const h1PinNew = gatekeeperNew.evaluateSignal(sigNewWide, { candleH1: pinbarC });
+    assert.ok(m15PinNew.keyFactors.some(f => f.includes('M15_REJECT_PINBAR (+5%)')), `bot-new wide M15 Pinbar chỉ thưởng +5%: ${JSON.stringify(m15PinNew.keyFactors)}`);
+    assert.ok(h1PinNew.winProbability > m15PinNew.winProbability, 'H1 Pinbar phải có trọng số thưởng cao hơn M15 Pinbar');
+  });
+
   console.log(`\n📊 Audit Regression Summary: ${passed} passed, ${failed} failed\n`);
   process.exit(failed > 0 ? 1 : 0);
 }
