@@ -225,10 +225,13 @@ function extractGatekeeperFeatures(sig, marketContext = {}) {
     }
   }
 
-  // 5. Pre-Entry Bounce (Độ cũ của cú nảy)
+  // 5. Pre-Entry Bounce (Độ cũ của cú nảy — chuẩn hóa thích ứng theo độ rộng SL của đòn bẩy x2-x3, đồng bộ bot-h4)
   const preBounce = parseFloat(marketContext?.preEntryBouncePct ?? sig?.preEntryBouncePct ?? 0);
-  if (preBounce >= 1.5) features['pre_entry_bounce'] = 'BOUNCE_STALE_EXTREME';
-  else if (preBounce >= 0.8) features['pre_entry_bounce'] = 'BOUNCE_STALE_HIGH';
+  const slPctForBounce = parseFloat(sig?.slPct ?? marketContext?.slPct ?? 0);
+  const staleHighTh = Math.max(1.5, slPctForBounce > 0 ? slPctForBounce * 0.45 : 0);
+  const staleExtremeTh = Math.max(3.0, slPctForBounce > 0 ? slPctForBounce * 0.85 : 0);
+  if (preBounce >= staleExtremeTh) features['pre_entry_bounce'] = 'BOUNCE_STALE_EXTREME';
+  else if (preBounce >= staleHighTh) features['pre_entry_bounce'] = 'BOUNCE_STALE_HIGH';
   else features['pre_entry_bounce'] = 'BOUNCE_FRESH';
 
   // 6. Biến tốc BTC Flash Guard 180s (Tách 2 cấp MODERATE vs SEVERE, miễn trừ Vàng/Hàng hóa)
@@ -488,7 +491,23 @@ function evaluateSignal(sig, marketContext = null) {
         mult = Math.min(1.00, mult);
       }
     }
-    // 3. Khóa trần phạt cho rủi ro thanh khoản cực đoan
+    // 3. Phân hóa VOL_BURST_DANGER theo cấu trúc nến & độ rộng SL/đòn bẩy (x2-x3, SL >= 3%):
+    // Nếu nến sạch (không đâm thủng, không Marubozu, không xe lửa) + SL rộng/đòn bẩy thấp -> nổ vol hấp thụ, giảm phạt về x0.92
+    if (cat === 'realtime_volume' && val === 'VOL_BURST_DANGER') {
+      const volSlPct = parseFloat(sig?.slPct ?? marketContext?.slPct ?? 0);
+      const volLev = parseFloat(sig?.leverage ?? marketContext?.leverage ?? 0);
+      const isWideSlOrLowLev = (volSlPct >= 3.0) || (volLev > 0 && volLev <= 4);
+      const isCleanCandle = !isRunaway && !isM15PuncturedDeep && !isM15Storm &&
+        features['h1_candle_geometry'] !== 'H1_PUNCTURED_DEEP' &&
+        features['candle_momentum'] !== 'MOMENTUM_COUNTER_PUMP_TRAIN' &&
+        features['candle_momentum'] !== 'MOMENTUM_COUNTER_DUMP_TRAIN';
+      if (isWideSlOrLowLev && isCleanCandle) {
+        mult = Math.max(mult, 0.92);
+      } else if (!isCleanCandle) {
+        mult = Math.min(mult, 0.70);
+      }
+    }
+    // 4. Khóa trần phạt cho rủi ro thanh khoản cực đoan
     if (cat === 'spread_slippage' && val === 'SPREAD_WIDE_DANGER') {
       mult = Math.min(mult, spreadWideMult);
     }

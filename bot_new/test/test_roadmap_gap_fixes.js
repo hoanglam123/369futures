@@ -285,9 +285,11 @@ function makeFractalCandles(lows, highs) {
   testSync('riskGatekeeper: Trọng số ML thực, risk_interaction, spread_slippage & khử phạt kép', () => {
     const sig = { symbol: 'BTC', signal: 'LONG', targetLevel: 90000, score: 8.5, marketCapRank: 1 };
 
-    // 6a. Stale Bounce Runaway Interaction
-    const resStale = gatekeeper.evaluateSignal(sig, { preEntryBouncePct: 1.8 });
+    // 6a. Stale Bounce Runaway Interaction (ngưỡng thích ứng theo SL >= max(3.0%, 0.85 * slPct))
+    const resStale = gatekeeper.evaluateSignal(sig, { preEntryBouncePct: 3.5 });
     assert.strictEqual(resStale.riskInteraction, 'INTERACTION_STALE_BOUNCE_RUNAWAY');
+    const resWideSlOk = gatekeeper.evaluateSignal({ ...sig, slPct: 5.0 }, { preEntryBouncePct: 1.8, slPct: 5.0 });
+    assert.strictEqual(resWideSlOk.riskInteraction, 'INTERACTION_BALANCED', 'SL rộng 5% + nảy 1.8% không được gán STALE_BOUNCE_RUNAWAY');
     assert(resStale.totalSamples > 0, 'Phải nạp số mẫu thực từ ai_rule_config.json');
 
     // 6b. Puncture Runaway Interaction (H1 + M15 cùng đâm thủng sâu) -> VETO

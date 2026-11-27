@@ -433,7 +433,7 @@ async function run() {
     // 1. Khi có INTERACTION_STALE_BOUNCE_RUNAWAY (critical risk), H1_REJECT_PINBAR KHÔNG được cộng thưởng (+40% cũ)
     const resCrit = gatekeeperNew.evaluateSignal(sig, {
       candleH1: pinbarH1,
-      preEntryBouncePct: 1.8,
+      preEntryBouncePct: 3.5,
       spreadPct: 0.07 // Rank 250 (lowcap threshold 0.08) -> chỉ SPREAD_MEDIUM_CAUTION, không bị phạt oan SPREAD_WIDE_DANGER!
     });
     assert.strictEqual(resCrit.features.spread_slippage, 'SPREAD_MEDIUM_CAUTION', 'Lowcap Rank 250 spread 0.07% phải là CAUTION, không phải DANGER');

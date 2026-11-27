@@ -330,15 +330,21 @@ async function generateQuantitativeTrade(setup, marketData = null, options = {})
     } catch (_) {}
   }
 
-  // Tính preEntryBouncePct thực tế từ nến M15 gần nhất để kích hoạt feature pre_entry_bounce
+  // Tính preEntryBouncePct thực tế từ nến M15 gần nhất để kích hoạt feature pre_entry_bounce:
+  // CHỈ đo độ nảy khi nến M15 thực sự đã chạm/quét qua mốc Entry rồi bật lên (tránh nhầm chiều giá rơi từ trên xuống lần đầu thành "đã nảy xa")
   let preEntryBouncePct = 0;
   if (lastM15 && entryPrice > 0) {
     const isLongDir = direction === 'LONG';
-    const extreme = isLongDir ? (lastM15.high || entryPrice) : (lastM15.low || entryPrice);
-    const rawBounce = isLongDir
-      ? ((extreme - entryPrice) / entryPrice) * 100
-      : ((entryPrice - extreme) / entryPrice) * 100;
-    if (rawBounce > 0 && isFinite(rawBounce)) preEntryBouncePct = parseFloat(rawBounce.toFixed(2));
+    const hasTouchedLevel = isLongDir
+      ? (typeof lastM15.low === 'number' && lastM15.low > 0 && lastM15.low <= entryPrice * 1.002)
+      : (typeof lastM15.high === 'number' && lastM15.high > 0 && lastM15.high >= entryPrice * 0.998);
+    if (hasTouchedLevel) {
+      const extreme = isLongDir ? (lastM15.high || entryPrice) : (lastM15.low || entryPrice);
+      const rawBounce = isLongDir
+        ? ((extreme - entryPrice) / entryPrice) * 100
+        : ((entryPrice - extreme) / entryPrice) * 100;
+      if (rawBounce > 0 && isFinite(rawBounce)) preEntryBouncePct = parseFloat(rawBounce.toFixed(2));
+    }
   }
 
   // Maker Guard: tránh đặt LIMIT BUY cao hơn markPrice > 0.15% (khớp ngay thành Taker khi cản đang vỡ)

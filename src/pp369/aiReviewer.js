@@ -427,11 +427,13 @@ function extractSignalFeatures(reasons, score, rank, gridWidthPct, rawMarketData
   if (typeof rawMarketData?.maxRecentBouncePct === 'number') {
     bouncePct = rawMarketData.maxRecentBouncePct;
   }
-  const preEntryThreshold = (typeof rawMarketData?.preEntryBouncePct === 'number')
+  const actualSlForBounce = parseFloat(rawMarketData?.actualSlPct || 0);
+  const basePreEntryTh = (typeof rawMarketData?.preEntryBouncePct === 'number')
     ? rawMarketData.preEntryBouncePct
-    : 1.25;
+    : 1.50;
+  const preEntryThreshold = Math.max(basePreEntryTh, actualSlForBounce > 0 ? actualSlForBounce * 0.45 : 0);
 
-  const extremeBounceThreshold = Math.max(3.0, preEntryThreshold * 1.8);
+  const extremeBounceThreshold = Math.max(3.0, preEntryThreshold * 1.8, actualSlForBounce > 0 ? actualSlForBounce * 0.85 : 0);
   if (bouncePct !== null) {
     if (bouncePct >= extremeBounceThreshold || rawMarketData?.isPreEntryExtremeStale) {
       features['pre_entry_bounce'] = 'BOUNCE_STALE_EXTREME';
@@ -791,6 +793,7 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
     signalMetrics: rawMarketData?.signalMetrics || sig?.signalMetrics || null,
     maxRecentBouncePct: rawMarketData?.maxRecentBouncePct ?? sig?.maxRecentBouncePct ?? null,
     preEntryBouncePct: rawMarketData?.preEntryBouncePct ?? sig?.preEntryBouncePct ?? null,
+    actualSlPct: sig?.actualSlPct ?? rawMarketData?.actualSlPct ?? null,
   };
   const features = extractSignalFeatures(reasons, score, rank, gridWidthPct, mergedMarketData, sig.signal, entryPrice, sig.timestamp);
 
@@ -1108,7 +1111,16 @@ function evaluateSignalWithAI(sig, rawMarketData = null) {
       }
     }
     if (cat === 'realtime_volume' && val === 'VOL_BURST_DANGER') {
-      if (isBtcAligned && hasRejection && !isRunaway) {
+      const volSlPct = parseFloat(sig?.actualSlPct || 0);
+      const volLev = parseFloat(sig?.leverage || rawMarketData?.leverage || 0);
+      const isWideSlOrLowLev = (volSlPct >= 3.0) || (volLev > 0 && volLev <= 4);
+      const isCleanCandleForVol = !isRunaway && !isM15PuncturedDeep && !isM15Storm &&
+        features['h1_candle_geometry'] !== 'H1_PUNCTURED_DEEP' &&
+        features['candle_momentum'] !== 'MOMENTUM_COUNTER_PUMP_TRAIN' &&
+        features['candle_momentum'] !== 'MOMENTUM_COUNTER_DUMP_TRAIN';
+      if (isWideSlOrLowLev && isCleanCandleForVol) {
+        mult = Math.max(mult, 0.92); // SL rộng (>=3%) / đòn bẩy thấp (<=4x) + nến sạch -> nổ volume hấp thụ tại cản
+      } else if (isBtcAligned && hasRejection && !isRunaway) {
         mult = 0.88; // Nổ volume nhưng thuận trend và rút râu
       } else if (isActiveStormAttack) {
         mult = 0.65; // Nổ volume trong nhịp xả dốc -> Phạt nặng
